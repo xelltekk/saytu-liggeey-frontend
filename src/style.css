@@ -1,0 +1,62 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    @apply overflow-x-hidden;
+  }
+
+  body {
+    @apply overflow-x-hidden font-sans antialiased text-gray-800 bg-gray-50;
+  }
+
+  #app {
+    @apply min-h-screen;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md font-medium text-sm transition-colors;
+  }
+  .btn-primary {
+    @apply btn bg-xelltekk-600 text-white hover:bg-xelltekk-700;
+  }
+  .btn-secondary {
+    @apply btn bg-white border border-gray-300 text-gray-700 hover:bg-gray-50;
+  }
+  .btn-danger {
+    @apply btn bg-red-600 text-white hover:bg-red-700;
+  }
+  .input {
+    @apply w-full min-w-0 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-xelltekk-500 focus:border-xelltekk-500;
+  }
+  .badge {
+    @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium;
+  }
+}
+
+@layer utilities {
+  .overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .overflow-x-auto > table {
+    min-width: 760px;
+  }
+
+  @media (max-width: 640px) {
+    .btn {
+      @apply min-h-10 px-3 text-xs;
+    }
+
+    .input {
+      @apply min-h-10 text-sm;
+    }
+
+    .overflow-x-auto {
+      @apply -mx-3 px-3;
+    }
+  }
+}
