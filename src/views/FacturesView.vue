@@ -4,7 +4,7 @@
     <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-4">
       <div class="flex flex-col md:flex-row gap-3">
         <input v-model="filters.search" @input="onSearchInput" type="search" placeholder="🔍 Numéro, objet, client..." class="input flex-1" />
-        <select v-model="filters.statut" @change="loadFactures(1)" class="input md:w-44">
+        <select v-model="filters.statut" @change="onFactureFilterChange" class="input md:w-44">
           <option value="">Tous statuts</option>
           <option value="brouillon">Brouillon</option>
           <option value="validee">Validée</option>
@@ -14,7 +14,7 @@
           <option value="impayee">Impayée</option>
           <option value="annulee">Annulée</option>
         </select>
-        <select v-model="filters.type" @change="loadFactures(1)" class="input md:w-36">
+        <select v-model="filters.type" @change="onFactureFilterChange" class="input md:w-36">
           <option value="">Tous types</option>
           <option value="standard">Standard</option>
           <option value="avoir">Avoir</option>
@@ -29,27 +29,27 @@
     </div>
 
     <!-- Stats -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3 mb-4">
-      <div class="bg-white rounded-lg border border-gray-200 p-3">
+    <div class="stat-grid grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 mb-4">
+      <button type="button" @click="applyQuickFilter('standard')" class="text-left bg-white rounded-lg border p-3 transition hover:-translate-y-0.5 hover:border-xelltekk-300 hover:shadow-sm" :class="quickCardClass('standard')">
         <div class="text-xs text-gray-500 uppercase">Total</div>
         <div class="text-2xl font-bold text-gray-900">{{ stats.total || 0 }}</div>
-      </div>
-      <div class="bg-white rounded-lg border border-gray-200 p-3">
+      </button>
+      <button v-if="!isCommercial" type="button" @click="applyQuickFilter('impayees')" class="text-left bg-white rounded-lg border p-3 transition hover:-translate-y-0.5 hover:border-xelltekk-300 hover:shadow-sm" :class="quickCardClass('impayees')">
         <div class="text-xs text-gray-500 uppercase">Impayées</div>
         <div class="text-2xl font-bold text-orange-600">{{ stats.impayees || 0 }}</div>
-      </div>
-      <div class="bg-white rounded-lg border border-gray-200 p-3">
+      </button>
+      <button v-if="!isCommercial" type="button" @click="applyQuickFilter('en_retard')" class="text-left bg-white rounded-lg border p-3 transition hover:-translate-y-0.5 hover:border-xelltekk-300 hover:shadow-sm" :class="quickCardClass('en_retard')">
         <div class="text-xs text-gray-500 uppercase">En retard</div>
         <div class="text-2xl font-bold text-red-600">{{ stats.en_retard || 0 }}</div>
-      </div>
-      <div class="bg-white rounded-lg border border-gray-200 p-3">
+      </button>
+      <button v-if="!isCommercial" type="button" @click="applyQuickFilter('ca_annee')" class="text-left bg-white rounded-lg border p-3 transition hover:-translate-y-0.5 hover:border-xelltekk-300 hover:shadow-sm" :class="quickCardClass('ca_annee')">
         <div class="text-xs text-gray-500 uppercase">CA Année</div>
         <div class="text-base font-bold text-green-600">{{ formatPrice(stats.ca_annee) }}</div>
-      </div>
-      <div class="bg-white rounded-lg border border-gray-200 p-3">
+      </button>
+      <button v-if="!isCommercial" type="button" @click="applyQuickFilter('encours')" class="text-left bg-white rounded-lg border p-3 transition hover:-translate-y-0.5 hover:border-xelltekk-300 hover:shadow-sm" :class="quickCardClass('encours')">
         <div class="text-xs text-gray-500 uppercase">Encours</div>
         <div class="text-base font-bold text-xelltekk-700">{{ formatPrice(stats.encours_total) }}</div>
-      </div>
+      </button>
     </div>
 
     <div v-if="loading" class="bg-white rounded-lg p-12 text-center text-gray-500">Chargement...</div>
@@ -59,25 +59,26 @@
         <table class="w-full">
           <thead class="bg-gray-50 border-b border-gray-200">
             <tr>
-              <th class="px-3 py-3 text-left text-xs font-semibold text-gray-600 uppercase">N°</th>
-              <th class="px-3 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Client</th>
-              <th class="px-3 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Date</th>
-              <th class="px-3 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Échéance</th>
-              <th class="px-3 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Total TTC</th>
-              <th class="px-3 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Reste</th>
-              <th class="px-3 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Statut</th>
+              <SortableTh column="numero" :active="sort.key === 'numero'" :icon="sortIcon('numero')" @sort="toggleSort">N°</SortableTh>
+              <SortableTh column="client" :active="sort.key === 'client'" :icon="sortIcon('client')" @sort="toggleSort">Client</SortableTh>
+              <SortableTh column="date" :active="sort.key === 'date'" :icon="sortIcon('date')" align="center" @sort="toggleSort">Date</SortableTh>
+              <SortableTh column="echeance" :active="sort.key === 'echeance'" :icon="sortIcon('echeance')" align="center" @sort="toggleSort">Échéance</SortableTh>
+              <SortableTh column="total" :active="sort.key === 'total'" :icon="sortIcon('total')" align="right" @sort="toggleSort">Total TTC</SortableTh>
+              <SortableTh column="reste" :active="sort.key === 'reste'" :icon="sortIcon('reste')" align="right" @sort="toggleSort">Reste</SortableTh>
+              <SortableTh column="statut" :active="sort.key === 'statut'" :icon="sortIcon('statut')" align="center" @sort="toggleSort">Statut</SortableTh>
               <th class="px-3 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Actions</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-100">
-            <tr v-for="f in factures" :key="f.id" class="hover:bg-gray-50">
+            <tr v-for="f in sortedFactures" :key="f.id" class="hover:bg-gray-50">
               <td class="px-3 py-3 text-xs font-mono text-gray-600">
                 {{ f.numero }}
                 <span v-if="f.type === 'avoir'" class="ml-1 text-red-600 text-[10px]">AVOIR</span>
               </td>
               <td class="px-3 py-3">
-                <div class="text-sm font-medium text-gray-900 truncate max-w-[180px]">{{ f.client?.nom }}</div>
-                <div class="text-xs text-gray-500">{{ f.client?.code }}</div>
+                <div class="text-sm font-medium text-gray-900 truncate max-w-[180px]">{{ f.client?.nom || 'Client non renseigné' }}</div>
+                <div class="text-xs text-gray-500">{{ f.client?.code || '–' }}</div>
+                <div class="text-xs text-blue-600">Commercial : {{ f.commercial?.name || 'Non affecté' }}</div>
               </td>
               <td class="px-3 py-3 text-xs text-center text-gray-600">{{ formatDate(f.date_facture) }}</td>
               <td class="px-3 py-3 text-xs text-center" :class="isEnRetard(f) ? 'text-red-600 font-semibold' : 'text-gray-600'">
@@ -93,7 +94,7 @@
               <td class="px-3 py-3 text-right whitespace-nowrap">
                 <button @click="ouvrirPdf(f)" class="text-xelltekk-600 hover:text-xelltekk-800 mr-2" title="PDF">📄</button>
                 <button
-                  v-if="f.type !== 'avoir' && !['payee','annulee'].includes(f.statut)"
+                  v-if="canManagePayments && f.type !== 'avoir' && !['payee','annulee'].includes(f.statut)"
                   @click="openMarquerPayee(f)"
                   class="text-green-600 hover:text-green-800 mr-2"
                   title="Marquer comme payée"
@@ -116,7 +117,16 @@
                 >
                   ↩️
                 </button>
+                <button
+                  @click="handleCloner(f)"
+                  :disabled="cloningId === f.id"
+                  class="text-cyan-700 hover:text-cyan-900 mr-2 text-sm font-medium disabled:opacity-50"
+                  title="Cloner cette facture"
+                >
+                  Cloner
+                </button>
                 <button @click="openEdit(f)" class="text-xelltekk-600 hover:text-xelltekk-800 mr-2" title="Modifier">✏️</button>
+                <button v-if="isAdmin" @click="openAssignFacture(f)" class="text-indigo-600 hover:text-indigo-800 mr-2 text-sm font-medium" title="Affecter">Affecter</button>
                 <button @click="confirmDelete(f)" class="text-red-600 hover:text-red-800" title="Supprimer">🗑️</button>
               </td>
             </tr>
@@ -139,12 +149,44 @@
       </div>
     </div>
 
-    <AppModal v-model="showModal" :title="editingFacture ? `Modifier ${editingFacture.numero}` : 'Nouvelle facture'" size="xl">
-      <FactureForm :facture="editingFacture" @saved="onSaved" @cancel="showModal = false" />
+    <AppModal
+      v-model="showModal"
+      :title="editingFacture ? `Modifier ${editingFacture.numero}` : 'Nouvelle facture'"
+      size="xl"
+      :before-close="requestCloseSaisie"
+    >
+      <FactureForm
+        :facture="editingFacture"
+        :client="creatingClient"
+        @saved="onSaved"
+        @cancel="closeSaisie"
+        @dirty-change="formDirty = $event"
+      />
     </AppModal>
 
+    <AppConfirmModal
+      v-model="showLeaveConfirm"
+      title="Quitter la saisie ?"
+      message="Voulez-vous quitter la saisie de la facture ? Les informations non enregistrées seront perdues."
+      hint="Choisissez « Rester » pour continuer votre saisie."
+      cancel-label="Rester"
+      confirm-label="Quitter sans enregistrer"
+      tone="danger"
+      @confirm="discardInvoiceForm"
+    />
+
+    <AssignCommercialModal
+      v-if="assignTarget"
+      v-model="showAssignModal"
+      :endpoint="assignEndpoint"
+      :current-commercial-id="assignTarget?.commercial_id"
+      :item-label="assignTarget ? `${assignTarget.numero} - ${assignTarget.client?.nom || ''}` : ''"
+      title="Affecter facture"
+      @assigned="onAssigned"
+    />
+
     <AppModal v-model="showDeleteModal" title="Confirmer la suppression" size="sm">
-      <p class="text-gray-700">Supprimer la facture <strong>{{ factureToDelete?.numero }}</strong> ?</p>
+      <p class="text-gray-700">Supprimer la facture <strong>{{ factureToDelete.numero }}</strong> </p>
       <template #footer>
         <button @click="showDeleteModal = false" class="btn-secondary">Annuler</button>
         <button @click="handleDelete" :disabled="deleting" class="btn-danger">
@@ -184,7 +226,7 @@
             Lignes à avoiriser
           </div>
           <div class="max-h-72 overflow-y-auto divide-y divide-gray-100">
-            <div v-for="ligne in avoirFacture?.lignes" :key="ligne.id"
+            <div v-for="ligne in avoirFacture.lignes" :key="ligne.id" ?
                  class="flex items-center gap-3 p-3 hover:bg-gray-50"
                  :class="lignesPartielles[ligne.id] ? 'bg-red-50' : ''">
               <input type="checkbox" :checked="!!lignesPartielles[ligne.id]" @change="toggleLignePartielle(ligne)" class="h-4 w-4" />
@@ -201,7 +243,7 @@
               </div>
             </div>
           </div>
-          <div v-if="!avoirFacture?.lignes?.length" class="p-4 text-center text-gray-400 text-sm">
+          <div v-if="!avoirFacture.lignes.length" class="p-4 text-center text-gray-400 text-sm">
             Aucune ligne à afficher
           </div>
         </div>
@@ -304,30 +346,48 @@
 </template>
 
 <script setup>
-import { useRoute, useRouter } from 'vue-router'
+import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { ref, reactive, onMounted, computed, watch } from 'vue'
 import api from '@/services/api'
 import { ouvrirPDF } from '@/services/pdf'
 import { telechargerCSV } from '@/services/exports'
 import AppModal from '@/components/AppModal.vue'
+import AppConfirmModal from '@/components/AppConfirmModal.vue'
 import FactureForm from '@/components/FactureForm.vue'
+import AssignCommercialModal from '@/components/AssignCommercialModal.vue'
+import SortableTh from '@/components/SortableTh.vue'
 import { useToast } from '@/composables/useToast'
+import { useTableSort } from '@/composables/useTableSort'
+import { useAuthStore } from '@/stores/auth'
 
 const toast = useToast()
+const auth = useAuthStore()
 const route = useRoute()
 const router = useRouter()
+const isCommercial = computed(() => auth.user?.role === 'commercial')
+const isAdmin = computed(() => ['admin', 'gerant'].includes(auth.user?.role))
+const canManagePayments = computed(() => ['admin', 'gerant', 'comptable'].includes(auth.user?.role))
 const factures = ref([])
+const { sort, toggleSort, sortIcon, sortedRows } = useTableSort('numero', 'desc')
 const loading = ref(false)
 const exportLoading = ref(false)
 const stats = reactive({ total: 0, impayees: 0, en_retard: 0, ca_annee: 0, encours_total: 0 })
 const meta = reactive({ current_page: 1, last_page: 1, total: 0, from: 0, to: 0 })
-const filters = reactive({ search: '', statut: '', type: '' })
+const filters = reactive({ search: '', statut: '', type: '', quick: '' })
 
 const showModal = ref(false)
 const editingFacture = ref(null)
+const creatingClient = ref(null)
+const formDirty = ref(false)
+const showLeaveConfirm = ref(false)
+const pendingLeaveRoute = ref(null)
 const showDeleteModal = ref(false)
 const factureToDelete = ref(null)
 const deleting = ref(false)
+const cloningId = ref(null)
+const showAssignModal = ref(false)
+const assignTarget = ref(null)
+const assignEndpoint = computed(() => assignTarget.value ? `/factures/${assignTarget.value.id}/assign-commercial` : '/factures/0/assign-commercial')
 
 // Avoirs
 const showAvoirModal = ref(false)
@@ -337,6 +397,16 @@ const avoirForm = reactive({ type_avoir: 'total', motif: '' })
 const lignesPartielles = reactive({})
 const creatingAvoir = ref(false)
 const errorMessage = ref('')
+
+const sortedFactures = computed(() => sortedRows(factures.value, {
+  numero: 'numero',
+  client: (facture) => facture.client?.nom || '',
+  date: 'date_facture',
+  echeance: 'date_echeance',
+  total: (facture) => parseFloat(facture.total_ttc || 0),
+  reste: (facture) => parseFloat(facture.reste_a_payer || 0),
+  statut: 'statut',
+}))
 
 // Marquer payée
 const showMarquerPayeeModal = ref(false)
@@ -360,17 +430,57 @@ const canSubmitAvoir = computed(() => {
   return Object.values(lignesPartielles).some(q => q > 0)
 })
 
+const allowedQuickFilters = computed(() => (
+  isCommercial.value ?
+     ['standard']
+    : ['standard', 'impayees', 'en_retard', 'ca_mois', 'ca_annee', 'encours']
+))
+
 let searchTimeout = null
 function onSearchInput() {
   clearTimeout(searchTimeout)
   searchTimeout = setTimeout(() => loadFactures(1), 350)
 }
 
+function syncFiltersFromRoute() {
+  const quick = typeof route.query.quick === 'string' ? route.query.quick : ''
+  filters.quick = allowedQuickFilters.value.includes(quick) ? quick : ''
+  filters.search = typeof route.query.search === 'string' ? route.query.search : ''
+  filters.statut = filters.quick ? '' : typeof route.query.statut === 'string' ? route.query.statut : ''
+  filters.type = filters.quick ? '' : typeof route.query.type === 'string' ? route.query.type : ''
+}
+
+function onFactureFilterChange() {
+  filters.quick = ''
+  loadFactures(1)
+}
+
+function applyQuickFilter(quick) {
+  if (!allowedQuickFilters.value.includes(quick)) return
+  filters.quick = quick
+  filters.statut = ''
+  filters.type = ''
+  loadFactures(1)
+}
+
+function quickCardClass(quick) {
+  return filters.quick === quick ?
+     'border-xelltekk-500 bg-xelltekk-50 ring-2 ring-xelltekk-100'
+    : 'border-gray-200'
+}
+
 async function loadFactures(page = 1) {
   loading.value = true
   try {
     const { data } = await api.get('/factures', {
-      params: { page, per_page: 25, search: filters.search || undefined, statut: filters.statut || undefined, type: filters.type || undefined },
+      params: {
+        page,
+        per_page: 25,
+        search: filters.search || undefined,
+        statut: filters.quick ? undefined : filters.statut || undefined,
+        type: filters.quick ? undefined : filters.type || undefined,
+        quick: filters.quick || undefined,
+      },
     })
     factures.value = data.data
     Object.assign(meta, {
@@ -395,8 +505,9 @@ async function exporterCSV() {
   exportLoading.value = true
   try {
     await telechargerCSV('/exports/factures', {
-      statut: filters.statut || undefined,
-      type: filters.type || undefined,
+      statut: filters.quick ? undefined : filters.statut || undefined,
+      type: filters.quick ? undefined : filters.type || undefined,
+      quick: filters.quick || undefined,
     }, 'factures_xelltekk.csv')
     toast.success('Export téléchargé')
   } catch (e) {
@@ -406,16 +517,67 @@ async function exporterCSV() {
   }
 }
 
-function openCreate() { editingFacture.value = null; showModal.value = true }
-
-async function openEdit(f) {
-  const { data } = await api.get(`/factures/${f.id}`)
-  editingFacture.value = data
+function openCreate(client = null) {
+  editingFacture.value = null
+  creatingClient.value = client
+  formDirty.value = false
   showModal.value = true
 }
 
-function onSaved() { showModal.value = false; loadFactures(meta.current_page); loadStats() }
+async function openEdit(f) {
+  const { data } = await api.get(`/factures/${f.id}`)
+  creatingClient.value = null
+  editingFacture.value = data
+  formDirty.value = false
+  showModal.value = true
+}
+
+function openAssignFacture(f) {
+  assignTarget.value = f
+  showAssignModal.value = true
+}
+
+function onAssigned() {
+  loadFactures(meta.current_page)
+  loadStats()
+}
+
+function onSaved() { formDirty.value = false; showModal.value = false; loadFactures(meta.current_page); loadStats() }
+function requestCloseSaisie() {
+  if (!formDirty.value) return true
+  showLeaveConfirm.value = true
+  return false
+}
+function closeSaisie() {
+  requestCloseSaisie()
+}
+function discardInvoiceForm() {
+  showLeaveConfirm.value = false
+  formDirty.value = false
+  showModal.value = false
+  const nextRoute = pendingLeaveRoute.value
+  pendingLeaveRoute.value = null
+  if (nextRoute) router.push(nextRoute)
+}
 function confirmDelete(f) { factureToDelete.value = f; showDeleteModal.value = true }
+
+async function handleCloner(f) {
+  cloningId.value = f.id
+  try {
+    const { data } = await api.post(`/factures/${f.id}/cloner`)
+    toast.success(data.message || `Facture ${f.numero} clonée`)
+    creatingClient.value = null
+    editingFacture.value = data.facture
+    formDirty.value = false
+    showModal.value = true
+    await loadFactures(meta.current_page)
+    loadStats()
+  } catch (err) {
+    toast.error(err.response.data.message || 'Erreur lors du clonage de la facture')
+  } finally {
+    cloningId.value = null
+  }
+}
 
 async function handleDelete() {
   deleting.value = true
@@ -426,14 +588,14 @@ async function handleDelete() {
     loadFactures(meta.current_page)
     loadStats()
   } catch (err) {
-    toast.error(err.response?.data?.message || 'Erreur')
+    toast.error(err.response.data.message || 'Erreur')
   } finally {
     deleting.value = false
   }
 }
 
 async function ouvrirPdf(f) {
-  try { await ouvrirPDF(`/factures/${f.id}/pdf`) }
+  try { await ouvrirPDF(`/factures/${f.id}/pdf`, `${f.numero}.pdf`) }
   catch (e) { toast.error('Impossible d\'ouvrir le PDF') }
 }
 
@@ -496,7 +658,7 @@ async function handleCreerAvoir() {
     loadFactures(meta.current_page)
     loadStats()
   } catch (err) {
-    errorMessage.value = err.response?.data?.message || 'Erreur lors de la création'
+    errorMessage.value = err.response.data.message || 'Erreur lors de la création'
   } finally {
     creatingAvoir.value = false
   }
@@ -520,7 +682,7 @@ async function handleMarquerPayee() {
     loadFactures(meta.current_page)
     loadStats()
   } catch (err) {
-    toast.error(err.response?.data?.message || 'Erreur')
+    toast.error(err.response.data.message || 'Erreur')
   } finally {
     marquantPayee.value = false
   }
@@ -544,7 +706,7 @@ async function handleAnnuler() {
     loadFactures(meta.current_page)
     loadStats()
   } catch (err) {
-    annulError.value = err.response?.data?.message || 'Erreur'
+    annulError.value = err.response.data.message || 'Erreur'
   } finally {
     annulant.value = false
   }
@@ -573,6 +735,7 @@ async function openFromRoute(id) {
   try {
     const { data } = await api.get(`/factures/${parseInt(id)}`)
     editingFacture.value = data
+    formDirty.value = false
     showModal.value = true
     router.replace({ path: '/factures', query: {} })
   } catch (e) {
@@ -580,13 +743,48 @@ async function openFromRoute(id) {
   }
 }
 
+async function openCreateFromRoute(clientId) {
+  if (!clientId) return
+  try {
+    const { data } = await api.get(`/clients/${parseInt(clientId)}`)
+    openCreate(data)
+    router.replace({ path: '/factures', query: {} })
+  } catch (e) {
+    toast.error('Client introuvable')
+  }
+}
+
 onMounted(async () => {
+  syncFiltersFromRoute()
   await loadFactures()
   loadStats()
   openFromRoute(route.query.open)
+  openCreateFromRoute(route.query.create_client)
 })
 
 watch(() => route.query.open, (id) => {
   openFromRoute(id)
+})
+
+watch(() => route.query.create_client, (id) => {
+  openCreateFromRoute(id)
+})
+
+watch(
+  () => [route.query.quick, route.query.statut, route.query.type, route.query.search],
+  async () => {
+    syncFiltersFromRoute()
+    await loadFactures(1)
+  }
+)
+
+onBeforeRouteLeave((to) => {
+  if (showModal.value && formDirty.value) {
+    pendingLeaveRoute.value = to.fullPath
+    showLeaveConfirm.value = true
+    return false
+  }
+  formDirty.value = false
+  return true
 })
 </script>

@@ -3,31 +3,34 @@
     <transition name="modal">
       <div
         v-if="modelValue"
-        class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-end justify-center z-50 p-0 sm:items-center sm:p-4"
-        @click.self="closeModal"
+        :class="overlayClass"
+        @click.self="requestClose('backdrop')"
       >
         <div
-          class="bg-white rounded-t-2xl shadow-2xl w-full max-h-[92vh] overflow-hidden flex flex-col sm:rounded-xl sm:max-h-[90vh]"
-          :class="sizeClass"
+          role="dialog"
+          aria-modal="true"
+          :aria-labelledby="titleId"
+          class="auth-card flex w-full max-h-[92vh] flex-col overflow-hidden bg-white sm:max-h-[90vh]"
+          :class="[sizeClass, panelClass]"
         >
-          <!-- Header -->
-          <div class="flex items-center justify-between gap-3 px-4 py-3 border-b border-gray-200 sm:px-6 sm:py-4">
-            <h3 class="min-w-0 truncate text-base font-semibold text-gray-900 sm:text-lg">{{ title }}</h3>
+          <div class="flex items-center justify-between gap-3 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-white px-4 py-3 sm:px-6 sm:py-4 dark:border-slate-700 dark:from-slate-900 dark:to-slate-900">
+            <h3 :id="titleId" class="min-w-0 truncate text-base font-semibold text-slate-900 sm:text-lg dark:text-white">{{ title }}</h3>
             <button
-              @click="closeModal"
-              class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700 text-xl"
+              ref="closeButton"
+              type="button"
+              @click="requestClose('button')"
+              class="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 text-xl dark:hover:bg-slate-800 dark:hover:text-white"
+              aria-label="Fermer la fenêtre"
             >
-              ✕
+              ×
             </button>
           </div>
 
-          <!-- Body -->
-          <div class="flex-1 overflow-y-auto p-4 sm:p-6">
+          <div class="flex-1 overflow-y-auto bg-slate-50/50 p-4 sm:p-6 dark:bg-slate-950">
             <slot />
           </div>
 
-          <!-- Footer -->
-          <div v-if="$slots.footer" class="px-4 py-3 border-t border-gray-200 bg-gray-50 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:px-6 sm:py-4">
+          <div v-if="$slots.footer" class="flex flex-col-reverse gap-2 border-t border-slate-200 bg-slate-50 px-4 py-3 sm:flex-row sm:justify-end sm:px-6 sm:py-4 dark:border-slate-700 dark:bg-slate-900">
             <slot name="footer" />
           </div>
         </div>
@@ -37,15 +40,20 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 
 const props = defineProps({
   modelValue: Boolean,
   title: { type: String, default: '' },
   size: { type: String, default: 'md' }, // sm, md, lg, xl
+  centered: { type: Boolean, default: false },
+  beforeClose: { type: Function, default: null },
 })
 
 const emit = defineEmits(['update:modelValue'])
+const closeButton = ref(null)
+const titleId = `modal-title-${Math.random().toString(36).slice(2, 9)}`
+let previousActiveElement = null
 
 const sizeClass = computed(() => ({
   sm: 'max-w-md',
@@ -54,16 +62,51 @@ const sizeClass = computed(() => ({
   xl: 'max-w-6xl',
 }[props.size]))
 
-function closeModal() {
+const overlayClass = computed(() => (
+  props.centered
+    ? 'fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-md'
+    : 'fixed inset-0 z-[80] flex items-end justify-center bg-slate-950/55 p-0 backdrop-blur-md sm:items-center sm:p-4'
+))
+
+const panelClass = computed(() => (
+  props.centered
+    ? 'rounded-[1.75rem]'
+    : 'rounded-t-[1.75rem] sm:rounded-[1.75rem]'
+))
+
+async function requestClose(reason = 'programmatic') {
+  if (props.beforeClose) {
+    const canClose = await props.beforeClose(reason)
+    if (canClose === false) return
+  }
   emit('update:modelValue', false)
 }
+
+function onKeydown(event) {
+  if (props.modelValue && event.key === 'Escape') requestClose('escape')
+}
+
+watch(() => props.modelValue, async (isOpen) => {
+  if (isOpen) {
+    previousActiveElement = document.activeElement
+    await nextTick()
+    closeButton.value.focus()
+  } else {
+    previousActiveElement?.focus?.()
+  }
+})
+
+onMounted(() => document.addEventListener('keydown', onKeydown))
+onUnmounted(() => document.removeEventListener('keydown', onKeydown))
 </script>
 
 <style scoped>
-.modal-enter-active, .modal-leave-active {
+.modal-enter-active,
+.modal-leave-active {
   transition: opacity 0.2s ease;
 }
-.modal-enter-from, .modal-leave-to {
+.modal-enter-from,
+.modal-leave-to {
   opacity: 0;
 }
 </style>
