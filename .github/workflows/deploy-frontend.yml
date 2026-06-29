@@ -61,13 +61,14 @@ jobs:
           normalized_host="${normalized_host#ftpes://}"
           normalized_host="${normalized_host%%/*}"
 
-          target_dir="${SFTP_TARGET_DIR%/}/"
+          target_dir="${SFTP_TARGET_DIR%/}"
 
           lftp -u "$SFTP_USERNAME","$SFTP_PASSWORD" "sftp://$normalized_host" <<EOF
           set sftp:auto-confirm yes
           set sftp:connect-program "ssh -a -x -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
           set net:max-retries 2
           set net:timeout 30
-          mirror --reverse --verbose dist/ "$target_dir"
+          cd "$target_dir"
+          mirror --reverse --verbose dist/ .
           bye
           EOF
