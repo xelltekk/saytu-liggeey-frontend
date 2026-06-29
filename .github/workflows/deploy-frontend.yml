@@ -42,15 +42,32 @@ jobs:
           SFTP_PASSWORD: ${{ secrets.SFTP_PASSWORD }}
           SFTP_TARGET_DIR: ${{ secrets.SFTP_TARGET_DIR }}
         run: |
-          test -n "$SFTP_HOST"
-          test -n "$SFTP_USERNAME"
-          test -n "$SFTP_PASSWORD"
-          test -n "$SFTP_TARGET_DIR"
+          missing=0
+          for secret_name in SFTP_HOST SFTP_USERNAME SFTP_PASSWORD SFTP_TARGET_DIR; do
+            if [ -z "${!secret_name}" ]; then
+              echo "::error title=Missing GitHub secret::$secret_name is empty or not configured"
+              missing=1
+            fi
+          done
 
-          lftp -u "$SFTP_USERNAME","$SFTP_PASSWORD" "sftp://$SFTP_HOST" <<EOF
+          if [ "$missing" -ne 0 ]; then
+            exit 1
+          fi
+
+          normalized_host="$SFTP_HOST"
+          normalized_host="${normalized_host#sftp://}"
+          normalized_host="${normalized_host#ssh://}"
+          normalized_host="${normalized_host#ftp://}"
+          normalized_host="${normalized_host#ftpes://}"
+          normalized_host="${normalized_host%%/*}"
+
+          target_dir="${SFTP_TARGET_DIR%/}/"
+
+          lftp -u "$SFTP_USERNAME","$SFTP_PASSWORD" "sftp://$normalized_host" <<EOF
           set sftp:auto-confirm yes
+          set sftp:connect-program "ssh -a -x -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
           set net:max-retries 2
           set net:timeout 30
-          mirror --reverse --verbose dist/ "$SFTP_TARGET_DIR"
+          mirror --reverse --verbose dist/ "$target_dir"
           bye
           EOF
