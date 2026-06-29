@@ -9,8 +9,9 @@
         <select v-model="filters.role" @change="loadUsers(1)" class="input md:w-44">
           <option value="">Tous rôles</option>
           <option value="admin">🔴 Administrateur</option>
+          <option value="gerant">🟣 Gérant</option>
           <option value="commercial">🟢 Commercial</option>
-          <option value="magasinier">🔵 Magasinier</option>
+          <option value="magasinier">🔵 Gestionnaire de stock</option>
           <option value="comptable">🟡 Comptable</option>
           <option value="caissier">Caissier</option>
         </select>
@@ -21,36 +22,44 @@
           <option value="0">Inactifs</option>
         </select>
 
+        <button @click="exporterCSV" :disabled="exportLoading" class="btn-secondary whitespace-nowrap">
+          {{ exportLoading ? 'Export...' : 'Exporter CSV' }}
+        </button>
+
         <button @click="openCreate" class="btn-primary whitespace-nowrap">+ Nouvel utilisateur</button>
       </div>
     </div>
 
     <!-- Stats -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3 mb-4">
-      <div class="bg-white rounded-lg border border-gray-200 p-3">
+    <div class="stat-grid grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 mb-4">
+      <button type="button" @click="applyUserFilter('', '')" class="text-left bg-white rounded-lg border p-3 transition hover:-translate-y-0.5 hover:border-xelltekk-300 hover:shadow-sm" :class="userCardClass('', '')">
         <div class="text-xs text-gray-500 uppercase">Total</div>
         <div class="text-2xl font-bold text-gray-900">{{ stats.total || 0 }}</div>
-      </div>
-      <div class="bg-white rounded-lg border border-gray-200 p-3">
+      </button>
+      <button type="button" @click="applyUserFilter('', '1')" class="text-left bg-white rounded-lg border p-3 transition hover:-translate-y-0.5 hover:border-xelltekk-300 hover:shadow-sm" :class="userCardClass('', '1')">
         <div class="text-xs text-gray-500 uppercase">Actifs</div>
         <div class="text-2xl font-bold text-green-600">{{ stats.actifs || 0 }}</div>
-      </div>
-      <div class="bg-white rounded-lg border border-gray-200 p-3">
+      </button>
+      <button type="button" @click="applyUserFilter('admin', '')" class="text-left bg-white rounded-lg border p-3 transition hover:-translate-y-0.5 hover:border-xelltekk-300 hover:shadow-sm" :class="userCardClass('admin', '')">
         <div class="text-xs text-gray-500 uppercase">🔴 Admins</div>
-        <div class="text-2xl font-bold text-red-600">{{ stats.par_role?.admin || 0 }}</div>
-      </div>
-      <div class="bg-white rounded-lg border border-gray-200 p-3">
+        <div class="text-2xl font-bold text-red-600">{{ stats.par_role.admin || 0 }}</div>
+      </button>
+      <button type="button" @click="applyUserFilter('gerant', '')" class="text-left bg-white rounded-lg border p-3 transition hover:-translate-y-0.5 hover:border-xelltekk-300 hover:shadow-sm" :class="userCardClass('gerant', '')">
+        <div class="text-xs text-gray-500 uppercase">🟣 Gérants</div>
+        <div class="text-2xl font-bold text-purple-700">{{ stats.par_role.gerant || 0 }}</div>
+      </button>
+      <button type="button" @click="applyUserFilter('commercial', '')" class="text-left bg-white rounded-lg border p-3 transition hover:-translate-y-0.5 hover:border-xelltekk-300 hover:shadow-sm" :class="userCardClass('commercial', '')">
         <div class="text-xs text-gray-500 uppercase">🟢 Commerciaux</div>
-        <div class="text-2xl font-bold text-green-700">{{ stats.par_role?.commercial || 0 }}</div>
-      </div>
-      <div class="bg-white rounded-lg border border-gray-200 p-3">
+        <div class="text-2xl font-bold text-green-700">{{ stats.par_role.commercial || 0 }}</div>
+      </button>
+      <button type="button" @click="applyUserFilter('comptable', '')" class="text-left bg-white rounded-lg border p-3 transition hover:-translate-y-0.5 hover:border-xelltekk-300 hover:shadow-sm" :class="userCardClass('comptable', '')">
         <div class="text-xs text-gray-500 uppercase">🟡 Comptables</div>
-        <div class="text-2xl font-bold text-yellow-600">{{ stats.par_role?.comptable || 0 }}</div>
-      </div>
-      <div class="bg-white rounded-lg border border-gray-200 p-3">
+        <div class="text-2xl font-bold text-yellow-600">{{ stats.par_role.comptable || 0 }}</div>
+      </button>
+      <button type="button" @click="applyUserFilter('caissier', '')" class="text-left bg-white rounded-lg border p-3 transition hover:-translate-y-0.5 hover:border-xelltekk-300 hover:shadow-sm" :class="userCardClass('caissier', '')">
         <div class="text-xs text-gray-500 uppercase">Caissiers</div>
-        <div class="text-2xl font-bold text-cyan-600">{{ stats.par_role?.caissier || 0 }}</div>
-      </div>
+        <div class="text-2xl font-bold text-cyan-600">{{ stats.par_role.caissier || 0 }}</div>
+      </button>
     </div>
 
     <div v-if="loading" class="bg-white rounded-lg p-12 text-center text-gray-500">Chargement...</div>
@@ -59,20 +68,21 @@
       <table class="w-full">
         <thead class="bg-gray-50 border-b border-gray-200">
           <tr>
-            <th class="px-3 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Utilisateur</th>
-            <th class="px-3 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Email</th>
-            <th class="px-3 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Rôle</th>
-            <th class="px-3 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Activité</th>
-            <th class="px-3 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Statut</th>
+            <SortableTh column="utilisateur" :active="sort.key === 'utilisateur'" :icon="sortIcon('utilisateur')" @sort="toggleSort">Utilisateur</SortableTh>
+            <SortableTh column="email" :active="sort.key === 'email'" :icon="sortIcon('email')" @sort="toggleSort">Email</SortableTh>
+            <SortableTh column="role" :active="sort.key === 'role'" :icon="sortIcon('role')" align="center" @sort="toggleSort">Rôle</SortableTh>
+            <SortableTh column="activite" :active="sort.key === 'activite'" :icon="sortIcon('activite')" align="center" @sort="toggleSort">Activité</SortableTh>
+            <SortableTh column="statut" :active="sort.key === 'statut'" :icon="sortIcon('statut')" align="center" @sort="toggleSort">Statut</SortableTh>
             <th class="px-3 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Actions</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-100">
-          <tr v-for="u in users" :key="u.id" class="hover:bg-gray-50" :class="!u.is_active ? 'opacity-60' : ''">
+          <tr v-for="u in sortedUsers" :key="u.id" class="hover:bg-gray-50" :class="!u.is_active ? 'opacity-60' : ''">
             <td class="px-3 py-3">
               <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm" :style="`background: ${avatarColor(u)}`">
-                  {{ initiales(u.name) }}
+                <div class="w-10 h-10 overflow-hidden rounded-full flex items-center justify-center text-white font-bold text-sm" :style="`background: ${avatarColor(u)}`">
+                  <img v-if="photoUrl(u)" :src="photoUrl(u)" :alt="u.name" class="h-full w-full object-cover" />
+                  <span v-else>{{ initiales(u.name) }}</span>
                 </div>
                 <div>
                   <div class="font-medium text-gray-900">{{ u.name }}</div>
@@ -165,8 +175,8 @@
     </AppModal>
 
     <!-- Modal suppression -->
-    <AppModal v-model="showDeleteModal" title="Supprimer l'utilisateur ?" size="sm">
-      <p class="text-gray-700">Supprimer définitivement <strong>{{ userToDelete?.name }}</strong> ?</p>
+    <AppModal v-model="showDeleteModal" title="Supprimer l'utilisateur " size="sm">
+      <p class="text-gray-700">Supprimer définitivement <strong>{{ userToDelete.name }}</strong> </p>
       <p class="text-xs text-gray-500 mt-2">Les clients/factures/devis qu'il gérait perdront le lien avec lui.</p>
       <template #footer>
         <button @click="showDeleteModal = false" class="btn-secondary">Annuler</button>
@@ -180,15 +190,22 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { computed, ref, reactive, onMounted } from 'vue'
 import api from '@/services/api'
 import AppModal from '@/components/AppModal.vue'
 import UserForm from '@/components/UserForm.vue'
+import SortableTh from '@/components/SortableTh.vue'
 import { useToast } from '@/composables/useToast'
+import { useAuthStore } from '@/stores/auth'
+import { useTableSort } from '@/composables/useTableSort'
+import { telechargerCSV } from '@/services/exports'
 
 const toast = useToast()
+const auth = useAuthStore()
 const users = ref([])
+const { sort, toggleSort, sortIcon, sortedRows } = useTableSort('created_at', 'desc')
 const loading = ref(false)
+const exportLoading = ref(false)
 const stats = reactive({ total: 0, actifs: 0, par_role: {} })
 const meta = reactive({ current_page: 1, last_page: 1, total: 0, from: 0, to: 0 })
 const filters = reactive({ search: '', role: '', is_active: '' })
@@ -210,10 +227,31 @@ const resetMode = ref('generate')
 const resetForm = reactive({ password: '' })
 const resetting = ref(false)
 
+const sortedUsers = computed(() => sortedRows(users.value, {
+  created_at: 'created_at',
+  utilisateur: 'name',
+  email: 'email',
+  role: 'role',
+  activite: (user) => Number(user.clients_geres_count || 0) + Number(user.factures_commercial_count || 0),
+  statut: (user) => (user.is_active ? 1 : 0),
+}))
+
 let searchTimeout = null
 function onSearchInput() {
   clearTimeout(searchTimeout)
   searchTimeout = setTimeout(() => loadUsers(1), 350)
+}
+
+function applyUserFilter(role, isActive) {
+  filters.role = role
+  filters.is_active = isActive
+  loadUsers(1)
+}
+
+function userCardClass(role, isActive) {
+  return filters.role === role && filters.is_active === isActive ?
+     'border-xelltekk-500 bg-xelltekk-50 ring-2 ring-xelltekk-100'
+    : 'border-gray-200'
 }
 
 async function loadUsers(page = 1) {
@@ -239,6 +277,22 @@ async function loadUsers(page = 1) {
   }
 }
 
+async function exporterCSV() {
+  exportLoading.value = true
+  try {
+    await telechargerCSV('/exports/utilisateurs', {
+      search: filters.search || undefined,
+      role: filters.role || undefined,
+      is_active: filters.is_active !== '' ? filters.is_active : undefined,
+    }, 'utilisateurs_saytu.csv')
+    toast.success('Export des utilisateurs téléchargé.')
+  } catch (e) {
+    toast.error('Export impossible pour le moment.')
+  } finally {
+    exportLoading.value = false
+  }
+}
+
 async function loadStats() {
   try {
     const { data } = await api.get('/users-stats')
@@ -254,9 +308,14 @@ function onSaved(payload) {
   loadUsers(meta.current_page)
   loadStats()
 
+  if (payload.user?.id === auth.user?.id) {
+    auth.user = payload.user
+    localStorage.setItem('xelltekk_user', JSON.stringify(payload.user))
+  }
+
   // Si un mot de passe a été généré (nouvelle création), l'afficher
-  if (payload?.password_genere) {
-    passwordUserName.value = payload.user.name
+  if (payload.password_genere) {
+    passwordUserName.value = payload.user?.name || ''
     generatedPassword.value = payload.password_genere
     showPasswordModal.value = true
   }
@@ -273,7 +332,7 @@ async function handleDelete() {
     loadUsers(meta.current_page)
     loadStats()
   } catch (err) {
-    toast.error(err.response?.data?.message || 'Erreur')
+    toast.error(err.response.data.message || 'Erreur')
   } finally {
     deleting.value = false
   }
@@ -286,7 +345,7 @@ async function toggleActif(u) {
     loadUsers(meta.current_page)
     loadStats()
   } catch (err) {
-    toast.error(err.response?.data?.message || 'Erreur')
+    toast.error(err.response.data.message || 'Erreur')
   }
 }
 
@@ -300,8 +359,8 @@ function openResetPassword(u) {
 async function handleResetPassword() {
   resetting.value = true
   try {
-    const payload = resetMode.value === 'custom'
-      ? { password: resetForm.password }
+    const payload = resetMode.value === 'custom' ?
+       { password: resetForm.password }
       : { generate: true }
     const { data } = await api.post(`/users/${resetUser.value.id}/reset-password`, payload)
     showResetModal.value = false
@@ -310,7 +369,7 @@ async function handleResetPassword() {
     generatedPassword.value = data.password_genere
     showPasswordModal.value = true
   } catch (err) {
-    toast.error(err.response?.data?.message || 'Erreur')
+    toast.error(err.response.data.message || 'Erreur')
   } finally {
     resetting.value = false
   }
@@ -333,22 +392,29 @@ function initiales(name) {
 function avatarColor(u) {
   const colors = {
     admin: '#dc2626', commercial: '#16a34a',
-    magasinier: '#2563eb', comptable: '#ca8a04', caissier: '#0891b2',
+    gerant: '#7c3aed', magasinier: '#2563eb', comptable: '#ca8a04', caissier: '#0891b2',
   }
   return colors[u.role] || '#6b7280'
 }
 
+function photoUrl(u) {
+  if (!u.photo) return ''
+  if (u.photo.startsWith('http')) return u.photo
+  return u.photo
+}
+
 function roleEmoji(r) {
-  return { admin: '🔴', commercial: '🟢', magasinier: '🔵', comptable: '🟡', caissier: '' }[r] || '⚪'
+  return { admin: '🔴', gerant: '🟣', commercial: '🟢', magasinier: '🔵', comptable: '🟡', caissier: '' }[r] || '⚪'
 }
 
 function roleLabel(r) {
-  return { admin: 'Admin', commercial: 'Commercial', magasinier: 'Magasin', comptable: 'Compta', caissier: 'Caissier' }[r] || r
+  return { admin: 'Admin', gerant: 'Gérant', commercial: 'Commercial', magasinier: 'Gestionnaire stock', comptable: 'Compta', caissier: 'Caissier' }[r] || r
 }
 
 function roleBadge(r) {
   return {
     admin: 'bg-red-100 text-red-700',
+    gerant: 'bg-purple-100 text-purple-700',
     commercial: 'bg-green-100 text-green-700',
     magasinier: 'bg-blue-100 text-blue-700',
     comptable: 'bg-yellow-100 text-yellow-700',

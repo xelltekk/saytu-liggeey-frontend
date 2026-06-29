@@ -14,7 +14,7 @@
         placeholder="Rechercher code, libelle, ville ou pays..."
       />
       <label class="inline-flex items-center gap-2 text-sm text-gray-600">
-        <input v-model="filters.actifs_seulement" @change="loadEntrepots" type="checkbox" class="h-4 w-4" />
+        <input v-model="filters.actifs_seulement" @change="loadEntrepots(1)" type="checkbox" class="h-4 w-4" />
         Actifs seulement
       </label>
     </div>
@@ -47,7 +47,7 @@
 
         <div class="space-y-1 text-sm text-gray-600">
           <div v-if="entrepot.ville">{{ entrepot.ville }}<span v-if="entrepot.pays">, {{ entrepot.pays }}</span></div>
-          <div v-if="entrepot.responsable">Responsable : {{ entrepot.responsable.name }}</div>
+          <div v-if="entrepot.responsable">Responsable : {{ entrepot.responsable?.name || 'Utilisateur' }}</div>
           <div class="mt-2 flex items-center gap-4 border-t border-gray-100 pt-2 text-xs text-gray-500">
             <span><strong>{{ entrepot.zones_count || 0 }}</strong> zone(s)</span>
           </div>
@@ -58,6 +58,8 @@
         Aucun entrepot trouve.
       </div>
     </div>
+
+    <AppPagination v-if="meta.total > 0" :meta="meta" label="entrepots" @page="loadEntrepots" />
 
     <AppModal v-model="showModal" :title="editingEntrepot ? `Modifier ${editingEntrepot.libelle}` : 'Nouvel entrepot'" size="md">
       <EntrepotForm :entrepot="editingEntrepot" @saved="onSaved" @cancel="showModal = false" />
@@ -73,7 +75,7 @@
     </AppModal>
 
     <AppModal v-model="showDeleteModal" title="Supprimer l'entrepot" size="sm">
-      <p class="text-gray-700">Supprimer l'entrepot <strong>{{ entrepotToDelete?.libelle }}</strong> ?</p>
+      <p class="text-gray-700">Supprimer l'entrepot <strong>{{ entrepotToDelete.libelle }}</strong> </p>
       <p class="mt-2 text-xs text-gray-500">Impossible si un stock positif existe encore dans cet entrepot.</p>
       <template #footer>
         <button @click="showDeleteModal = false" class="btn-secondary">Annuler</button>
@@ -89,6 +91,7 @@
 import { reactive, ref, onMounted } from 'vue'
 import api from '@/services/api'
 import AppModal from '@/components/AppModal.vue'
+import AppPagination from '@/components/AppPagination.vue'
 import EntrepotForm from '@/components/EntrepotForm.vue'
 import EntrepotDetails from '@/components/EntrepotDetails.vue'
 import { useToast } from '@/composables/useToast'
@@ -101,6 +104,7 @@ const canManage = auth.user?.role === 'admin' || auth.user?.role === 'magasinier
 const entrepots = ref([])
 const loading = ref(false)
 const filters = reactive({ search: '', actifs_seulement: false })
+const meta = reactive({ current_page: 1, last_page: 1, total: 0, from: 0, to: 0 })
 
 const showModal = ref(false)
 const editingEntrepot = ref(null)
@@ -111,16 +115,32 @@ const entrepotToDelete = ref(null)
 const deleting = ref(false)
 let searchTimeout = null
 
-async function loadEntrepots() {
+async function loadEntrepots(page = 1) {
   loading.value = true
   try {
     const { data } = await api.get('/entrepots', {
       params: {
+        page,
+        per_page: 12,
         search: filters.search.trim() || undefined,
         actifs_seulement: filters.actifs_seulement ? 1 : undefined,
       },
     })
-    entrepots.value = data
+    const liste = Array.isArray(data) ? data : (data.data || [])
+    entrepots.value = liste
+    Object.assign(meta, Array.isArray(data) ? {
+      current_page: 1,
+      last_page: 1,
+      total: liste.length,
+      from: liste.length > 0 ? 1 : 0,
+      to: liste.length,
+    } : {
+      current_page: data.current_page || 1,
+      last_page: data.last_page || 1,
+      total: data.total || 0,
+      from: data.from || 0,
+      to: data.to || 0,
+    })
   } catch (e) {
     toast.error('Erreur de chargement')
   } finally {
@@ -130,7 +150,7 @@ async function loadEntrepots() {
 
 function onSearchInput() {
   clearTimeout(searchTimeout)
-  searchTimeout = setTimeout(loadEntrepots, 300)
+  searchTimeout = setTimeout(() => loadEntrepots(1), 300)
 }
 
 function openCreate() {
@@ -150,15 +170,15 @@ async function openDetails(entrepot) {
 }
 
 async function refreshDetails() {
-  if (!detailsEntrepot.value?.id) return
+  if (!detailsEntrepot.value.id) return
   const { data } = await api.get(`/entrepots/${detailsEntrepot.value.id}`)
   detailsEntrepot.value = data.entrepot
-  await loadEntrepots()
+  await loadEntrepots(meta.current_page)
 }
 
 function onSaved() {
   showModal.value = false
-  loadEntrepots()
+  loadEntrepots(meta.current_page)
 }
 
 function confirmDelete(entrepot) {
@@ -172,9 +192,9 @@ async function handleDelete() {
     await api.delete(`/entrepots/${entrepotToDelete.value.id}`)
     toast.success('Entrepot supprime')
     showDeleteModal.value = false
-    loadEntrepots()
+    loadEntrepots(meta.current_page)
   } catch (err) {
-    toast.error(err.response?.data?.message || 'Erreur')
+    toast.error(err.response.data.message || 'Erreur')
   } finally {
     deleting.value = false
   }

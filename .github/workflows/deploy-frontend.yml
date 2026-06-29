@@ -1,0 +1,56 @@
+name: Deploy frontend to Infomaniak
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-frontend
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Build and deploy frontend
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Install deployment client
+        run: sudo apt-get update && sudo apt-get install -y lftp
+
+      - name: Deploy dist to Infomaniak
+        env:
+          SFTP_HOST: ${{ secrets.SFTP_HOST }}
+          SFTP_USERNAME: ${{ secrets.SFTP_USERNAME }}
+          SFTP_PASSWORD: ${{ secrets.SFTP_PASSWORD }}
+          SFTP_TARGET_DIR: ${{ secrets.SFTP_TARGET_DIR }}
+        run: |
+          test -n "$SFTP_HOST"
+          test -n "$SFTP_USERNAME"
+          test -n "$SFTP_PASSWORD"
+          test -n "$SFTP_TARGET_DIR"
+
+          lftp -u "$SFTP_USERNAME","$SFTP_PASSWORD" "sftp://$SFTP_HOST" <<EOF
+          set sftp:auto-confirm yes
+          set net:max-retries 2
+          set net:timeout 30
+          mirror --reverse --verbose dist/ "$SFTP_TARGET_DIR"
+          bye
+          EOF

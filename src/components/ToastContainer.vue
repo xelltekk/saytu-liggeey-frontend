@@ -1,16 +1,31 @@
 <template>
   <Teleport to="body">
-    <div class="fixed top-4 right-4 z-50 space-y-2 max-w-sm">
+    <div
+      class="pointer-events-none fixed inset-x-3 top-3 z-[120] space-y-2 sm:left-auto sm:right-4 sm:max-w-md"
+      aria-live="polite"
+      aria-atomic="false"
+    >
       <transition-group name="toast" tag="div" class="space-y-2">
         <div
           v-for="toast in toasts"
           :key="toast.id"
-          class="flex items-start gap-3 p-4 rounded-lg shadow-lg border min-w-[300px]"
+          class="pointer-events-auto flex max-h-[55vh] min-w-0 items-start gap-3 overflow-y-auto rounded-lg border p-4 shadow-xl sm:min-w-[360px]"
           :class="toastClass(toast.type)"
+          :role="toast.type === 'error' ? 'alert' : 'status'"
         >
           <span class="text-lg flex-shrink-0">{{ toastIcon(toast.type) }}</span>
-          <p class="text-sm flex-1">{{ toast.message }}</p>
-          <button @click="removeToast(toast.id)" class="text-gray-400 hover:text-gray-700">
+          <div class="min-w-0 flex-1 text-sm">
+            <p v-if="toastMessages(toast).length === 1">{{ toastMessages(toast)[0] }}</p>
+            <ul v-else class="list-disc space-y-1 pl-4">
+              <li v-for="message in toastMessages(toast)" :key="message">{{ message }}</li>
+            </ul>
+          </div>
+          <button
+            type="button"
+            @click="removeToast(toast.id)"
+            class="text-gray-400 hover:text-gray-700"
+            aria-label="Fermer la notification"
+          >
             ✕
           </button>
         </div>
@@ -23,6 +38,10 @@
 import { useToast } from '@/composables/useToast'
 
 const { toasts, removeToast } = useToast()
+
+function toastMessages(toast) {
+  return toast.messages || [toast.message].filter(Boolean)
+}
 
 function toastClass(type) {
   return {

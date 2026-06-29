@@ -1,5 +1,7 @@
 <template>
   <form @submit.prevent="handleSubmit" class="space-y-4">
+    <FormErrorSummary :errors="errors" :labels="errorLabels" />
+
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1">
@@ -41,12 +43,6 @@
       </div>
     </div>
 
-    <div v-if="Object.keys(errors).length" class="bg-red-50 border border-red-200 rounded-lg p-3">
-      <ul class="text-xs text-red-700 list-disc list-inside space-y-1">
-        <li v-for="(msgs, f) in errors" :key="f"><strong>{{ f }}:</strong> {{ msgs[0] }}</li>
-      </ul>
-    </div>
-
     <div class="flex justify-end gap-2 pt-2 border-t border-gray-200">
       <button type="button" @click="$emit('cancel')" class="btn-secondary">Annuler</button>
       <button type="submit" :disabled="saving" class="btn-primary">
@@ -60,6 +56,8 @@
 import { reactive, ref, watch } from 'vue'
 import api from '@/services/api'
 import { useToast } from '@/composables/useToast'
+import FormErrorSummary from '@/components/FormErrorSummary.vue'
+import { errorMessagesFromResponse, validationErrors } from '@/utils/formErrors'
 
 const props = defineProps({ entrepot: { type: Object, default: null } })
 const emit = defineEmits(['saved', 'cancel'])
@@ -72,6 +70,14 @@ const form = reactive({
 })
 const saving = ref(false)
 const errors = ref({})
+const errorLabels = {
+  code: 'Code',
+  libelle: 'Libellé',
+  description: 'Description',
+  adresse: 'Adresse',
+  ville: 'Ville',
+  pays: 'Pays',
+}
 
 watch(() => props.entrepot, (val) => {
   if (val) Object.assign(form, val)
@@ -93,10 +99,11 @@ async function handleSubmit() {
     }
     emit('saved', response.data)
   } catch (err) {
-    if (err.response?.status === 422) {
-      errors.value = err.response.data.errors || {}
+    if (err.response.status === 422) {
+      errors.value = validationErrors(err)
+      toast.error(errorMessagesFromResponse(err, errorLabels))
     } else {
-      toast.error(err.response?.data?.message || 'Erreur')
+      toast.error(err.response.data.message || 'Erreur')
     }
   } finally {
     saving.value = false

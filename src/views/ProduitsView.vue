@@ -11,7 +11,7 @@
           class="input flex-1"
         />
 
-        <select v-model="filters.type" @change="loadProduits(1)" class="input md:w-40">
+        <select v-model="filters.type" @change="onProduitTypeChange" class="input md:w-40">
           <option value="">Tous types</option>
           <option value="produit">Produits</option>
           <option value="service">Services</option>
@@ -24,6 +24,10 @@
           </option>
         </select>
 
+        <button @click="exporterCSV" :disabled="exportLoading" class="btn-secondary whitespace-nowrap">
+          {{ exportLoading ? 'Export...' : 'Exporter CSV' }}
+        </button>
+
         <button @click="openCreate" class="btn-primary whitespace-nowrap">
           + Nouveau produit
         </button>
@@ -31,23 +35,23 @@
     </div>
 
     <!-- Cartes stats -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 mb-4">
-      <div class="bg-white rounded-lg border border-gray-200 p-3">
+    <div class="stat-grid grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 mb-4">
+      <button type="button" @click="applyProduitFilter('', false)" class="text-left bg-white rounded-lg border p-3 transition hover:-translate-y-0.5 hover:border-xelltekk-300 hover:shadow-sm" :class="produitCardClass('', false)">
         <div class="text-xs text-gray-500 uppercase">Total</div>
         <div class="text-2xl font-bold text-gray-900">{{ stats.total }}</div>
-      </div>
-      <div class="bg-white rounded-lg border border-gray-200 p-3">
+      </button>
+      <button type="button" @click="applyProduitFilter('', true)" class="text-left bg-white rounded-lg border p-3 transition hover:-translate-y-0.5 hover:border-xelltekk-300 hover:shadow-sm" :class="produitCardClass('', true)">
         <div class="text-xs text-gray-500 uppercase">Actifs</div>
         <div class="text-2xl font-bold text-green-600">{{ stats.actifs }}</div>
-      </div>
-      <div class="bg-white rounded-lg border border-gray-200 p-3">
+      </button>
+      <button type="button" @click="applyProduitFilter('produit', false)" class="text-left bg-white rounded-lg border p-3 transition hover:-translate-y-0.5 hover:border-xelltekk-300 hover:shadow-sm" :class="produitCardClass('produit', false)">
         <div class="text-xs text-gray-500 uppercase">Produits</div>
         <div class="text-2xl font-bold text-xelltekk-600">{{ stats.produits }}</div>
-      </div>
-      <div class="bg-white rounded-lg border border-gray-200 p-3">
+      </button>
+      <button type="button" @click="applyProduitFilter('service', false)" class="text-left bg-white rounded-lg border p-3 transition hover:-translate-y-0.5 hover:border-xelltekk-300 hover:shadow-sm" :class="produitCardClass('service', false)">
         <div class="text-xs text-gray-500 uppercase">Services</div>
         <div class="text-2xl font-bold text-purple-600">{{ stats.services }}</div>
-      </div>
+      </button>
     </div>
 
     <!-- Loader -->
@@ -61,19 +65,19 @@
         <table class="w-full">
           <thead class="bg-gray-50 border-b border-gray-200">
             <tr>
-              <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Référence</th>
-              <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Libellé</th>
-              <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Catégorie</th>
-              <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Type</th>
-              <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Prix HT</th>
-              <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">TVA</th>
-              <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Prix TTC</th>
-              <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Actif</th>
+              <SortableTh column="reference" :active="sort.key === 'reference'" :icon="sortIcon('reference')" @sort="toggleSort">Référence</SortableTh>
+              <SortableTh column="libelle" :active="sort.key === 'libelle'" :icon="sortIcon('libelle')" @sort="toggleSort">Libellé</SortableTh>
+              <SortableTh column="categorie" :active="sort.key === 'categorie'" :icon="sortIcon('categorie')" @sort="toggleSort">Catégorie</SortableTh>
+              <SortableTh column="type" :active="sort.key === 'type'" :icon="sortIcon('type')" @sort="toggleSort">Type</SortableTh>
+              <SortableTh column="prix_ht" :active="sort.key === 'prix_ht'" :icon="sortIcon('prix_ht')" align="right" @sort="toggleSort">Prix HT</SortableTh>
+              <SortableTh column="tva" :active="sort.key === 'tva'" :icon="sortIcon('tva')" align="right" @sort="toggleSort">TVA</SortableTh>
+              <SortableTh column="prix_ttc" :active="sort.key === 'prix_ttc'" :icon="sortIcon('prix_ttc')" align="right" @sort="toggleSort">Prix TTC</SortableTh>
+              <SortableTh column="actif" :active="sort.key === 'actif'" :icon="sortIcon('actif')" align="center" @sort="toggleSort">Actif</SortableTh>
               <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Actions</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-100">
-            <tr v-for="produit in produits" :key="produit.id" class="hover:bg-gray-50">
+            <tr v-for="produit in sortedProduits" :key="produit.id" class="hover:bg-gray-50">
               <td class="px-4 py-3 text-sm font-mono text-gray-600">{{ produit.reference }}</td>
               <td class="px-4 py-3">
                 <div class="font-medium text-gray-900">{{ produit.libelle }}</div>
@@ -152,7 +156,7 @@
     <!-- Modal suppression -->
     <AppModal v-model="showDeleteModal" title="Confirmer la suppression" size="sm">
       <p class="text-gray-700">
-        Supprimer le produit <strong>{{ produitToDelete?.libelle }}</strong> ?
+        Supprimer le produit <strong>{{ produitToDelete.libelle }}</strong> 
       </p>
       <template #footer>
         <button @click="showDeleteModal = false" class="btn-secondary">Annuler</button>
@@ -166,23 +170,28 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, watch } from 'vue'
+import { computed, ref, reactive, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '@/services/api'
 import AppModal from '@/components/AppModal.vue'
 import ProduitForm from '@/components/ProduitForm.vue'
+import SortableTh from '@/components/SortableTh.vue'
 import { useToast } from '@/composables/useToast'
+import { useTableSort } from '@/composables/useTableSort'
+import { telechargerCSV } from '@/services/exports'
 
 const toast = useToast()
 const route = useRoute()
 const router = useRouter()
 
 const produits = ref([])
+const { sort, toggleSort, sortIcon, sortedRows } = useTableSort('created_at', 'desc')
 const loading = ref(false)
+const exportLoading = ref(false)
 const categories = ref([])
 const stats = reactive({ total: 0, actifs: 0, produits: 0, services: 0 })
 const meta = reactive({ current_page: 1, last_page: 1, total: 0, from: 0, to: 0 })
-const filters = reactive({ search: '', type: '', categorie_id: '' })
+const filters = reactive({ search: '', type: '', categorie_id: '', actifs_seulement: false })
 
 const showModal = ref(false)
 const editingProduit = ref(null)
@@ -190,10 +199,39 @@ const showDeleteModal = ref(false)
 const produitToDelete = ref(null)
 const deleting = ref(false)
 
+const sortedProduits = computed(() => sortedRows(produits.value, {
+  created_at: 'created_at',
+  reference: 'reference',
+  libelle: 'libelle',
+  categorie: (produit) => produit.categorie?.libelle || '',
+  type: 'type',
+  prix_ht: (produit) => parseFloat(produit.prix_vente_ht || 0),
+  tva: (produit) => parseFloat(produit.taux_tva || 0),
+  prix_ttc: (produit) => prixTtc(produit),
+  actif: (produit) => (produit.is_active ? 1 : 0),
+}))
+
 let searchTimeout = null
 function onSearchInput() {
   clearTimeout(searchTimeout)
   searchTimeout = setTimeout(() => loadProduits(1), 350)
+}
+
+function onProduitTypeChange() {
+  filters.actifs_seulement = false
+  loadProduits(1)
+}
+
+function applyProduitFilter(type, actifsSeulement) {
+  filters.type = type
+  filters.actifs_seulement = actifsSeulement
+  loadProduits(1)
+}
+
+function produitCardClass(type, actifsSeulement) {
+  return filters.type === type && filters.actifs_seulement === actifsSeulement ?
+     'border-xelltekk-500 bg-xelltekk-50 ring-2 ring-xelltekk-100'
+    : 'border-gray-200'
 }
 
 async function loadProduits(page = 1) {
@@ -206,6 +244,7 @@ async function loadProduits(page = 1) {
         search: filters.search || undefined,
         type: filters.type || undefined,
         categorie_id: filters.categorie_id || undefined,
+        actifs_seulement: filters.actifs_seulement || undefined,
       },
     })
     produits.value = data.data
@@ -235,6 +274,23 @@ async function loadCategories() {
     const { data } = await api.get('/categories-produits')
     categories.value = data
   } catch (e) { /* ignore */ }
+}
+
+async function exporterCSV() {
+  exportLoading.value = true
+  try {
+    await telechargerCSV('/exports/produits', {
+      search: filters.search || undefined,
+      type: filters.type || undefined,
+      categorie_id: filters.categorie_id || undefined,
+      actifs_seulement: filters.actifs_seulement || undefined,
+    }, 'produits_saytu.csv')
+    toast.success('Export des produits téléchargé.')
+  } catch (e) {
+    toast.error('Export impossible pour le moment.')
+  } finally {
+    exportLoading.value = false
+  }
 }
 
 function openCreate() {
@@ -280,7 +336,7 @@ async function handleDelete() {
     loadProduits(meta.current_page)
     loadStats()
   } catch (err) {
-    toast.error(err.response?.data?.message || 'Erreur de suppression')
+    toast.error(err.response.data.message || 'Erreur de suppression')
   } finally {
     deleting.value = false
   }

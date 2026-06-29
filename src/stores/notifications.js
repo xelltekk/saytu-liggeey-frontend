@@ -7,6 +7,9 @@ export const useNotificationsStore = defineStore('notifications', {
       factures_retard: 0,
       devis_attente: 0,
       stock_alerte: 0,
+      demandes_validation: 0,
+      rh_alertes: 0,
+      achats: 0,
     },
     details: null,
     loading: false,
@@ -33,11 +36,23 @@ export const useNotificationsStore = defineStore('notifications', {
         this.loading = false
       }
     },
+    async markRead(key) {
+      if (!key) return
+      try {
+        await api.post('/notifications/read', { key })
+        await Promise.all([this.fetchBadges(), this.fetchDetails()])
+      } catch (e) {
+        console.error('Erreur lecture notification', e)
+      }
+    },
   },
   getters: {
     total: (state) =>
       state.badges.factures_retard +
       state.badges.devis_attente +
-      state.badges.stock_alerte,
+      state.badges.stock_alerte +
+      state.badges.demandes_validation +
+      state.badges.rh_alertes +
+      state.badges.achats,
   },
 })

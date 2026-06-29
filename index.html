@@ -4,7 +4,26 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>xelltekk-erp-frontend</title>
+    <title>Saytu Liggéey 2.0</title>
+    <script>
+      (() => {
+        const key = 'saytu_theme'
+        const saved = localStorage.getItem(key)
+        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        const themes = {
+          light: { id: 'saytu-light', mode: 'light' },
+          dark: { id: 'saytu-dark', mode: 'dark' },
+          'saytu-light': { id: 'saytu-light', mode: 'light' },
+          'saytu-dark': { id: 'saytu-dark', mode: 'dark' },
+          'blue-pro': { id: 'blue-pro', mode: 'light' },
+          cashier: { id: 'cashier', mode: 'dark' },
+        }
+        const theme = themes[saved] || themes[prefersDark ? 'saytu-dark' : 'saytu-light']
+        document.documentElement.dataset.theme = theme.id
+        document.documentElement.classList.toggle('dark', theme.mode === 'dark')
+        document.documentElement.style.colorScheme = theme.mode
+      })()
+    </script>
   </head>
   <body>
     <div id="app"></div>

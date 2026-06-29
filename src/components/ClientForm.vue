@@ -1,5 +1,7 @@
 <template>
   <form @submit.prevent="handleSubmit" class="space-y-4">
+    <FormErrorSummary :errors="errors" :labels="errorLabels" />
+
     <!-- Identité -->
     <fieldset class="border border-gray-200 rounded-lg p-4">
       <legend class="px-2 text-sm font-semibold text-gray-700">Identité</legend>
@@ -154,16 +156,6 @@
       </div>
     </fieldset>
 
-    <!-- Erreurs -->
-    <div v-if="Object.keys(errors).length" class="bg-red-50 border border-red-200 rounded-lg p-3">
-      <p class="text-sm font-medium text-red-800 mb-2">Veuillez corriger les erreurs suivantes :</p>
-      <ul class="text-xs text-red-700 list-disc list-inside space-y-1">
-        <li v-for="(messages, field) in errors" :key="field">
-          <strong>{{ field }} :</strong> {{ messages[0] }}
-        </li>
-      </ul>
-    </div>
-
     <!-- Actions -->
     <div class="flex justify-end gap-2 pt-2 border-t border-gray-200">
       <button type="button" @click="$emit('cancel')" class="btn-secondary">
@@ -181,7 +173,9 @@
 import { reactive, ref, watch } from 'vue'
 import api from '@/services/api'
 import { useToast } from '@/composables/useToast'
+import FormErrorSummary from '@/components/FormErrorSummary.vue'
 import TagSelector from '@/components/TagSelector.vue'
+import { errorMessagesFromResponse, validationErrors } from '@/utils/formErrors'
 
 const props = defineProps({
   client: { type: Object, default: null }, // null = création, objet = édition
@@ -216,6 +210,16 @@ const defaultForm = () => ({
 const form = reactive(defaultForm())
 const saving = ref(false)
 const errors = ref({})
+const errorLabels = {
+  nom: 'Nom / raison sociale',
+  type: 'Type',
+  statut: 'Statut',
+  forme_juridique: 'Forme juridique',
+  secteur_activite: "Secteur d'activité",
+  plafond_credit: 'Plafond de crédit',
+  delai_paiement_jours: 'Délai de paiement',
+  tag_ids: 'Catégories',
+}
 
 // Charger les valeurs du client en édition
 watch(() => props.client, (newClient) => {
@@ -259,11 +263,11 @@ async function handleSubmit() {
 
     emit('saved', response.data)
   } catch (err) {
-    if (err.response?.status === 422) {
-      errors.value = err.response.data.errors || {}
-      toast.error('Veuillez corriger les erreurs du formulaire')
+    if (err.response.status === 422) {
+      errors.value = validationErrors(err)
+      toast.error(errorMessagesFromResponse(err, errorLabels))
     } else {
-      toast.error(err.response?.data?.message || 'Erreur lors de l\'enregistrement')
+      toast.error(err.response.data.message || 'Erreur lors de l\'enregistrement')
     }
   } finally {
     saving.value = false

@@ -26,7 +26,7 @@
       </div>
     </div>
 
-    <div class="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+    <div class="stat-grid mb-4 grid grid-cols-1 sm:grid-cols-3">
       <div class="rounded-lg border border-gray-200 bg-white p-4">
         <div class="text-xs font-semibold uppercase text-gray-500">Activités affichées</div>
         <div class="mt-1 text-2xl font-bold text-gray-900">{{ filteredActivites.length }}</div>
@@ -50,17 +50,17 @@
         <table class="w-full">
           <thead class="border-b border-gray-200 bg-gray-50">
             <tr>
-              <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-600">Date</th>
-              <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-600">Utilisateur</th>
-              <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-600">Activité</th>
-              <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-600">Référence</th>
-              <th class="px-4 py-3 text-center text-xs font-semibold uppercase text-gray-600">Statut</th>
-              <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-600">IP</th>
+              <SortableTh column="date" :active="sort.key === 'date'" :icon="sortIcon('date')" @sort="toggleSort">Date</SortableTh>
+              <SortableTh column="utilisateur" :active="sort.key === 'utilisateur'" :icon="sortIcon('utilisateur')" @sort="toggleSort">Utilisateur</SortableTh>
+              <SortableTh column="activite" :active="sort.key === 'activite'" :icon="sortIcon('activite')" @sort="toggleSort">Activité</SortableTh>
+              <SortableTh column="reference" :active="sort.key === 'reference'" :icon="sortIcon('reference')" @sort="toggleSort">Référence</SortableTh>
+              <SortableTh column="statut" :active="sort.key === 'statut'" :icon="sortIcon('statut')" align="center" @sort="toggleSort">Statut</SortableTh>
+              <SortableTh column="ip" :active="sort.key === 'ip'" :icon="sortIcon('ip')" @sort="toggleSort">IP</SortableTh>
             </tr>
           </thead>
 
           <tbody class="divide-y divide-gray-100">
-            <tr v-for="(item, index) in filteredActivites" :key="index" class="hover:bg-gray-50">
+            <tr v-for="(item, index) in paginatedActivites" :key="`${item.date}-${index}`" class="hover:bg-gray-50">
               <td class="whitespace-nowrap px-4 py-3 text-sm text-gray-600">{{ item.date || '-' }}</td>
               <td class="px-4 py-3">
                 <div class="text-sm font-semibold text-gray-900">{{ item.user_name || 'Invité' }}</div>
@@ -98,20 +98,27 @@
           </tbody>
         </table>
       </div>
+      <AppPagination v-if="pageMeta.total > 0" :meta="pageMeta" label="activités" @page="page = $event" />
     </div>
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import api from '@/services/api'
+import AppPagination from '@/components/AppPagination.vue'
+import SortableTh from '@/components/SortableTh.vue'
 import { useToast } from '@/composables/useToast'
+import { useTableSort } from '@/composables/useTableSort'
 
 const toast = useToast()
 const loading = ref(false)
 const activites = ref([])
 const logFile = ref('')
 const filters = reactive({ search: '', status: '' })
+const page = ref(1)
+const perPage = 25
+const { sort, toggleSort, sortIcon, sortedRows } = useTableSort('date', 'desc')
 
 const filteredActivites = computed(() => {
   const search = filters.search.trim().toLowerCase()
@@ -145,6 +152,29 @@ const filteredActivites = computed(() => {
 
 const successCount = computed(() => filteredActivites.value.filter(item => Number(item.status || 0) < 400).length)
 const errorCount = computed(() => filteredActivites.value.filter(item => Number(item.status || 0) >= 400).length)
+const sortedActivites = computed(() => sortedRows(filteredActivites.value, {
+  date: 'date',
+  utilisateur: (item) => item.user_name || '',
+  activite: (item) => item.title || item.action || '',
+  reference: 'reference',
+  statut: (item) => Number(item.status || 0),
+  ip: 'ip',
+}))
+
+const paginatedActivites = computed(() => {
+  const start = (page.value - 1) * perPage
+  return sortedActivites.value.slice(start, start + perPage)
+})
+
+const pageMeta = computed(() => {
+  const total = sortedActivites.value.length
+  const lastPage = Math.max(Math.ceil(total / perPage), 1)
+  const current = Math.min(page.value, lastPage)
+  const from = total ? (current - 1) * perPage + 1 : 0
+  const to = Math.min(current * perPage, total)
+
+  return { current_page: current, last_page: lastPage, total, from, to }
+})
 
 async function loadActivites() {
   loading.value = true
@@ -152,8 +182,9 @@ async function loadActivites() {
     const { data } = await api.get('/activites', { params: { limit: 500 } })
     activites.value = data.data || []
     logFile.value = data.file || ''
+    page.value = 1
   } catch (e) {
-    toast.error(e.response?.data?.message || 'Impossible de charger les activités')
+    toast.error(e.response.data.message || 'Impossible de charger les activités')
   } finally {
     loading.value = false
   }
@@ -180,4 +211,8 @@ function formatAmount(amount) {
 }
 
 onMounted(loadActivites)
+
+watch(filters, () => {
+  page.value = 1
+})
 </script>

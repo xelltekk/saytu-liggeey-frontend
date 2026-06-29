@@ -6,12 +6,12 @@
         <input v-model="filters.search" @input="onSearchInput" type="search"
                placeholder="🔍 Numéro, libellé, référence pièce..." class="input flex-1" />
 
-        <select v-model="filters.journal_id" @change="loadEcritures(1)" class="input md:w-48">
+        <select v-model="filters.journal_id" @change="onEcritureFilterChange" class="input md:w-48">
           <option value="">Tous journaux</option>
           <option v-for="j in journaux" :key="j.id" :value="j.id">{{ j.code }} - {{ j.libelle }}</option>
         </select>
 
-        <select v-model="filters.source" @change="loadEcritures(1)" class="input md:w-44">
+        <select v-model="filters.source" @change="onEcritureFilterChange" class="input md:w-44">
           <option value="">Toutes sources</option>
           <option value="manuelle">Manuelle</option>
           <option value="auto_facture">Auto facture</option>
@@ -19,29 +19,32 @@
           <option value="auto_avoir">Auto avoir</option>
         </select>
 
-        <input v-model="filters.date_from" @change="loadEcritures(1)" type="date" class="input md:w-40" title="Date début" />
-        <input v-model="filters.date_to" @change="loadEcritures(1)" type="date" class="input md:w-40" title="Date fin" />
+        <input v-model="filters.date_from" @change="onEcritureFilterChange" type="date" class="input md:w-40" title="Date début" />
+        <input v-model="filters.date_to" @change="onEcritureFilterChange" type="date" class="input md:w-40" title="Date fin" />
+        <button @click="exporterCSV" :disabled="exportLoading" class="btn-secondary whitespace-nowrap">
+          {{ exportLoading ? 'Export...' : 'Exporter CSV' }}
+        </button>
       </div>
     </div>
 
     <!-- Stats -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 mb-4">
-      <div class="bg-white rounded-lg border border-gray-200 p-3">
+    <div class="stat-grid grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 mb-4">
+      <button type="button" @click="applyEcriturePeriod('')" class="text-left bg-white rounded-lg border p-3 transition hover:-translate-y-0.5 hover:border-xelltekk-300 hover:shadow-sm" :class="periodCardClass('')">
         <div class="text-xs text-gray-500 uppercase">Total écritures</div>
         <div class="text-2xl font-bold text-gray-900">{{ stats.nb_ecritures || 0 }}</div>
-      </div>
+      </button>
       <div class="bg-white rounded-lg border border-gray-200 p-3">
         <div class="text-xs text-gray-500 uppercase">Lignes</div>
         <div class="text-2xl font-bold text-blue-600">{{ stats.nb_lignes || 0 }}</div>
       </div>
-      <div class="bg-white rounded-lg border border-gray-200 p-3">
+      <button type="button" @click="applyEcriturePeriod('mois')" class="text-left bg-white rounded-lg border p-3 transition hover:-translate-y-0.5 hover:border-xelltekk-300 hover:shadow-sm" :class="periodCardClass('mois')">
         <div class="text-xs text-gray-500 uppercase">Ce mois-ci</div>
         <div class="text-2xl font-bold text-green-600">{{ stats.ecritures_mois || 0 }}</div>
-      </div>
-      <div class="bg-white rounded-lg border border-gray-200 p-3">
+      </button>
+      <button type="button" @click="applyEcriturePeriod('annee')" class="text-left bg-white rounded-lg border p-3 transition hover:-translate-y-0.5 hover:border-xelltekk-300 hover:shadow-sm" :class="periodCardClass('annee')">
         <div class="text-xs text-gray-500 uppercase">Cette année</div>
         <div class="text-2xl font-bold text-purple-600">{{ stats.ecritures_annee || 0 }}</div>
-      </div>
+      </button>
     </div>
 
     <div v-if="loading" class="bg-white rounded-lg p-12 text-center text-gray-500">Chargement...</div>
@@ -50,22 +53,22 @@
       <table class="w-full">
         <thead class="bg-gray-50 border-b border-gray-200">
           <tr>
-            <th class="px-3 py-3 text-left text-xs font-semibold text-gray-600 uppercase">N°</th>
-            <th class="px-3 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Journal</th>
-            <th class="px-3 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Date</th>
-            <th class="px-3 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Libellé</th>
-            <th class="px-3 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Pièce</th>
-            <th class="px-3 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Débit</th>
-            <th class="px-3 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Crédit</th>
-            <th class="px-3 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Statut</th>
+            <SortableTh column="numero" :active="sort.key === 'numero'" :icon="sortIcon('numero')" @sort="toggleSort">N°</SortableTh>
+            <SortableTh column="journal" :active="sort.key === 'journal'" :icon="sortIcon('journal')" @sort="toggleSort">Journal</SortableTh>
+            <SortableTh column="date" :active="sort.key === 'date'" :icon="sortIcon('date')" align="center" @sort="toggleSort">Date</SortableTh>
+            <SortableTh column="libelle" :active="sort.key === 'libelle'" :icon="sortIcon('libelle')" @sort="toggleSort">Libellé</SortableTh>
+            <SortableTh column="piece" :active="sort.key === 'piece'" :icon="sortIcon('piece')" @sort="toggleSort">Pièce</SortableTh>
+            <SortableTh column="debit" :active="sort.key === 'debit'" :icon="sortIcon('debit')" align="right" @sort="toggleSort">Débit</SortableTh>
+            <SortableTh column="credit" :active="sort.key === 'credit'" :icon="sortIcon('credit')" align="right" @sort="toggleSort">Crédit</SortableTh>
+            <SortableTh column="statut" :active="sort.key === 'statut'" :icon="sortIcon('statut')" align="center" @sort="toggleSort">Statut</SortableTh>
             <th class="px-3 py-3"></th>
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-100">
-          <tr v-for="e in ecritures" :key="e.id" class="hover:bg-gray-50">
+          <tr v-for="e in sortedEcritures" :key="e.id" class="hover:bg-gray-50">
             <td class="px-3 py-3 text-xs font-mono text-gray-600">{{ e.numero }}</td>
             <td class="px-3 py-3">
-              <span class="badge text-xs bg-xelltekk-100 text-xelltekk-800">{{ e.journal?.code }}</span>
+              <span class="badge text-xs bg-xelltekk-100 text-xelltekk-800">{{ e.journal?.code || '-' }}</span>
             </td>
             <td class="px-3 py-3 text-xs text-center text-gray-600">{{ formatDate(e.date_ecriture) }}</td>
             <td class="px-3 py-3 text-sm text-gray-700 truncate max-w-xs">{{ e.libelle }}</td>
@@ -101,7 +104,7 @@
     <AppModal v-model="showDetails" :title="detailsEcriture ? `Écriture ${detailsEcriture.numero}` : ''" size="lg">
       <div v-if="detailsEcriture" class="space-y-4">
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-          <div><strong>Journal :</strong> {{ detailsEcriture.journal?.code }} - {{ detailsEcriture.journal?.libelle }}</div>
+          <div><strong>Journal :</strong> {{ detailsEcriture.journal?.code || '-' }} - {{ detailsEcriture.journal?.libelle || '-' }}</div>
           <div><strong>Date :</strong> {{ formatDate(detailsEcriture.date_ecriture) }}</div>
           <div><strong>Pièce :</strong> {{ detailsEcriture.reference_piece || '–' }}</div>
           <div><strong>Source :</strong> {{ sourceLabel(detailsEcriture.source) }}</div>
@@ -120,10 +123,10 @@
           <tbody class="divide-y divide-gray-100">
             <tr v-for="l in detailsEcriture.lignes" :key="l.id">
               <td class="px-3 py-2">
-                <div class="font-mono text-sm font-semibold">{{ l.compte?.numero }}</div>
-                <div class="text-xs text-gray-500">{{ l.compte?.libelle }}</div>
+                <div class="font-mono text-sm font-semibold">{{ l.compte?.numero || '-' }}</div>
+                <div class="text-xs text-gray-500">{{ l.compte?.libelle || '-' }}</div>
                 <div v-if="l.compte_auxiliaire" class="text-xs text-xelltekk-600 mt-1">
-                  Aux: {{ l.compte_auxiliaire.numero_auxiliaire }} ({{ l.compte_auxiliaire.libelle }})
+                  Aux: {{ l.compte_auxiliaire?.numero_auxiliaire || '-' }} ({{ l.compte_auxiliaire?.libelle || '-' }})
                 </div>
               </td>
               <td class="px-3 py-2 text-sm text-gray-700">{{ l.libelle }}</td>
@@ -161,15 +164,20 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import api from '@/services/api'
 import AppModal from '@/components/AppModal.vue'
+import SortableTh from '@/components/SortableTh.vue'
 import { useToast } from '@/composables/useToast'
+import { useTableSort } from '@/composables/useTableSort'
+import { telechargerCSV } from '@/services/exports'
 
 const toast = useToast()
 const ecritures = ref([])
+const { sort, toggleSort, sortIcon, sortedRows } = useTableSort('date', 'desc')
 const journaux = ref([])
 const stats = reactive({ nb_ecritures: 0, nb_lignes: 0, ecritures_mois: 0, ecritures_annee: 0 })
 const loading = ref(false)
+const exportLoading = ref(false)
 const meta = reactive({ current_page: 1, last_page: 1, total: 0, from: 0, to: 0 })
-const filters = reactive({ search: '', journal_id: '', source: '', date_from: '', date_to: '' })
+const filters = reactive({ search: '', journal_id: '', source: '', date_from: '', date_to: '', period: '' })
 
 const showDetails = ref(false)
 const detailsEcriture = ref(null)
@@ -179,10 +187,56 @@ const estEquilibree = computed(() => {
   return Math.abs(parseFloat(detailsEcriture.value.total_debit) - parseFloat(detailsEcriture.value.total_credit)) < 0.01
 })
 
+const sortedEcritures = computed(() => sortedRows(ecritures.value, {
+  numero: 'numero',
+  journal: (ecriture) => ecriture.journal?.code || '',
+  date: 'date_ecriture',
+  libelle: 'libelle',
+  piece: 'reference_piece',
+  debit: (ecriture) => parseFloat(ecriture.total_debit || 0),
+  credit: (ecriture) => parseFloat(ecriture.total_credit || 0),
+  statut: 'statut',
+}))
+
 let searchTimeout = null
 function onSearchInput() {
   clearTimeout(searchTimeout)
   searchTimeout = setTimeout(() => loadEcritures(1), 350)
+}
+
+function toInputDate(date) {
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 10)
+}
+
+function onEcritureFilterChange() {
+  filters.period = ''
+  loadEcritures(1)
+}
+
+function applyEcriturePeriod(period) {
+  filters.period = period
+  filters.search = ''
+  filters.journal_id = ''
+  filters.source = ''
+  filters.date_to = ''
+
+  if (period === 'mois') {
+    const now = new Date()
+    filters.date_from = toInputDate(new Date(now.getFullYear(), now.getMonth(), 1))
+  } else if (period === 'annee') {
+    const now = new Date()
+    filters.date_from = toInputDate(new Date(now.getFullYear(), 0, 1))
+  } else {
+    filters.date_from = ''
+  }
+
+  loadEcritures(1)
+}
+
+function periodCardClass(period) {
+  return filters.period === period ?
+     'border-xelltekk-500 bg-xelltekk-50 ring-2 ring-xelltekk-100'
+    : 'border-gray-200'
 }
 
 async function loadEcritures(page = 1) {
@@ -216,6 +270,24 @@ async function loadStats() {
 
 async function loadJournaux() {
   try { const { data } = await api.get('/compta/journaux'); journaux.value = data } catch (e) {}
+}
+
+async function exporterCSV() {
+  exportLoading.value = true
+  try {
+    await telechargerCSV('/exports/ecritures', {
+      search: filters.search || undefined,
+      journal_id: filters.journal_id || undefined,
+      source: filters.source || undefined,
+      date_from: filters.date_from || undefined,
+      date_to: filters.date_to || undefined,
+    }, 'ecritures_comptables.csv')
+    toast.success('Export des écritures téléchargé.')
+  } catch (e) {
+    toast.error('Export impossible pour le moment.')
+  } finally {
+    exportLoading.value = false
+  }
 }
 
 async function openDetails(e) {

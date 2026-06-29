@@ -1,15 +1,14 @@
 <template>
   <form @submit.prevent="handleSubmit" class="space-y-4">
+    <FormErrorSummary :errors="errors" :labels="errorLabels" />
+
     <fieldset class="border border-gray-200 rounded-lg p-4">
       <legend class="px-2 text-sm font-semibold text-gray-700">Paiement</legend>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Client <span class="text-red-500">*</span></label>
-          <select v-model.number="form.client_id" @change="loadFacturesImpayees" class="input" required>
-            <option :value="null">— Sélectionnez un client —</option>
-            <option v-for="c in clients" :key="c.id" :value="c.id">{{ c.code }} — {{ c.nom }}</option>
-          </select>
+          <ClientSearchSelect v-model="form.client_id" required placeholder="Rechercher par nom, code, telephone..." />
         </div>
 
         <div>
@@ -77,7 +76,7 @@
               </div>
             </div>
             <div v-if="affectations[f.id]" class="w-32">
-              <input v-model.number="affectations[f.id]" type="number" step="0.01" min="0" :max="f.reste_a_payer" class="input text-sm text-right" />
+              <input v-model.number="affectations[f.id]" @blur="normaliserAffectation(f)" type="number" step="0.01" min="0" :max="f.reste_a_payer" class="input text-sm text-right" />
             </div>
           </div>
         </div>
@@ -92,12 +91,6 @@
       </div>
     </fieldset>
 
-    <div v-if="Object.keys(errors).length" class="bg-red-50 border border-red-200 rounded-lg p-3">
-      <ul class="text-xs text-red-700 list-disc list-inside space-y-1">
-        <li v-for="(msgs, f) in errors" :key="f"><strong>{{ f }}:</strong> {{ msgs[0] }}</li>
-      </ul>
-    </div>
-
     <div class="flex justify-end gap-2 pt-2 border-t border-gray-200">
       <button type="button" @click="$emit('cancel')" class="btn-secondary">Annuler</button>
       <button type="submit" :disabled="saving" class="btn-primary">
@@ -108,9 +101,12 @@
 </template>
 
 <script setup>
-import { reactive, ref, computed, onMounted, watch } from 'vue'
+import { reactive, ref, computed, watch } from 'vue'
 import api from '@/services/api'
 import { useToast } from '@/composables/useToast'
+import ClientSearchSelect from '@/components/ClientSearchSelect.vue'
+import FormErrorSummary from '@/components/FormErrorSummary.vue'
+import { errorMessagesFromResponse, validationErrors } from '@/utils/formErrors'
 
 const emit = defineEmits(['saved', 'cancel'])
 const toast = useToast()
@@ -124,19 +120,27 @@ const form = reactive({
   notes: '',
 })
 
-const clients = ref([])
 const facturesImpayees = ref([])
 const affectations = reactive({}) // { facture_id: montant }
 const loadingFactures = ref(false)
 const saving = ref(false)
 const errors = ref({})
+const errorLabels = {
+  client_id: 'Client',
+  montant: 'Montant payé',
+  date_paiement: 'Date paiement',
+  mode_paiement: 'Mode de paiement',
+  factures: 'Facture',
+  montant_affecte: 'Montant affecté',
+}
 
 const totalAffecte = computed(() => Object.values(affectations).reduce((s, v) => s + (parseFloat(v) || 0), 0))
 const resteAffectation = computed(() => (form.montant || 0) - totalAffecte.value)
 
 async function loadFacturesImpayees() {
-  if (!form.client_id) return
   Object.keys(affectations).forEach(k => delete affectations[k])
+  facturesImpayees.value = []
+  if (!form.client_id) return
   loadingFactures.value = true
   try {
     const { data } = await api.get(`/clients/${form.client_id}/factures-impayees`)
@@ -152,18 +156,55 @@ function toggleAffectation(facture) {
   if (affectations[facture.id]) {
     delete affectations[facture.id]
   } else {
-    // Par défaut, affecter le minimum entre le reste à payer et le reste du paiement à affecter
-    const restePaiement = resteAffectation.value
-    affectations[facture.id] = Math.min(parseFloat(facture.reste_a_payer), Math.max(restePaiement, parseFloat(facture.reste_a_payer)))
+    const resteFacture = parseFloat(facture.reste_a_payer) || 0
+    const restePaiement = Math.max(parseFloat(resteAffectation.value) || 0, 0)
+    affectations[facture.id] = Math.min(resteFacture, restePaiement || resteFacture)
+  }
+}
+
+function normaliserAffectation(facture) {
+  const id = facture.id
+  const montant = parseFloat(affectations[id]) || 0
+  if (montant <= 0) {
+    delete affectations[id]
+    return
+  }
+
+  const resteFacture = parseFloat(facture.reste_a_payer) || 0
+  const autresAffectations = totalAffecte.value - montant
+  const disponiblePaiement = Math.max((parseFloat(form.montant) || 0) - autresAffectations, 0)
+  const maximum = form.montant > 0 ? Math.min(resteFacture, disponiblePaiement) : resteFacture
+  affectations[id] = Math.min(montant, maximum)
+}
+
+function ajusterAffectationsAuPaiement() {
+  let disponible = parseFloat(form.montant) || 0
+
+  for (const facture of facturesImpayees.value) {
+    const id = facture.id
+    const montant = parseFloat(affectations[id]) || 0
+    if (!montant) continue
+
+    const resteFacture = parseFloat(facture.reste_a_payer) || 0
+    const nouveauMontant = Math.min(montant, resteFacture, Math.max(disponible, 0))
+    if (nouveauMontant <= 0) {
+      delete affectations[id]
+    } else {
+      affectations[id] = nouveauMontant
+    }
+    disponible -= nouveauMontant
   }
 }
 
 function formatPrice(n) { return new Intl.NumberFormat('fr-FR').format(Math.round(n || 0)) }
 function formatDate(d) { return d ? new Date(d).toLocaleDateString('fr-FR') : '–' }
 
-onMounted(async () => {
-  const { data } = await api.get('/clients', { params: { per_page: 200 } })
-  clients.value = data.data
+watch(() => form.montant, () => {
+  ajusterAffectationsAuPaiement()
+})
+
+watch(() => form.client_id, () => {
+  loadFacturesImpayees()
 })
 
 async function handleSubmit() {
@@ -181,6 +222,16 @@ async function handleSubmit() {
         montant_affecte: parseFloat(montant),
       }))
 
+    if (!factures.length) {
+      toast.error('Sélectionnez au moins une facture à payer')
+      return
+    }
+
+    if (totalAffecte.value - form.montant > 0.01) {
+      toast.error('Le total affecté ne peut pas dépasser le montant du paiement')
+      return
+    }
+
     const payload = {
       ...form,
       reference_paiement: form.reference_paiement || null,
@@ -192,11 +243,11 @@ async function handleSubmit() {
     toast.success(`Paiement ${data.reference} enregistré`)
     emit('saved', data)
   } catch (err) {
-    if (err.response?.status === 422) {
-      errors.value = err.response.data.errors || {}
-      toast.error('Veuillez corriger les erreurs')
+    if (err.response.status === 422) {
+      errors.value = validationErrors(err)
+      toast.error(errorMessagesFromResponse(err, errorLabels))
     } else {
-      toast.error(err.response?.data?.message || 'Erreur')
+      toast.error(err.response.data.message || 'Erreur')
     }
   } finally {
     saving.value = false

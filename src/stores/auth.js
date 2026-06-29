@@ -10,13 +10,14 @@ export const useAuthStore = defineStore('auth', {
   getters: {
     isAuthenticated: (state) => !!state.token,
     isAdmin: (state) => state.user?.role === 'admin',
-    userRole: (state) => state.user?.role,
+    isManager: (state) => ['admin', 'gerant'].includes(state.user?.role),
+    userRole: (state) => state.user?.role || null,
   },
 
   actions: {
     async login(email, password) {
       const { data } = await api.post('/auth/login', {
-        email,
+        email: String(email || '').trim(),
         password,
         device_name: 'web',
       })

@@ -1,6 +1,6 @@
 <template>
   <div class="space-y-5">
-    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+    <div class="stat-grid grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
       <div class="rounded-lg border border-slate-200 bg-white p-4">
         <p class="text-xs uppercase text-slate-500">Caisses ouvertes</p>
         <p class="mt-1 text-2xl font-bold text-slate-900">{{ stats.sessions_ouvertes || 0 }}</p>
@@ -23,14 +23,19 @@
       Chargement...
     </div>
 
-    <div v-else-if="isAdmin" class="grid grid-cols-1 gap-5 xl:grid-cols-[380px_1fr]">
+    <div v-else-if="isAdmin" class="grid grid-cols-1 gap-5 xl:grid-cols-[420px_1fr]">
       <div class="rounded-lg border border-slate-200 bg-white">
         <div class="flex items-center justify-between border-b border-slate-200 px-4 py-3">
           <div>
-            <h3 class="font-bold text-slate-900">Caisses ouvertes</h3>
-            <p class="text-xs text-slate-500">{{ sessionsOuvertes.length }} session(s) active(s)</p>
+            <h3 class="font-bold text-slate-900">Historique des caisses</h3>
+            <p class="text-xs text-slate-500">{{ sessionsActivesCount }} ouverte(s) / {{ sessionsOuvertes.length }} total</p>
           </div>
-          <button class="btn-secondary px-3 py-1.5 text-sm" @click="loadVueAdmin">Actualiser</button>
+          <div class="flex gap-2">
+            <button class="btn-secondary px-3 py-1.5 text-sm" :disabled="exportLoading" @click="exporterSessionsCSV">
+              {{ exportLoading ? 'Export...' : 'Exporter' }}
+            </button>
+            <button class="btn-secondary px-3 py-1.5 text-sm" @click="loadVueAdmin">Actualiser</button>
+          </div>
         </div>
 
         <div class="max-h-[520px] overflow-y-auto">
@@ -47,8 +52,12 @@
                 <p class="font-semibold text-slate-900">{{ s.reference }}</p>
                 <p class="text-sm text-slate-500">{{ s.user?.name || 'Utilisateur' }}</p>
                 <p class="text-xs text-slate-400">{{ formatDateTime(s.opened_at) }}</p>
+                <p v-if="s.closed_at" class="text-xs text-slate-400">Fermée le {{ formatDateTime(s.closed_at) }}</p>
               </div>
               <div class="text-right">
+                <span class="rounded-full px-2 py-1 text-xs font-semibold" :class="s.statut === 'ouverte' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'">
+                  {{ s.statut }}
+                </span>
                 <p class="font-mono font-bold text-slate-900">{{ formatPrice(s.solde_fermeture_theorique) }}</p>
                 <p class="text-xs text-slate-500">{{ s.mouvements_count || 0 }} mouvement(s)</p>
               </div>
@@ -56,7 +65,7 @@
           </button>
 
           <div v-if="sessionsOuvertes.length === 0" class="px-4 py-10 text-center text-sm text-slate-400">
-            Aucune caisse ouverte
+            Aucun historique de caisse
           </div>
         </div>
       </div>
@@ -79,6 +88,7 @@
                 <th class="px-4 py-3 text-center">Type</th>
                 <th class="px-4 py-3 text-left">Reference</th>
                 <th class="px-4 py-3 text-right">Montant</th>
+                <th class="px-4 py-3 text-right">Action</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-slate-100">
@@ -87,7 +97,7 @@
                 <td class="px-4 py-3">
                   <p class="font-medium text-slate-900">{{ m.libelle }}</p>
                   <p v-if="produitsMouvement(m)" class="text-xs text-slate-600">{{ produitsMouvement(m) }}</p>
-                  <p class="text-xs text-slate-500">{{ m.user?.name }}</p>
+                  <p class="text-xs text-slate-500">{{ m.user?.name || 'Utilisateur' }}</p>
                 </td>
                 <td class="px-4 py-3 text-center">
                   <span class="rounded-full px-2 py-1 text-xs font-semibold" :class="m.sens === 'entree' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'">
@@ -100,11 +110,78 @@
                 <td class="px-4 py-3 text-right font-mono font-semibold" :class="m.sens === 'entree' ? 'text-emerald-700' : 'text-red-700'">
                   {{ m.sens === 'entree' ? '+' : '-' }} {{ formatPrice(m.montant) }}
                 </td>
+                <td class="px-4 py-3 text-right">
+                  <button v-if="m.type === 'vente' && m.facture?.id" class="btn-secondary px-3 py-1.5 text-xs" @click="reimprimerTicket(m)">
+                    Réimprimer
+                  </button>
+                </td>
               </tr>
-              <tr v-if="mouvementsAdmin.length === 0">
-                <td colspan="5" class="px-4 py-10 text-center text-sm text-slate-400">
+              <tr v-if="mouvementsAdminLoading">
+                <td colspan="6" class="px-4 py-10 text-center text-sm text-slate-400">
+                  Chargement des mouvements...
+                </td>
+              </tr>
+              <tr v-else-if="mouvementsAdmin.length === 0">
+                <td colspan="6" class="px-4 py-10 text-center text-sm text-slate-400">
                   Aucun mouvement a afficher
                 </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="overflow-hidden rounded-lg border border-slate-200 bg-white xl:col-span-2">
+        <div class="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+          <div>
+            <h3 class="font-bold text-slate-900">Opérations en temps réel</h3>
+            <p class="text-xs text-slate-500">Derniers mouvements de toutes les caisses</p>
+          </div>
+          <div class="flex gap-2">
+            <button class="btn-secondary px-3 py-1.5 text-sm" :disabled="exportLoading" @click="exporterMouvementsCSV()">
+              {{ exportLoading ? 'Export...' : 'Exporter' }}
+            </button>
+            <button class="btn-secondary px-3 py-1.5 text-sm" @click="loadJournalAdmin">Actualiser</button>
+          </div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full">
+            <thead class="bg-slate-50 text-xs uppercase text-slate-500">
+              <tr>
+                <th class="px-4 py-3 text-left">Heure</th>
+                <th class="px-4 py-3 text-left">Caisse</th>
+                <th class="px-4 py-3 text-left">Opération</th>
+                <th class="px-4 py-3 text-left">Client / Référence</th>
+                <th class="px-4 py-3 text-right">Montant</th>
+                <th class="px-4 py-3 text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              <tr v-for="m in journalAdmin" :key="m.id" class="text-sm">
+                <td class="px-4 py-3 text-slate-500">{{ formatDateTime(m.created_at) }}</td>
+                <td class="px-4 py-3">
+                  <p class="font-medium text-slate-900">{{ m.session?.reference || '-' }}</p>
+                  <p class="text-xs text-slate-500">{{ m.session?.user?.name || m.user?.name || 'Utilisateur' }}</p>
+                </td>
+                <td class="px-4 py-3">
+                  <p class="font-medium text-slate-900">{{ m.libelle }}</p>
+                  <p v-if="produitsMouvement(m)" class="text-xs text-slate-600">{{ produitsMouvement(m) }}</p>
+                </td>
+                <td class="px-4 py-3 text-slate-600">
+                  <p>{{ m.facture?.client?.nom || '-' }}</p>
+                  <p class="text-xs">{{ m.facture?.numero || m.paiement?.reference || m.reference || '-' }}</p>
+                </td>
+                <td class="px-4 py-3 text-right font-mono font-semibold" :class="m.sens === 'entree' ? 'text-emerald-700' : 'text-red-700'">
+                  {{ m.sens === 'entree' ? '+' : '-' }} {{ formatPrice(m.montant) }}
+                </td>
+                <td class="px-4 py-3 text-right">
+                  <button v-if="m.type === 'vente' && m.facture?.id" class="btn-secondary px-3 py-1.5 text-xs" @click="reimprimerTicket(m)">
+                    Réimprimer
+                  </button>
+                </td>
+              </tr>
+              <tr v-if="journalAdmin.length === 0">
+                <td colspan="6" class="px-4 py-10 text-center text-sm text-slate-400">Aucune opération récente</td>
               </tr>
             </tbody>
           </table>
@@ -126,14 +203,14 @@
       </form>
     </div>
 
-    <div v-else class="grid grid-cols-1 gap-5" :class="isTouchPos ? 'xl:grid-cols-1' : 'xl:grid-cols-[1fr_360px]'">
+    <div v-else class="space-y-5">
       <div class="space-y-5">
         <div class="rounded-lg border border-slate-200 bg-white p-4">
           <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
               <p class="text-xs uppercase text-slate-500">Caisse active</p>
               <h3 class="text-xl font-bold text-slate-900">{{ session.reference }}</h3>
-              <p class="text-sm text-slate-500">Ouverte par {{ session.user?.name }} le {{ formatDateTime(session.opened_at) }}</p>
+              <p class="text-sm text-slate-500">Ouverte par {{ session.user?.name || 'Utilisateur' }} le {{ formatDateTime(session.opened_at) }}</p>
             </div>
             <div class="rounded-lg bg-slate-50 px-4 py-3 text-right">
               <p class="text-xs uppercase text-slate-500">Solde theorique</p>
@@ -180,7 +257,6 @@
                       <span class="font-mono">Ref: {{ p.reference }}</span>
                       <span v-if="p.code_barre" class="font-mono">Code: {{ p.code_barre }}</span>
                       <span>{{ p.type === 'service' ? 'Service' : 'Produit' }}</span>
-                      <span>TVA {{ Number(p.taux_tva || 0) }}%</span>
                     </div>
                   </div>
                   <div class="grid shrink-0 grid-cols-2 items-center gap-3 text-right sm:min-w-60">
@@ -233,16 +309,8 @@
               </div>
 
               <div class="mt-4 space-y-2 border-t border-slate-200 pt-3" :class="isTouchPos ? 'text-base' : 'text-sm'">
-                <div class="flex justify-between">
-                  <span class="text-slate-500">Total HT</span>
-                  <strong>{{ formatPrice(totauxPanier.ht) }}</strong>
-                </div>
-                <div class="flex justify-between">
-                  <span class="text-slate-500">TVA</span>
-                  <strong>{{ formatPrice(totauxPanier.tva) }}</strong>
-                </div>
                 <div class="flex justify-between" :class="isTouchPos ? 'text-2xl' : 'text-lg'">
-                  <span class="font-bold text-slate-900">Total TTC</span>
+                  <span class="font-bold text-slate-900">Total</span>
                   <strong>{{ formatPrice(totauxPanier.ttc) }}</strong>
                 </div>
               </div>
@@ -272,29 +340,89 @@
                   :class="isTouchPos ? 'min-h-12 text-base' : ''"
                   :placeholder="posForm.document_type === 'facture' ? 'Nom du client obligatoire' : 'Client (optionnel)'"
                 />
-                <div v-if="isTouchPos" class="grid grid-cols-2 gap-2">
+                <div v-if="encaissements.length === 1" class="grid grid-cols-2 gap-2 sm:grid-cols-3">
                   <button
                     v-for="mode in modesPaiementTactiles"
                     :key="mode.value"
                     type="button"
                     class="touch-pay-btn"
-                    :class="posForm.mode_paiement === mode.value ? 'touch-pay-btn-active' : ''"
-                    @click="posForm.mode_paiement = mode.value"
+                    :class="encaissements[0].mode_paiement === mode.value ? 'touch-pay-btn-active' : ''"
+                    @click="encaissements[0].mode_paiement = mode.value"
                   >
                     {{ mode.label }}
                   </button>
                 </div>
-                <select v-else v-model="posForm.mode_paiement" class="input">
-                  <option value="especes">Especes</option>
-                  <option value="wave">Wave</option>
-                  <option value="orange_money">Orange Money</option>
-                  <option value="carte_bancaire">Carte bancaire</option>
-                  <option value="cheque">Cheque</option>
-                  <option value="virement">Virement</option>
-                  <option value="autre">Autre</option>
-                </select>
-                <input v-model="posForm.reference_paiement" class="input" :class="isTouchPos ? 'min-h-12 text-base' : ''" placeholder="Reference paiement (optionnel)" />
-                <button class="btn-primary w-full" :class="isTouchPos ? 'min-h-16 text-lg font-bold' : ''" :disabled="saving || panier.length === 0" @click="encaisserVente">
+                <input
+                  v-if="encaissements.length === 1 && encaissements[0].mode_paiement === 'especes'"
+                  v-model.number="encaissements[0].montant_recu"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  class="input"
+                  :class="isTouchPos ? 'min-h-12 text-base' : ''"
+                  placeholder="Espèces reçues"
+                />
+                <input
+                  v-if="encaissements.length === 1 && encaissements[0].mode_paiement !== 'especes'"
+                  v-model="encaissements[0].reference_paiement"
+                  class="input"
+                  :class="isTouchPos ? 'min-h-12 text-base' : ''"
+                  placeholder="Référence paiement (optionnel)"
+                />
+
+                <div class="space-y-2 rounded-lg border border-slate-200 bg-white p-3">
+                  <div class="flex items-center justify-between gap-2">
+                    <div>
+                      <h5 class="text-sm font-bold text-slate-900">Encaissement</h5>
+                      <p class="text-xs text-slate-500">{{ isPaiementFractionne ? 'Paiement fractionné' : 'Paiement simple' }}</p>
+                    </div>
+                    <button type="button" class="btn-secondary px-3 py-1.5 text-xs" @click="ajouterEncaissement">
+                      {{ isPaiementFractionne ? '+ Moyen de paiement' : '+ Fractionner' }}
+                    </button>
+                  </div>
+                  <div v-for="(encaissement, index) in encaissements" v-if="isPaiementFractionne" :key="encaissement.id" class="space-y-2 rounded-lg border border-slate-200 p-2">
+                    <div class="grid grid-cols-[1fr_auto] gap-2">
+                      <select v-model="encaissement.mode_paiement" class="input">
+                        <option value="especes">Especes</option>
+                        <option value="wave">Wave</option>
+                        <option value="orange_money">Orange Money</option>
+                        <option value="carte_bancaire">Carte bancaire</option>
+                        <option value="cheque">Cheque</option>
+                        <option value="virement">Virement</option>
+                        <option value="autre">Autre</option>
+                      </select>
+                      <button v-if="encaissements.length > 1" type="button" class="min-h-10 px-2 text-red-600" title="Supprimer ce paiement" @click="retirerEncaissement(index)">✕</button>
+                    </div>
+                    <div class="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto_1fr]">
+                      <input v-model.number="encaissement.montant" type="number" min="0.01" step="0.01" class="input" placeholder="Montant payé" />
+                      <button type="button" class="btn-secondary px-3 text-xs" title="Utiliser le reste à encaisser" @click="completerEncaissement(index)">Solde</button>
+                      <input
+                        v-if="encaissement.mode_paiement === 'especes'"
+                        v-model.number="encaissement.montant_recu"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        class="input"
+                        placeholder="Espèces reçues"
+                      />
+                    </div>
+                    <input v-if="encaissement.mode_paiement !== 'especes'" v-model="encaissement.reference_paiement" class="input" placeholder="Référence paiement (optionnel)" />
+                  </div>
+                  <div class="space-y-1 border-t border-slate-200 pt-2 text-sm">
+                    <div class="flex justify-between"><span>Payé</span><strong>{{ formatPrice(totalEncaissements) }}</strong></div>
+                    <div class="flex justify-between" :class="resteAEncaisser > 0.01 ? 'text-red-700' : 'text-green-700'">
+                      <span>Reste à encaisser</span><strong>{{ formatPrice(resteAEncaisser) }}</strong>
+                    </div>
+                    <div v-if="excedentEncaissement > 0.01" class="flex justify-between font-bold text-red-700">
+                      <span>Montant en trop</span><strong>{{ formatPrice(excedentEncaissement) }}</strong>
+                    </div>
+                    <div v-if="monnaieARendre > 0" class="flex justify-between text-lg font-bold text-blue-700">
+                      <span>Monnaie à rendre</span><strong>{{ formatPrice(monnaieARendre) }}</strong>
+                    </div>
+                  </div>
+                </div>
+
+                <button class="btn-primary w-full" :class="isTouchPos ? 'min-h-16 text-lg font-bold' : ''" :disabled="saving || panier.length === 0 || Math.abs(ecartEncaissement) > 0.01" @click="encaisserVente">
                   <span v-if="saving">Encaissement...</span>
                   <span v-else>{{ posForm.document_type === 'facture' ? 'Encaisser et ouvrir facture' : 'Encaisser et imprimer' }}</span>
                 </button>
@@ -303,8 +431,8 @@
           </div>
         </div>
 
-        <div class="rounded-lg border border-slate-200 bg-white p-4">
-          <h3 class="text-lg font-bold text-slate-900">Nouveau mouvement</h3>
+        <details class="rounded-lg border border-slate-200 bg-white p-4">
+          <summary class="cursor-pointer select-none text-lg font-bold text-slate-900">Nouveau mouvement manuel</summary>
           <form class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2" @submit.prevent="ajouterMouvement">
             <select v-model="movementForm.sens" class="input">
               <option value="entree">Entree</option>
@@ -340,11 +468,15 @@
               </button>
             </div>
           </form>
-        </div>
+        </details>
 
-        <div class="overflow-hidden rounded-lg border border-slate-200 bg-white">
-          <div class="border-b border-slate-200 px-4 py-3">
+        <details class="overflow-hidden rounded-lg border border-slate-200 bg-white">
+          <summary class="cursor-pointer select-none px-4 py-3 font-bold text-slate-900">Historique et réimpression</summary>
+          <div class="flex items-center justify-between border-b border-slate-200 px-4 py-3">
             <h3 class="font-bold text-slate-900">Mouvements de caisse</h3>
+            <button class="btn-secondary px-3 py-1.5 text-sm" :disabled="exportLoading" @click="exporterMouvementsCSV(session.id)">
+              {{ exportLoading ? 'Export...' : 'Exporter' }}
+            </button>
           </div>
           <div class="overflow-x-auto">
             <table class="w-full">
@@ -354,6 +486,7 @@
                   <th class="px-4 py-3 text-left">Libelle</th>
                   <th class="px-4 py-3 text-center">Type</th>
                   <th class="px-4 py-3 text-right">Montant</th>
+                  <th class="px-4 py-3 text-right">Action</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-slate-100">
@@ -372,23 +505,28 @@
                   <td class="px-4 py-3 text-right font-mono font-semibold" :class="m.sens === 'entree' ? 'text-emerald-700' : 'text-red-700'">
                     {{ m.sens === 'entree' ? '+' : '-' }} {{ formatPrice(m.montant) }}
                   </td>
+                  <td class="px-4 py-3 text-right">
+                    <button v-if="m.type === 'vente' && m.facture?.id" class="btn-secondary px-3 py-1.5 text-xs" @click="reimprimerTicket(m)">
+                      Réimprimer
+                    </button>
+                  </td>
                 </tr>
                 <tr v-if="mouvements.length === 0">
-                  <td colspan="4" class="px-4 py-10 text-center text-sm text-slate-400">Aucun mouvement pour cette caisse</td>
+                  <td colspan="5" class="px-4 py-10 text-center text-sm text-slate-400">Aucun mouvement pour cette caisse</td>
                 </tr>
               </tbody>
             </table>
           </div>
-        </div>
+        </details>
       </div>
 
-      <aside class="rounded-lg border border-slate-200 bg-white p-4">
-        <h3 class="text-lg font-bold text-slate-900">Fermer la caisse</h3>
-        <p class="mt-1 text-sm text-slate-500">Saisissez le montant reel compte dans la caisse.</p>
-        <form class="mt-4 space-y-3" @submit.prevent="fermerCaisse">
-          <input v-model.number="closeForm.solde_fermeture_reel" type="number" min="0" step="0.01" class="input" placeholder="Solde reel" />
-          <textarea v-model="closeForm.notes_fermeture" class="input" rows="3" placeholder="Note de fermeture (optionnel)"></textarea>
-          <div class="rounded-lg bg-slate-50 p-3 text-sm">
+      <section class="rounded-lg border border-slate-200 bg-white p-4">
+        <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <h3 class="text-lg font-bold text-slate-900">Fermer la caisse</h3>
+            <p class="mt-1 text-sm text-slate-500">Saisissez le montant reel compte dans la caisse.</p>
+          </div>
+          <div class="rounded-lg bg-slate-50 p-3 text-sm lg:min-w-72">
             <div class="flex justify-between">
               <span class="text-slate-500">Theorique</span>
               <strong>{{ formatPrice(session.solde_fermeture_theorique) }}</strong>
@@ -400,9 +538,13 @@
               </strong>
             </div>
           </div>
-          <button class="btn-danger w-full" :disabled="saving">Fermer la caisse</button>
+        </div>
+        <form class="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-[220px_1fr_auto]" @submit.prevent="fermerCaisse">
+          <input v-model.number="closeForm.solde_fermeture_reel" type="number" min="0" step="0.01" class="input" placeholder="Solde reel" />
+          <textarea v-model="closeForm.notes_fermeture" class="input" rows="1" placeholder="Note de fermeture (optionnel)"></textarea>
+          <button class="btn-danger" :disabled="saving">Fermer la caisse</button>
         </form>
-      </aside>
+      </section>
     </div>
   </div>
 </template>
@@ -413,16 +555,20 @@ import api from '@/services/api'
 import { useToast } from '@/composables/useToast'
 import { useAuthStore } from '@/stores/auth'
 import { ouvrirPDF } from '@/services/pdf'
+import { telechargerCSV } from '@/services/exports'
 
 const toast = useToast()
 const auth = useAuthStore()
 const loading = ref(false)
 const saving = ref(false)
+const exportLoading = ref(false)
 const session = ref(null)
 const mouvements = ref([])
 const sessionsOuvertes = ref([])
 const sessionAdminSelection = ref(null)
 const mouvementsAdmin = ref([])
+const mouvementsAdminLoading = ref(false)
+const journalAdmin = ref([])
 const produits = ref([])
 const panier = ref([])
 const productSearch = ref('')
@@ -440,8 +586,18 @@ const movementForm = reactive({
   description: '',
 })
 const posForm = reactive({ client_nom: '', mode_paiement: 'especes', reference_paiement: '', document_type: 'ticket' })
-const isAdmin = computed(() => auth.user?.role === 'admin')
+let encaissementSequence = 0
+const creerEncaissement = (montant = 0, mode = 'especes') => ({
+  id: ++encaissementSequence,
+  mode_paiement: mode,
+  montant: Number(montant || 0),
+  montant_recu: Number(montant || 0),
+  reference_paiement: '',
+})
+const encaissements = ref([creerEncaissement()])
+const isAdmin = computed(() => ['admin', 'gerant'].includes(auth.user?.role))
 const isTouchPos = computed(() => auth.user?.role === 'caissier')
+const sessionsActivesCount = computed(() => sessionsOuvertes.value.filter(s => s.statut === 'ouverte').length)
 const modesPaiementTactiles = [
   { value: 'especes', label: 'Especes' },
   { value: 'wave', label: 'Wave' },
@@ -452,7 +608,7 @@ const modesPaiementTactiles = [
 ]
 
 const ecartPrevu = computed(() => {
-  return Number(closeForm.solde_fermeture_reel || 0) - Number(session.value?.solde_fermeture_theorique || 0)
+  return Number(closeForm.solde_fermeture_reel || 0) - Number(session.value.solde_fermeture_theorique || 0)
 })
 
 const totauxPanier = computed(() => {
@@ -468,35 +624,76 @@ const totauxPanier = computed(() => {
   }, { ht: 0, tva: 0, ttc: 0 })
 })
 
+const totalEncaissements = computed(() => {
+  return encaissements.value.reduce((total, item) => total + Number(item.montant || 0), 0)
+})
+
+const isPaiementFractionne = computed(() => encaissements.value.length > 1)
+
+const ecartEncaissement = computed(() => {
+  return Number(totauxPanier.value.ttc || 0) - totalEncaissements.value
+})
+
+const resteAEncaisser = computed(() => {
+  return Math.max(ecartEncaissement.value, 0)
+})
+
+const excedentEncaissement = computed(() => {
+  return Math.max(-ecartEncaissement.value, 0)
+})
+
+const monnaieARendre = computed(() => {
+  return encaissements.value.reduce((total, item) => {
+    if (item.mode_paiement !== 'especes') return total
+    return total + Math.max(Number(item.montant_recu || 0) - Number(item.montant || 0), 0)
+  }, 0)
+})
+
+watch(() => totauxPanier.value.ttc, (nouveauTotal, ancienTotal) => {
+  if (encaissements.value.length !== 1) return
+  const item = encaissements.value[0]
+  if (Number(item.montant || 0) === Number(ancienTotal || 0) || Number(item.montant || 0) === 0) {
+    item.montant = Number(nouveauTotal || 0)
+    if (item.mode_paiement === 'especes') item.montant_recu = Number(nouveauTotal || 0)
+  }
+})
+
 async function loadCaisse() {
   loading.value = true
   try {
     const { data } = await api.get('/caisse/active')
     session.value = data.session
     Object.assign(stats, data.stats || {})
-    if (isAdmin.value) {
-      await loadVueAdmin()
-    }
-    closeForm.solde_fermeture_reel = Number(session.value?.solde_fermeture_theorique || 0)
     if (session.value) {
-      await loadMouvements()
-      await loadProduits()
+      closeForm.solde_fermeture_reel = Number(session.value.solde_fermeture_theorique || 0)
+    } else {
+      closeForm.solde_fermeture_reel = 0
     }
   } catch (e) {
     toast.error('Erreur de chargement de la caisse')
   } finally {
     loading.value = false
   }
+
+  if (isAdmin.value) {
+    loadVueAdmin().catch(() => toast.error('Erreur de chargement de la vue administrateur caisse'))
+  }
+
+  if (session.value) {
+    loadMouvements().catch(() => toast.error('Erreur de chargement des mouvements de caisse'))
+    loadProduits().catch(() => toast.error('Erreur de chargement des produits caisse'))
+  }
 }
 
 async function loadVueAdmin() {
   const { data } = await api.get('/caisse/sessions', {
-    params: { statut: 'ouverte', per_page: 100 },
+    params: { per_page: 100 },
   })
   sessionsOuvertes.value = data.data || []
+  await loadJournalAdmin()
 
   if (!sessionAdminSelection.value && sessionsOuvertes.value.length > 0) {
-    await selectionnerSessionAdmin(sessionsOuvertes.value[0])
+    selectionnerSessionAdmin(sessionsOuvertes.value[0]).catch(() => toast.error('Erreur de chargement des mouvements de caisse'))
     return
   }
 
@@ -504,11 +701,44 @@ async function loadVueAdmin() {
     const fresh = sessionsOuvertes.value.find(s => s.id === sessionAdminSelection.value.id)
     if (fresh) {
       sessionAdminSelection.value = fresh
-      await loadMouvementsAdmin(fresh.id)
+      loadMouvementsAdmin(fresh.id).catch(() => toast.error('Erreur de chargement des mouvements de caisse'))
     } else {
       sessionAdminSelection.value = null
       mouvementsAdmin.value = []
     }
+  }
+}
+
+async function loadJournalAdmin() {
+  const { data } = await api.get('/caisse/journal', {
+    params: { per_page: 40 },
+  })
+  journalAdmin.value = data.data || []
+}
+
+async function exporterSessionsCSV() {
+  exportLoading.value = true
+  try {
+    await telechargerCSV('/exports/caisse-sessions', {}, 'sessions_caisse.csv')
+    toast.success('Export des sessions de caisse téléchargé.')
+  } catch (e) {
+    toast.error('Export impossible pour le moment.')
+  } finally {
+    exportLoading.value = false
+  }
+}
+
+async function exporterMouvementsCSV(sessionId = null) {
+  exportLoading.value = true
+  try {
+    await telechargerCSV('/exports/caisse-mouvements', {
+      session_id: sessionId || undefined,
+    }, 'journal_caisse.csv')
+    toast.success('Export du journal de caisse téléchargé.')
+  } catch (e) {
+    toast.error('Export impossible pour le moment.')
+  } finally {
+    exportLoading.value = false
   }
 }
 
@@ -518,10 +748,15 @@ async function selectionnerSessionAdmin(caisseSession) {
 }
 
 async function loadMouvementsAdmin(sessionId) {
-  const { data } = await api.get(`/caisse/sessions/${sessionId}/mouvements`, {
-    params: { per_page: 100 },
-  })
-  mouvementsAdmin.value = data.data || []
+  mouvementsAdminLoading.value = true
+  try {
+    const { data } = await api.get(`/caisse/sessions/${sessionId}/mouvements`, {
+      params: { per_page: 100 },
+    })
+    mouvementsAdmin.value = data.data || []
+  } finally {
+    mouvementsAdminLoading.value = false
+  }
 }
 
 let productTimer = null
@@ -598,6 +833,34 @@ function viderPanier() {
   panier.value = []
 }
 
+function ajouterEncaissement() {
+  const reste = Math.max(Number(totauxPanier.value.ttc || 0) - totalEncaissements.value, 0)
+  encaissements.value.push(creerEncaissement(reste, 'wave'))
+}
+
+function retirerEncaissement(index) {
+  encaissements.value.splice(index, 1)
+  if (encaissements.value.length === 0) {
+    encaissements.value.push(creerEncaissement(totauxPanier.value.ttc))
+  }
+}
+
+function completerEncaissement(index) {
+  const item = encaissements.value[index]
+  const autresPaiements = encaissements.value.reduce((total, paiement, paiementIndex) => {
+    return paiementIndex === index ? total : total + Number(paiement.montant || 0)
+  }, 0)
+  const solde = Math.max(Number(totauxPanier.value.ttc || 0) - autresPaiements, 0)
+  item.montant = solde
+  if (item.mode_paiement === 'especes' && Number(item.montant_recu || 0) < solde) {
+    item.montant_recu = solde
+  }
+}
+
+function reinitialiserEncaissements() {
+  encaissements.value = [creerEncaissement(totauxPanier.value.ttc)]
+}
+
 function totalLigne(ligne) {
   const ht = Number(ligne.quantite || 0) * Number(ligne.prix_ht || 0)
   const htRemise = ht * (1 - Number(ligne.remise_pourcent || 0) / 100)
@@ -610,12 +873,24 @@ async function encaisserVente() {
     return
   }
 
+  if (Math.abs(Number(totauxPanier.value.ttc || 0) - totalEncaissements.value) > 0.01) {
+    toast.error('Répartissez exactement le total du ticket entre les moyens de paiement.')
+    return
+  }
+
   saving.value = true
   try {
+    const premierPaiement = encaissements.value[0]
     const { data } = await api.post('/caisse/vente', {
       client_nom: posForm.client_nom || undefined,
-      mode_paiement: posForm.mode_paiement,
-      reference_paiement: posForm.reference_paiement || undefined,
+      mode_paiement: premierPaiement.mode_paiement,
+      reference_paiement: premierPaiement.reference_paiement || undefined,
+      paiements: encaissements.value.map(item => ({
+        mode_paiement: item.mode_paiement,
+        montant: Number(item.montant || 0),
+        montant_recu: item.mode_paiement === 'especes' ? Number(item.montant_recu || item.montant || 0) : Number(item.montant || 0),
+        reference_paiement: item.reference_paiement || undefined,
+      })),
       lignes: panier.value.map(l => ({
         produit_id: l.produit_id,
         quantite: l.quantite,
@@ -624,15 +899,18 @@ async function encaisserVente() {
     })
     toast.success(`Vente ${data.ticket.numero} encaissee`)
     if (posForm.document_type === 'facture') {
-      await ouvrirPDF(`/caisse/factures/${data.facture.id}/pdf`)
+      if (data.facture?.id) {
+        await ouvrirPDF(`/caisse/factures/${data.facture.id}/pdf`, `${data.facture.numero}.pdf`)
+      }
     } else {
       imprimerTicket(data)
     }
     viderPanier()
     Object.assign(posForm, { client_nom: '', mode_paiement: 'especes', reference_paiement: '', document_type: 'ticket' })
+    reinitialiserEncaissements()
     await loadCaisse()
   } catch (e) {
-    toast.error(e.response?.data?.errors?.stock?.[0] || e.response?.data?.errors?.caisse?.[0] || e.response?.data?.message || 'Vente impossible')
+    toast.error(e.response.data.errors.stock?.[0] || e.response.data.errors.caisse?.[0] || e.response.data.message || 'Vente impossible')
   } finally {
     saving.value = false
   }
@@ -640,6 +918,7 @@ async function encaisserVente() {
 
 function imprimerTicket(data) {
   const lignes = data.facture?.lignes || []
+  const paiements = data.ticket.paiements || []
   const html = `
     <html>
       <head>
@@ -667,7 +946,14 @@ function imprimerTicket(data) {
         `).join('')}
         <div class="line"></div>
         <div class="row total"><span>Total</span><strong>${formatPrice(data.ticket.total_ttc)}</strong></div>
-        <div class="row"><span>Paiement</span><strong>${data.ticket.mode_paiement}</strong></div>
+        ${paiements.length ?
+           paiements.map(p => `<div class="row"><span>${modePaiementLabel(p.mode_paiement)}</span><strong>${formatPrice(p.montant)}</strong></div>`).join('')
+          : `<div class="row"><span>Paiement</span><strong>${modePaiementLabel(data.ticket.mode_paiement)}</strong></div>`
+        }
+        ${Number(data.ticket.monnaie_rendue || 0) > 0 ? `
+          <div class="row"><span>Reçu</span><strong>${formatPrice(data.ticket.total_recu)}</strong></div>
+          <div class="row total"><span>Monnaie rendue</span><strong>${formatPrice(data.ticket.monnaie_rendue)}</strong></div>
+        ` : ''}
         <div class="line"></div>
         <p class="center">Merci pour votre achat</p>
       </body>
@@ -679,6 +965,34 @@ function imprimerTicket(data) {
   win.document.close()
   win.focus()
   win.print()
+}
+
+function modePaiementLabel(mode) {
+  return {
+    especes: 'Espèces',
+    wave: 'Wave',
+    orange_money: 'Orange Money',
+    carte_bancaire: 'Carte bancaire',
+    cheque: 'Chèque',
+    virement: 'Virement',
+    mobile_money: 'Mobile Money',
+    compensation: 'Compensation',
+    autre: 'Autre',
+  }[mode] || mode
+}
+
+async function reimprimerTicket(mouvement) {
+  if (!mouvement.facture?.id) {
+    toast.error('Ticket introuvable pour ce mouvement')
+    return
+  }
+
+  try {
+    const { data } = await api.get(`/caisse/factures/${mouvement.facture?.id}/ticket`)
+    imprimerTicket(data)
+  } catch (e) {
+    toast.error(e.response.data.message || 'Réimpression impossible')
+  }
 }
 
 async function loadMouvements() {
@@ -696,7 +1010,7 @@ async function ouvrirCaisse() {
     openForm.notes_ouverture = ''
     await loadCaisse()
   } catch (e) {
-    toast.error(e.response?.data?.message || e.response?.data?.errors?.caisse?.[0] || 'Ouverture impossible')
+    toast.error(e.response.data.message || e.response.data.errors.caisse?.[0] || 'Ouverture impossible')
   } finally {
     saving.value = false
   }
@@ -710,7 +1024,7 @@ async function ajouterMouvement() {
     Object.assign(movementForm, { sens: 'entree', type: 'vente', libelle: '', montant: null, mode_paiement: 'especes', reference: '', description: '' })
     await loadCaisse()
   } catch (e) {
-    toast.error(e.response?.data?.message || e.response?.data?.errors?.caisse?.[0] || 'Enregistrement impossible')
+    toast.error(e.response.data.message || e.response.data.errors.caisse?.[0] || 'Enregistrement impossible')
   } finally {
     saving.value = false
   }
@@ -727,7 +1041,7 @@ async function fermerCaisse() {
     closeForm.notes_fermeture = ''
     await loadCaisse()
   } catch (e) {
-    toast.error(e.response?.data?.message || e.response?.data?.errors?.caisse?.[0] || 'Fermeture impossible')
+    toast.error(e.response.data.message || e.response.data.errors.caisse?.[0] || 'Fermeture impossible')
   } finally {
     saving.value = false
   }

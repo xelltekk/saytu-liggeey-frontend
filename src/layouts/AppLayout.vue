@@ -1,5 +1,9 @@
 <template>
-  <div class="min-h-screen bg-[#f4f7fb] text-slate-700 lg:flex">
+  <div
+    class="app-shell min-h-screen bg-[#f4f7fb] text-slate-700 transition-colors dark:bg-slate-950 dark:text-slate-200 lg:flex"
+    :class="viewportClass"
+    :data-device="deviceType"
+  >
     <div
       v-if="mobileSidebarOpen"
       class="fixed inset-0 z-30 bg-slate-950/50 backdrop-blur-sm lg:hidden"
@@ -8,8 +12,10 @@
     
     <!-- ================= SIDEBAR ================= -->
     <aside
+      id="main-sidebar"
+      aria-label="Navigation principale"
       :class="[
-        'fixed inset-y-0 left-0 z-40 flex h-screen w-72 flex-col bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 text-white shadow-2xl transition-all duration-300 lg:translate-x-0',
+        'app-sidebar fixed inset-y-0 left-0 z-40 flex h-screen w-72 flex-col bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 text-white shadow-2xl transition-all duration-300 lg:translate-x-0',
         mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full',
         sidebarOpen ? 'lg:w-72' : 'lg:w-24'
       ]"
@@ -17,9 +23,16 @@
       <!-- Logo -->
       <div class="h-20 flex items-center px-5 border-b border-slate-700">
         <div
-          class="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center shadow-lg"
+          class="app-brand-chip flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-400 shadow-lg ring-1 ring-white/10"
         >
-          <span class="text-xl font-black">SL</span>
+          <img
+            v-if="companyLogoUrl"
+            :src="companyLogoUrl"
+            :alt="company.nom || 'Logo société'"
+            class="h-full w-full bg-white/95 object-contain p-1.5"
+            @error="handleCompanyLogoError"
+          />
+          <span v-else class="text-xl font-black">SL</span>
         </div>
 
         <transition name="fade">
@@ -31,7 +44,7 @@
       </div>
 
       <!-- Menu -->
-      <nav class="flex-1 px-4 py-5 overflow-y-auto space-y-2">
+      <nav aria-label="Rubriques de l'application" class="flex-1 px-4 py-5 overflow-y-auto space-y-2">
         <router-link
           v-if="!sidebarOpen"
           v-for="item in menuItems"
@@ -145,19 +158,26 @@
       <div class="p-4 border-t border-slate-700">
         <div class="flex items-center">
           <div
-            class="w-11 h-11 rounded-full bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center font-bold shadow-lg"
+            class="app-user-chip flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-cyan-400 to-blue-500 font-bold shadow-lg ring-2 ring-white/10"
           >
-            {{ userInitials }}
+            <img
+              v-if="userPhotoUrl"
+              :src="userPhotoUrl"
+              :alt="auth.user?.name || 'Utilisateur'"
+              class="h-full w-full object-cover"
+              @error="hideUserPhoto = true"
+            />
+            <span v-else>{{ userInitials }}</span>
           </div>
 
           <transition name="fade">
             <div v-if="sidebarOpen" class="ml-3 overflow-hidden">
               <p class="font-semibold truncate text-sm">
-                {{ auth.user?.name }}
+                {{ auth.user?.name || 'Utilisateur' }}
               </p>
 
               <p class="text-xs text-slate-400 capitalize">
-                {{ auth.user?.role }}
+                {{ roleLabel(auth.user?.role) }}
               </p>
             </div>
           </transition>
@@ -176,15 +196,19 @@
 
       <!-- ================= HEADER ================= -->
       <header
-        class="min-h-20 bg-white/80 backdrop-blur-xl border-b border-slate-200 px-4 py-3 sm:px-6 flex flex-col gap-3 shadow-sm md:flex-row md:items-center md:justify-between"
+        class="app-topbar min-h-20 bg-white/80 backdrop-blur-xl border-b border-slate-200 px-4 py-3 sm:px-6 flex flex-col gap-3 shadow-sm transition-colors dark:border-slate-700 dark:bg-slate-900/85 md:flex-row md:items-center md:justify-between"
       >
         <!-- Left -->
         <div class="flex min-w-0 items-center gap-3 sm:gap-4">
           <!-- Toggle -->
           <button
+            type="button"
             @click="toggleSidebar"
-            class="w-11 h-11 rounded-xl border border-slate-200 flex items-center justify-center hover:bg-slate-100 transition"
+            class="w-11 h-11 rounded-xl border border-slate-200 flex items-center justify-center hover:bg-slate-100 transition dark:border-slate-700 dark:hover:bg-slate-800"
             title="Menu"
+            aria-label="Ouvrir ou réduire le menu principal"
+            aria-controls="main-sidebar"
+            :aria-expanded="isDesktop ? sidebarOpen : mobileSidebarOpen"
           >
             <PanelLeftClose v-if="sidebarOpen && !mobileSidebarOpen" class="w-5 h-5" />
             <PanelLeftOpen v-else class="w-5 h-5" />
@@ -192,11 +216,11 @@
 
           <!-- Page title -->
           <div class="min-w-0">
-            <h2 class="truncate text-lg font-bold text-slate-800 sm:text-xl">
+            <h2 class="app-page-title truncate text-lg font-bold text-slate-800 dark:text-slate-100 sm:text-xl">
               {{ pageTitle }}
             </h2>
 
-            <p class="hidden text-xs text-slate-500 sm:block">
+            <p class="app-page-subtitle hidden text-xs text-slate-500 dark:text-slate-400 sm:block">
               Bienvenue sur Saytu Liggéey 2.0
             </p>
           </div>
@@ -209,12 +233,13 @@
           <button
             type="button"
             @click="showCommandPalette = true"
-            class="relative hidden xl:flex items-center w-64 2xl:w-80 rounded-2xl border border-slate-200 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-400 hover:border-cyan-400 hover:text-slate-600 transition focus:outline-none focus:ring-2 focus:ring-cyan-400"
+            class="relative hidden xl:flex items-center w-64 2xl:w-80 rounded-2xl border border-slate-200 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-400 hover:border-cyan-400 hover:text-slate-600 transition focus:outline-none focus:ring-2 focus:ring-cyan-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
             title="Recherche globale"
+            aria-label="Ouvrir la recherche globale"
           >
             <Search class="absolute left-3 top-3 w-4 h-4 text-slate-400" />
             <span class="flex-1 text-left">Rechercher...</span>
-            <kbd class="px-1.5 py-0.5 text-[10px] bg-slate-100 rounded border border-slate-300 font-mono text-slate-500">
+            <kbd class="px-1.5 py-0.5 text-[10px] bg-slate-100 rounded border border-slate-300 font-mono text-slate-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300">
               {{ isMac ? '⌘K' : 'Ctrl+K' }}
             </kbd>
           </button>
@@ -223,10 +248,23 @@
           <button
             type="button"
             @click="showCommandPalette = true"
-            class="w-11 h-11 xl:hidden rounded-xl border border-slate-200 flex items-center justify-center hover:bg-slate-100 transition"
+            class="w-11 h-11 xl:hidden rounded-xl border border-slate-200 flex items-center justify-center hover:bg-slate-100 transition dark:border-slate-700 dark:hover:bg-slate-800"
             title="Recherche (Ctrl+K)"
+            aria-label="Ouvrir la recherche globale"
           >
             <Search class="w-5 h-5" />
+          </button>
+
+          <!-- Theme -->
+          <button
+            type="button"
+            @click="toggleThemeMode"
+            class="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
+            :title="isDark ? 'Passer en mode clair' : 'Passer en mode sombre'"
+            :aria-label="isDark ? 'Passer en mode clair' : 'Passer en mode sombre'"
+          >
+            <Sun v-if="isDark" class="h-5 w-5" />
+            <Moon v-else class="h-5 w-5" />
           </button>
 
           <!-- Notifications -->
@@ -235,7 +273,7 @@
           </div>
 
           <!-- Date -->
-          <div class="hidden lg:block text-sm text-slate-500">
+          <div class="hidden lg:block text-sm text-slate-500 dark:text-slate-400">
             {{ today }}
           </div>
 
@@ -254,6 +292,7 @@
             @click="handleLogout"
             class="inline-flex h-11 items-center gap-2 rounded-xl border border-red-100 bg-red-50 px-3 text-sm font-medium text-red-600 transition hover:bg-red-100 hover:text-red-700"
             title="Déconnexion"
+            aria-label="Se déconnecter"
           >
             <LogOut class="h-4 w-4 shrink-0" />
             <span class="hidden xl:inline">Déconnexion</span>
@@ -265,7 +304,7 @@
       <main class="flex-1 overflow-y-auto p-3 sm:p-4 lg:p-6">
         <!-- Dynamic Page -->
         <div
-          class="min-w-0 bg-white rounded-2xl lg:rounded-3xl border border-slate-100 shadow-sm p-3 sm:p-4 lg:p-6"
+          class="app-surface min-w-0 bg-white rounded-2xl lg:rounded-3xl border border-slate-100 shadow-sm p-3 transition-colors dark:border-slate-800 dark:bg-slate-900 sm:p-4 lg:p-6"
         >
           <router-view />
         </div>
@@ -280,10 +319,13 @@
 </template>
 
 <script setup>
-import { computed, ref, onMounted, onBeforeUnmount, watch } from 'vue'
+import { computed, reactive, ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useNotificationsStore } from '@/stores/notifications'
+import { useTheme } from '@/composables/useTheme'
+import { useViewport } from '@/composables/useViewport'
+import api from '@/services/api'
 
 import ToastContainer from '@/components/ToastContainer.vue'
 import NotificationsBell from '@/components/NotificationsBell.vue'
@@ -292,6 +334,7 @@ import CommandPalette from '@/components/CommandPalette.vue'
 import {
   LayoutDashboard,
   Users,
+  Target,
   Package,
   Warehouse,
   Boxes,
@@ -299,6 +342,8 @@ import {
   Receipt,
   CreditCard,
   Wallet,
+  Truck,
+  ShoppingCart,
   BookOpen,
   ScrollText,
   BookMarked,
@@ -311,7 +356,9 @@ import {
   PanelLeftClose,
   ChevronDown,
   Maximize,
-  LogOut
+  LogOut,
+  Moon,
+  Sun
 } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -324,12 +371,27 @@ const sidebarOpen = ref(true)
 const mobileSidebarOpen = ref(false)
 const showCommandPalette = ref(false)
 const isFullscreen = ref(false)
+const { isDark, applyTheme, toggleThemeMode } = useTheme()
+const { isDesktop, isMobile, deviceType, viewportClass } = useViewport()
+const logoVersion = ref(Date.now())
+const hideUserPhoto = ref(false)
+const INACTIVITY_LIMIT_MS = 30 * 60 * 1000
+const INACTIVITY_CHECK_MS = 30 * 1000
+const inactivityEvents = ['click', 'keydown', 'mousemove', 'mousedown', 'scroll', 'touchstart', 'pointerdown']
+const lastActivityAt = ref(Date.now())
+let inactivityCheckTimer = null
+let inactivityLogoutRunning = false
+const company = reactive({
+  nom: 'Saytu Liggéey 2.0',
+  logo: '',
+})
 const openMenuGroups = ref({
-  ventes: true,
-  boutique: true,
-  stock: true,
-  comptabilite: true,
-  administration: true,
+  ventes: false,
+  boutique: false,
+  stock: false,
+  rh: false,
+  comptabilite: false,
+  administration: false,
 })
 
 const isMac = computed(() => {
@@ -342,91 +404,133 @@ const tousLesMenus = [
     to: '/',
     label: 'Tableau de bord',
     icon: LayoutDashboard,
-    roles: ['admin', 'commercial', 'magasinier', 'comptable']
+    roles: ['admin', 'gerant', 'commercial', 'magasinier', 'comptable']
   },
 
   {
     to: '/clients',
     label: 'Clients',
     icon: Users,
-    roles: ['admin', 'commercial', 'comptable', 'magasinier']
+    roles: ['admin', 'gerant', 'commercial', 'comptable']
+  },
+
+  {
+    to: '/prospection',
+    label: 'Prospection',
+    icon: Target,
+    roles: ['admin', 'gerant', 'commercial']
   },
 
   {
     to: '/produits',
     label: 'Produits',
     icon: Package,
-    roles: ['admin', 'commercial', 'magasinier', 'comptable']
+    roles: ['admin', 'gerant', 'commercial', 'magasinier', 'comptable']
   },
 
   {
     to: '/entrepots',
     label: 'Entrepôts',
     icon: Warehouse,
-    roles: ['admin', 'magasinier', 'comptable']
+    roles: ['admin', 'gerant', 'magasinier', 'comptable']
   },
 
   {
     to: '/stock',
     label: 'Stock',
     icon: Boxes,
-    roles: ['admin', 'magasinier', 'commercial', 'comptable']
+    roles: ['admin', 'gerant', 'magasinier', 'comptable']
   },
 
   {
     to: '/devis',
     label: 'Devis',
     icon: FileText,
-    roles: ['admin', 'commercial', 'comptable']
+    roles: ['admin', 'gerant', 'commercial', 'comptable']
   },
 
   {
     to: '/factures',
     label: 'Factures',
     icon: Receipt,
-    roles: ['admin', 'commercial', 'comptable']
+    roles: ['admin', 'gerant', 'commercial', 'comptable']
   },
 
   {
     to: '/paiements',
     label: 'Paiements',
     icon: CreditCard,
-    roles: ['admin', 'commercial', 'comptable', 'caissier']
+    roles: ['admin', 'gerant', 'comptable', 'caissier']
+  },
+
+  {
+    to: '/achats',
+    label: 'Achats fournisseurs',
+    icon: ShoppingCart,
+    roles: ['admin', 'gerant', 'magasinier', 'comptable']
+  },
+
+  {
+    to: '/fournisseurs-reglements',
+    label: 'Règlements fournisseurs',
+    icon: Truck,
+    roles: ['admin', 'gerant', 'comptable']
+  },
+
+  {
+    to: '/depenses',
+    label: 'Dépenses',
+    icon: Wallet,
+    roles: ['admin', 'gerant', 'comptable', 'caissier', 'commercial', 'magasinier']
+  },
+
+  {
+    to: '/tresorerie-comptes',
+    label: 'Comptes trésorerie',
+    icon: CreditCard,
+    roles: ['admin', 'gerant', 'comptable']
   },
 
   {
     to: '/caisse',
     label: 'Caisse',
     icon: Wallet,
-    roles: ['admin', 'commercial', 'comptable', 'caissier']
+    roles: ['admin', 'gerant', 'comptable', 'caissier']
   },
 
   {
     to: '/compta/plan',
     label: 'Plan comptable',
     icon: BookOpen,
-    roles: ['admin', 'comptable']
+    roles: ['admin', 'gerant', 'comptable']
   },
 
   {
     to: '/compta/ecritures',
     label: 'Écritures',
     icon: ScrollText,
-    roles: ['admin', 'comptable']
+    roles: ['admin', 'gerant', 'comptable']
   },
 
   {
     to: '/compta/grand-livre',
     label: 'Grand livre',
     icon: BookMarked,
-    roles: ['admin', 'comptable']
+    roles: ['admin', 'gerant', 'comptable']
   },
 
   {
     to: '/compta/balance',
     label: 'Balance',
     icon: Scale,
-    roles: ['admin', 'comptable']
+    roles: ['admin', 'gerant', 'comptable']
+  },
+
+  {
+    to: '/rh',
+    label: 'Ressources humaines',
+    icon: Users,
+    roles: ['admin', 'gerant', 'commercial', 'magasinier', 'comptable']
   },
 
   {
@@ -440,7 +544,7 @@ const tousLesMenus = [
     to: '/activites',
     label: 'Activités',
     icon: ClipboardList,
-    roles: ['admin']
+    roles: ['admin', 'gerant']
   },
 
   {
@@ -458,6 +562,63 @@ const menuItems = computed(() => {
   return tousLesMenus.filter(m => m.roles.includes(role))
 })
 
+const companyLogoUrl = computed(() => {
+  if (!company.logo) return ''
+  if (company.logo.startsWith('http')) return `${company.logo}${company.logo.includes('') ? '&' : ''}v=${logoVersion.value}`
+  return `${company.logo}${company.logo.includes('') ? '&' : ''}v=${logoVersion.value}`
+})
+
+const userPhotoUrl = computed(() => {
+  const photo = auth.user?.photo
+  if (!photo || hideUserPhoto.value) return ''
+  if (photo.startsWith('http')) return photo
+  return photo
+})
+
+function roleLabel(role) {
+  return {
+    admin: 'Administrateur',
+    gerant: 'Gérant',
+    commercial: 'Commercial',
+    magasinier: 'Gestionnaire de stock',
+    comptable: 'Comptable',
+    caissier: 'Caissier',
+  }[role] || role || ''
+}
+
+watch(
+  () => auth.user?.photo,
+  () => {
+    hideUserPhoto.value = false
+  }
+)
+
+async function loadCompanyIdentity() {
+  try {
+    const { data } = await api.get('/societe/identite')
+    Object.assign(company, {
+      nom: data.nom || 'Saytu Liggéey 2.0',
+      logo: data.logo || '',
+    })
+    logoVersion.value = Date.now()
+  } catch (e) {
+    company.logo = ''
+  }
+}
+
+function handleCompanyLogoError() {
+  company.logo = ''
+}
+
+function handleCompanyIdentityUpdated(event) {
+  const detail = event.detail || {}
+  Object.assign(company, {
+    nom: detail.nom || company.nom,
+    logo: detail.logo || '',
+  })
+  logoVersion.value = Date.now()
+}
+
 const dashboardMenuItem = computed(() => {
   return menuItems.value.find(item => item.to === '/') || null
 })
@@ -467,7 +628,7 @@ const menuGroupDefinitions = [
     key: 'ventes',
     label: 'Ventes & Clients',
     icon: Users,
-    items: ['/clients', '/devis', '/factures', '/paiements']
+    items: ['/clients', '/prospection', '/devis', '/factures', '/paiements']
   },
   {
     key: 'boutique',
@@ -477,15 +638,21 @@ const menuGroupDefinitions = [
   },
   {
     key: 'stock',
-    label: 'Stock & Produits',
+    label: 'Achats & Stock',
     icon: Boxes,
-    items: ['/produits', '/entrepots', '/stock']
+    items: ['/achats', '/produits', '/entrepots', '/stock']
   },
   {
     key: 'comptabilite',
     label: 'Comptabilité',
     icon: BookOpen,
-    items: ['/compta/plan', '/compta/ecritures', '/compta/grand-livre', '/compta/balance']
+    items: ['/fournisseurs-reglements', '/depenses', '/tresorerie-comptes', '/compta/plan', '/compta/ecritures', '/compta/grand-livre', '/compta/balance']
+  },
+  {
+    key: 'rh',
+    label: 'Ressources humaines',
+    icon: Users,
+    items: ['/rh']
   },
   {
     key: 'administration',
@@ -537,6 +704,7 @@ function getBadgeCount(to) {
   if (to === '/factures') return notif.badges.factures_retard
   if (to === '/devis') return notif.badges.devis_attente
   if (to === '/stock') return notif.badges.stock_alerte
+  if (to === '/depenses') return notif.badges.demandes_validation
 
   return 0
 }
@@ -545,12 +713,13 @@ function getBadgeColor(to) {
   if (to === '/factures') return 'bg-red-500 text-white'
   if (to === '/devis') return 'bg-yellow-500 text-white'
   if (to === '/stock') return 'bg-orange-500 text-white'
+  if (to === '/depenses') return 'bg-blue-500 text-white'
 
   return 'bg-slate-500 text-white'
 }
 
 const pageTitle = computed(() => {
-  return menuItems.value.find(item => isActive(item.to))?.label || 'Saytu Liggéey'
+  return menuItems.value.find(item => isActive(item.to)).label || 'Saytu Liggéey'
 })
 
 const userInitials = computed(() => {
@@ -574,12 +743,61 @@ const today = computed(() => {
 })
 
 async function handleLogout() {
+  inactivityLogoutRunning = true
   await quitterPleinEcran()
   await auth.logout()
 
   router.push({
     name: 'login'
   })
+}
+
+function markActivity() {
+  if (!auth.isAuthenticated || inactivityLogoutRunning) return
+  lastActivityAt.value = Date.now()
+}
+
+async function handleInactivityLogout() {
+  if (inactivityLogoutRunning || !auth.isAuthenticated) return
+  inactivityLogoutRunning = true
+
+  await quitterPleinEcran()
+  await auth.logout()
+
+  router.push({
+    name: 'login',
+    query: { expired: '1' },
+  })
+}
+
+function checkInactivity() {
+  if (!auth.isAuthenticated || inactivityLogoutRunning) return
+
+  if (Date.now() - lastActivityAt.value >= INACTIVITY_LIMIT_MS) {
+    handleInactivityLogout()
+  }
+}
+
+function startInactivityWatcher() {
+  lastActivityAt.value = Date.now()
+  inactivityLogoutRunning = false
+
+  inactivityEvents.forEach((eventName) => {
+    window.addEventListener(eventName, markActivity, { passive: true })
+  })
+
+  inactivityCheckTimer = window.setInterval(checkInactivity, INACTIVITY_CHECK_MS)
+}
+
+function stopInactivityWatcher() {
+  inactivityEvents.forEach((eventName) => {
+    window.removeEventListener(eventName, markActivity)
+  })
+
+  if (inactivityCheckTimer) {
+    window.clearInterval(inactivityCheckTimer)
+    inactivityCheckTimer = null
+  }
 }
 
 async function entrerPleinEcran() {
@@ -605,7 +823,7 @@ function syncFullscreenState() {
 }
 
 function toggleSidebar() {
-  if (window.innerWidth < 1024) {
+  if (!isDesktop.value) {
     mobileSidebarOpen.value = !mobileSidebarOpen.value
     return
   }
@@ -614,8 +832,12 @@ function toggleSidebar() {
 }
 
 function handleResize() {
-  if (window.innerWidth >= 1024) {
+  if (isDesktop.value) {
     mobileSidebarOpen.value = false
+  }
+
+  if (isMobile.value) {
+    sidebarOpen.value = true
   }
 }
 
@@ -631,28 +853,30 @@ watch(
   () => route.fullPath,
   () => {
     mobileSidebarOpen.value = false
-    const activeGroup = groupedMenuItems.value.find(group => isGroupActive(group))
-    if (activeGroup) {
-      openMenuGroups.value[activeGroup.key] = true
-    }
   }
 )
 
 onMounted(() => {
+  applyTheme()
+  loadCompanyIdentity()
   notif.fetchBadges()
   syncFullscreenState()
   if (auth.user?.role === 'caissier') {
     entrerPleinEcran()
   }
+  startInactivityWatcher()
   window.addEventListener('resize', handleResize)
   document.addEventListener('fullscreenchange', syncFullscreenState)
   document.addEventListener('keydown', handleGlobalKeydown)
+  window.addEventListener('societe:updated', handleCompanyIdentityUpdated)
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('resize', handleResize)
   document.removeEventListener('fullscreenchange', syncFullscreenState)
   document.removeEventListener('keydown', handleGlobalKeydown)
+  window.removeEventListener('societe:updated', handleCompanyIdentityUpdated)
+  stopInactivityWatcher()
 })
 </script>
 

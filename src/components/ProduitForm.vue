@@ -1,5 +1,7 @@
 <template>
   <form @submit.prevent="handleSubmit" class="space-y-4">
+    <FormErrorSummary :errors="errors" :labels="errorLabels" />
+
     <!-- Identification -->
     <fieldset class="border border-gray-200 rounded-lg p-4">
       <legend class="px-2 text-sm font-semibold text-gray-700">Identification</legend>
@@ -152,16 +154,6 @@
       </div>
     </fieldset>
 
-    <!-- Erreurs de validation -->
-    <div v-if="Object.keys(errors).length" class="bg-red-50 border border-red-200 rounded-lg p-3">
-      <p class="text-sm font-medium text-red-800 mb-2">Erreurs :</p>
-      <ul class="text-xs text-red-700 list-disc list-inside space-y-1">
-        <li v-for="(messages, field) in errors" :key="field">
-          <strong>{{ field }} :</strong> {{ messages[0] }}
-        </li>
-      </ul>
-    </div>
-
     <!-- Actions -->
     <div class="flex justify-end gap-2 pt-2 border-t border-gray-200">
       <button type="button" @click="$emit('cancel')" class="btn-secondary">Annuler</button>
@@ -177,6 +169,8 @@
 import { reactive, ref, computed, watch, onMounted } from 'vue'
 import api from '@/services/api'
 import { useToast } from '@/composables/useToast'
+import FormErrorSummary from '@/components/FormErrorSummary.vue'
+import { errorMessagesFromResponse, validationErrors } from '@/utils/formErrors'
 
 const props = defineProps({
   produit: { type: Object, default: null },
@@ -209,6 +203,20 @@ const defaultForm = () => ({
 const form = reactive(defaultForm())
 const saving = ref(false)
 const errors = ref({})
+const errorLabels = {
+  reference: 'Référence',
+  code_barre: 'Code-barres',
+  libelle: 'Libellé',
+  categorie_id: 'Catégorie',
+  type: 'Type',
+  nature: 'Nature',
+  prix_achat_ht: "Prix d'achat HT",
+  prix_vente_ht: 'Prix de vente HT',
+  taux_tva: 'TVA',
+  stock_alerte: "Stock d'alerte",
+  unite: 'Unité',
+  garantie_mois: 'Garantie',
+}
 const categories = ref([])
 
 const prixTtc = computed(() => {
@@ -246,7 +254,7 @@ onMounted(async () => {
     categories.value = []
     data.forEach(cat => {
       categories.value.push(cat)
-      if (cat.enfants?.length) {
+      if (cat.enfants.length) {
         cat.enfants.forEach(child => {
           categories.value.push({ ...child, libelle: '— ' + child.libelle })
         })
@@ -278,11 +286,11 @@ async function handleSubmit() {
     }
     emit('saved', response.data)
   } catch (err) {
-    if (err.response?.status === 422) {
-      errors.value = err.response.data.errors || {}
-      toast.error('Veuillez corriger les erreurs')
+    if (err.response.status === 422) {
+      errors.value = validationErrors(err)
+      toast.error(errorMessagesFromResponse(err, errorLabels))
     } else {
-      toast.error(err.response?.data?.message || 'Erreur lors de l\'enregistrement')
+      toast.error(err.response.data.message || 'Erreur lors de l\'enregistrement')
     }
   } finally {
     saving.value = false

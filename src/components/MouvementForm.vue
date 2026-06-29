@@ -1,5 +1,7 @@
 <template>
   <form @submit.prevent="handleSubmit" class="space-y-4">
+    <FormErrorSummary :messages="errorMessages" :labels="errorLabels" />
+
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
       <div class="md:col-span-2">
         <label class="block text-sm font-medium text-gray-700 mb-1">
@@ -35,13 +37,15 @@
 
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1">Emplacement</label>
-        <select v-model.number="form.emplacement_id" class="input" :disabled="loadingEmplacements || emplacements.length === 0">
-          <option :value="null">{{ loadingEmplacements ? 'Chargement...' : 'Sans emplacement précis' }}</option>
+        <select v-model.number="form.emplacement_id" class="input" :required="hasEmplacements" :disabled="loadingEmplacements || !hasEmplacements">
+          <option :value="null">{{ loadingEmplacements ? 'Chargement...' : hasEmplacements ? '— Sélectionnez un emplacement —' : 'Aucun emplacement configuré' }}</option>
           <option v-for="emp in emplacements" :key="emp.id" :value="emp.id">
             {{ emplacementLabel(emp) }}
           </option>
         </select>
-        <p class="mt-1 text-xs text-gray-500">Rayon, rangée et niveau du produit dans l'entrepôt.</p>
+        <p class="mt-1 text-xs" :class="hasEmplacements ? 'text-blue-700' : 'text-gray-500'">
+          {{ hasEmplacements ? 'Obligatoire : choisissez le rayon, la rangée et le niveau.' : 'Cet entrepôt ne possède pas encore de rayon configuré.' }}
+        </p>
       </div>
 
       <div>
@@ -62,10 +66,6 @@
       </div>
     </div>
 
-    <div v-if="errorMessage" class="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
-      {{ errorMessage }}
-    </div>
-
     <div class="flex justify-end gap-2 pt-2 border-t border-gray-200">
       <button type="button" @click="$emit('cancel')" class="btn-secondary">Annuler</button>
       <button type="submit" :disabled="saving" class="btn-primary">
@@ -80,6 +80,8 @@
 import { reactive, ref, computed, onMounted, watch } from 'vue'
 import api from '@/services/api'
 import { useToast } from '@/composables/useToast'
+import FormErrorSummary from '@/components/FormErrorSummary.vue'
+import { errorMessagesFromResponse } from '@/utils/formErrors'
 
 const props = defineProps({
   type: { type: String, required: true }, // entree, sortie, ajustement
@@ -111,9 +113,19 @@ const produitSearch = ref('')
 const loadingProduits = ref(false)
 const emplacements = ref([])
 const loadingEmplacements = ref(false)
+const hasEmplacements = computed(() => emplacements.value.length > 0)
 const saving = ref(false)
-const errorMessage = ref('')
+const errorMessages = ref([])
 let produitSearchTimeout = null
+const errorLabels = {
+  produit_id: 'Produit',
+  entrepot_id: 'Entrepôt',
+  emplacement_id: 'Emplacement',
+  quantite: 'Quantité',
+  nouvelle_quantite: 'Nouvelle quantité',
+  prix_unitaire: 'Prix unitaire',
+  motif: 'Motif',
+}
 
 const submitLabel = computed(() => ({
   entree: 'Enregistrer l\'entrée', sortie: 'Enregistrer la sortie', ajustement: 'Enregistrer l\'ajustement',
@@ -152,7 +164,7 @@ async function loadProduits() {
     })
     produits.value = data.data.filter(p => p.gere_stock)
   } catch (e) {
-    errorMessage.value = 'Impossible de charger les produits'
+    errorMessages.value = ['Impossible de charger les produits']
   } finally {
     loadingProduits.value = false
   }
@@ -165,11 +177,11 @@ async function loadEmplacements() {
   loadingEmplacements.value = true
   try {
     const { data } = await api.get(`/entrepots/${form.entrepot_id}`)
-    emplacements.value = (data.entrepot?.zones || []).flatMap(zone =>
-      (zone.emplacements || []).map(emp => ({ ...emp, zone }))
+    emplacements.value = (data.entrepot?.zones || []).filter(zone => zone.is_active !== false).flatMap(zone =>
+      (zone.emplacements || []).filter(emp => emp.is_active !== false).map(emp => ({ ...emp, zone }))
     )
   } catch (e) {
-    errorMessage.value = 'Impossible de charger les emplacements'
+    errorMessages.value = ['Impossible de charger les emplacements']
   } finally {
     loadingEmplacements.value = false
   }
@@ -188,7 +200,7 @@ function emplacementLabel(emp) {
 
 async function handleSubmit() {
   saving.value = true
-  errorMessage.value = ''
+  errorMessages.value = []
   try {
     const endpoint = `/stocks/${props.type}`
     const { data } = await api.post(endpoint, form)
@@ -199,7 +211,8 @@ async function handleSubmit() {
     }[props.type])
     emit('saved', data)
   } catch (err) {
-    errorMessage.value = err.response?.data?.message || 'Erreur lors de l\'enregistrement'
+    errorMessages.value = errorMessagesFromResponse(err, errorLabels)
+    toast.error(errorMessages.value)
   } finally {
     saving.value = false
   }

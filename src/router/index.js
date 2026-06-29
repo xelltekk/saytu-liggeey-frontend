@@ -19,9 +19,18 @@ const routes = [
         component: () => import('@/views/DashboardView.vue'),
       },
       {
+        path: 'dashboard',
+        redirect: { name: 'dashboard' },
+      },
+      {
         path: 'clients',
         name: 'clients',
         component: () => import('@/views/ClientsView.vue'),
+      },
+      {
+        path: 'prospection',
+        name: 'prospection',
+        component: () => import('@/views/ProspectionView.vue'),
       },
       {
         path: 'produits',
@@ -42,6 +51,26 @@ const routes = [
         path: 'paiements',
         name: 'paiements',
         component: () => import('@/views/PaiementsView.vue'),
+      },
+      {
+        path: 'achats',
+        name: 'achats',
+        component: () => import('@/views/AchatsView.vue'),
+      },
+      {
+        path: 'fournisseurs-reglements',
+        name: 'fournisseurs-reglements',
+        component: () => import('@/views/FournisseurReglementsView.vue'),
+      },
+      {
+        path: 'depenses',
+        name: 'depenses',
+        component: () => import('@/views/DepensesView.vue'),
+      },
+      {
+        path: 'tresorerie-comptes',
+        name: 'tresorerie-comptes',
+        component: () => import('@/views/TresorerieComptesView.vue'),
       },
       {
         path: 'caisse',
@@ -69,6 +98,10 @@ const routes = [
         component: () => import('@/views/EcrituresView.vue'),
       },
       {
+        path: 'ecritures',
+        redirect: { name: 'compta-ecritures' },
+      },
+      {
         path: 'compta/grand-livre',
         name: 'compta-grand-livre',
         component: () => import('@/views/GrandLivreView.vue'),
@@ -93,6 +126,16 @@ const routes = [
         name: 'activites',
         component: () => import('@/views/ActivitesView.vue'),
       },
+      {
+        path: 'notifications',
+        name: 'notifications',
+        component: () => import('@/views/NotificationsView.vue'),
+      },
+      {
+        path: 'rh',
+        name: 'rh',
+        component: () => import('@/views/RhView.vue'),
+      },
     ],
   },
 ]
@@ -104,17 +147,24 @@ const router = createRouter({
 
 // Mapping route → rôles autorisés
 const routeRoles = {
-  '/clients': ['admin', 'commercial', 'comptable', 'magasinier'],
-  '/produits': ['admin', 'commercial', 'magasinier', 'comptable'],
-  '/entrepots': ['admin', 'magasinier', 'comptable'],
-  '/stock': ['admin', 'magasinier', 'commercial', 'comptable'],
-  '/devis': ['admin', 'commercial', 'comptable'],
-  '/factures': ['admin', 'commercial', 'comptable'],
-  '/paiements': ['admin', 'commercial', 'comptable', 'caissier'],
-  '/caisse': ['admin', 'commercial', 'comptable', 'caissier'],
-  '/compta': ['admin', 'comptable'],
+  '/clients': ['admin', 'gerant', 'commercial', 'comptable'],
+  '/prospection': ['admin', 'gerant', 'commercial'],
+  '/produits': ['admin', 'gerant', 'commercial', 'magasinier', 'comptable'],
+  '/entrepots': ['admin', 'gerant', 'magasinier', 'comptable'],
+  '/stock': ['admin', 'gerant', 'magasinier', 'comptable'],
+  '/devis': ['admin', 'gerant', 'commercial', 'comptable'],
+  '/factures': ['admin', 'gerant', 'commercial', 'comptable'],
+  '/paiements': ['admin', 'gerant', 'comptable', 'caissier'],
+  '/achats': ['admin', 'gerant', 'magasinier', 'comptable'],
+  '/fournisseurs-reglements': ['admin', 'gerant', 'comptable'],
+  '/depenses': ['admin', 'gerant', 'comptable', 'caissier', 'commercial', 'magasinier'],
+  '/tresorerie-comptes': ['admin', 'gerant', 'comptable'],
+  '/caisse': ['admin', 'gerant', 'comptable', 'caissier'],
+  '/compta': ['admin', 'gerant', 'comptable'],
   '/utilisateurs': ['admin'],
-  '/activites': ['admin'],
+  '/activites': ['admin', 'gerant'],
+  '/notifications': ['admin', 'gerant', 'commercial', 'magasinier', 'comptable', 'caissier'],
+  '/rh': ['admin', 'gerant', 'commercial', 'magasinier', 'comptable'],
   '/parametres': ['admin'],
 }
 

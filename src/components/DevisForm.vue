@@ -1,5 +1,6 @@
 <template>
   <form @submit.prevent="handleSubmit" class="space-y-4">
+    <FormErrorSummary :errors="errors" :labels="errorLabels" />
 
     <!-- En-tête : client + dates -->
     <fieldset class="border border-gray-200 rounded-lg p-4">
@@ -10,12 +11,7 @@
           <label class="block text-sm font-medium text-gray-700 mb-1">
             Client <span class="text-red-500">*</span>
           </label>
-          <select v-model.number="form.client_id" class="input" required>
-            <option :value="null">— Sélectionnez un client —</option>
-            <option v-for="c in clients" :key="c.id" :value="c.id">
-              {{ c.code }} — {{ c.nom }}
-            </option>
-          </select>
+          <ClientSearchSelect v-model="form.client_id" :clients="clients" required placeholder="Rechercher par nom, code, telephone..." />
         </div>
 
         <div>
@@ -75,17 +71,9 @@
           <div class="flex items-start gap-2 mb-2">
             <span class="text-xs text-gray-500 mt-2 w-6">{{ index + 1 }}.</span>
 
-            <!-- Sélection produit (optionnel) -->
-            <select
-              :value="ligne.produit_id"
-              @change="(e) => onProduitChange(index, e.target.value)"
-              class="input flex-1 text-sm"
-            >
-              <option :value="null">— Ligne libre (sans produit) —</option>
-              <option v-for="p in produits" :key="p.id" :value="p.id">
-                {{ p.reference }} — {{ p.libelle }} ({{ formatPrice(p.prix_vente_ht) }})
-              </option>
-            </select>
+            <div class="flex-1 rounded-lg border border-dashed border-gray-200 bg-white px-3 py-2 text-xs text-gray-500">
+              Cliquez dans la désignation pour rechercher un produit, ou saisissez une ligne libre.
+            </div>
 
             <button
               type="button"
@@ -99,13 +87,19 @@
 
           <div class="grid grid-cols-1 md:grid-cols-12 gap-2">
             <div class="md:col-span-5">
-              <input
+              <ProductDesignationSearch
                 v-model="ligne.designation"
-                type="text"
-                class="input text-sm"
+                :products="produits"
                 placeholder="Désignation"
                 required
+                @select="(produit) => appliquerProduit(index, produit)"
               />
+              <p v-if="ligne.produit_id" class="mt-1 text-xs text-gray-500">
+                Produit sélectionné : {{ produitLabel(ligne.produit_id) }}
+              </p>
+              <p v-else-if="ligne.designation" class="mt-1 text-xs text-gray-400">
+                Ligne libre
+              </p>
             </div>
 
             <div class="md:col-span-1">
@@ -215,15 +209,6 @@
       </div>
     </fieldset>
 
-    <!-- Erreurs -->
-    <div v-if="Object.keys(errors).length" class="bg-red-50 border border-red-200 rounded-lg p-3">
-      <ul class="text-xs text-red-700 list-disc list-inside space-y-1">
-        <li v-for="(messages, field) in errors" :key="field">
-          <strong>{{ field }} :</strong> {{ messages[0] }}
-        </li>
-      </ul>
-    </div>
-
     <!-- Actions -->
     <div class="flex justify-end gap-2 pt-2 border-t border-gray-200">
       <button type="button" @click="$emit('cancel')" class="btn-secondary">Annuler</button>
@@ -236,15 +221,20 @@
 </template>
 
 <script setup>
-import { reactive, ref, computed, watch, onMounted } from 'vue'
+import { reactive, ref, computed, watch, onMounted, nextTick } from 'vue'
 import api from '@/services/api'
 import { useToast } from '@/composables/useToast'
+import FormErrorSummary from '@/components/FormErrorSummary.vue'
+import ClientSearchSelect from '@/components/ClientSearchSelect.vue'
+import ProductDesignationSearch from '@/components/ProductDesignationSearch.vue'
+import { errorMessagesFromResponse, validationErrors } from '@/utils/formErrors'
 
 const props = defineProps({
   devis: { type: Object, default: null },
+  client: { type: Object, default: null },
 })
 
-const emit = defineEmits(['saved', 'cancel'])
+const emit = defineEmits(['saved', 'cancel', 'dirty-change'])
 const toast = useToast()
 
 const defaultForm = () => ({
@@ -263,8 +253,21 @@ const defaultForm = () => ({
 const form = reactive(defaultForm())
 const saving = ref(false)
 const errors = ref({})
+const errorLabels = {
+  client_id: 'Client',
+  date_devis: 'Date du devis',
+  date_validite: 'Date de validité',
+  delai_paiement_jours: 'Délai paiement',
+  lignes: 'Ligne',
+  designation: 'Désignation',
+  quantite: 'Quantité',
+  prix_unitaire_ht: 'Prix unitaire HT',
+  taux_tva: 'TVA',
+}
 const clients = ref([])
 const produits = ref([])
+const initialSnapshot = ref('')
+const hydrating = ref(false)
 
 const totalHt = computed(() => {
   return form.lignes.reduce((s, l) => s + calculerLigne(l), 0)
@@ -303,38 +306,72 @@ function supprimerLigne(index) {
   form.lignes.splice(index, 1)
 }
 
-function onProduitChange(index, produitId) {
-  if (!produitId) {
-    form.lignes[index].produit_id = null
-    return
+function appliquerProduit(index, produit) {
+  if (!produit || !form.lignes[index]) return
+  if (!produits.value.some(p => Number(p.id) === Number(produit.id))) {
+    produits.value.push(produit)
   }
-  const produit = produits.value.find(p => p.id === parseInt(produitId))
-  if (produit) {
-    form.lignes[index].produit_id = produit.id
-    form.lignes[index].designation = produit.libelle
-    form.lignes[index].description = produit.description || ''
-    form.lignes[index].prix_unitaire_ht = parseFloat(produit.prix_vente_ht)
-    form.lignes[index].taux_tva = parseFloat(produit.taux_tva)
-    form.lignes[index].unite = produit.unite || 'pièce'
-    form.lignes[index].type_ligne = produit.type === 'service' ? 'service' : 'produit'
-  }
+
+  const ligne = form.lignes[index]
+  ligne.produit_id = produit.id
+  ligne.designation = produit.libelle
+  ligne.description = produit.description || ''
+  ligne.prix_unitaire_ht = parseFloat(produit.prix_vente_ht || 0)
+  ligne.taux_tva = parseFloat(produit.taux_tva || 0)
+  ligne.unite = produit.unite || 'pièce'
+  ligne.type_ligne = produit.type === 'service' ? 'service' : 'produit'
+}
+
+function produitLabel(produitId) {
+  const produit = produits.value.find(p => Number(p.id) === Number(produitId))
+  if (!produit) return `#${produitId}`
+  return `${produit.reference || 'REF'} — ${produit.libelle}`
 }
 
 function formatPrice(n) {
   return new Intl.NumberFormat('fr-FR').format(Math.round(n || 0))
 }
 
-watch(() => props.devis, (val) => {
+function formSnapshot() {
+  return JSON.stringify({
+    ...form,
+    lignes: form.lignes.map(ligne => ({ ...ligne })),
+  })
+}
+
+function markClean() {
+  initialSnapshot.value = formSnapshot()
+  emit('dirty-change', false)
+}
+
+function hasUnsavedChanges() {
+  return Boolean(initialSnapshot.value) && formSnapshot() !== initialSnapshot.value
+}
+
+watch(form, () => {
+  if (!hydrating.value) {
+    emit('dirty-change', hasUnsavedChanges())
+  }
+}, { deep: true })
+
+watch(() => props.devis, async (val) => {
+  hydrating.value = true
   if (val) {
     Object.assign(form, defaultForm(), {
       ...val,
-      lignes: val.lignes?.map(l => ({ ...l })) || [],
+      lignes: val.lignes.map(l => ({ ...l })) || [],
     })
   } else {
     Object.assign(form, defaultForm())
+    if (props.client?.id) {
+      form.client_id = Number(props.client.id)
+    }
     ajouterLigne() // Une ligne par défaut
   }
   errors.value = {}
+  await nextTick()
+  markClean()
+  hydrating.value = false
 }, { immediate: true })
 
 onMounted(async () => {
@@ -373,13 +410,14 @@ async function handleSubmit() {
       response = await api.post('/devis', payload)
       toast.success(`Devis ${response.data.numero} créé`)
     }
+    markClean()
     emit('saved', response.data)
   } catch (err) {
-    if (err.response?.status === 422) {
-      errors.value = err.response.data.errors || {}
-      toast.error('Veuillez corriger les erreurs')
+    if (err.response.status === 422) {
+      errors.value = validationErrors(err)
+      toast.error(errorMessagesFromResponse(err, errorLabels))
     } else {
-      toast.error(err.response?.data?.message || 'Erreur lors de l\'enregistrement')
+      toast.error(err.response.data.message || 'Erreur lors de l\'enregistrement')
     }
   } finally {
     saving.value = false

@@ -29,7 +29,7 @@
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h3 class="text-lg font-bold text-gray-900">
-              Compte {{ data.compte.numero }} — {{ data.compte.libelle }}
+              Compte {{ data.compte?.numero || '-' }} — {{ data.compte?.libelle || '-' }}
             </h3>
             <p class="text-sm text-gray-600">
               Du {{ formatDate(data.periode.from) }} au {{ formatDate(data.periode.to) }}
@@ -70,14 +70,14 @@
         <table class="w-full">
           <thead class="bg-gray-50 border-b border-gray-200">
             <tr>
-              <th class="px-3 py-2 text-left text-xs font-semibold uppercase">Date</th>
-              <th class="px-3 py-2 text-left text-xs font-semibold uppercase">Journal</th>
-              <th class="px-3 py-2 text-left text-xs font-semibold uppercase">N° écriture</th>
-              <th class="px-3 py-2 text-left text-xs font-semibold uppercase">Pièce</th>
-              <th class="px-3 py-2 text-left text-xs font-semibold uppercase">Libellé</th>
-              <th class="px-3 py-2 text-right text-xs font-semibold uppercase">Débit</th>
-              <th class="px-3 py-2 text-right text-xs font-semibold uppercase">Crédit</th>
-              <th class="px-3 py-2 text-right text-xs font-semibold uppercase">Solde</th>
+              <SortableTh column="date" :active="sort.key === 'date'" :icon="sortIcon('date')" @sort="toggleSort">Date</SortableTh>
+              <SortableTh column="journal" :active="sort.key === 'journal'" :icon="sortIcon('journal')" @sort="toggleSort">Journal</SortableTh>
+              <SortableTh column="numero" :active="sort.key === 'numero'" :icon="sortIcon('numero')" @sort="toggleSort">N° écriture</SortableTh>
+              <SortableTh column="piece" :active="sort.key === 'piece'" :icon="sortIcon('piece')" @sort="toggleSort">Pièce</SortableTh>
+              <SortableTh column="libelle" :active="sort.key === 'libelle'" :icon="sortIcon('libelle')" @sort="toggleSort">Libellé</SortableTh>
+              <SortableTh column="debit" :active="sort.key === 'debit'" :icon="sortIcon('debit')" align="right" @sort="toggleSort">Débit</SortableTh>
+              <SortableTh column="credit" :active="sort.key === 'credit'" :icon="sortIcon('credit')" align="right" @sort="toggleSort">Crédit</SortableTh>
+              <SortableTh column="solde" :active="sort.key === 'solde'" :icon="sortIcon('solde')" align="right" @sort="toggleSort">Solde</SortableTh>
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-100">
@@ -85,7 +85,7 @@
               <td colspan="7" class="px-3 py-2 text-xs italic text-blue-800">Solde initial à la période</td>
               <td class="px-3 py-2 text-right font-mono text-sm font-bold">{{ formatPrice(data.solde_initial) }}</td>
             </tr>
-            <tr v-for="(l, i) in data.lignes" :key="i" class="hover:bg-gray-50">
+            <tr v-for="(l, i) in paginatedLignes" :key="`${l.ecriture_id}-${i}`" class="hover:bg-gray-50">
               <td class="px-3 py-2 text-xs">{{ formatDate(l.date_ecriture) }}</td>
               <td class="px-3 py-2 text-xs">
                 <span class="badge bg-xelltekk-100 text-xelltekk-800 text-[10px]">{{ l.journal_code }}</span>
@@ -115,6 +115,7 @@
             </tr>
           </tbody>
         </table>
+        <AppPagination v-if="pageMeta.total > 0" :meta="pageMeta" label="mouvements" @page="page = $event" />
       </div>
     </div>
   </div>
@@ -124,13 +125,19 @@
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import api from '@/services/api'
+import AppPagination from '@/components/AppPagination.vue'
+import SortableTh from '@/components/SortableTh.vue'
 import { useToast } from '@/composables/useToast'
+import { useTableSort } from '@/composables/useTableSort'
 
 const route = useRoute()
 const toast = useToast()
 const comptes = ref([])
 const data = ref(null)
 const loading = ref(false)
+const page = ref(1)
+const perPage = 25
+const { sort, toggleSort, sortIcon, sortedRows } = useTableSort('date', 'asc')
 
 const filters = reactive({
   compte_id: route.query.compte_id ? parseInt(route.query.compte_id) : null,
@@ -147,6 +154,32 @@ const comptesGroupes = computed(() => {
   return Object.keys(groupes).sort().map(k => ({ classe: k, comptes: groupes[k] }))
 })
 
+const sortedLignes = computed(() => sortedRows(data.value.lignes || [], {
+  date: 'date_ecriture',
+  journal: 'journal_code',
+  numero: 'numero',
+  piece: 'reference_piece',
+  libelle: 'libelle',
+  debit: (ligne) => parseFloat(ligne.debit || 0),
+  credit: (ligne) => parseFloat(ligne.credit || 0),
+  solde: (ligne) => parseFloat(ligne.solde || 0),
+}))
+
+const paginatedLignes = computed(() => {
+  const start = (page.value - 1) * perPage
+  return sortedLignes.value.slice(start, start + perPage)
+})
+
+const pageMeta = computed(() => {
+  const total = sortedLignes.value.length
+  const lastPage = Math.max(Math.ceil(total / perPage), 1)
+  const current = Math.min(page.value, lastPage)
+  const from = total ? (current - 1) * perPage + 1 : 0
+  const to = Math.min(current * perPage, total)
+
+  return { current_page: current, last_page: lastPage, total, from, to }
+})
+
 async function loadComptes() {
   const { data: list } = await api.get('/compta/comptes')
   comptes.value = list
@@ -160,6 +193,7 @@ async function charger() {
       params: { compte_id: filters.compte_id, date_from: filters.date_from, date_to: filters.date_to },
     })
     data.value = result
+    page.value = 1
   } catch (e) {
     toast.error('Erreur de chargement du grand livre')
   } finally {

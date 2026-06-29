@@ -6,7 +6,7 @@
         <input v-model="filters.search" @input="onSearchInput" type="search"
                placeholder="🔍 Numéro ou libellé du compte..." class="input flex-1" />
 
-        <select v-model="filters.classe" @change="loadComptes" class="input md:w-48">
+        <select v-model="filters.classe" @change="loadComptes(1)" class="input md:w-48">
           <option value="">Toutes classes</option>
           <option value="1">1 - Ressources durables</option>
           <option value="2">2 - Immobilisations</option>
@@ -18,7 +18,7 @@
           <option value="8">8 - Autres</option>
         </select>
 
-        <select v-model="filters.type" @change="loadComptes" class="input md:w-44">
+        <select v-model="filters.type" @change="loadComptes(1)" class="input md:w-44">
           <option value="">Tous types</option>
           <option value="actif">Actif</option>
           <option value="passif">Passif</option>
@@ -39,17 +39,17 @@
       <table class="w-full">
         <thead class="bg-gray-50 border-b border-gray-200">
           <tr>
-            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">N°</th>
-            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Libellé</th>
-            <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Classe</th>
-            <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Type</th>
-            <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Sens</th>
-            <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Auxiliaire</th>
+            <SortableTh column="numero" :active="sort.key === 'numero'" :icon="sortIcon('numero')" @sort="toggleSort">N°</SortableTh>
+            <SortableTh column="libelle" :active="sort.key === 'libelle'" :icon="sortIcon('libelle')" @sort="toggleSort">Libellé</SortableTh>
+            <SortableTh column="classe" :active="sort.key === 'classe'" :icon="sortIcon('classe')" align="center" @sort="toggleSort">Classe</SortableTh>
+            <SortableTh column="type" :active="sort.key === 'type'" :icon="sortIcon('type')" align="center" @sort="toggleSort">Type</SortableTh>
+            <SortableTh column="sens" :active="sort.key === 'sens'" :icon="sortIcon('sens')" align="center" @sort="toggleSort">Sens</SortableTh>
+            <SortableTh column="auxiliaire" :active="sort.key === 'auxiliaire'" :icon="sortIcon('auxiliaire')" align="center" @sort="toggleSort">Auxiliaire</SortableTh>
             <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Action</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-100">
-          <tr v-for="c in comptes" :key="c.id" class="hover:bg-gray-50">
+          <tr v-for="c in sortedComptes" :key="c.id" class="hover:bg-gray-50">
             <td class="px-4 py-3 text-sm font-mono font-bold" :class="classeColor(c.classe)">{{ c.numero }}</td>
             <td class="px-4 py-3 text-sm text-gray-900">{{ c.libelle }}</td>
             <td class="px-4 py-3 text-center">
@@ -66,7 +66,7 @@
               <span v-else class="text-gray-300">–</span>
             </td>
             <td class="px-4 py-3 text-right">
-              <router-link :to="`/compta/grand-livre?compte_id=${c.id}`" class="text-xelltekk-600 hover:text-xelltekk-800 text-xs font-medium">
+              <router-link :to="`/compta/grand-livrecompte_id=${c.id}`" class="text-xelltekk-600 hover:text-xelltekk-800 text-xs font-medium">
                 Grand livre →
               </router-link>
             </td>
@@ -76,37 +76,61 @@
           </tr>
         </tbody>
       </table>
+      <AppPagination v-if="meta.total > 0" :meta="meta" label="comptes" @page="loadComptes" />
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { computed, ref, reactive, onMounted } from 'vue'
 import api from '@/services/api'
+import AppPagination from '@/components/AppPagination.vue'
+import SortableTh from '@/components/SortableTh.vue'
 import { useToast } from '@/composables/useToast'
+import { useTableSort } from '@/composables/useTableSort'
 
 const toast = useToast()
 const comptes = ref([])
+const { sort, toggleSort, sortIcon, sortedRows } = useTableSort('numero')
 const loading = ref(false)
 const filters = reactive({ search: '', classe: '', type: '' })
+const meta = reactive({ current_page: 1, last_page: 1, total: 0, from: 0, to: 0 })
+
+const sortedComptes = computed(() => sortedRows(comptes.value, {
+  numero: 'numero',
+  libelle: 'libelle',
+  classe: (compte) => Number(compte.classe || 0),
+  type: 'type',
+  sens: 'sens_normal',
+  auxiliaire: (compte) => (compte.is_auxiliaire ? 1 : 0),
+}))
 
 let searchTimeout = null
 function onSearchInput() {
   clearTimeout(searchTimeout)
-  searchTimeout = setTimeout(() => loadComptes(), 350)
+  searchTimeout = setTimeout(() => loadComptes(1), 350)
 }
 
-async function loadComptes() {
+async function loadComptes(page = 1) {
   loading.value = true
   try {
     const { data } = await api.get('/compta/comptes', {
       params: {
+        page,
+        per_page: 25,
         search: filters.search || undefined,
         classe: filters.classe || undefined,
         type: filters.type || undefined,
       },
     })
-    comptes.value = data
+    comptes.value = data.data || []
+    Object.assign(meta, {
+      current_page: data.current_page,
+      last_page: data.last_page,
+      total: data.total,
+      from: data.from || 0,
+      to: data.to || 0,
+    })
   } catch (e) {
     toast.error('Erreur de chargement')
   } finally {

@@ -14,6 +14,13 @@
           <option value="carte_bancaire">Carte bancaire</option>
           <option value="autre">Autre</option>
         </select>
+        <select v-model="filters.statut" @change="loadPaiements(1)" class="input md:w-40">
+          <option value="">Tous statuts</option>
+          <option value="valide">Validés</option>
+          <option value="en_attente">En attente</option>
+          <option value="rejete">Rejetés</option>
+          <option value="annule">Annulés</option>
+        </select>
         <button v-if="!isCaissier" @click="exporterCSV" :disabled="exportLoading" class="btn-secondary whitespace-nowrap">
           <span v-if="exportLoading">⏳ Export...</span>
           <span v-else>📥 Exporter CSV</span>
@@ -23,19 +30,19 @@
     </div>
 
     <!-- Stats -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
-      <div class="bg-white rounded-lg border border-gray-200 p-3">
+    <div class="stat-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 mb-4">
+      <button type="button" @click="applyPaiementPeriod('')" class="text-left bg-white rounded-lg border p-3 transition hover:-translate-y-0.5 hover:border-xelltekk-300 hover:shadow-sm" :class="periodCardClass('')">
         <div class="text-xs text-gray-500 uppercase">{{ isCaissier ? 'Mes paiements' : 'Total paiements' }}</div>
         <div class="text-2xl font-bold text-gray-900">{{ stats.total || 0 }}</div>
-      </div>
-      <div class="bg-white rounded-lg border border-gray-200 p-3">
+      </button>
+      <button type="button" @click="applyPaiementPeriod('mois')" class="text-left bg-white rounded-lg border p-3 transition hover:-translate-y-0.5 hover:border-xelltekk-300 hover:shadow-sm" :class="periodCardClass('mois')">
         <div class="text-xs text-gray-500 uppercase">Mois en cours</div>
         <div class="text-xl font-bold text-blue-600">{{ formatPrice(stats.mois) }}</div>
-      </div>
-      <div class="bg-white rounded-lg border border-gray-200 p-3">
+      </button>
+      <button type="button" @click="applyPaiementPeriod('annee')" class="text-left bg-white rounded-lg border p-3 transition hover:-translate-y-0.5 hover:border-xelltekk-300 hover:shadow-sm" :class="periodCardClass('annee')">
         <div class="text-xs text-gray-500 uppercase">Année en cours</div>
         <div class="text-xl font-bold text-green-600">{{ formatPrice(stats.annee) }}</div>
-      </div>
+      </button>
     </div>
 
     <div v-if="loading" class="bg-white rounded-lg p-12 text-center text-gray-500">Chargement...</div>
@@ -45,29 +52,44 @@
         <table class="w-full">
           <thead class="bg-gray-50 border-b border-gray-200">
             <tr>
-              <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Référence</th>
-              <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Client</th>
-              <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Date</th>
-              <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Montant</th>
-              <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Mode</th>
-              <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Factures</th>
+              <SortableTh column="reference" :active="sort.key === 'reference'" :icon="sortIcon('reference')" @sort="toggleSort">Référence</SortableTh>
+              <SortableTh column="client" :active="sort.key === 'client'" :icon="sortIcon('client')" @sort="toggleSort">Client</SortableTh>
+              <SortableTh column="date" :active="sort.key === 'date'" :icon="sortIcon('date')" align="center" @sort="toggleSort">Date</SortableTh>
+              <SortableTh column="montant" :active="sort.key === 'montant'" :icon="sortIcon('montant')" align="right" @sort="toggleSort">Montant</SortableTh>
+              <SortableTh column="affecte" :active="sort.key === 'affecte'" :icon="sortIcon('affecte')" align="right" @sort="toggleSort">Affecté</SortableTh>
+              <SortableTh column="non_affecte" :active="sort.key === 'non_affecte'" :icon="sortIcon('non_affecte')" align="right" @sort="toggleSort">Écart</SortableTh>
+              <SortableTh column="mode" :active="sort.key === 'mode'" :icon="sortIcon('mode')" align="center" @sort="toggleSort">Mode</SortableTh>
+              <SortableTh column="statut" :active="sort.key === 'statut'" :icon="sortIcon('statut')" align="center" @sort="toggleSort">Statut</SortableTh>
+              <SortableTh column="factures" :active="sort.key === 'factures'" :icon="sortIcon('factures')" @sort="toggleSort">Factures</SortableTh>
               <th v-if="!isCaissier" class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Actions</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-100">
-            <tr v-for="p in paiements" :key="p.id" class="hover:bg-gray-50">
+            <tr v-for="p in sortedPaiements" :key="p.id" class="hover:bg-gray-50">
               <td class="px-4 py-3 text-sm font-mono text-gray-600">{{ p.reference }}</td>
               <td class="px-4 py-3">
-                <div class="text-sm font-medium text-gray-900">{{ p.client?.nom }}</div>
-                <div class="text-xs text-gray-500">{{ p.client?.code }}</div>
+                <div class="text-sm font-medium text-gray-900">{{ p.client?.nom || 'Client non renseigné' }}</div>
+                <div class="text-xs text-gray-500">{{ p.client?.code || '–' }}</div>
               </td>
               <td class="px-4 py-3 text-sm text-center text-gray-600">{{ formatDate(p.date_paiement) }}</td>
               <td class="px-4 py-3 text-right font-mono font-semibold text-green-700">{{ formatPrice(p.montant) }}</td>
+              <td class="px-4 py-3 text-right font-mono text-sm text-blue-700">{{ formatPrice(p.montant_affecte) }}</td>
+              <td class="px-4 py-3 text-right font-mono text-sm" :class="parseFloat(p.montant_non_affecte || 0) > 0 ? 'text-orange-700 font-semibold' : 'text-gray-400'">
+                {{ parseFloat(p.montant_non_affecte || 0) > 0 ? formatPrice(p.montant_non_affecte) : '–' }}
+              </td>
               <td class="px-4 py-3 text-center">
                 <span class="badge text-xs" :class="modeBadge(p.mode_paiement)">{{ modeLabel(p.mode_paiement) }}</span>
               </td>
+              <td class="px-4 py-3 text-center">
+                <span class="badge text-xs" :class="statutBadge(p.statut)">{{ statutLabel(p.statut) }}</span>
+              </td>
               <td class="px-4 py-3 text-xs text-gray-600">
-                <span v-if="p.factures?.length">{{ p.factures.map(f => f.numero).join(', ') }}</span>
+                <div v-if="p.factures.length" class="space-y-1">
+                  <div v-for="f in p.factures" :key="f.id" class="whitespace-nowrap">
+                    <span class="font-mono">{{ f.numero }}</span>
+                    <span v-if="f.pivot.montant_affecte" class="text-gray-400">({{ formatPrice(f.pivot.montant_affecte) }})</span>
+                  </div>
+                </div>
                 <span v-else class="text-gray-400">–</span>
               </td>
               <td v-if="!isCaissier" class="px-4 py-3 text-right">
@@ -75,7 +97,7 @@
               </td>
             </tr>
             <tr v-if="paiements.length === 0">
-              <td :colspan="isCaissier ? 6 : 7" class="px-4 py-12 text-center text-gray-400 text-sm">Aucun paiement</td>
+              <td :colspan="isCaissier ? 9 : 10" class="px-4 py-12 text-center text-gray-400 text-sm">Aucun paiement</td>
             </tr>
           </tbody>
         </table>
@@ -96,7 +118,7 @@
     </AppModal>
 
     <AppModal v-model="showDeleteModal" title="Supprimer le paiement" size="sm">
-      <p class="text-gray-700">Supprimer le paiement <strong>{{ paiementToDelete?.reference }}</strong> ?</p>
+      <p class="text-gray-700">Supprimer le paiement <strong>{{ paiementToDelete.reference }}</strong> </p>
       <p class="text-xs text-gray-500 mt-2">Les factures liées seront recalculées automatiquement.</p>
       <template #footer>
         <button @click="showDeleteModal = false" class="btn-secondary">Annuler</button>
@@ -109,14 +131,16 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, watch } from 'vue'
+import { computed, ref, reactive, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '@/services/api'
 import AppModal from '@/components/AppModal.vue'
 import PaiementForm from '@/components/PaiementForm.vue'
+import SortableTh from '@/components/SortableTh.vue'
 import { useToast } from '@/composables/useToast'
 import { telechargerCSV } from '@/services/exports'
 import { useAuthStore } from '@/stores/auth'
+import { useTableSort } from '@/composables/useTableSort'
 
 const toast = useToast()
 const route = useRoute()
@@ -124,16 +148,29 @@ const router = useRouter()
 const auth = useAuthStore()
 const isCaissier = auth.user?.role === 'caissier'
 const paiements = ref([])
+const { sort, toggleSort, sortIcon, sortedRows } = useTableSort('date', 'desc')
 const loading = ref(false)
 const exportLoading = ref(false)
 const stats = reactive({ total: 0, mois: 0, annee: 0 })
 const meta = reactive({ current_page: 1, last_page: 1, total: 0, from: 0, to: 0 })
-const filters = reactive({ search: '', mode_paiement: '' })
+const filters = reactive({ search: '', mode_paiement: '', statut: '', date_from: '', date_to: '', period: '' })
 
 const showModal = ref(false)
 const showDeleteModal = ref(false)
 const paiementToDelete = ref(null)
 const deleting = ref(false)
+
+const sortedPaiements = computed(() => sortedRows(paiements.value, {
+  reference: 'reference',
+  client: (paiement) => paiement.client?.nom || '',
+  date: 'date_paiement',
+  montant: (paiement) => parseFloat(paiement.montant || 0),
+  affecte: (paiement) => parseFloat(paiement.montant_affecte || 0),
+  non_affecte: (paiement) => parseFloat(paiement.montant_non_affecte || 0),
+  mode: 'mode_paiement',
+  statut: 'statut',
+  factures: (paiement) => (paiement.factures || []).map((facture) => facture.numero).join(', '),
+}))
 
 let searchTimeout = null
 function onSearchInput() {
@@ -141,11 +178,46 @@ function onSearchInput() {
   searchTimeout = setTimeout(() => loadPaiements(1), 350)
 }
 
+function toInputDate(date) {
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 10)
+}
+
+function applyPaiementPeriod(period) {
+  filters.period = period
+  filters.date_to = ''
+
+  if (period === 'mois') {
+    const now = new Date()
+    filters.date_from = toInputDate(new Date(now.getFullYear(), now.getMonth(), 1))
+  } else if (period === 'annee') {
+    const now = new Date()
+    filters.date_from = toInputDate(new Date(now.getFullYear(), 0, 1))
+  } else {
+    filters.date_from = ''
+  }
+
+  loadPaiements(1)
+}
+
+function periodCardClass(period) {
+  return filters.period === period ?
+     'border-xelltekk-500 bg-xelltekk-50 ring-2 ring-xelltekk-100'
+    : 'border-gray-200'
+}
+
 async function loadPaiements(page = 1) {
   loading.value = true
   try {
     const { data } = await api.get('/paiements', {
-      params: { page, per_page: 25, search: filters.search || undefined, mode_paiement: filters.mode_paiement || undefined },
+      params: {
+        page,
+        per_page: 25,
+        search: filters.search || undefined,
+        mode_paiement: filters.mode_paiement || undefined,
+        statut: filters.statut || undefined,
+        date_from: filters.date_from || undefined,
+        date_to: filters.date_to || undefined,
+      },
     })
     paiements.value = data.data
     Object.assign(meta, { current_page: data.current_page, last_page: data.last_page, total: data.total, from: data.from || 0, to: data.to || 0 })
@@ -162,6 +234,9 @@ async function exporterCSV() {
   try {
     await telechargerCSV('/exports/paiements', {
       mode_paiement: filters.mode_paiement || undefined,
+      statut: filters.statut || undefined,
+      date_from: filters.date_from || undefined,
+      date_to: filters.date_to || undefined,
     }, 'paiements_xelltekk.csv')
     toast.success('Export téléchargé')
   } catch (e) {
@@ -183,7 +258,7 @@ async function handleDelete() {
     showDeleteModal.value = false
     loadPaiements(meta.current_page)
     loadStats()
-  } catch (err) { toast.error(err.response?.data?.message || 'Erreur') }
+  } catch (err) { toast.error(err.response.data.message || 'Erreur') }
   finally { deleting.value = false }
 }
 
@@ -198,6 +273,19 @@ function modeBadge(m) {
   return { virement: 'bg-blue-100 text-blue-800', cheque: 'bg-purple-100 text-purple-800',
     especes: 'bg-green-100 text-green-800', wave: 'bg-cyan-100 text-cyan-800',
     orange_money: 'bg-orange-100 text-orange-800', free_money: 'bg-indigo-100 text-indigo-800' }[m] || 'bg-gray-100'
+}
+
+function statutLabel(s) {
+  return { valide: 'Validé', en_attente: 'En attente', rejete: 'Rejeté', annule: 'Annulé' }[s] || s
+}
+
+function statutBadge(s) {
+  return {
+    valide: 'bg-green-100 text-green-800',
+    en_attente: 'bg-yellow-100 text-yellow-800',
+    rejete: 'bg-red-100 text-red-800',
+    annule: 'bg-gray-200 text-gray-700',
+  }[s] || 'bg-gray-100 text-gray-700'
 }
 
 function applySearchFromRoute(search) {

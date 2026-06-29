@@ -1,183 +1,322 @@
 <template>
   <div>
-    <!-- Loader initial -->
-    <div v-if="loading" class="bg-white rounded-lg p-12 text-center text-gray-500">
+    <div v-if="loading" class="rounded-lg bg-white p-12 text-center text-gray-500 dark:bg-slate-900 dark:text-slate-300">
       Chargement du tableau de bord...
     </div>
 
-    <div v-else class="space-y-6">
-      <!-- Bandeau de bienvenue -->
-      <div class="bg-gradient-to-r from-xelltekk-700 to-xelltekk-900 rounded-lg p-5 text-white shadow-sm">
-        <div class="flex items-center justify-between flex-wrap gap-3">
+    <div v-else class="space-y-4">
+      <div class="rounded-lg bg-gradient-to-r from-xelltekk-700 to-xelltekk-900 px-4 py-3 text-white shadow-sm sm:px-5">
+        <div class="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h2 class="text-xl font-bold">Bonjour {{ userName }} 👋</h2>
-            <p class="text-sm text-xelltekk-100 mt-1">Voici votre vue d'ensemble pour aujourd'hui</p>
+            <h2 class="text-lg font-bold">Bonjour {{ userName }}</h2>
+            <p class="mt-0.5 text-xs text-xelltekk-100">{{ dashboardIntro }}</p>
           </div>
-          <div class="text-right text-sm">
+          <div class="text-right text-xs sm:text-sm">
             <div class="font-mono">{{ today }}</div>
-            <div class="text-xs text-xelltekk-200 mt-1">Saytu Liggéey 2.0</div>
+            <div class="mt-0.5 text-[11px] text-xelltekk-200">Saytu Liggéey 2.0</div>
           </div>
         </div>
       </div>
 
-      <!-- KPI principaux -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
-        <KpiCard to="/factures" label="CA du mois" :value="formatPrice(kpi.ca_mois)" suffix="XOF" icon="📈" color="green" />
-        <KpiCard to="/factures" label="CA de l'année" :value="formatPrice(kpi.ca_annee)" suffix="XOF" icon="💰" color="blue" />
-        <KpiCard to="/paiements" label="Encours total" :value="formatPrice(kpi.encours_total)" suffix="XOF" icon="🏦" color="orange" />
-        <KpiCard to="/factures" label="Factures impayées" :value="kpi.factures_impayees" icon="🧾" color="purple" :sub="`dont ${kpi.factures_en_retard} en retard`" />
+      <section v-if="annonces.length" class="rounded-lg border border-blue-100 bg-blue-50 p-4 shadow-sm dark:border-blue-500/30 dark:bg-blue-950/30 sm:p-5">
+        <div class="mb-3 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h3 class="font-semibold text-blue-950 dark:text-blue-100">Annonces internes</h3>
+            <p class="text-xs text-blue-700 dark:text-blue-200">Messages visibles par tous les utilisateurs.</p>
+          </div>
+          <span class="text-xs font-semibold uppercase text-blue-700 dark:text-blue-200">{{ annonces.length }} annonce(s)</span>
+        </div>
+        <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <article v-for="annonce in annonces" :key="annonce.id" class="rounded-lg border border-blue-100 bg-white p-3 dark:border-blue-500/20 dark:bg-slate-900">
+            <h4 class="font-semibold text-gray-900 dark:text-white">{{ annonce.titre }}</h4>
+            <p class="mt-1 text-sm text-gray-600 dark:text-slate-300">{{ annonce.contenu }}</p>
+            <p class="mt-2 text-xs text-gray-400 dark:text-slate-500">{{ formatDateTime(annonce.publie_le) }} · {{ annonce.auteur?.name || 'RH' }}</p>
+          </article>
+        </div>
+      </section>
+
+      <div v-if="hasKpiCards" class="stat-grid grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
+        <KpiCard v-if="isBusinessDashboard" :to="{ path: '/factures', query: { quick: 'ca_mois' } }" label="CA du mois" :value="formatPrice(kpi.ca_mois)" suffix="XOF" icon="CA" color="green" />
+        <KpiCard v-if="isBusinessDashboard" :to="{ path: '/factures', query: { quick: 'ca_annee' } }" label="CA de l'année" :value="formatPrice(kpi.ca_annee)" suffix="XOF" icon="An" color="blue" />
+        <KpiCard v-if="isBusinessDashboard" :to="{ path: '/factures', query: { quick: 'encours' } }" label="Encours total" :value="formatPrice(kpi.encours_total)" suffix="XOF" icon="EC" color="orange" />
+        <KpiCard v-if="isBusinessDashboard" :to="{ path: '/factures', query: { quick: 'impayees' } }" label="Factures impayees" :value="kpi.factures_impayees || 0" icon="FI" color="purple" :sub="`dont ${kpi.factures_en_retard || 0} en retard`" />
+
+        <KpiCard v-if="isCommercial" to="/clients" label="Mes clients actifs" :value="kpi.clients_actifs || 0" icon="CL" color="green" />
+        <KpiCard v-if="isCommercial" to="/devis" label="Mes devis en cours" :value="kpi.devis_en_cours || 0" icon="DV" color="blue" />
+
+        <KpiCard v-if="isStockManager" to="/stock" label="Produits en stock" :value="kpi.produits_stockes || 0" icon="ST" color="green" />
+        <KpiCard v-if="isStockManager" to="/stock" label="Alertes stock" :value="kpi.stock_alertes || 0" icon="AL" color="orange" />
+        <KpiCard v-if="isStockManager" to="/stock" label="Ruptures" :value="kpi.ruptures_stock || 0" icon="RP" color="purple" />
+        <KpiCard v-if="isStockManager" to="/stock" label="Valeur stock" :value="formatPrice(kpi.valeur_stock)" suffix="XOF" icon="VS" color="blue" />
       </div>
 
-      <!-- 2 colonnes : CA mensuel + Modes de paiement -->
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <!-- CA mensuel (2/3) -->
-        <div class="lg:col-span-2 bg-white rounded-lg shadow-sm border border-gray-200 p-5">
-          <div class="flex items-center justify-between mb-4">
-            <h3 class="font-semibold text-gray-900">📊 Chiffre d'affaires mensuel</h3>
-            <span class="text-xs text-gray-500">12 derniers mois</span>
+      <section v-else class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+        <h3 class="font-semibold text-gray-900 dark:text-white">Tableau de bord</h3>
+        <p class="mt-1 text-sm text-gray-500 dark:text-slate-400">
+          Votre profil est bien connecte. Aucun indicateur specifique n'est encore configure pour ce role.
+        </p>
+      </section>
+
+      <div v-if="isStockManager" class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <section class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+          <div class="mb-4 flex items-center justify-between">
+            <h3 class="font-semibold text-gray-900 dark:text-white">Produits en alerte</h3>
+            <router-link to="/stock" class="text-xs text-xelltekk-600 hover:underline dark:text-cyan-300">Voir le stock</router-link>
+          </div>
+          <div v-if="stockAlertes.length" class="space-y-2">
+            <router-link
+              v-for="produit in stockAlertes"
+              :key="produit.id"
+              to="/stock"
+              class="flex items-center justify-between gap-3 rounded-lg border border-orange-100 bg-orange-50 p-3 transition hover:bg-orange-100 dark:border-orange-500/30 dark:bg-orange-950/30 dark:hover:bg-orange-950/50"
+            >
+              <div class="min-w-0">
+                <div class="truncate text-sm font-semibold text-gray-900 dark:text-white">{{ produit.libelle }}</div>
+                <div class="text-xs text-gray-500 dark:text-slate-400">{{ produit.reference || 'Sans reference' }}</div>
+              </div>
+              <div class="text-right">
+                <div class="font-mono text-sm font-bold text-orange-700 dark:text-orange-300">{{ formatQty(produit.stock_total) }}</div>
+                <div class="text-[10px] text-gray-500 dark:text-slate-400">seuil {{ produit.stock_alerte || 0 }}</div>
+              </div>
+            </router-link>
+          </div>
+          <div v-else class="py-8 text-center text-sm text-green-600 dark:text-green-300">
+            Aucun produit en alerte.
+          </div>
+        </section>
+
+        <section class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+          <div class="mb-4 flex items-center justify-between">
+            <h3 class="font-semibold text-gray-900 dark:text-white">Derniers mouvements de stock</h3>
+            <router-link to="/stock" class="text-xs text-xelltekk-600 hover:underline dark:text-cyan-300">Voir tout</router-link>
+          </div>
+          <div v-if="derniersMouvementsStock.length" class="space-y-2">
+            <router-link
+              v-for="mouvement in derniersMouvementsStock"
+              :key="mouvement.id"
+              to="/stock"
+              class="block rounded-lg border border-gray-200 p-3 transition hover:bg-gray-50 dark:border-slate-700 dark:hover:bg-slate-800"
+            >
+              <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                  <div class="truncate text-sm font-semibold text-gray-900 dark:text-white">{{ mouvement.produit?.libelle || 'Produit' }}</div>
+                  <div class="text-xs text-gray-500 dark:text-slate-400">
+                    {{ mouvement.produit?.reference || 'Sans référence' }} - {{ mouvement.entrepot?.libelle || mouvement.entrepot?.code || 'Entrepôt' }}
+                  </div>
+                  <div class="mt-1 text-xs text-gray-500 dark:text-slate-400">{{ mouvement.motif || mouvement.type }}</div>
+                </div>
+                <div class="text-right">
+                  <div class="font-mono text-sm font-bold" :class="mouvementTypeClass(mouvement.type)">
+                    {{ mouvement.type }} {{ formatQty(mouvement.quantite) }}
+                  </div>
+                  <div class="text-[10px] text-gray-500 dark:text-slate-400">{{ formatDate(mouvement.date_mouvement) }}</div>
+                </div>
+              </div>
+            </router-link>
+          </div>
+          <div v-else class="py-8 text-center text-sm text-gray-400">
+            Aucun mouvement recent.
+          </div>
+        </section>
+      </div>
+
+      <section v-if="isManagerDashboard" class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:p-5">
+        <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h3 class="font-semibold text-gray-900 dark:text-white">Avancement des commerciaux</h3>
+            <p class="mt-0.5 text-xs text-gray-500 dark:text-slate-400">Objectifs actifs et réalisations sur leur période en cours.</p>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <router-link to="/prospection" class="btn-secondary px-3 py-1.5 text-xs">Voir le suivi</router-link>
+            <button type="button" class="btn-primary px-3 py-1.5 text-xs" :disabled="commercialPdfLoading" @click="ouvrirEtatCommerciauxPdf">
+              {{ commercialPdfLoading ? 'PDF...' : 'État PDF' }}
+            </button>
+          </div>
+        </div>
+
+        <div v-if="avancementCommerciaux.length" class="overflow-x-auto">
+          <table class="w-full">
+            <thead class="border-b border-gray-200 bg-gray-50 dark:border-slate-700 dark:bg-slate-800">
+              <tr>
+                <th class="px-3 py-2 text-left text-xs font-semibold uppercase text-gray-600 dark:text-slate-300">Commercial</th>
+                <th class="px-3 py-2 text-left text-xs font-semibold uppercase text-gray-600 dark:text-slate-300">Score global</th>
+                <th class="px-3 py-2 text-left text-xs font-semibold uppercase text-gray-600 dark:text-slate-300">Prospects</th>
+                <th class="px-3 py-2 text-left text-xs font-semibold uppercase text-gray-600 dark:text-slate-300">Actions</th>
+                <th class="px-3 py-2 text-left text-xs font-semibold uppercase text-gray-600 dark:text-slate-300">Devis</th>
+                <th class="px-3 py-2 text-left text-xs font-semibold uppercase text-gray-600 dark:text-slate-300">CA</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100 dark:divide-slate-700">
+              <tr v-for="ligne in avancementCommerciaux" :key="ligne.commercial?.id || ligne.commercial_id || ligne.id" class="hover:bg-gray-50 dark:hover:bg-slate-800">
+                <td class="px-3 py-3">
+                  <div class="font-medium text-gray-900 dark:text-white">{{ ligne.commercial?.name || 'Commercial' }}</div>
+                  <div class="text-xs text-gray-500 dark:text-slate-400">{{ formatDate(ligne.periode_debut) }} - {{ formatDate(ligne.periode_fin) }}</div>
+                  <div v-if="!ligne.has_objectif" class="mt-1 text-[11px] font-medium text-orange-700 dark:text-orange-300">Aucun objectif actif</div>
+                </td>
+                <td class="px-3 py-3"><CommercialProgress :percent="ligne.score_global" score /></td>
+                <td class="px-3 py-3"><CommercialProgress :value="ligne.realisation.prospects" :target="ligne.targets.prospects" :percent="ligne.percentages.prospects" /></td>
+                <td class="px-3 py-3"><CommercialProgress :value="ligne.realisation.actions" :target="ligne.targets.actions" :percent="ligne.percentages.actions" /></td>
+                <td class="px-3 py-3"><CommercialProgress :value="ligne.realisation.devis" :target="ligne.targets.devis" :percent="ligne.percentages.devis" /></td>
+                <td class="px-3 py-3"><CommercialProgress :value="ligne.realisation.ca" :target="ligne.targets.ca" :percent="ligne.percentages.ca" money /></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div v-else class="rounded-lg border border-dashed border-gray-300 px-4 py-8 text-center text-sm text-gray-500 dark:border-slate-700 dark:text-slate-400">
+          Aucun objectif commercial actif. Créez les objectifs depuis la rubrique Prospection.
+        </div>
+      </section>
+
+      <div v-if="isBusinessDashboard" class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <section class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+          <div class="mb-4 flex items-center justify-between">
+            <h3 class="font-semibold text-gray-900 dark:text-white">Chiffre d'affaires mensuel</h3>
+            <span class="text-xs text-gray-500 dark:text-slate-400">12 derniers mois</span>
           </div>
           <div class="h-64">
             <Line v-if="caChartData" :data="caChartData" :options="caChartOptions" />
           </div>
-        </div>
+        </section>
 
-        <!-- Modes de paiement (1/3) -->
-        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
-          <div class="flex items-center justify-between mb-4">
-            <h3 class="font-semibold text-gray-900">🥧 Modes de paiement</h3>
-            <span class="text-xs text-gray-500">Année</span>
+        <section class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900 lg:col-span-2">
+          <div class="mb-4 flex items-center justify-between">
+            <h3 class="font-semibold text-gray-900 dark:text-white">Modes de paiement</h3>
+            <span class="text-xs text-gray-500 dark:text-slate-400">Année</span>
           </div>
-          <div v-if="modesChartData && modesChartData.labels.length" class="h-64 flex items-center justify-center">
+          <div v-if="modesChartData && modesChartData.labels.length" class="flex h-64 items-center justify-center">
             <Doughnut :data="modesChartData" :options="modesChartOptions" />
           </div>
-          <div v-else class="h-64 flex items-center justify-center text-gray-400 text-sm">
+          <div v-else class="flex h-64 items-center justify-center text-sm text-gray-400">
             Aucun paiement cette année
           </div>
-        </div>
+        </section>
       </div>
 
-      <!-- 2 colonnes : Top clients + Factures en retard -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- Top clients -->
-        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
-          <div class="flex items-center justify-between mb-4">
-            <h3 class="font-semibold text-gray-900">🏆 Top 10 clients</h3>
-            <span class="text-xs text-gray-500">Année en cours</span>
+      <div v-if="isBusinessDashboard" class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <section class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+          <div class="mb-4 flex items-center justify-between">
+            <h3 class="font-semibold text-gray-900 dark:text-white">Top 10 clients</h3>
+            <span class="text-xs text-gray-500 dark:text-slate-400">Année en cours</span>
           </div>
           <div v-if="topClients.length" class="space-y-2">
-            <router-link v-for="(c, i) in topClients" :key="c.id" to="/clients"
-                 class="flex items-center gap-3 p-2 rounded transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-xelltekk-400">
-              <div class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold"
-                   :class="i < 3 ? rangColor(i) : 'bg-gray-100 text-gray-600'">
-                {{ i + 1 }}
+            <router-link
+              v-for="(client, index) in topClients"
+              :key="client.id"
+              :to="{ path: '/clients', query: { open: client.id } }"
+              class="flex items-center gap-3 rounded p-2 transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-xelltekk-400 dark:hover:bg-slate-800"
+            >
+              <div class="flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold" :class="rangColor(index)">
+                {{ index + 1 }}
               </div>
-              <div class="flex-1 min-w-0">
-                <div class="font-medium text-sm text-gray-900 truncate">{{ c.nom }}</div>
-                <div class="text-xs text-gray-500">{{ c.nb_factures }} facture(s) — {{ c.code }}</div>
+              <div class="min-w-0 flex-1">
+                <div class="truncate text-sm font-medium text-gray-900 dark:text-white">{{ client.nom }}</div>
+                <div class="text-xs text-gray-500 dark:text-slate-400">{{ client.nb_factures }} facture(s) - {{ client.code }}</div>
               </div>
-              <div class="font-mono font-semibold text-sm text-xelltekk-700 whitespace-nowrap">
-                {{ formatPrice(c.ca_total) }}
+              <div class="whitespace-nowrap font-mono text-sm font-semibold text-xelltekk-700 dark:text-cyan-300">
+                {{ formatPrice(client.ca_total) }}
               </div>
             </router-link>
           </div>
-          <div v-else class="text-center text-gray-400 text-sm py-8">
+          <div v-else class="py-8 text-center text-sm text-gray-400">
             Aucune vente cette année
           </div>
-        </div>
+        </section>
 
-        <!-- Factures en retard -->
-        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
-          <div class="flex items-center justify-between mb-4">
-            <h3 class="font-semibold text-gray-900">⚠️ Factures en retard</h3>
-            <router-link to="/factures" class="text-xs text-xelltekk-600 hover:underline">Voir tout →</router-link>
+        <section class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+          <div class="mb-4 flex items-center justify-between">
+            <h3 class="font-semibold text-gray-900 dark:text-white">Factures en retard</h3>
+            <router-link :to="{ path: '/factures', query: { quick: 'en_retard' } }" class="text-xs text-xelltekk-600 hover:underline dark:text-cyan-300">Voir tout</router-link>
           </div>
-          <div v-if="facturesRetard.length" class="space-y-2 max-h-96 overflow-y-auto">
-            <router-link v-for="f in facturesRetard" :key="f.id" to="/factures"
-                 class="block p-3 border border-red-100 rounded-lg bg-red-50 hover:bg-red-100 transition-colors focus:outline-none focus:ring-2 focus:ring-red-300">
+          <div v-if="facturesRetard.length" class="max-h-96 space-y-2 overflow-y-auto">
+            <router-link
+              v-for="facture in facturesRetard"
+              :key="facture.id"
+              :to="{ path: '/factures', query: { open: facture.id } }"
+              class="block rounded-lg border border-red-100 bg-red-50 p-3 transition-colors hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-300 dark:border-red-500/30 dark:bg-red-950/30"
+            >
               <div class="flex items-start justify-between gap-2">
-                <div class="flex-1 min-w-0">
+                <div class="min-w-0 flex-1">
                   <div class="flex items-center gap-2">
-                    <span class="font-mono text-xs font-semibold text-gray-700">{{ f.numero }}</span>
-                    <span class="badge bg-red-200 text-red-800 text-[10px]">{{ f.jours_retard }} j</span>
+                    <span class="font-mono text-xs font-semibold text-gray-700 dark:text-slate-200">{{ facture.numero }}</span>
+                    <span class="badge bg-red-200 text-[10px] text-red-800">{{ facture.jours_retard }} j</span>
                   </div>
-                  <div class="text-sm font-medium text-gray-900 mt-1 truncate">{{ f.client?.nom }}</div>
-                  <div class="text-xs text-gray-500">
-                    Échu le {{ formatDate(f.date_echeance) }}
-                    <span v-if="f.client?.telephone">• 📞 {{ f.client.telephone }}</span>
-                  </div>
+                  <div class="mt-1 truncate text-sm font-medium text-gray-900 dark:text-white">{{ facture.client?.nom || 'Client' }}</div>
+                  <div class="text-xs text-gray-500 dark:text-slate-400">Echu le {{ formatDate(facture.date_echeance) }}</div>
                 </div>
-                <div class="text-right whitespace-nowrap">
-                  <div class="font-mono font-bold text-red-700">{{ formatPrice(f.reste_a_payer) }}</div>
-                  <div class="text-[10px] text-gray-500">XOF</div>
+                <div class="whitespace-nowrap text-right">
+                  <div class="font-mono font-bold text-red-700 dark:text-red-300">{{ formatPrice(facture.reste_a_payer) }}</div>
+                  <div class="text-[10px] text-gray-500 dark:text-slate-400">XOF</div>
                 </div>
               </div>
             </router-link>
           </div>
-          <div v-else class="text-center text-green-600 text-sm py-8">
-            ✅ Aucune facture en retard !
+          <div v-else class="py-8 text-center text-sm text-green-600 dark:text-green-300">
+            Aucune facture en retard.
           </div>
-        </div>
+        </section>
       </div>
 
-      <!-- 2 colonnes : Derniers paiements + Devis en attente -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- Derniers paiements -->
-        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
-          <div class="flex items-center justify-between mb-4">
-            <h3 class="font-semibold text-gray-900">💰 Derniers paiements</h3>
-            <router-link to="/paiements" class="text-xs text-xelltekk-600 hover:underline">Voir tout →</router-link>
+      <div v-if="!isStockManager" class="grid grid-cols-1 gap-6" :class="isBusinessDashboard ? 'lg:grid-cols-2' : ''">
+        <section v-if="isBusinessDashboard" class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+          <div class="mb-4 flex items-center justify-between">
+            <h3 class="font-semibold text-gray-900 dark:text-white">Derniers paiements</h3>
+            <router-link to="/paiements" class="text-xs text-xelltekk-600 hover:underline dark:text-cyan-300">Voir tout</router-link>
           </div>
           <div v-if="derniersPaiements.length" class="space-y-2">
-            <router-link v-for="p in derniersPaiements" :key="p.id" to="/paiements"
-                 class="flex items-center gap-3 p-2 rounded transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-xelltekk-400">
-              <div class="text-2xl">{{ modeIcon(p.mode_paiement) }}</div>
-              <div class="flex-1 min-w-0">
-                <div class="font-medium text-sm text-gray-900 truncate">{{ p.client?.nom }}</div>
-                <div class="text-xs text-gray-500">
-                  {{ formatDate(p.date_paiement) }} — {{ p.reference }}
-                </div>
+            <router-link
+              v-for="paiement in derniersPaiements"
+              :key="paiement.id"
+              to="/paiements"
+              class="flex items-center gap-3 rounded p-2 transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-xelltekk-400 dark:hover:bg-slate-800"
+            >
+              <div class="min-w-0 flex-1">
+                <div class="truncate text-sm font-medium text-gray-900 dark:text-white">{{ paiement.client?.nom || 'Client' }}</div>
+                <div class="text-xs text-gray-500 dark:text-slate-400">{{ formatDate(paiement.date_paiement) }} - {{ paiement.reference }}</div>
               </div>
-              <div class="font-mono font-bold text-green-700 whitespace-nowrap">
-                +{{ formatPrice(p.montant) }}
+              <div class="whitespace-nowrap font-mono font-bold text-green-700 dark:text-green-300">
+                +{{ formatPrice(paiement.montant) }}
               </div>
             </router-link>
           </div>
-          <div v-else class="text-center text-gray-400 text-sm py-8">
-            Aucun paiement récent
+          <div v-else class="py-8 text-center text-sm text-gray-400">
+            Aucun paiement recent
           </div>
-        </div>
+        </section>
 
-        <!-- Devis en attente -->
-        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
-          <div class="flex items-center justify-between mb-4">
-            <h3 class="font-semibold text-gray-900">📋 Devis en attente</h3>
-            <router-link to="/devis" class="text-xs text-xelltekk-600 hover:underline">Voir tout →</router-link>
+        <section class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+          <div class="mb-4 flex items-center justify-between">
+            <h3 class="font-semibold text-gray-900 dark:text-white">Devis en attente</h3>
+            <router-link :to="{ path: '/devis', query: { statut: 'envoye' } }" class="text-xs text-xelltekk-600 hover:underline dark:text-cyan-300">Voir tout</router-link>
           </div>
           <div v-if="devisEnAttente.length" class="space-y-2">
-            <router-link v-for="d in devisEnAttente" :key="d.id" to="/devis"
-                 class="block p-3 border border-gray-200 rounded-lg transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-xelltekk-400">
+            <router-link
+              v-for="devis in devisEnAttente"
+              :key="devis.id"
+              :to="{ path: '/devis', query: { open: devis.id } }"
+              class="block rounded-lg border border-gray-200 p-3 transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-xelltekk-400 dark:border-slate-700 dark:hover:bg-slate-800"
+            >
               <div class="flex items-start justify-between gap-2">
-                <div class="flex-1 min-w-0">
+                <div class="min-w-0 flex-1">
                   <div class="flex items-center gap-2">
-                    <span class="font-mono text-xs font-semibold text-gray-700">{{ d.numero }}</span>
-                    <span class="badge text-[10px]" :class="d.statut === 'brouillon' ? 'bg-gray-100 text-gray-700' : 'bg-blue-100 text-blue-800'">
-                      {{ d.statut }}
+                    <span class="font-mono text-xs font-semibold text-gray-700 dark:text-slate-200">{{ devis.numero }}</span>
+                    <span class="badge text-[10px]" :class="devis.statut === 'brouillon' ? 'bg-gray-100 text-gray-700' : 'bg-blue-100 text-blue-800'">
+                      {{ devis.statut }}
                     </span>
                   </div>
-                  <div class="text-sm font-medium text-gray-900 mt-1 truncate">{{ d.client?.nom }}</div>
-                  <div class="text-xs text-gray-500">Validité : {{ formatDate(d.date_validite) }}</div>
+                  <div class="mt-1 truncate text-sm font-medium text-gray-900 dark:text-white">{{ devis.client?.nom || 'Client' }}</div>
+                  <div class="text-xs text-gray-500 dark:text-slate-400">Validité : {{ formatDate(devis.date_validite) }}</div>
                 </div>
-                <div class="text-right whitespace-nowrap">
-                  <div class="font-mono font-bold text-gray-900">{{ formatPrice(d.total_ttc) }}</div>
-                  <div class="text-[10px] text-gray-500">XOF</div>
+                <div class="whitespace-nowrap text-right">
+                  <div class="font-mono font-bold text-gray-900 dark:text-white">{{ formatPrice(devis.total_ttc) }}</div>
+                  <div class="text-[10px] text-gray-500 dark:text-slate-400">XOF</div>
                 </div>
               </div>
             </router-link>
           </div>
-          <div v-else class="text-center text-gray-400 text-sm py-8">
+          <div v-else class="py-8 text-center text-sm text-gray-400">
             Aucun devis en attente
           </div>
-        </div>
+        </section>
       </div>
     </div>
   </div>
@@ -191,6 +330,7 @@ import {
   CategoryScale, LinearScale, PointElement, LineElement, Filler,
 } from 'chart.js'
 import api from '@/services/api'
+import { ouvrirPDF } from '@/services/pdf'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
 
@@ -200,15 +340,32 @@ const auth = useAuthStore()
 const toast = useToast()
 
 const loading = ref(true)
+const dashboardScope = ref('business')
 const kpi = ref({})
+const annonces = ref([])
 const caChartData = ref(null)
 const modesChartData = ref(null)
 const topClients = ref([])
 const facturesRetard = ref([])
 const derniersPaiements = ref([])
 const devisEnAttente = ref([])
+const stockAlertes = ref([])
+const derniersMouvementsStock = ref([])
+const avancementCommerciaux = ref([])
+const commercialPdfLoading = ref(false)
 
 const userName = computed(() => auth.user?.name?.split(' ')[0] || 'Utilisateur')
+const userRole = computed(() => String(auth.user?.role || '').toLowerCase())
+const isCommercial = computed(() => dashboardScope.value === 'commercial' || userRole.value.includes('commercial'))
+const isStockManager = computed(() => dashboardScope.value === 'stock' || userRole.value === 'magasinier' || userRole.value.includes('stock'))
+const isManagerDashboard = computed(() => ['admin', 'gerant'].includes(userRole.value))
+const isBusinessDashboard = computed(() => dashboardScope.value === 'business' && !isCommercial.value && !isStockManager.value)
+const hasKpiCards = computed(() => isBusinessDashboard.value || isCommercial.value || isStockManager.value)
+const dashboardIntro = computed(() => {
+  if (isStockManager.value) return 'Voici les informations de stock qui vous concernent.'
+  if (isCommercial.value) return 'Voici votre activit commerciale.'
+  return "Voici votre vue d'ensemble pour aujourd'hui."
+})
 
 const today = computed(() => {
   return new Date().toLocaleDateString('fr-FR', {
@@ -216,40 +373,64 @@ const today = computed(() => {
   })
 })
 
-// Carte KPI inline (composant léger)
 const KpiCard = {
   props: ['label', 'value', 'suffix', 'icon', 'color', 'sub', 'to'],
   setup(props) {
     const RouterLink = resolveComponent('RouterLink')
     const bgClass = {
-      green: 'bg-green-50 text-green-700 border-green-200',
-      blue: 'bg-blue-50 text-blue-700 border-blue-200',
-      orange: 'bg-orange-50 text-orange-700 border-orange-200',
-      purple: 'bg-purple-50 text-purple-700 border-purple-200',
-    }[props.color] || 'bg-gray-50 text-gray-700 border-gray-200'
+      green: 'bg-green-50 text-green-700 border-green-200 dark:bg-green-950/30 dark:text-green-300 dark:border-green-500/30',
+      blue: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/30 dark:text-blue-300 dark:border-blue-500/30',
+      orange: 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950/30 dark:text-orange-300 dark:border-orange-500/30',
+      purple: 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/30 dark:text-purple-300 dark:border-purple-500/30',
+    }[props.color] || 'bg-gray-50 text-gray-700 border-gray-200 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700'
+
+    const children = () => [
+        h('div', { class: 'mb-1 flex items-center justify-between' }, [
+          h('span', { class: 'text-xs font-semibold uppercase opacity-75' }, props.label),
+          h('span', { class: 'text-sm font-bold opacity-80' }, props.icon),
+        ]),
+        h('div', { class: 'flex items-baseline gap-1' }, [
+          h('span', { class: 'text-xl font-bold' }, props.value),
+          props.suffix ? h('span', { class: 'text-xs opacity-75' }, props.suffix) : null,
+        ]),
+        props.sub ? h('div', { class: 'mt-0.5 text-xs opacity-75' }, props.sub) : null,
+      ]
 
     return () => h(
       props.to ? RouterLink : 'div',
       {
-        to: props.to,
-        class: `block rounded-lg border p-4 transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-xelltekk-400 ${bgClass}`,
+        ...(props.to ? { to: props.to } : {}),
+        class: `block rounded-lg border p-3 transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-xelltekk-400 ${bgClass}`,
       },
-      [
-      h('div', { class: 'flex items-center justify-between mb-2' }, [
-        h('span', { class: 'text-xs uppercase font-semibold opacity-75' }, props.label),
-        h('span', { class: 'text-2xl' }, props.icon),
-      ]),
-      h('div', { class: 'flex items-baseline gap-1' }, [
-        h('span', { class: 'text-2xl font-bold' }, props.value),
-        props.suffix ? h('span', { class: 'text-xs opacity-75' }, props.suffix) : null,
-      ]),
-      props.sub ? h('div', { class: 'text-xs opacity-75 mt-1' }, props.sub) : null,
-      ]
+      props.to ? { default: children } : children()
     )
   },
 }
 
-// Options Chart.js
+const CommercialProgress = {
+  props: ['value', 'target', 'percent', 'money', 'score'],
+  setup(props) {
+    return () => {
+      const percent = props.percent === null || props.percent === undefined ? null : Number(props.percent)
+      const width = Math.min(Math.max(percent || 0, 2), 100)
+      const color = progressColor(percent)
+      const value = props.score ?
+         `${Math.round(percent || 0)}%`
+        : `${props.money ? formatPrice(props.value) : formatQty(props.value)} / ${props.money ? formatPrice(props.target) : formatQty(props.target)}`
+
+      return h('div', { class: 'min-w-28' }, [
+        h('div', { class: 'mb-1 flex items-center justify-between gap-2 text-xs' }, [
+          h('span', { class: 'font-semibold text-gray-800 dark:text-slate-100' }, value),
+          props.score ? null : h('span', { class: color.text }, percent === null ? '-' : `${percent}%`),
+        ]),
+        h('div', { class: 'h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-slate-700' }, [
+          h('div', { class: `h-full rounded-full ${color.bar}`, style: { width: `${width}%` } }),
+        ]),
+      ])
+    }
+  },
+}
+
 const caChartOptions = {
   responsive: true,
   maintainAspectRatio: false,
@@ -265,7 +446,7 @@ const caChartOptions = {
     y: {
       beginAtZero: true,
       ticks: {
-        callback: (v) => new Intl.NumberFormat('fr-FR', { notation: 'compact', maximumFractionDigits: 1 }).format(v),
+        callback: (value) => new Intl.NumberFormat('fr-FR', { notation: 'compact', maximumFractionDigits: 1 }).format(value),
       },
     },
   },
@@ -294,9 +475,13 @@ async function loadDashboard() {
   try {
     const { data } = await api.get('/dashboard')
 
+    dashboardScope.value = data.scope || (userRole.value.includes('commercial') ? 'commercial' : (userRole.value.includes('stock') || userRole.value === 'magasinier' ? 'stock' : 'business'))
     kpi.value = data.kpi || {}
+    stockAlertes.value = data.stock_alertes || []
+    derniersMouvementsStock.value = data.derniers_mouvements_stock || []
+    avancementCommerciaux.value = data.avancement_commerciaux || []
+    annonces.value = Array.isArray(data.annonces) ? data.annonces : []
 
-    // CA mensuel (line chart)
     if (data.ca_mensuel) {
       caChartData.value = {
         labels: data.ca_mensuel.labels,
@@ -314,7 +499,6 @@ async function loadDashboard() {
       }
     }
 
-    // Modes de paiement (donut)
     if (data.modes_paiement && data.modes_paiement.labels.length) {
       modesChartData.value = {
         labels: data.modes_paiement.labels,
@@ -339,29 +523,59 @@ async function loadDashboard() {
   }
 }
 
-function formatPrice(n) {
-  return new Intl.NumberFormat('fr-FR').format(Math.round(n || 0))
+async function ouvrirEtatCommerciauxPdf() {
+  commercialPdfLoading.value = true
+  try {
+    await ouvrirPDF('/prospection/etat-commerciaux/pdf', 'Etat-avancement-commerciaux.pdf')
+  } catch (e) {
+    toast.error('Impossible de générer le PDF des commerciaux.')
+  } finally {
+    commercialPdfLoading.value = false
+  }
 }
 
-function formatDate(d) {
-  if (!d) return '–'
-  return new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })
+function formatPrice(value) {
+  return new Intl.NumberFormat('fr-FR').format(Math.round(value || 0))
 }
 
-function rangColor(i) {
+function formatQty(value) {
+  return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 3 }).format(Number(value || 0))
+}
+
+function formatDate(value) {
+  if (!value) return '-'
+  return new Date(value).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+
+function formatDateTime(value) {
+  if (!value) return '-'
+  return new Date(value).toLocaleString('fr-FR', {
+    day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+  })
+}
+
+function rangColor(index) {
   return {
-    0: 'bg-yellow-400 text-white',
-    1: 'bg-gray-300 text-white',
-    2: 'bg-orange-400 text-white',
-  }[i] || 'bg-gray-100'
+    0: 'bg-yellow-400 text-yellow-950',
+    1: 'bg-gray-300 text-gray-800',
+    2: 'bg-orange-400 text-orange-950',
+  }[index] || 'bg-gray-100 text-gray-600'
 }
 
-function modeIcon(m) {
+function mouvementTypeClass(type) {
   return {
-    virement: '🏦', cheque: '📑', especes: '💵', carte_bancaire: '💳',
-    wave: '🌊', orange_money: '🟠', free_money: '⚪', mobile_money: '📱',
-    compensation: '🔄', autre: '💸',
-  }[m] || '💰'
+    entree: 'text-green-700 dark:text-green-300',
+    sortie: 'text-red-700 dark:text-red-300',
+    ajustement: 'text-blue-700 dark:text-blue-300',
+  }[type] || 'text-gray-800 dark:text-slate-200'
+}
+
+function progressColor(percent) {
+  if (percent === null || percent === undefined) return { bar: 'bg-slate-400', text: 'text-slate-500 dark:text-slate-300' }
+  if (percent >= 100) return { bar: 'bg-green-500', text: 'text-green-700 dark:text-green-300' }
+  if (percent >= 70) return { bar: 'bg-blue-500', text: 'text-blue-700 dark:text-blue-300' }
+  if (percent >= 40) return { bar: 'bg-orange-500', text: 'text-orange-700 dark:text-orange-300' }
+  return { bar: 'bg-red-500', text: 'text-red-700 dark:text-red-300' }
 }
 
 onMounted(() => loadDashboard())

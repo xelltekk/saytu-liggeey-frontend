@@ -53,24 +53,25 @@
         <table class="w-full">
           <thead class="bg-gray-50 border-b border-gray-200">
             <tr>
-              <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Code</th>
-              <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Nom</th>
-              <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Type</th>
-              <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Tags</th>
-              <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Contact</th>
-              <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Ville</th>
-              <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Statut</th>
+              <SortableTh column="code" :active="sort.key === 'code'" :icon="sortIcon('code')" @sort="toggleSort">Code</SortableTh>
+              <SortableTh column="nom" :active="sort.key === 'nom'" :icon="sortIcon('nom')" @sort="toggleSort">Nom</SortableTh>
+              <SortableTh column="type" :active="sort.key === 'type'" :icon="sortIcon('type')" @sort="toggleSort">Type</SortableTh>
+              <SortableTh column="tags" :active="sort.key === 'tags'" :icon="sortIcon('tags')" @sort="toggleSort">Tags</SortableTh>
+              <SortableTh column="contact" :active="sort.key === 'contact'" :icon="sortIcon('contact')" @sort="toggleSort">Contact</SortableTh>
+              <SortableTh column="ville" :active="sort.key === 'ville'" :icon="sortIcon('ville')" @sort="toggleSort">Ville</SortableTh>
+              <SortableTh column="statut" :active="sort.key === 'statut'" :icon="sortIcon('statut')" @sort="toggleSort">Statut</SortableTh>
               <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Actions</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-100">
-            <tr v-for="client in clients" :key="client.id" class="hover:bg-gray-50">
+            <tr v-for="client in sortedClients" :key="client.id" class="hover:bg-gray-50">
               <td class="px-4 py-3 text-sm font-mono text-gray-600">{{ client.code }}</td>
               <td class="px-4 py-3">
                 <div class="font-medium text-gray-900">{{ client.nom }}</div>
                 <div v-if="client.secteur_activite" class="text-xs text-gray-500">
                   {{ client.secteur_activite }}
                 </div>
+                <div class="text-xs text-blue-600">Commercial : {{ client.commercial?.name || 'Non affecté' }}</div>
               </td>
               <td class="px-4 py-3">
                 <span class="badge" :class="typeBadgeClass(client.type)">
@@ -82,13 +83,13 @@
                   <span
                     v-for="t in client.tags || []"
                     :key="t.id"
-                    class="text-[10px] font-medium px-2 py-0.5 rounded-full text-white whitespace-nowrap"
-                    :style="`background-color: ${t.couleur}`"
+                    class="text-[10px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap"
+                    :style="{ backgroundColor: t.couleur, color: contrastTextColor(t.couleur) }"
                     :title="t.description"
                   >
                     {{ t.emoji }} {{ t.libelle }}
                   </span>
-                  <span v-if="!client.tags?.length" class="text-xs text-gray-300">–</span>
+                  <span v-if="!(client.tags || []).length" class="text-xs text-gray-300">–</span>
                 </div>
               </td>
               <td class="px-4 py-3 text-sm">
@@ -103,6 +104,15 @@
                 </span>
               </td>
               <td class="px-4 py-3 text-right whitespace-nowrap">
+                <button v-if="canSellTo(client)" @click="creerDevis(client)" class="text-emerald-600 hover:text-emerald-800 text-sm font-medium mr-3">
+                  + Devis
+                </button>
+                <button v-if="canSellTo(client)" @click="creerFacture(client)" class="text-blue-600 hover:text-blue-800 text-sm font-medium mr-3">
+                  + Facture
+                </button>
+                <button v-if="isAdmin" @click="openAssignClient(client)" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium mr-3">
+                  Affecter
+                </button>
                 <button @click="openEdit(client)" class="text-xelltekk-600 hover:text-xelltekk-800 text-sm font-medium mr-3">
                   ✏️ Modifier
                 </button>
@@ -157,11 +167,21 @@
       />
     </AppModal>
 
+    <AssignCommercialModal
+      v-if="assignTarget"
+      v-model="showAssignModal"
+      :endpoint="assignEndpoint"
+      :current-commercial-id="assignTarget?.commercial_id"
+      :item-label="assignTarget ? `${assignTarget.code} - ${assignTarget.nom}` : ''"
+      title="Affecter client / prospect"
+      @assigned="onAssigned"
+    />
+
     <!-- Modal confirmation suppression -->
     <AppModal v-model="showDeleteModal" title="Confirmer la suppression" size="sm">
       <p class="text-gray-700">
         Êtes-vous sûr de vouloir supprimer le client
-        <strong>{{ clientToDelete?.nom }}</strong> ?
+        <strong>{{ clientToDelete.nom }}</strong> 
       </p>
       <p class="mt-2 text-xs text-gray-500">
         Cette action est réversible (soft delete) mais le client ne sera plus visible.
@@ -179,19 +199,27 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, watch } from 'vue'
+import { computed, ref, reactive, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '@/services/api'
 import AppModal from '@/components/AppModal.vue'
 import ClientForm from '@/components/ClientForm.vue'
+import AssignCommercialModal from '@/components/AssignCommercialModal.vue'
+import SortableTh from '@/components/SortableTh.vue'
 import { useToast } from '@/composables/useToast'
 import { telechargerCSV } from '@/services/exports'
+import { contrastTextColor } from '@/utils/color'
+import { useTableSort } from '@/composables/useTableSort'
+import { useAuthStore } from '@/stores/auth'
 
 const toast = useToast()
 const route = useRoute()
 const router = useRouter()
+const auth = useAuthStore()
+const isAdmin = computed(() => ['admin', 'gerant'].includes(auth.user?.role))
 
 const clients = ref([])
+const { sort, toggleSort, sortIcon, sortedRows } = useTableSort('created_at', 'desc')
 const tagsList = ref([])
 const loading = ref(false)
 const exportLoading = ref(false)
@@ -203,6 +231,20 @@ const editingClient = ref(null)
 const showDeleteModal = ref(false)
 const clientToDelete = ref(null)
 const deleting = ref(false)
+const showAssignModal = ref(false)
+const assignTarget = ref(null)
+const assignEndpoint = computed(() => assignTarget.value ? `/clients/${assignTarget.value.id}/assign-commercial` : '/clients/0/assign-commercial')
+
+const sortedClients = computed(() => sortedRows(clients.value, {
+  created_at: 'created_at',
+  code: 'code',
+  nom: 'nom',
+  type: 'type',
+  tags: (client) => (client.tags || []).map((tag) => tag.libelle).join(', '),
+  contact: (client) => client.email || client.telephone || '',
+  ville: 'ville',
+  statut: 'statut',
+}))
 
 let searchTimeout = null
 function onSearchInput() {
@@ -267,6 +309,27 @@ function openEdit(client) {
   showModal.value = true
 }
 
+function openAssignClient(client) {
+  assignTarget.value = client
+  showAssignModal.value = true
+}
+
+function onAssigned() {
+  loadClients(meta.current_page)
+}
+
+function canSellTo(client) {
+  return ['client', 'client_fournisseur'].includes(client.type)
+}
+
+function creerDevis(client) {
+  router.push({ path: '/devis', query: { create_client: client.id } })
+}
+
+function creerFacture(client) {
+  router.push({ path: '/factures', query: { create_client: client.id } })
+}
+
 async function openFromRoute(id) {
   if (!id) return
   try {
@@ -298,7 +361,7 @@ async function handleDelete() {
     clientToDelete.value = null
     loadClients(meta.current_page)
   } catch (err) {
-    toast.error(err.response?.data?.message || 'Erreur de suppression')
+    toast.error(err.response.data.message || 'Erreur de suppression')
   } finally {
     deleting.value = false
   }

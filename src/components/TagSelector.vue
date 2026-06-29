@@ -9,11 +9,11 @@
         :key="tagId"
         v-bind="badgeProps(tagId)"
       >
-        <span class="mr-1">{{ getTag(tagId)?.emoji }}</span>
-        {{ getTag(tagId)?.libelle }}
+        <span class="mr-1">{{ getTag(tagId).emoji }}</span>
+        {{ getTag(tagId).libelle }}
         <button @click="retirer(tagId)" type="button" class="ml-1.5 hover:bg-black/10 rounded-full px-1 leading-none">×</button>
       </span>
-      <span v-if="!modelValue?.length" class="text-xs text-gray-400 italic self-center">Aucun tag</span>
+      <span v-if="!modelValue.length" class="text-xs text-gray-400 italic self-center">Aucun tag</span>
     </div>
 
     <!-- Sélecteur de tags disponibles -->
@@ -38,6 +38,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import api from '@/services/api'
+import { contrastTextColor } from '@/utils/color'
 
 const props = defineProps({
   modelValue: { type: Array, default: () => [] },
@@ -56,10 +57,13 @@ function getTag(id) {
 
 function badgeProps(tagId) {
   const tag = getTag(tagId)
-  const couleur = tag?.couleur || '#6b7280'
+  const couleur = tag.couleur || '#6b7280'
   return {
-    class: 'inline-flex items-center text-xs font-medium px-2 py-1 rounded-full text-white',
-    style: `background-color: ${couleur}`,
+    class: 'inline-flex items-center text-xs font-medium px-2 py-1 rounded-full',
+    style: {
+      backgroundColor: couleur,
+      color: contrastTextColor(couleur),
+    },
   }
 }
 

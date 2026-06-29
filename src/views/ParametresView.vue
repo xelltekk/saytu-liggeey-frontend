@@ -19,6 +19,40 @@
         </div>
       </div>
 
+      <!-- ===== APPARENCE ===== -->
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div class="px-5 py-3 bg-gray-50 border-b border-gray-200">
+          <h3 class="font-semibold text-gray-900">Apparence</h3>
+        </div>
+        <div class="p-5">
+          <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <button
+              v-for="theme in themes"
+              :key="theme.id"
+              type="button"
+              @click="choisirTheme(theme.id)"
+              class="flex items-center justify-between gap-4 rounded-lg border p-4 text-left transition"
+              :class="themeId === theme.id
+                ? 'border-xelltekk-500 bg-xelltekk-50 ring-2 ring-xelltekk-100'
+                : 'border-gray-200 bg-white hover:border-xelltekk-300 hover:bg-gray-50'"
+            >
+              <span class="min-w-0">
+                <span class="block text-sm font-semibold text-gray-900">{{ theme.name }}</span>
+                <span class="block text-xs text-gray-500">{{ theme.description }}</span>
+              </span>
+              <span class="flex shrink-0 items-center gap-1.5">
+                <span
+                  v-for="swatch in theme.swatches"
+                  :key="swatch"
+                  class="h-6 w-6 rounded-full border border-white shadow-sm ring-1 ring-gray-200"
+                  :style="{ backgroundColor: swatch }"
+                ></span>
+              </span>
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- ===== SECTION 1 : INFORMATIONS LÉGALES ===== -->
       <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         <div class="px-5 py-3 bg-gray-50 border-b border-gray-200">
@@ -145,8 +179,13 @@
           </div>
 
           <div>
-            <label class="label">RIB</label>
-            <input v-model="societe.rib" type="text" class="input" placeholder="Optionnel" />
+            <label class="label">Numéro de compte / RIB</label>
+            <input v-model="societe.rib" type="text" class="input font-mono" placeholder="043148301901" />
+          </div>
+
+          <div>
+            <label class="label">Nom du propriétaire du compte</label>
+            <input v-model="societe.titulaire_compte" type="text" class="input" placeholder="Ex: XELLTEKK SARL" />
           </div>
 
           <div class="md:col-span-2">
@@ -187,7 +226,7 @@
             <label class="label">Logo de la société</label>
             <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-xelltekk-500 transition-colors">
               <div v-if="societe.logo" class="mb-3">
-                <img :src="logoUrl" alt="Logo" class="max-h-32 mx-auto" />
+                <img :src="logoUrl" alt="Logo" class="max-h-44 mx-auto" />
               </div>
               <div v-else class="mb-3 text-gray-400">
                 <div class="text-5xl mb-1">🖼️</div>
@@ -206,7 +245,7 @@
                   🗑️ Retirer
                 </button>
               </div>
-              <p class="text-xs text-gray-500 mt-2">PNG, JPG ou GIF — Max 2 Mo — 300x100 px recommandé</p>
+              <p class="text-xs text-gray-500 mt-2">PNG, JPG ou GIF — Max 2 Mo — 500x180 px recommandé</p>
             </div>
           </div>
 
@@ -275,6 +314,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import api from '@/services/api'
 import { useToast } from '@/composables/useToast'
+import { useTheme } from '@/composables/useTheme'
 
 const toast = useToast()
 
@@ -283,13 +323,14 @@ const saving = ref(false)
 const uploadingLogo = ref(false)
 const lastSaved = ref(null)
 const fileInput = ref(null)
+const { themes, themeId, setTheme } = useTheme()
 
 const societe = reactive({
   id: null,
   nom: '', forme_juridique: '', ninea: '', rccm: '', capital_social: null, numero_tva: '',
   adresse: '', code_postal: '', bp: '', ville: '', pays: 'Sénégal',
   telephone: '', mobile: '', fax: '', email: '', site_web: '', slogan: '',
-  banque: '', rib: '', iban: '', swift: '',
+  banque: '', rib: '', titulaire_compte: '', iban: '', swift: '',
   wave_business: '', orange_money_business: '', free_money_business: '',
   logo: '', couleur_principale: '#1e40af',
   devise_defaut: 'XOF', tva_defaut: 18, afficher_tva_facture: false,
@@ -298,11 +339,26 @@ const societe = reactive({
 
 const logoUrl = computed(() => {
   if (! societe.logo) return ''
-  // Chemin relatif depuis le backend Laravel
-  return `http://localhost:8000${societe.logo}?t=${Date.now()}`
+  const separator = societe.logo.includes('?') ? '&' : '?'
+  return `${societe.logo}${separator}t=${Date.now()}`
 })
 
 const apercuPossible = computed(() => societe.id && societe.nom)
+
+function notifierIdentiteSociete() {
+  window.dispatchEvent(new CustomEvent('societe:updated', {
+    detail: {
+      nom: societe.nom,
+      slogan: societe.slogan,
+      logo: societe.logo,
+      couleur_principale: societe.couleur_principale,
+    },
+  }))
+}
+
+function choisirTheme(value) {
+  setTheme(value)
+}
 
 async function charger() {
   loading.value = true
@@ -330,11 +386,12 @@ async function enregistrer() {
     const { data } = await api.put('/parametres/societe', payload)
     Object.assign(societe, data.societe)
     lastSaved.value = data.societe.updated_at
+    notifierIdentiteSociete()
     toast.success('Paramètres enregistrés avec succès')
   } catch (e) {
-    const msg = e.response?.data?.message || 'Erreur lors de l\'enregistrement'
+    const msg = e.response.data.message || 'Erreur lors de l\'enregistrement'
     toast.error(msg)
-    if (e.response?.data?.errors) {
+    if (e.response.data.errors) {
       console.error('Erreurs de validation :', e.response.data.errors)
     }
   } finally {
@@ -360,9 +417,10 @@ async function onFileSelected(event) {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
     Object.assign(societe, data.societe)
+    notifierIdentiteSociete()
     toast.success('Logo téléversé')
   } catch (e) {
-    const msg = e.response?.data?.message || 'Erreur lors du téléversement'
+    const msg = e.response.data.message || 'Erreur lors du téléversement'
     toast.error(msg)
   } finally {
     uploadingLogo.value = false
@@ -371,11 +429,12 @@ async function onFileSelected(event) {
 }
 
 async function supprimerLogo() {
-  if (! confirm('Supprimer le logo ?')) return
+  if (! confirm('Supprimer le logo ')) return
   uploadingLogo.value = true
   try {
     const { data } = await api.delete('/parametres/societe/logo')
     Object.assign(societe, data.societe)
+    notifierIdentiteSociete()
     toast.success('Logo supprimé')
   } catch (e) {
     toast.error('Erreur')
@@ -385,7 +444,7 @@ async function supprimerLogo() {
 }
 
 function recharger() {
-  if (confirm('Annuler les modifications non enregistrées ?')) {
+  if (confirm('Annuler les modifications non enregistrées ')) {
     charger()
   }
 }

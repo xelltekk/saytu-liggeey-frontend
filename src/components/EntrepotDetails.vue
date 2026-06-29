@@ -1,6 +1,6 @@
 <template>
   <div class="space-y-4">
-    <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+    <div class="stat-grid grid grid-cols-1 sm:grid-cols-3">
       <div class="rounded bg-gray-50 p-3 text-center">
         <div class="text-2xl font-bold text-xelltekk-700">{{ entrepot.zones?.length || 0 }}</div>
         <div class="text-xs uppercase text-gray-500">Zones</div>

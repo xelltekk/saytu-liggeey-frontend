@@ -1,12 +1,17 @@
 <template>
   <Teleport to="body">
     <transition name="fade">
-      <div v-if="modelValue" class="fixed inset-0 z-[100] flex items-start justify-center pt-[10vh] px-4">
+      <div v-if="modelValue" class="fixed inset-0 z-[100] flex items-start justify-center px-3 pt-4 sm:px-4 sm:pt-[10vh]">
         <!-- Backdrop -->
         <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="close"></div>
 
         <!-- Palette -->
-        <div class="relative w-full max-w-2xl bg-white rounded-xl shadow-2xl overflow-hidden">
+        <div
+          class="relative max-h-[calc(100vh-2rem)] w-full max-w-2xl overflow-hidden rounded-xl bg-white shadow-2xl"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Recherche globale"
+        >
           <!-- Input search -->
           <div class="flex items-center px-4 border-b border-gray-200">
             <span class="text-gray-400 text-xl">🔍</span>
@@ -16,6 +21,8 @@
               type="text"
               placeholder="Rechercher clients, factures, devis, produits..."
               class="flex-1 px-3 py-4 text-sm bg-transparent outline-none placeholder-gray-400"
+              autocomplete="off"
+              aria-label="Rechercher dans l'application"
               @keydown.down.prevent="moveSelection(1)"
               @keydown.up.prevent="moveSelection(-1)"
               @keydown.enter.prevent="ouvrirSelection"
@@ -26,7 +33,7 @@
 
           <!-- Résultats -->
           <div class="max-h-[60vh] overflow-y-auto">
-            <div v-if="loading" class="p-8 text-center text-sm text-gray-500">
+            <div v-if="loading" class="p-8 text-center text-sm text-gray-500" role="status" aria-live="polite">
               Recherche en cours...
             </div>
 
@@ -48,7 +55,7 @@
             <div v-else>
               <!-- Clients -->
               <SectionResultats
-                v-if="resultats.clients?.length"
+                v-if="resultats.clients.length"
                 titre="👥 Clients"
                 couleur="blue"
                 :items="resultats.clients"
@@ -68,12 +75,12 @@
 
               <!-- Factures -->
               <SectionResultats
-                v-if="resultats.factures?.length"
-                titre="🧾 Factures"
+                v-if="resultats.factures.length"
+                titre="🧾 Factures" ?
                 couleur="green"
                 :items="resultats.factures"
                 :selection="selection"
-                :offset="resultats.clients?.length || 0"
+                :offset="resultats.clients.length || 0"
                 @click-item="ouvrirItem"
               >
                 <template #default="{ item }">
@@ -83,7 +90,7 @@
                         <span class="font-mono">{{ item.numero }}</span>
                         <span v-if="item.type === 'avoir'" class="ml-1 text-red-600 text-[10px]">AVOIR</span>
                       </div>
-                      <div class="text-xs text-gray-500">{{ item.client?.nom }} • {{ formatDate(item.date_facture) }}</div>
+                      <div class="text-xs text-gray-500">{{ item.client?.nom || 'Client' }} • {{ formatDate(item.date_facture) }}</div>
                     </div>
                     <div class="text-right">
                       <div class="font-mono font-semibold text-sm">{{ formatPrice(item.total_ttc) }}</div>
@@ -95,19 +102,19 @@
 
               <!-- Devis -->
               <SectionResultats
-                v-if="resultats.devis?.length"
-                titre="📋 Devis"
+                v-if="resultats.devis.length"
+                titre="📋 Devis" ?
                 couleur="purple"
                 :items="resultats.devis"
                 :selection="selection"
-                :offset="(resultats.clients?.length || 0) + (resultats.factures?.length || 0)"
+                :offset="(resultats.clients.length || 0) + (resultats.factures.length || 0)"
                 @click-item="ouvrirItem"
               >
                 <template #default="{ item }">
                   <div class="flex items-center justify-between">
                     <div>
                       <div class="font-medium text-gray-900 font-mono">{{ item.numero }}</div>
-                      <div class="text-xs text-gray-500">{{ item.client?.nom }} • {{ item.objet || 'Sans objet' }}</div>
+                      <div class="text-xs text-gray-500">{{ item.client?.nom || 'Client' }} • {{ item.objet || 'Sans objet' }}</div>
                     </div>
                     <div class="text-right">
                       <div class="font-mono font-semibold text-sm">{{ formatPrice(item.total_ttc) }}</div>
@@ -119,12 +126,12 @@
 
               <!-- Produits -->
               <SectionResultats
-                v-if="resultats.produits?.length"
-                titre="📦 Produits"
+                v-if="resultats.produits.length"
+                titre="📦 Produits" ?
                 couleur="orange"
                 :items="resultats.produits"
                 :selection="selection"
-                :offset="(resultats.clients?.length || 0) + (resultats.factures?.length || 0) + (resultats.devis?.length || 0)"
+                :offset="(resultats.clients.length || 0) + (resultats.factures.length || 0) + (resultats.devis.length || 0)"
                 @click-item="ouvrirItem"
               >
                 <template #default="{ item }">
@@ -140,19 +147,19 @@
 
               <!-- Paiements -->
               <SectionResultats
-                v-if="resultats.paiements?.length"
-                titre="💰 Paiements"
+                v-if="resultats.paiements.length"
+                titre="💰 Paiements" ?
                 couleur="emerald"
                 :items="resultats.paiements"
                 :selection="selection"
-                :offset="(resultats.clients?.length || 0) + (resultats.factures?.length || 0) + (resultats.devis?.length || 0) + (resultats.produits?.length || 0)"
+                :offset="(resultats.clients.length || 0) + (resultats.factures.length || 0) + (resultats.devis.length || 0) + (resultats.produits.length || 0)"
                 @click-item="ouvrirItem"
               >
                 <template #default="{ item }">
                   <div class="flex items-center justify-between">
                     <div>
                       <div class="font-medium text-gray-900 font-mono">{{ item.reference }}</div>
-                      <div class="text-xs text-gray-500">{{ item.client?.nom }} • {{ formatDate(item.date_paiement) }}</div>
+                      <div class="text-xs text-gray-500">{{ item.client?.nom || 'Client' }} • {{ formatDate(item.date_paiement) }}</div>
                     </div>
                     <div class="text-right">
                       <div class="font-mono font-semibold text-sm">{{ formatPrice(item.montant) }}</div>
@@ -224,11 +231,11 @@ const loading = ref(false)
 const selection = ref(0)
 
 const totalResultats = computed(() => {
-  return (resultats.value.clients?.length || 0)
-    + (resultats.value.factures?.length || 0)
-    + (resultats.value.devis?.length || 0)
-    + (resultats.value.produits?.length || 0)
-    + (resultats.value.paiements?.length || 0)
+  return (resultats.value.clients.length || 0)
+    + (resultats.value.factures.length || 0)
+    + (resultats.value.devis.length || 0)
+    + (resultats.value.produits.length || 0)
+    + (resultats.value.paiements.length || 0)
 })
 
 // Aplatissement des résultats pour navigation clavier
@@ -271,7 +278,7 @@ function moveSelection(delta) {
   selection.value = (selection.value + delta + total) % total
   nextTick(() => {
     const el = document.querySelector('.bg-cyan-50')
-    el?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+    el.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
   })
 }
 
@@ -282,11 +289,11 @@ function ouvrirSelection() {
 }
 
 function ouvrirItem({ item, type, categorie }) {
-  // Type déduit du titre de section si non fourni
-  const t = type || (categorie?.includes('Client') ? 'client'
-    : categorie?.includes('Facture') ? 'facture'
-    : categorie?.includes('Devis') ? 'devis'
-    : categorie?.includes('Paiement') ? 'paiement'
+  // Type déduit du titre de section si non fourni ?
+  const t = type || (categorie.includes('Client') ? 'client'
+    : categorie.includes('Facture') ? 'facture'
+    : categorie.includes('Devis') ? 'devis'
+    : categorie.includes('Paiement') ? 'paiement'
     : 'produit')
 
   close()
@@ -319,7 +326,7 @@ function close() {
 
 watch(() => props.modelValue, (val) => {
   if (val) {
-    nextTick(() => inputRef.value?.focus())
+    nextTick(() => inputRef.value.focus())
   }
 })
 
