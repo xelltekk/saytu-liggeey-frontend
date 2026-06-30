@@ -66,12 +66,23 @@ jobs:
             target_dir="${target_dir}/public"
           fi
 
-          lftp -u "$SFTP_USERNAME","$SFTP_PASSWORD" "sftp://$normalized_host" <<EOF
+          deploy_frontend() {
+            local destination="$1"
+            lftp -u "$SFTP_USERNAME","$SFTP_PASSWORD" "sftp://$normalized_host" <<EOF
           set sftp:auto-confirm yes
           set sftp:connect-program "ssh -a -x -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
           set net:max-retries 2
           set net:timeout 30
-          cd "$target_dir"
+          cd "$destination"
           mirror --reverse --verbose dist/ .
           bye
           EOF
+          }
+
+          canonical_target_dir="/sites/Saytu.xelltekk.com/public"
+
+          deploy_frontend "$target_dir"
+
+          if [ "$target_dir" != "$canonical_target_dir" ]; then
+            deploy_frontend "$canonical_target_dir"
+          fi
