@@ -32,6 +32,10 @@ jobs:
       - name: Build frontend
         run: npm run build
 
+      - name: Write deployment marker
+        run: |
+          printf '{"commit":"%s","deployed_at":"%s"}\n' "$GITHUB_SHA" "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" > dist/deploy-version.json
+
       - name: Install deployment client
         run: sudo apt-get update && sudo apt-get install -y lftp
 
@@ -79,10 +83,15 @@ jobs:
           EOF
           }
 
-          canonical_target_dir="/sites/Saytu.xelltekk.com/public"
+          canonical_root_dir="/sites/Saytu.xelltekk.com"
+          canonical_public_dir="${canonical_root_dir}/public"
 
           deploy_frontend "$target_dir"
 
-          if [ "$target_dir" != "$canonical_target_dir" ]; then
-            deploy_frontend "$canonical_target_dir"
+          if [ "$target_dir" != "$canonical_public_dir" ]; then
+            deploy_frontend "$canonical_public_dir"
+          fi
+
+          if [ "$target_dir" != "$canonical_root_dir" ]; then
+            deploy_frontend "$canonical_root_dir"
           fi
