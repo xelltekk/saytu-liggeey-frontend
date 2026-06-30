@@ -135,10 +135,13 @@
     </AppModal>
 
     <AppModal v-model="showForm" :title="editingId ? 'Modifier le bon de commande' : 'Nouveau bon de commande'" size="xl">
+      <div v-if="referentielsError" class="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        {{ referentielsError }}
+      </div>
       <form class="space-y-4" @submit.prevent="saveCommande">
         <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <label class="field-label md:col-span-2">Fournisseur
-            <select v-model.number="form.fournisseur_id" class="input" required><option :value="null">Choisir un fournisseur</option><option v-for="f in referentiels.fournisseurs" :key="f.id" :value="f.id">{{ f.code }} - {{ f.nom }}</option></select>
+            <select v-model.number="form.fournisseur_id" class="input" required><option :value="null">{{ loadingReferentiels ? 'Chargement des fournisseurs...' : 'Choisir un fournisseur' }}</option><option v-if="!loadingReferentiels && !referentiels.fournisseurs.length" disabled>Aucun fournisseur disponible</option><option v-for="f in referentiels.fournisseurs" :key="f.id" :value="f.id">{{ f.code }} - {{ f.nom }}</option></select>
           </label>
           <label class="field-label">Date commande<input v-model="form.date_commande" type="date" class="input" required /></label>
           <label class="field-label">Livraison prévue<input v-model="form.date_livraison_prevue" type="date" class="input" /></label>
@@ -154,7 +157,7 @@
           </div>
           <div class="space-y-3">
             <div v-for="(line, index) in form.lignes" :key="line.key" class="grid items-end gap-2 rounded-lg border border-slate-200 p-3 lg:grid-cols-[minmax(260px,1fr)_110px_150px_110px_150px_42px]">
-              <label class="field-label">Produit<select v-model.number="line.produit_id" class="input" required @change="selectProduct(line)"><option :value="null">Choisir un produit</option><option v-for="p in visibleProducts(line)" :key="p.id" :value="p.id">{{ p.reference }} - {{ p.libelle }}</option></select></label>
+              <label class="field-label">Produit<select v-model.number="line.produit_id" class="input" required @change="selectProduct(line)"><option :value="null">{{ loadingReferentiels ? 'Chargement des produits...' : 'Choisir un produit' }}</option><option v-if="!loadingReferentiels && !referentiels.produits.length" disabled>Aucun produit disponible</option><option v-for="p in visibleProducts(line)" :key="p.id" :value="p.id">{{ p.reference }} - {{ p.libelle }}</option></select></label>
               <label class="field-label">Quantité<input v-model.number="line.quantite" type="number" min="0.001" step="0.001" class="input" required /></label>
               <label class="field-label">Prix achat HT<input v-model.number="line.prix_unitaire_ht" type="number" min="0" step="1" class="input" required /></label>
               <label class="field-label">TVA %<input v-model.number="line.taux_tva" type="number" min="0" max="100" step="0.01" class="input" /></label>
@@ -368,6 +371,8 @@ const showDemandForm = ref(false)
 const showDemandReject = ref(false)
 const showDemandConvert = ref(false)
 const loadingPerformance = ref(false)
+const loadingReferentiels = ref(false)
+const referentielsError = ref('')
 const productSearch = ref('')
 const selectedReturnReception = ref(null)
 const selectedReturn = ref(null)
@@ -450,7 +455,71 @@ function addDemandLine() { demandForm.lignes.push(emptyDemandLine()) }
 function removeDemandLine(index) { if (demandForm.lignes.length === 1) return toast.error('La demande doit contenir au moins une ligne.'); demandForm.lignes.splice(index, 1) }
 function applyStatFilter(key) { filters.statut = key === 'total' || key === 'engagement' ? '' : key; loadCommandes(1) }
 
-async function loadReferentiels() { Object.assign(referentiels, (await api.get('/achats/referentiels')).data) }
+function normalizeListPayload(payload) { return Array.isArray(payload?.data) ? payload.data : (Array.isArray(payload) ? payload : []) }
+function normalizeSupplier(item) { return { id: item.id, code: item.code || '', nom: item.nom || item.name || '', email: item.email || '', telephone: item.telephone || item.mobile || '', delai_paiement_jours: item.delai_paiement_jours ?? null } }
+function normalizeProduct(item) { return { id: item.id, reference: item.reference || '', libelle: item.libelle || item.designation || '', prix_achat_ht: item.prix_achat_ht ?? 0, taux_tva: item.taux_tva ?? 0, unite: item.unite || '', gere_stock: Boolean(item.gere_stock), fournisseur_id: item.fournisseur_id ?? null } }
+function mergeUniqueById(lists) { const map = new Map(); lists.flat().filter(item => item?.id).forEach(item => map.set(Number(item.id), item)); return Array.from(map.values()) }
+
+async function fetchSupplierType(type, params = {}) {
+  const { data } = await api.get('/clients', { params: { type, per_page: 500, ...params } })
+  return normalizeListPayload(data).map(normalizeSupplier)
+}
+
+async function loadFallbackSuppliers() {
+  const types = ['fournisseur', 'client_fournisseur', 'client']
+  const activeResults = await Promise.allSettled(types.map(type => fetchSupplierType(type, { statut: 'actif' })))
+  const activeSuppliers = mergeUniqueById(activeResults.filter(result => result.status === 'fulfilled').map(result => result.value))
+  if (activeSuppliers.length) return activeSuppliers
+
+  const allResults = await Promise.allSettled(types.map(type => fetchSupplierType(type)))
+  return mergeUniqueById(allResults.filter(result => result.status === 'fulfilled').map(result => result.value))
+}
+
+async function loadFallbackProducts() {
+  const fetchProducts = async (params) => {
+    const { data } = await api.get('/produits', { params: { per_page: 500, sort_by: 'libelle', ...params } })
+    return normalizeListPayload(data).map(normalizeProduct)
+  }
+  const actifs = await fetchProducts({ actifs_seulement: 1 })
+  return actifs.length ? actifs : fetchProducts({})
+}
+
+async function loadReferentielsFallback(error) {
+  const [suppliersResult, productsResult] = await Promise.allSettled([
+    loadFallbackSuppliers(),
+    loadFallbackProducts(),
+  ])
+
+  if (suppliersResult.status === 'fulfilled' && suppliersResult.value.length) {
+    referentiels.fournisseurs = suppliersResult.value
+  }
+  if (productsResult.status === 'fulfilled' && productsResult.value.length) {
+    referentiels.produits = productsResult.value
+  }
+
+  if (!referentiels.fournisseurs.length || !referentiels.produits.length) {
+    referentielsError.value = error?.response?.data?.message || 'Impossible de charger complètement les fournisseurs et produits. Vérifiez les données en ligne ou rechargez la page.'
+    toast.error(referentielsError.value)
+  }
+}
+
+async function loadReferentiels() {
+  loadingReferentiels.value = true
+  referentielsError.value = ''
+  try {
+    const { data } = await api.get('/achats/referentiels')
+    referentiels.fournisseurs = Array.isArray(data?.fournisseurs) ? data.fournisseurs : []
+    referentiels.produits = Array.isArray(data?.produits) ? data.produits : []
+    referentiels.entrepots = Array.isArray(data?.entrepots) ? data.entrepots : []
+    if (!referentiels.fournisseurs.length || !referentiels.produits.length) {
+      await loadReferentielsFallback()
+    }
+  } catch (error) {
+    await loadReferentielsFallback(error)
+  } finally {
+    loadingReferentiels.value = false
+  }
+}
 async function loadStats() { Object.assign(stats, (await api.get('/achats/stats')).data) }
 async function loadPerformance() { loadingPerformance.value = true; try { supplierPerformance.value = (await api.get('/achats/fournisseurs-performance')).data.data || [] } catch (e) { toast.error(e.response?.data?.message || 'Impossible de charger la performance fournisseurs.') } finally { loadingPerformance.value = false } }
 async function togglePerformance() { showPerformance.value = !showPerformance.value; if (showPerformance.value && !supplierPerformance.value.length) await loadPerformance() }
