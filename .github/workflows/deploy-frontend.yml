@@ -62,6 +62,9 @@ jobs:
           normalized_host="${normalized_host%%/*}"
 
           target_dir="${SFTP_TARGET_DIR%/}"
+          if [[ "$target_dir" != */public ]]; then
+            target_dir="${target_dir}/public"
+          fi
 
           lftp -u "$SFTP_USERNAME","$SFTP_PASSWORD" "sftp://$normalized_host" <<EOF
           set sftp:auto-confirm yes
