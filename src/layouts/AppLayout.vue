@@ -344,6 +344,7 @@ import {
   Wallet,
   Truck,
   ShoppingCart,
+  Printer,
   BookOpen,
   ScrollText,
   BookMarked,
@@ -468,6 +469,13 @@ const tousLesMenus = [
     label: 'Achats fournisseurs',
     icon: ShoppingCart,
     roles: ['admin', 'gerant', 'magasinier', 'comptable']
+  },
+
+  {
+    to: '/leasing',
+    label: 'Leasing imprimantes',
+    icon: Printer,
+    roles: ['admin', 'gerant', 'commercial', 'magasinier', 'comptable']
   },
 
   {
@@ -640,7 +648,7 @@ const menuGroupDefinitions = [
     key: 'stock',
     label: 'Achats & Stock',
     icon: Boxes,
-    items: ['/achats', '/produits', '/entrepots', '/stock']
+    items: ['/achats', '/leasing', '/produits', '/entrepots', '/stock']
   },
   {
     key: 'comptabilite',

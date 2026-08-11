@@ -58,6 +58,11 @@ const routes = [
         component: () => import('@/views/AchatsView.vue'),
       },
       {
+        path: 'leasing',
+        name: 'leasing',
+        component: () => import('@/views/LeasingView.vue'),
+      },
+      {
         path: 'fournisseurs-reglements',
         name: 'fournisseurs-reglements',
         component: () => import('@/views/FournisseurReglementsView.vue'),
@@ -156,6 +161,7 @@ const routeRoles = {
   '/factures': ['admin', 'gerant', 'commercial', 'comptable'],
   '/paiements': ['admin', 'gerant', 'comptable', 'caissier'],
   '/achats': ['admin', 'gerant', 'magasinier', 'comptable'],
+  '/leasing': ['admin', 'gerant', 'commercial', 'magasinier', 'comptable'],
   '/fournisseurs-reglements': ['admin', 'gerant', 'comptable'],
   '/depenses': ['admin', 'gerant', 'comptable', 'caissier', 'commercial', 'magasinier'],
   '/tresorerie-comptes': ['admin', 'gerant', 'comptable'],
