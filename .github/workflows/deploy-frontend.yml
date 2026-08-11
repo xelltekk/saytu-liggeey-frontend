@@ -91,7 +91,3 @@ jobs:
           if [ "$target_dir" != "$canonical_public_dir" ]; then
             deploy_frontend "$canonical_public_dir"
           fi
-
-          if [ "$target_dir" != "$canonical_root_dir" ]; then
-            deploy_frontend "$canonical_root_dir"
-          fi
