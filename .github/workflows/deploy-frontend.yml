@@ -90,14 +90,7 @@ jobs:
           EOF
           }
 
-          canonical_root_dir="/sites/Saytu.xelltekk.com"
-          canonical_public_dir="${canonical_root_dir}/public"
-
           deploy_frontend "$target_dir"
-
-          if [ "$target_dir" != "$canonical_public_dir" ]; then
-            deploy_frontend "$canonical_public_dir"
-          fi
 
       - name: Verify frontend is served online
         run: |
