@@ -132,7 +132,17 @@
               <h4 class="mt-1 font-bold text-slate-900">{{ imprimante.designation }}</h4>
               <p class="text-sm text-slate-500">{{ imprimante.marque || '-' }} {{ imprimante.modele || '' }}</p>
             </div>
-            <span class="badge" :class="statutImprimanteClass(imprimante.statut)">{{ statutLabel(imprimante.statut) }}</span>
+            <div class="flex flex-col items-end gap-2">
+              <span class="badge" :class="statutImprimanteClass(imprimante.statut)">{{ statutLabel(imprimante.statut) }}</span>
+              <button
+                v-if="canManageImprimantes"
+                type="button"
+                class="rounded-lg border border-xelltekk-200 px-3 py-1 text-xs font-semibold text-xelltekk-700 transition hover:bg-xelltekk-50"
+                @click="openEditImprimanteModal(imprimante)"
+              >
+                Modifier
+              </button>
+            </div>
           </div>
           <dl class="mt-4 grid grid-cols-2 gap-3 text-sm">
             <div><dt class="caption">N° série</dt><dd class="font-medium text-slate-800">{{ imprimante.numero_serie || '-' }}</dd></div>
@@ -219,7 +229,7 @@
       </div>
     </section>
 
-    <AppModal v-model="showImprimanteModal" title="Nouvelle imprimante leasing" size="lg">
+    <AppModal v-model="showImprimanteModal" :title="editingImprimante ? 'Modifier l’imprimante leasing' : 'Nouvelle imprimante leasing'" size="lg">
       <form class="space-y-4" @submit.prevent="saveImprimante">
         <div class="grid gap-4 md:grid-cols-2">
           <label class="field-label md:col-span-2">Produit lié (optionnel)
@@ -228,6 +238,7 @@
               <option v-for="produit in referentiels.produits" :key="produit.id" :value="produit.id">{{ produit.reference }} - {{ produit.libelle }}</option>
             </select>
           </label>
+          <label v-if="editingImprimante" class="field-label md:col-span-2">Référence <input v-model="imprimanteForm.reference" class="input" /></label>
           <label class="field-label md:col-span-2">Désignation <input v-model="imprimanteForm.designation" class="input" required /></label>
           <label class="field-label">Marque <input v-model="imprimanteForm.marque" class="input" /></label>
           <label class="field-label">Modèle <input v-model="imprimanteForm.modele" class="input" /></label>
@@ -240,13 +251,23 @@
               <option value="couleur">Couleur</option>
             </select>
           </label>
+          <label v-if="editingImprimante" class="field-label">Statut
+            <select v-model="imprimanteForm.statut" class="input">
+              <option value="disponible">Disponible</option>
+              <option value="louee">Louée</option>
+              <option value="maintenance">Maintenance</option>
+              <option value="retiree">Retirée</option>
+            </select>
+          </label>
           <label class="field-label">Compteur noir initial <input v-model.number="imprimanteForm.compteur_initial_noir" type="number" min="0" class="input" /></label>
           <label class="field-label">Compteur couleur initial <input v-model.number="imprimanteForm.compteur_initial_couleur" type="number" min="0" class="input" /></label>
+          <label v-if="editingImprimante" class="field-label">Compteur noir actuel <input v-model.number="imprimanteForm.compteur_actuel_noir" type="number" min="0" class="input" /></label>
+          <label v-if="editingImprimante" class="field-label">Compteur couleur actuel <input v-model.number="imprimanteForm.compteur_actuel_couleur" type="number" min="0" class="input" /></label>
           <label class="field-label md:col-span-2">Notes <textarea v-model="imprimanteForm.notes" class="input min-h-24"></textarea></label>
         </div>
         <div class="flex justify-end gap-2 border-t pt-4">
           <button type="button" class="btn-secondary" @click="showImprimanteModal = false">Annuler</button>
-          <button class="btn-primary" :disabled="saving">{{ saving ? 'Enregistrement...' : 'Enregistrer' }}</button>
+          <button class="btn-primary" :disabled="saving">{{ saving ? 'Enregistrement...' : (editingImprimante ? 'Mettre à jour' : 'Enregistrer') }}</button>
         </div>
       </form>
     </AppModal>
@@ -416,8 +437,10 @@ import api from '@/services/api'
 import { ouvrirPDF } from '@/services/pdf'
 import AppModal from '@/components/AppModal.vue'
 import { useToast } from '@/composables/useToast'
+import { useAuthStore } from '@/stores/auth'
 
 const toast = useToast()
+const auth = useAuthStore()
 const activeTab = ref('contrats')
 const loading = ref(false)
 const saving = ref(false)
@@ -445,6 +468,8 @@ const contrats = ref([])
 const imprimantes = ref([])
 const releves = ref([])
 const interventions = ref([])
+const editingImprimante = ref(null)
+const canManageImprimantes = computed(() => auth.user?.role === 'admin')
 
 const filters = reactive({
   contrats: { search: '', statut: '' },
@@ -476,6 +501,10 @@ watch(
   ],
   () => scheduleRelevePreview()
 )
+
+watch(showImprimanteModal, (isOpen) => {
+  if (!isOpen) editingImprimante.value = null
+})
 
 watch(
   () => [releveForm.contrat_id, releveForm.periode],
@@ -567,7 +596,14 @@ async function loadInterventions() {
 }
 
 function openImprimanteModal() {
+  editingImprimante.value = null
   Object.assign(imprimanteForm, defaultImprimanteForm())
+  showImprimanteModal.value = true
+}
+
+function openEditImprimanteModal(imprimante) {
+  editingImprimante.value = imprimante
+  Object.assign(imprimanteForm, imprimanteToForm(imprimante))
   showImprimanteModal.value = true
 }
 
@@ -600,12 +636,19 @@ function syncProduit() {
 async function saveImprimante() {
   saving.value = true
   try {
-    await api.post('/leasing/imprimantes', normalizePayload(imprimanteForm))
-    toast.success('Imprimante ajoutée au parc leasing.')
+    const payload = normalizePayload(imprimanteForm)
+    if (editingImprimante.value?.id) {
+      await api.put(`/leasing/imprimantes/${editingImprimante.value.id}`, payload)
+      toast.success('Imprimante mise à jour.')
+    } else {
+      await api.post('/leasing/imprimantes', payload)
+      toast.success('Imprimante ajoutée au parc leasing.')
+    }
     showImprimanteModal.value = false
+    editingImprimante.value = null
     await refreshAll()
   } catch (error) {
-    handleApiError(error, 'Enregistrement de l’imprimante impossible.')
+    handleApiError(error, editingImprimante.value ? 'Modification de l’imprimante impossible.' : 'Enregistrement de l’imprimante impossible.')
   } finally {
     saving.value = false
   }
@@ -741,6 +784,7 @@ function normalizePayload(source) {
 
 function defaultImprimanteForm() {
   return {
+    reference: '',
     produit_id: '',
     designation: '',
     marque: '',
@@ -748,10 +792,36 @@ function defaultImprimanteForm() {
     numero_serie: '',
     localisation: '',
     type_impression: 'multifonction',
+    statut: 'disponible',
+    date_acquisition: '',
     compteur_initial_noir: 0,
     compteur_initial_couleur: '',
+    compteur_actuel_noir: '',
+    compteur_actuel_couleur: '',
     valeur_acquisition_ht: 0,
     notes: '',
+  }
+}
+
+function imprimanteToForm(imprimante) {
+  return {
+    ...defaultImprimanteForm(),
+    reference: imprimante.reference || '',
+    produit_id: imprimante.produit_id || '',
+    designation: imprimante.designation || '',
+    marque: imprimante.marque || '',
+    modele: imprimante.modele || '',
+    numero_serie: imprimante.numero_serie || '',
+    localisation: imprimante.localisation || '',
+    type_impression: imprimante.type_impression || 'multifonction',
+    statut: imprimante.statut || 'disponible',
+    date_acquisition: imprimante.date_acquisition ? String(imprimante.date_acquisition).slice(0, 10) : '',
+    compteur_initial_noir: imprimante.compteur_initial_noir ?? 0,
+    compteur_initial_couleur: imprimante.compteur_initial_couleur ?? '',
+    compteur_actuel_noir: imprimante.compteur_actuel_noir ?? 0,
+    compteur_actuel_couleur: imprimante.compteur_actuel_couleur ?? '',
+    valeur_acquisition_ht: Number(imprimante.valeur_acquisition_ht || 0),
+    notes: imprimante.notes || '',
   }
 }
 
