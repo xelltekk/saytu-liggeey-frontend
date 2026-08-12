@@ -124,39 +124,56 @@
           <button class="btn-secondary" @click="loadImprimantes">Filtrer</button>
         </div>
       </div>
-      <div class="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-3">
-        <article v-for="imprimante in imprimantes" :key="imprimante.id" class="rounded-2xl border border-slate-200 p-4">
-          <div class="flex items-start justify-between gap-3">
-            <div>
-              <div class="font-mono text-xs text-slate-500">{{ imprimante.reference }}</div>
-              <h4 class="mt-1 font-bold text-slate-900">{{ imprimante.designation }}</h4>
-              <p class="text-sm text-slate-500">{{ imprimante.marque || '-' }} {{ imprimante.modele || '' }}</p>
-            </div>
-            <div class="flex flex-col items-end gap-2">
-              <span class="badge" :class="statutImprimanteClass(imprimante.statut)">{{ statutLabel(imprimante.statut) }}</span>
-              <button
-                v-if="canManageImprimantes"
-                type="button"
-                class="rounded-lg border border-xelltekk-200 px-3 py-1 text-xs font-semibold text-xelltekk-700 transition hover:bg-xelltekk-50"
-                @click="openEditImprimanteModal(imprimante)"
-              >
-                Modifier
-              </button>
-            </div>
-          </div>
-          <dl class="mt-4 grid grid-cols-2 gap-3 text-sm">
-            <div><dt class="caption">N° série</dt><dd class="font-medium text-slate-800">{{ imprimante.numero_serie || '-' }}</dd></div>
-            <div><dt class="caption">Type</dt><dd class="font-medium text-slate-800">{{ typeImpressionLabel(imprimante.type_impression) }}</dd></div>
-            <div><dt class="caption">Compteur noir</dt><dd class="font-medium text-slate-800">{{ imprimante.compteur_actuel_noir || 0 }}</dd></div>
-            <div><dt class="caption">Compteur couleur</dt><dd class="font-medium text-slate-800">{{ imprimante.compteur_actuel_couleur ?? '-' }}</dd></div>
-          </dl>
-          <div v-if="imprimante.contrat_actif?.client" class="mt-4 rounded-xl bg-blue-50 p-3 text-sm text-blue-900">
-            Louée à <strong>{{ imprimante.contrat_actif.client.nom }}</strong>
-          </div>
-        </article>
-        <div v-if="!loading && imprimantes.length === 0" class="rounded-2xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-400 md:col-span-2 xl:col-span-3">
-          Aucune imprimante dans le parc leasing.
-        </div>
+      <div class="overflow-x-auto">
+        <table class="w-full min-w-[1050px]">
+          <thead class="bg-slate-50 text-xs uppercase text-slate-500">
+            <tr>
+              <th class="px-4 py-3 text-left">Référence</th>
+              <th class="px-4 py-3 text-left">Imprimante</th>
+              <th class="px-4 py-3 text-left">N° série</th>
+              <th class="px-4 py-3 text-left">Emplacement</th>
+              <th class="px-4 py-3 text-left">Type</th>
+              <th class="px-4 py-3 text-right">Compteur noir</th>
+              <th class="px-4 py-3 text-right">Compteur couleur</th>
+              <th class="px-4 py-3 text-center">Statut</th>
+              <th class="px-4 py-3 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            <tr v-for="imprimante in imprimantes" :key="imprimante.id" class="hover:bg-slate-50">
+              <td class="px-4 py-3 font-mono text-sm text-slate-600">{{ imprimante.reference }}</td>
+              <td class="px-4 py-3">
+                <div class="font-bold text-slate-900">{{ imprimante.designation }}</div>
+                <div class="text-xs text-slate-500">{{ imprimante.marque || '-' }} {{ imprimante.modele || '' }}</div>
+                <div v-if="imprimante.contrat_actif?.client" class="mt-1 text-xs font-semibold text-blue-700">
+                  Louée à {{ imprimante.contrat_actif.client.nom }}
+                </div>
+              </td>
+              <td class="px-4 py-3 text-sm text-slate-700">{{ imprimante.numero_serie || '-' }}</td>
+              <td class="px-4 py-3 text-sm text-slate-700">{{ imprimante.localisation || '-' }}</td>
+              <td class="px-4 py-3 text-sm text-slate-700">{{ typeImpressionLabel(imprimante.type_impression) }}</td>
+              <td class="px-4 py-3 text-right font-semibold text-slate-900">{{ imprimante.compteur_actuel_noir || 0 }}</td>
+              <td class="px-4 py-3 text-right font-semibold text-slate-900">{{ imprimante.compteur_actuel_couleur ?? '-' }}</td>
+              <td class="px-4 py-3 text-center">
+                <span class="badge" :class="statutImprimanteClass(imprimante.statut)">{{ statutLabel(imprimante.statut) }}</span>
+              </td>
+              <td class="px-4 py-3 text-right">
+                <button
+                  v-if="canManageImprimantes"
+                  type="button"
+                  class="rounded-lg border border-xelltekk-200 px-3 py-1 text-xs font-semibold text-xelltekk-700 transition hover:bg-xelltekk-50"
+                  @click="openEditImprimanteModal(imprimante)"
+                >
+                  Modifier
+                </button>
+                <span v-else class="text-sm text-slate-400">-</span>
+              </td>
+            </tr>
+            <tr v-if="!loading && imprimantes.length === 0">
+              <td colspan="9" class="px-4 py-10 text-center text-sm text-slate-400">Aucune imprimante dans le parc leasing.</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </section>
 
@@ -317,8 +334,8 @@
       <form class="space-y-4" @submit.prevent="saveReleve">
         <label class="field-label">Contrat
           <select v-model.number="releveForm.contrat_id" class="input" required>
-            <option value="">Choisir un contrat actif</option>
-            <option v-for="contrat in contratsActifs" :key="contrat.id" :value="contrat.id">{{ contrat.numero }} - {{ contrat.client?.nom }} - {{ contrat.imprimante?.designation }}</option>
+            <option value="">Choisir un contrat</option>
+            <option v-for="contrat in contratsReleves" :key="contrat.id" :value="contrat.id">{{ contrat.numero }} - {{ contrat.client?.nom }} - {{ contrat.imprimante?.designation }}</option>
           </select>
         </label>
         <div class="grid gap-4 md:grid-cols-3">
@@ -486,7 +503,7 @@ const contratForm = reactive(defaultContratForm())
 const releveForm = reactive(defaultReleveForm())
 const interventionForm = reactive(defaultInterventionForm())
 
-const contratsActifs = computed(() => contrats.value.filter(item => ['actif', 'suspendu'].includes(item.statut)))
+const contratsReleves = computed(() => contrats.value.filter(item => ['brouillon', 'actif', 'suspendu'].includes(item.statut)))
 let relevePreviewTimer = null
 
 watch(
