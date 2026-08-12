@@ -186,7 +186,7 @@
         <button class="btn-primary" @click="openReleveModal">+ Relevé</button>
       </div>
       <div class="overflow-x-auto">
-        <table class="w-full min-w-[1050px]">
+        <table class="w-full min-w-[1220px]">
           <thead class="bg-slate-50 text-xs uppercase text-slate-500">
             <tr>
               <th class="px-4 py-3 text-left">Période</th>
@@ -196,6 +196,7 @@
               <th class="px-4 py-3 text-right">Noir</th>
               <th class="px-4 py-3 text-right">Couleur</th>
               <th class="px-4 py-3 text-right">Supplément HT</th>
+              <th class="px-4 py-3 text-right">Facture</th>
               <th class="px-4 py-3 text-right">Fichier</th>
             </tr>
           </thead>
@@ -209,12 +210,30 @@
               <td class="px-4 py-3 text-right text-sm">{{ releve.ancien_compteur_couleur ?? '-' }} → <strong>{{ releve.compteur_couleur ?? '-' }}</strong> <span v-if="releve.copies_couleur" class="text-slate-400">({{ releve.copies_couleur }} pages)</span></td>
               <td class="px-4 py-3 text-right font-semibold text-slate-900">{{ money(releve.montant_supp_ht) }}</td>
               <td class="px-4 py-3 text-right text-sm">
+                <div v-if="releve.facture" class="flex flex-col items-end gap-1">
+                  <router-link :to="{ path: '/factures', query: { open: releve.facture.id } }" class="font-mono font-semibold text-emerald-700 hover:text-emerald-900 hover:underline">
+                    {{ releve.facture.numero }}
+                  </router-link>
+                  <span class="text-xs text-slate-400">{{ money(releve.facture.total_ttc) }}</span>
+                </div>
+                <button
+                  v-else-if="canGenerateFactures"
+                  type="button"
+                  class="rounded-lg border border-xelltekk-200 px-3 py-1.5 text-xs font-semibold text-xelltekk-700 transition hover:bg-xelltekk-50 disabled:cursor-wait disabled:opacity-60"
+                  :disabled="factureLoadingId === releve.id"
+                  @click="facturerReleve(releve)"
+                >
+                  {{ factureLoadingId === releve.id ? 'Génération...' : 'Générer facture' }}
+                </button>
+                <span v-else class="text-slate-400">-</span>
+              </td>
+              <td class="px-4 py-3 text-right text-sm">
                 <a v-if="releve.fichier_releve_path" :href="`/${releve.fichier_releve_path}`" target="_blank" class="font-semibold text-xelltekk-700 hover:text-xelltekk-900">Ouvrir</a>
                 <span v-else class="text-slate-400">-</span>
               </td>
             </tr>
             <tr v-if="!loading && releves.length === 0">
-              <td colspan="8" class="px-4 py-10 text-center text-sm text-slate-400">Aucun relevé compteur.</td>
+              <td colspan="9" class="px-4 py-10 text-center text-sm text-slate-400">Aucun relevé compteur.</td>
             </tr>
           </tbody>
         </table>
@@ -464,6 +483,7 @@ const saving = ref(false)
 const previewLoading = ref(false)
 const moduleWarning = ref('')
 const relevePreview = ref(null)
+const factureLoadingId = ref(null)
 
 const tabs = [
   { key: 'contrats', label: 'Contrats' },
@@ -487,6 +507,7 @@ const releves = ref([])
 const interventions = ref([])
 const editingImprimante = ref(null)
 const canManageImprimantes = computed(() => auth.user?.role === 'admin')
+const canGenerateFactures = computed(() => ['admin', 'gerant', 'commercial', 'comptable'].includes(auth.user?.role))
 
 const filters = reactive({
   contrats: { search: '', statut: '' },
@@ -780,6 +801,24 @@ async function cloturerContrat(contrat) {
     await refreshAll()
   } catch (error) {
     handleApiError(error, 'Clôture impossible.')
+  }
+}
+
+async function facturerReleve(releve) {
+  if (!releve?.id) return
+  const contrat = releve.contrat?.numero || 'ce contrat'
+  const periode = releve.periode || dateLabel(releve.date_releve)
+  if (!window.confirm(`Générer une facture brouillon pour le relevé ${periode} du contrat ${contrat} ?\nSupplément HT affiché : ${money(releve.montant_supp_ht)}.`)) return
+
+  factureLoadingId.value = releve.id
+  try {
+    const { data } = await api.post(`/leasing/releves/${releve.id}/facture`)
+    toast.success(data.message || `Facture ${data.facture?.numero || ''} générée.`)
+    await Promise.all([loadReleves(), loadContrats(), loadStats()])
+  } catch (error) {
+    handleApiError(error, 'Génération de la facture impossible.')
+  } finally {
+    factureLoadingId.value = null
   }
 }
 
