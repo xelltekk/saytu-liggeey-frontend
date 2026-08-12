@@ -241,27 +241,106 @@
     </section>
 
     <section v-if="activeTab === 'interventions'" class="rounded-2xl border border-slate-200 bg-white shadow-sm">
-      <div class="flex items-center justify-between border-b border-slate-100 p-4">
+      <div class="flex flex-col gap-3 border-b border-slate-100 p-4 xl:flex-row xl:items-center xl:justify-between">
         <div>
           <h3 class="font-bold text-slate-900">Interventions</h3>
-          <p class="text-sm text-slate-500">Installations, maintenances, dépannages et retraits.</p>
+          <p class="text-sm text-slate-500">Planification, suivi technicien, coût, résolution et historique.</p>
         </div>
-        <button class="btn-primary" @click="openInterventionModal">+ Intervention</button>
+        <div class="flex flex-col gap-2 lg:flex-row">
+          <input v-model="filters.interventions.search" class="input lg:w-72" placeholder="Recherche réf., client, imprimante, technicien..." @keyup.enter="loadInterventions" />
+          <select v-model="filters.interventions.statut" class="input lg:w-40" @change="loadInterventions">
+            <option value="">Tous statuts</option>
+            <option value="planifiee">Planifiée</option>
+            <option value="en_cours">En cours</option>
+            <option value="terminee">Terminée</option>
+            <option value="annulee">Annulée</option>
+          </select>
+          <select v-model="filters.interventions.type" class="input lg:w-40" @change="loadInterventions">
+            <option value="">Tous types</option>
+            <option value="installation">Installation</option>
+            <option value="maintenance">Maintenance</option>
+            <option value="depannage">Dépannage</option>
+            <option value="retrait">Retrait</option>
+            <option value="releve">Relevé</option>
+            <option value="autre">Autre</option>
+          </select>
+          <input v-model="filters.interventions.date_from" type="date" class="input lg:w-40" @change="loadInterventions" />
+          <input v-model="filters.interventions.date_to" type="date" class="input lg:w-40" @change="loadInterventions" />
+          <button class="btn-secondary" @click="loadInterventions">Filtrer</button>
+          <button class="btn-primary" @click="openInterventionModal">+ Intervention</button>
+        </div>
       </div>
-      <div class="divide-y divide-slate-100">
-        <article v-for="item in interventions" :key="item.id" class="grid gap-3 p-4 lg:grid-cols-[140px_1fr_180px_140px] lg:items-center">
-          <div>
-            <div class="font-mono text-xs text-slate-500">{{ item.reference }}</div>
-            <div class="text-sm font-semibold text-slate-900">{{ dateLabel(item.date_intervention) }}</div>
-          </div>
-          <div>
-            <h4 class="font-semibold text-slate-900">{{ typeInterventionLabel(item.type) }} · {{ item.imprimante?.designation || 'Imprimante' }}</h4>
-            <p class="text-sm text-slate-500">{{ item.client?.nom || '-' }} · {{ item.description || 'Aucune description' }}</p>
-          </div>
-          <div class="text-sm text-slate-600">{{ item.technicien || 'Technicien non défini' }}</div>
-          <div class="text-right"><span class="badge" :class="statutInterventionClass(item.statut)">{{ statutLabel(item.statut) }}</span></div>
-        </article>
-        <div v-if="!loading && interventions.length === 0" class="p-10 text-center text-sm text-slate-400">Aucune intervention.</div>
+
+      <div class="grid gap-3 border-b border-slate-100 p-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div class="rounded-2xl bg-slate-50 p-3">
+          <span class="caption">Ouvertes</span>
+          <strong class="block text-xl text-orange-600">{{ interventionStats.ouvertes }}</strong>
+        </div>
+        <div class="rounded-2xl bg-slate-50 p-3">
+          <span class="caption">Terminées</span>
+          <strong class="block text-xl text-emerald-600">{{ interventionStats.terminees }}</strong>
+        </div>
+        <div class="rounded-2xl bg-slate-50 p-3">
+          <span class="caption">Coût HT</span>
+          <strong class="block text-xl text-slate-900">{{ money(interventionStats.cout_ht) }}</strong>
+        </div>
+        <div class="rounded-2xl bg-slate-50 p-3">
+          <span class="caption">Techniciens</span>
+          <strong class="block text-xl text-xelltekk-700">{{ interventionStats.techniciens }}</strong>
+        </div>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full min-w-[1180px]">
+          <thead class="bg-slate-50 text-xs uppercase text-slate-500">
+            <tr>
+              <th class="px-4 py-3 text-left">Réf. / Date</th>
+              <th class="px-4 py-3 text-left">Type</th>
+              <th class="px-4 py-3 text-left">Client</th>
+              <th class="px-4 py-3 text-left">Imprimante</th>
+              <th class="px-4 py-3 text-left">Technicien</th>
+              <th class="px-4 py-3 text-right">Coût HT</th>
+              <th class="px-4 py-3 text-center">Statut</th>
+              <th class="px-4 py-3 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            <tr v-for="item in interventions" :key="item.id" class="hover:bg-slate-50">
+              <td class="px-4 py-3">
+                <div class="font-mono text-xs text-slate-500">{{ item.reference }}</div>
+                <div class="text-sm font-semibold text-slate-900">{{ dateLabel(item.date_intervention) }}</div>
+                <div v-if="item.date_resolution" class="text-xs text-emerald-600">Résolu le {{ dateLabel(item.date_resolution) }}</div>
+              </td>
+              <td class="px-4 py-3">
+                <div class="font-semibold text-slate-900">{{ typeInterventionLabel(item.type) }}</div>
+                <div class="max-w-xs truncate text-xs text-slate-500">{{ item.description || 'Aucune description' }}</div>
+              </td>
+              <td class="px-4 py-3 text-sm text-slate-700">
+                <div class="font-medium text-slate-900">{{ item.client?.nom || '-' }}</div>
+                <div class="text-xs text-slate-500">{{ item.client?.code || item.contrat?.numero || '' }}</div>
+              </td>
+              <td class="px-4 py-3 text-sm text-slate-700">
+                <div class="font-medium text-slate-900">{{ item.imprimante?.designation || '-' }}</div>
+                <div class="text-xs text-slate-500">{{ item.imprimante?.reference || '-' }} {{ item.imprimante?.numero_serie ? '· ' + item.imprimante.numero_serie : '' }}</div>
+              </td>
+              <td class="px-4 py-3 text-sm text-slate-700">{{ item.technicien || 'Non défini' }}</td>
+              <td class="px-4 py-3 text-right font-semibold text-slate-900">{{ money(item.cout_ht) }}</td>
+              <td class="px-4 py-3 text-center"><span class="badge" :class="statutInterventionClass(item.statut)">{{ statutLabel(item.statut) }}</span></td>
+              <td class="px-4 py-3 text-right">
+                <div class="flex flex-wrap justify-end gap-2 text-sm font-semibold">
+                  <button v-if="item.statut === 'planifiee'" type="button" class="text-orange-700 hover:text-orange-900" @click="changerStatutIntervention(item, 'en_cours')">Démarrer</button>
+                  <button v-if="!['terminee', 'annulee'].includes(item.statut)" type="button" class="text-emerald-700 hover:text-emerald-900" @click="changerStatutIntervention(item, 'terminee')">Terminer</button>
+                  <button type="button" class="text-xelltekk-700 hover:text-xelltekk-900" @click="openEditInterventionModal(item)">Modifier</button>
+                  <button v-if="item.statut !== 'annulee'" type="button" class="text-slate-600 hover:text-slate-900" @click="changerStatutIntervention(item, 'annulee')">Annuler</button>
+                  <button type="button" class="text-red-600 hover:text-red-800" @click="deleteIntervention(item)">Supprimer</button>
+                </div>
+              </td>
+            </tr>
+            <tr v-if="!loading && interventions.length === 0">
+              <td colspan="8" class="px-4 py-10 text-center text-sm text-slate-400">Aucune intervention.</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </section>
 
@@ -421,7 +500,7 @@
       </form>
     </AppModal>
 
-    <AppModal v-model="showInterventionModal" title="Nouvelle intervention" size="lg">
+    <AppModal v-model="showInterventionModal" :title="editingIntervention ? `Modifier ${editingIntervention.reference}` : 'Nouvelle intervention'" size="lg">
       <form class="space-y-4" @submit.prevent="saveIntervention">
         <div class="grid gap-4 md:grid-cols-2">
           <label class="field-label">Contrat lié
@@ -431,13 +510,15 @@
             </select>
           </label>
           <label class="field-label">Imprimante
-            <select v-model.number="interventionForm.imprimante_id" class="input" :required="!interventionForm.contrat_id">
+            <select v-model.number="interventionForm.imprimante_id" class="input" :required="!interventionForm.contrat_id" :disabled="!!interventionForm.contrat_id">
               <option value="">Choisir</option>
               <option v-for="imprimante in imprimantes" :key="imprimante.id" :value="imprimante.id">{{ imprimante.reference }} - {{ imprimante.designation }}</option>
             </select>
           </label>
-          <label class="field-label">Date <input v-model="interventionForm.date_intervention" type="date" class="input" required /></label>
-          <label class="field-label">Technicien <input v-model="interventionForm.technicien" class="input" /></label>
+          <label class="field-label">Date intervention <input v-model="interventionForm.date_intervention" type="date" class="input" required /></label>
+          <label class="field-label">Date résolution <input v-model="interventionForm.date_resolution" type="date" class="input" /></label>
+          <label class="field-label">Technicien <input v-model="interventionForm.technicien" class="input" placeholder="Nom du technicien / prestataire" /></label>
+          <label class="field-label">Coût HT <input v-model.number="interventionForm.cout_ht" type="number" min="0" step="1" class="input" /></label>
           <label class="field-label">Type
             <select v-model="interventionForm.type" class="input">
               <option value="installation">Installation</option>
@@ -456,11 +537,13 @@
               <option value="annulee">Annulée</option>
             </select>
           </label>
-          <label class="field-label md:col-span-2">Description <textarea v-model="interventionForm.description" class="input min-h-24"></textarea></label>
+          <label class="field-label md:col-span-2">Description / problème constaté <textarea v-model="interventionForm.description" class="input min-h-24"></textarea></label>
+          <label class="field-label md:col-span-2">Solution / travaux effectués <textarea v-model="interventionForm.solution" class="input min-h-20" placeholder="Pièces changées, nettoyage, configuration, test effectué..."></textarea></label>
+          <label class="field-label md:col-span-2">Notes internes <textarea v-model="interventionForm.notes" class="input min-h-20"></textarea></label>
         </div>
         <div class="flex justify-end gap-2 border-t pt-4">
           <button type="button" class="btn-secondary" @click="showInterventionModal = false">Annuler</button>
-          <button class="btn-primary" :disabled="saving">{{ saving ? 'Enregistrement...' : 'Enregistrer' }}</button>
+          <button class="btn-primary" :disabled="saving">{{ saving ? 'Enregistrement...' : (editingIntervention ? 'Mettre à jour' : 'Enregistrer') }}</button>
         </div>
       </form>
     </AppModal>
@@ -506,12 +589,14 @@ const imprimantes = ref([])
 const releves = ref([])
 const interventions = ref([])
 const editingImprimante = ref(null)
+const editingIntervention = ref(null)
 const canManageImprimantes = computed(() => auth.user?.role === 'admin')
 const canGenerateFactures = computed(() => ['admin', 'gerant', 'commercial', 'comptable'].includes(auth.user?.role))
 
 const filters = reactive({
   contrats: { search: '', statut: '' },
   imprimantes: { search: '', statut: '' },
+  interventions: { search: '', statut: '', type: '', date_from: '', date_to: '' },
 })
 
 const showImprimanteModal = ref(false)
@@ -525,6 +610,15 @@ const releveForm = reactive(defaultReleveForm())
 const interventionForm = reactive(defaultInterventionForm())
 
 const contratsReleves = computed(() => contrats.value.filter(item => ['brouillon', 'actif', 'suspendu'].includes(item.statut)))
+const interventionStats = computed(() => {
+  const rows = interventions.value || []
+  return {
+    ouvertes: rows.filter(item => ['planifiee', 'en_cours'].includes(item.statut)).length,
+    terminees: rows.filter(item => item.statut === 'terminee').length,
+    cout_ht: rows.reduce((total, item) => total + Number(item.cout_ht || 0), 0),
+    techniciens: new Set(rows.map(item => item.technicien).filter(Boolean)).size,
+  }
+})
 let relevePreviewTimer = null
 
 watch(
@@ -626,7 +720,7 @@ async function loadReleves() {
 
 async function loadInterventions() {
   try {
-    const { data } = await api.get('/leasing/interventions', { params: { per_page: 50 } })
+    const { data } = await api.get('/leasing/interventions', { params: { per_page: 100, ...filters.interventions } })
     interventions.value = data.data || []
   } catch (error) {
     handleApiError(error, 'Impossible de charger les interventions.')
@@ -658,7 +752,14 @@ function openReleveModal(contrat = null) {
 }
 
 function openInterventionModal() {
+  editingIntervention.value = null
   Object.assign(interventionForm, defaultInterventionForm())
+  showInterventionModal.value = true
+}
+
+function openEditInterventionModal(intervention) {
+  editingIntervention.value = intervention
+  Object.assign(interventionForm, interventionToForm(intervention))
   showInterventionModal.value = true
 }
 
@@ -771,17 +872,51 @@ async function saveReleve() {
 async function saveIntervention() {
   saving.value = true
   try {
-    await api.post('/leasing/interventions', normalizePayload(interventionForm))
-    toast.success('Intervention enregistrée.')
+    const payload = normalizePayload(interventionForm)
+    if (editingIntervention.value?.id) {
+      await api.put(`/leasing/interventions/${editingIntervention.value.id}`, payload)
+      toast.success('Intervention mise à jour.')
+    } else {
+      await api.post('/leasing/interventions', payload)
+      toast.success('Intervention enregistrée.')
+    }
     showInterventionModal.value = false
+    editingIntervention.value = null
     await refreshAll()
   } catch (error) {
-    handleApiError(error, 'Enregistrement de l’intervention impossible.')
+    handleApiError(error, editingIntervention.value ? 'Modification de l’intervention impossible.' : 'Enregistrement de l’intervention impossible.')
   } finally {
     saving.value = false
   }
 }
 
+async function changerStatutIntervention(intervention, statut) {
+  const label = statutLabel(statut).toLowerCase()
+  if (!window.confirm(`Passer l'intervention ${intervention.reference} en ${label} ?`)) return
+  try {
+    const payload = normalizePayload({
+      ...interventionToForm(intervention),
+      statut,
+      date_resolution: statut === 'terminee' ? (intervention.date_resolution ? normalizeDate(intervention.date_resolution) : today()) : normalizeDate(intervention.date_resolution),
+    })
+    await api.put(`/leasing/interventions/${intervention.id}`, payload)
+    toast.success('Statut intervention mis à jour.')
+    await Promise.all([loadInterventions(), loadStats()])
+  } catch (error) {
+    handleApiError(error, 'Changement de statut impossible.')
+  }
+}
+
+async function deleteIntervention(intervention) {
+  if (!window.confirm(`Supprimer l'intervention ${intervention.reference} ?`)) return
+  try {
+    await api.delete(`/leasing/interventions/${intervention.id}`)
+    toast.success('Intervention supprimée.')
+    await Promise.all([loadInterventions(), loadStats()])
+  } catch (error) {
+    handleApiError(error, 'Suppression de l’intervention impossible.')
+  }
+}
 async function activerContrat(contrat) {
   if (!window.confirm(`Activer le contrat ${contrat.numero} ?`)) return
   try {
@@ -921,18 +1056,41 @@ function defaultInterventionForm() {
     type: 'maintenance',
     statut: 'planifiee',
     date_intervention: today(),
+    date_resolution: '',
     technicien: '',
+    cout_ht: 0,
     description: '',
+    solution: '',
     notes: '',
   }
 }
 
+function interventionToForm(intervention) {
+  return {
+    ...defaultInterventionForm(),
+    contrat_id: intervention.contrat_id || intervention.contrat?.id || '',
+    imprimante_id: intervention.imprimante_id || intervention.imprimante?.id || '',
+    type: intervention.type || 'maintenance',
+    statut: intervention.statut || 'planifiee',
+    date_intervention: normalizeDate(intervention.date_intervention) || today(),
+    date_resolution: normalizeDate(intervention.date_resolution),
+    technicien: intervention.technicien || '',
+    cout_ht: Number(intervention.cout_ht || 0),
+    description: intervention.description || '',
+    solution: intervention.solution || '',
+    notes: intervention.notes || '',
+  }
+}
 function onReleveFileChange(event) {
   releveForm.fichier_releve = event.target.files?.[0] || null
 }
 
 function today() {
   return new Date().toISOString().slice(0, 10)
+}
+
+function normalizeDate(value) {
+  return value ? String(value).slice(0, 10) : ''
 }
 
 function money(value) {
