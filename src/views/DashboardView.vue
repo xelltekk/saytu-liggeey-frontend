@@ -120,6 +120,50 @@
         </section>
       </div>
 
+      <section v-if="isBusinessDashboard" class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+        <div class="mb-4 flex items-center justify-between">
+          <h3 class="font-semibold text-gray-900 dark:text-white">Soldes de trésorerie</h3>
+          <span class="text-xs text-gray-500 dark:text-slate-400">Temps réel</span>
+        </div>
+        <div v-if="soldesTresorerieComptes.length" class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <KpiCard
+            label="Solde total disponible"
+            :value="formatPrice(soldesTresorerieTotal)"
+            suffix="XOF"
+            icon="TR"
+            color="blue"
+            :sub="`${soldesTresorerieComptes.length} compte(s) actif(s)`"
+            to="/tresorerie-comptes"
+          />
+          <KpiCard
+            v-for="compte in soldesTresorerieComptes"
+            :key="compte.id || compte.code"
+            :label="compte.libelle"
+            :value="formatPrice(compte.solde_actuel)"
+            suffix="XOF"
+            :icon="compte.icon"
+            :color="compte.color"
+            :sub="compte.sub"
+            to="/tresorerie-comptes"
+          />
+        </div>
+        <div v-else class="flex min-h-52 items-center justify-center text-sm text-gray-400">
+          Aucun compte de trésorerie actif
+        </div>
+      </section>
+
+      <div v-if="isBusinessDashboard" class="grid grid-cols-1 gap-6">
+        <section class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+          <div class="mb-4 flex items-center justify-between">
+            <h3 class="font-semibold text-gray-900 dark:text-white">Chiffre d'affaires mensuel</h3>
+            <span class="text-xs text-gray-500 dark:text-slate-400">12 derniers mois</span>
+          </div>
+          <div class="h-64">
+            <Line v-if="caChartData" :data="caChartData" :options="caChartOptions" />
+          </div>
+        </section>
+      </div>
+
       <section v-if="isManagerDashboard" class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:p-5">
         <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -166,50 +210,6 @@
           Aucun objectif commercial actif. Créez les objectifs depuis la rubrique Prospection.
         </div>
       </section>
-
-      <div v-if="isBusinessDashboard" class="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <section class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-          <div class="mb-4 flex items-center justify-between">
-            <h3 class="font-semibold text-gray-900 dark:text-white">Chiffre d'affaires mensuel</h3>
-            <span class="text-xs text-gray-500 dark:text-slate-400">12 derniers mois</span>
-          </div>
-          <div class="h-64">
-            <Line v-if="caChartData" :data="caChartData" :options="caChartOptions" />
-          </div>
-        </section>
-
-        <section class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900 lg:col-span-2">
-          <div class="mb-4 flex items-center justify-between">
-            <h3 class="font-semibold text-gray-900 dark:text-white">Soldes de trésorerie</h3>
-            <span class="text-xs text-gray-500 dark:text-slate-400">Temps réel</span>
-          </div>
-          <div v-if="soldesTresorerieComptes.length" class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            <KpiCard
-              label="Solde total disponible"
-              :value="formatPrice(soldesTresorerieTotal)"
-              suffix="XOF"
-              icon="TR"
-              color="blue"
-              :sub="`${soldesTresorerieComptes.length} compte(s) actif(s)`"
-              to="/tresorerie-comptes"
-            />
-            <KpiCard
-              v-for="compte in soldesTresorerieComptes"
-              :key="compte.id || compte.code"
-              :label="compte.libelle"
-              :value="formatPrice(compte.solde_actuel)"
-              suffix="XOF"
-              :icon="compte.icon"
-              :color="compte.color"
-              :sub="compte.sub"
-              to="/tresorerie-comptes"
-            />
-          </div>
-          <div v-else class="flex min-h-52 items-center justify-center text-sm text-gray-400">
-            Aucun compte de trésorerie actif
-          </div>
-        </section>
-      </div>
 
       <div v-if="isBusinessDashboard" class="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <section class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
