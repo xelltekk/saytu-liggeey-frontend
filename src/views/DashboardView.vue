@@ -138,7 +138,7 @@
           <KpiCard
             v-for="compte in soldesTresorerieComptes"
             :key="compte.id || compte.code"
-            :label="compte.libelle"
+            :label="compte.label"
             :value="formatPrice(compte.solde_actuel)"
             suffix="XOF"
             :icon="compte.icon"
@@ -401,7 +401,9 @@ const soldesTresorerieComptes = computed(() => {
     return {
       ...compte,
       solde_actuel: solde,
+      label: tresorerieCompteLabel(compte),
       icon: modePaiementIcon(compte.mode_paiement || compte.type || compte.libelle),
+      iconImage: modePaiementIconImage(compte.mode_paiement || compte.type || compte.libelle),
       color: modePaiementColor(compte.mode_paiement || compte.type || compte.libelle, index),
       sub: tresorerieCompteSub(compte),
     }
@@ -416,7 +418,7 @@ const soldesTresorerieTotal = computed(() => {
 })
 
 const KpiCard = {
-  props: ['label', 'value', 'suffix', 'icon', 'color', 'sub', 'to'],
+  props: ['label', 'value', 'suffix', 'icon', 'iconImage', 'color', 'sub', 'to'],
   setup(props) {
     const RouterLink = resolveComponent('RouterLink')
     const bgClass = {
@@ -432,7 +434,9 @@ const KpiCard = {
     const children = () => [
         h('div', { class: 'mb-1 flex items-center justify-between' }, [
           h('span', { class: 'text-xs font-semibold uppercase opacity-75' }, props.label),
-          h('span', { class: 'text-sm font-bold opacity-80' }, props.icon),
+          props.iconImage
+            ? h('img', { src: props.iconImage, alt: props.label, class: 'h-7 w-7 rounded-full bg-white object-contain p-1 shadow-sm ring-1 ring-black/5' })
+            : h('span', { class: 'text-sm font-bold opacity-80' }, props.icon),
         ]),
         h('div', { class: 'flex items-baseline gap-1' }, [
           h('span', { class: 'text-xl font-bold' }, props.value),
@@ -564,6 +568,11 @@ function normalizeSoldesTresorerie(payload) {
   }
 }
 
+function tresorerieCompteLabel(compte) {
+  const fallback = modePaiementLabel(compte.mode_paiement || compte.type)
+  const label = String(compte.libelle || fallback || '')
+  return label.replace(/free\s*money/gi, 'YAS') || fallback || 'Compte'
+}
 function tresorerieCompteSub(compte) {
   return [
     modePaiementLabel(compte.mode_paiement || compte.type),
@@ -581,11 +590,14 @@ function modePaiementLabel(value) {
     virement: 'Virement / Banque',
     banque: 'Banque',
     orange_money: 'Orange Money',
+    orange: 'Orange Money',
+    om: 'Orange Money',
     compensation: 'Compensation',
     cheque: 'Chèque',
     carte: 'Carte bancaire',
     carte_bancaire: 'Carte bancaire',
-    free_money: 'Free Money',
+    free_money: 'YAS',
+    yas: 'YAS',
     mobile_money: 'Mobile Money',
     autre: 'Autre compte',
   }
@@ -613,7 +625,8 @@ function modePaiementIcon(label) {
     cheque: 'CH',
     carte: 'CB',
     carte_bancaire: 'CB',
-    free_money: 'FM',
+    free_money: 'YAS',
+    yas: 'YAS',
     mobile_money: 'MM',
   }
 
@@ -621,6 +634,13 @@ function modePaiementIcon(label) {
   return slug.split('_').map((part) => part[0]).join('').slice(0, 2).toUpperCase() || 'MP'
 }
 
+function modePaiementIconImage(label) {
+  const slug = modePaiementSlug(label)
+  if (slug.includes('wave')) return '/images/payment/wave.png'
+  if (slug.includes('orange_money') || slug === 'om' || slug.includes('orange')) return '/images/payment/orange-money.png'
+  if (slug.includes('free_money') || slug.includes('yas')) return '/images/payment/yas.svg'
+  return null
+}
 function modePaiementColor(label, index) {
   const slug = modePaiementSlug(label)
   const map = {
@@ -632,7 +652,8 @@ function modePaiementColor(label, index) {
     cheque: 'slate',
     carte: 'cyan',
     carte_bancaire: 'cyan',
-    free_money: 'cyan',
+    free_money: 'purple',
+    yas: 'purple',
     mobile_money: 'green',
   }
   const fallback = ['blue', 'green', 'orange', 'red', 'purple', 'cyan', 'slate']
