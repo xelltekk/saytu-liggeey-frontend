@@ -389,9 +389,11 @@ const company = reactive({
 const openMenuGroups = ref({
   ventes: false,
   boutique: false,
+  achats: false,
   stock: false,
-  rh: false,
+  analyse: false,
   comptabilite: false,
+  rh: false,
   administration: false,
 })
 
@@ -423,6 +425,34 @@ const tousLesMenus = [
   },
 
   {
+    to: '/devis',
+    label: 'Devis',
+    icon: FileText,
+    roles: ['admin', 'gerant', 'commercial', 'comptable']
+  },
+
+  {
+    to: '/factures',
+    label: 'Factures',
+    icon: Receipt,
+    roles: ['admin', 'gerant', 'commercial', 'comptable']
+  },
+
+  {
+    to: '/caisse',
+    label: 'Caisse',
+    icon: Wallet,
+    roles: ['admin', 'gerant', 'comptable', 'caissier']
+  },
+
+  {
+    to: '/achats',
+    label: 'Achats fournisseurs',
+    icon: ShoppingCart,
+    roles: ['admin', 'gerant', 'magasinier', 'comptable']
+  },
+
+  {
     to: '/produits',
     label: 'Produits',
     icon: Package,
@@ -444,79 +474,16 @@ const tousLesMenus = [
   },
 
   {
-    to: '/devis',
-    label: 'Devis',
-    icon: FileText,
-    roles: ['admin', 'gerant', 'commercial', 'comptable']
-  },
-
-  {
-    to: '/factures',
-    label: 'Factures',
-    icon: Receipt,
-    roles: ['admin', 'gerant', 'commercial', 'comptable']
-  },
-
-  {
-    to: '/paiements',
-    label: 'Paiements',
-    icon: CreditCard,
-    roles: ['admin', 'gerant', 'comptable', 'caissier']
-  },
-
-  {
-    to: '/achats',
-    label: 'Achats fournisseurs',
-    icon: ShoppingCart,
-    roles: ['admin', 'gerant', 'magasinier', 'comptable']
-  },
-
-  {
-    to: '/leasing',
-    label: 'Leasing imprimantes',
-    icon: Printer,
-    roles: ['admin', 'gerant', 'commercial', 'magasinier', 'comptable']
-  },
-
-  {
-    to: '/fournisseurs-reglements',
-    label: 'Règlements fournisseurs',
-    icon: Truck,
-    roles: ['admin', 'gerant', 'comptable']
-  },
-
-  {
-    to: '/depenses',
-    label: 'Dépenses',
-    icon: Wallet,
-    roles: ['admin', 'gerant', 'comptable', 'caissier', 'commercial', 'magasinier']
-  },
-
-  {
     to: '/tresorerie-comptes',
-    label: 'Comptes trésorerie',
+    label: 'Comptes de trésorerie',
     icon: CreditCard,
     roles: ['admin', 'gerant', 'comptable']
-  },
-
-  {
-    to: '/caisse',
-    label: 'Caisse',
-    icon: Wallet,
-    roles: ['admin', 'gerant', 'comptable', 'caissier']
   },
 
   {
     to: '/compta/plan',
     label: 'Plan comptable',
     icon: BookOpen,
-    roles: ['admin', 'gerant', 'comptable']
-  },
-
-  {
-    to: '/compta/ecritures',
-    label: 'Écritures',
-    icon: ScrollText,
     roles: ['admin', 'gerant', 'comptable']
   },
 
@@ -535,9 +502,44 @@ const tousLesMenus = [
   },
 
   {
+    to: '/paiements',
+    label: 'Paiements clients',
+    icon: CreditCard,
+    roles: ['admin', 'gerant', 'comptable', 'caissier']
+  },
+
+  {
+    to: '/fournisseurs-reglements',
+    label: 'Règlements fournisseurs',
+    icon: Truck,
+    roles: ['admin', 'gerant', 'comptable']
+  },
+
+  {
+    to: '/compta/ecritures',
+    label: 'Écritures',
+    icon: ScrollText,
+    roles: ['admin', 'gerant', 'comptable']
+  },
+
+  {
+    to: '/depenses',
+    label: 'Dépenses',
+    icon: Wallet,
+    roles: ['admin', 'gerant', 'comptable', 'caissier', 'commercial', 'magasinier']
+  },
+
+  {
     to: '/rh',
     label: 'Ressources humaines',
     icon: Users,
+    roles: ['admin', 'gerant', 'commercial', 'magasinier', 'comptable']
+  },
+
+  {
+    to: '/leasing',
+    label: 'Leasing imprimantes',
+    icon: Printer,
     roles: ['admin', 'gerant', 'commercial', 'magasinier', 'comptable']
   },
 
@@ -549,17 +551,17 @@ const tousLesMenus = [
   },
 
   {
-    to: '/activites',
-    label: 'Activités',
-    icon: ClipboardList,
-    roles: ['admin', 'gerant']
-  },
-
-  {
     to: '/parametres',
     label: 'Paramètres',
     icon: Settings,
     roles: ['admin']
+  },
+
+  {
+    to: '/activites',
+    label: 'Activités',
+    icon: ClipboardList,
+    roles: ['admin', 'gerant']
   }
 ]
 
@@ -634,9 +636,9 @@ const dashboardMenuItem = computed(() => {
 const menuGroupDefinitions = [
   {
     key: 'ventes',
-    label: 'Ventes & Clients',
+    label: 'Ventes',
     icon: Users,
-    items: ['/clients', '/prospection', '/devis', '/factures', '/paiements']
+    items: ['/clients', '/prospection', '/devis', '/factures']
   },
   {
     key: 'boutique',
@@ -645,16 +647,28 @@ const menuGroupDefinitions = [
     items: ['/caisse']
   },
   {
+    key: 'achats',
+    label: 'Achats',
+    icon: ShoppingCart,
+    items: ['/achats']
+  },
+  {
     key: 'stock',
-    label: 'Achats & Stock',
+    label: 'Stock',
     icon: Boxes,
-    items: ['/achats', '/leasing', '/produits', '/entrepots', '/stock']
+    items: ['/produits', '/entrepots', '/stock']
+  },
+  {
+    key: 'analyse',
+    label: 'Analyse',
+    icon: Scale,
+    items: ['/tresorerie-comptes', '/compta/plan', '/compta/grand-livre', '/compta/balance']
   },
   {
     key: 'comptabilite',
     label: 'Comptabilité',
     icon: BookOpen,
-    items: ['/fournisseurs-reglements', '/depenses', '/tresorerie-comptes', '/compta/plan', '/compta/ecritures', '/compta/grand-livre', '/compta/balance']
+    items: ['/paiements', '/fournisseurs-reglements', '/compta/ecritures', '/depenses']
   },
   {
     key: 'rh',
@@ -666,7 +680,7 @@ const menuGroupDefinitions = [
     key: 'administration',
     label: 'Administration',
     icon: Settings,
-    items: ['/utilisateurs', '/parametres', '/activites']
+    items: ['/leasing', '/utilisateurs', '/parametres', '/activites']
   },
 ]
 
@@ -691,6 +705,16 @@ function isActive(to) {
 function isGroupActive(group) {
   return group.items.some(item => isActive(item.to))
 }
+
+watch(
+  [() => route.path, groupedMenuItems],
+  () => {
+    groupedMenuItems.value.forEach((group) => {
+      if (isGroupActive(group)) openMenuGroups.value[group.key] = true
+    })
+  },
+  { immediate: true }
+)
 
 function toggleMenuGroup(key) {
   openMenuGroups.value[key] = !openMenuGroups.value[key]
