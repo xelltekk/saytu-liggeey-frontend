@@ -180,14 +180,33 @@
 
         <section class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900 lg:col-span-2">
           <div class="mb-4 flex items-center justify-between">
-            <h3 class="font-semibold text-gray-900 dark:text-white">Modes de paiement</h3>
-            <span class="text-xs text-gray-500 dark:text-slate-400">Année</span>
+            <h3 class="font-semibold text-gray-900 dark:text-white">Soldes de trésorerie</h3>
+            <span class="text-xs text-gray-500 dark:text-slate-400">Temps réel</span>
           </div>
-          <div v-if="modesChartData && modesChartData.labels.length" class="flex h-64 items-center justify-center">
-            <Doughnut :data="modesChartData" :options="modesChartOptions" />
+          <div v-if="soldesTresorerieComptes.length" class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            <KpiCard
+              label="Solde total disponible"
+              :value="formatPrice(soldesTresorerieTotal)"
+              suffix="XOF"
+              icon="TR"
+              color="blue"
+              :sub="`${soldesTresorerieComptes.length} compte(s) actif(s)`"
+              to="/tresorerie-comptes"
+            />
+            <KpiCard
+              v-for="compte in soldesTresorerieComptes"
+              :key="compte.id || compte.code"
+              :label="compte.libelle"
+              :value="formatPrice(compte.solde_actuel)"
+              suffix="XOF"
+              :icon="compte.icon"
+              :color="compte.color"
+              :sub="compte.sub"
+              to="/tresorerie-comptes"
+            />
           </div>
-          <div v-else class="flex h-64 items-center justify-center text-sm text-gray-400">
-            Aucun paiement cette année
+          <div v-else class="flex min-h-52 items-center justify-center text-sm text-gray-400">
+            Aucun compte de trésorerie actif
           </div>
         </section>
       </div>
@@ -324,9 +343,9 @@
 
 <script setup>
 import { ref, computed, onMounted, h, resolveComponent } from 'vue'
-import { Line, Doughnut } from 'vue-chartjs'
+import { Line } from 'vue-chartjs'
 import {
-  Chart as ChartJS, Title, Tooltip, Legend, ArcElement,
+  Chart as ChartJS, Title, Tooltip, Legend,
   CategoryScale, LinearScale, PointElement, LineElement, Filler,
 } from 'chart.js'
 import api from '@/services/api'
@@ -334,7 +353,7 @@ import { ouvrirPDF } from '@/services/pdf'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
 
-ChartJS.register(Title, Tooltip, Legend, ArcElement, CategoryScale, LinearScale, PointElement, LineElement, Filler)
+ChartJS.register(Title, Tooltip, Legend, CategoryScale, LinearScale, PointElement, LineElement, Filler)
 
 const auth = useAuthStore()
 const toast = useToast()
@@ -344,7 +363,7 @@ const dashboardScope = ref('business')
 const kpi = ref({})
 const annonces = ref([])
 const caChartData = ref(null)
-const modesChartData = ref(null)
+const soldesTresorerie = ref({ total: 0, comptes: [] })
 const topClients = ref([])
 const facturesRetard = ref([])
 const derniersPaiements = ref([])
@@ -373,6 +392,29 @@ const today = computed(() => {
   })
 })
 
+const soldesTresorerieComptes = computed(() => {
+  const comptes = Array.isArray(soldesTresorerie.value.comptes) ? soldesTresorerie.value.comptes : []
+
+  return comptes.map((compte, index) => {
+    const solde = Number(compte.solde_actuel ?? compte.solde_initial ?? 0)
+
+    return {
+      ...compte,
+      solde_actuel: solde,
+      icon: modePaiementIcon(compte.mode_paiement || compte.type || compte.libelle),
+      color: modePaiementColor(compte.mode_paiement || compte.type || compte.libelle, index),
+      sub: tresorerieCompteSub(compte),
+    }
+  })
+})
+
+const soldesTresorerieTotal = computed(() => {
+  const total = Number(soldesTresorerie.value.total)
+  return Number.isFinite(total)
+    ? total
+    : soldesTresorerieComptes.value.reduce((sum, compte) => sum + Number(compte.solde_actuel || 0), 0)
+})
+
 const KpiCard = {
   props: ['label', 'value', 'suffix', 'icon', 'color', 'sub', 'to'],
   setup(props) {
@@ -382,6 +424,9 @@ const KpiCard = {
       blue: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/30 dark:text-blue-300 dark:border-blue-500/30',
       orange: 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950/30 dark:text-orange-300 dark:border-orange-500/30',
       purple: 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/30 dark:text-purple-300 dark:border-purple-500/30',
+      red: 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950/30 dark:text-red-300 dark:border-red-500/30',
+      cyan: 'bg-cyan-50 text-cyan-700 border-cyan-200 dark:bg-cyan-950/30 dark:text-cyan-300 dark:border-cyan-500/30',
+      slate: 'bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700',
     }[props.color] || 'bg-gray-50 text-gray-700 border-gray-200 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700'
 
     const children = () => [
@@ -452,23 +497,6 @@ const caChartOptions = {
   },
 }
 
-const modesChartOptions = {
-  responsive: true,
-  maintainAspectRatio: false,
-  plugins: {
-    legend: { position: 'bottom', labels: { padding: 12, font: { size: 11 } } },
-    tooltip: {
-      callbacks: {
-        label: (ctx) => `${ctx.label}: ${new Intl.NumberFormat('fr-FR').format(ctx.parsed)} XOF`,
-      },
-    },
-  },
-}
-
-const couleurs = [
-  '#1e40af', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
-  '#06b6d4', '#ec4899', '#6366f1', '#f97316', '#84cc16',
-]
 
 async function loadDashboard() {
   loading.value = true
@@ -499,17 +527,7 @@ async function loadDashboard() {
       }
     }
 
-    if (data.modes_paiement && data.modes_paiement.labels.length) {
-      modesChartData.value = {
-        labels: data.modes_paiement.labels,
-        datasets: [{
-          data: data.modes_paiement.data,
-          backgroundColor: couleurs,
-          borderWidth: 2,
-          borderColor: '#fff',
-        }],
-      }
-    }
+    soldesTresorerie.value = normalizeSoldesTresorerie(data.soldes_tresorerie)
 
     topClients.value = data.top_clients || []
     facturesRetard.value = data.factures_retard || []
@@ -532,6 +550,94 @@ async function ouvrirEtatCommerciauxPdf() {
   } finally {
     commercialPdfLoading.value = false
   }
+}
+
+function normalizeSoldesTresorerie(payload) {
+  const comptes = Array.isArray(payload?.comptes) ? payload.comptes : []
+  const total = Number(payload?.total)
+
+  return {
+    total: Number.isFinite(total)
+      ? total
+      : comptes.reduce((sum, compte) => sum + Number(compte.solde_actuel ?? compte.solde_initial ?? 0), 0),
+    comptes,
+  }
+}
+
+function tresorerieCompteSub(compte) {
+  return [
+    modePaiementLabel(compte.mode_paiement || compte.type),
+    compte.code,
+    compte.is_default ? 'Par défaut' : null,
+  ].filter(Boolean).join(' · ')
+}
+
+function modePaiementLabel(value) {
+  const slug = modePaiementSlug(value)
+  const labels = {
+    especes: 'Caisse espèces',
+    caisse: 'Caisse',
+    wave: 'Wave',
+    virement: 'Virement / Banque',
+    banque: 'Banque',
+    orange_money: 'Orange Money',
+    compensation: 'Compensation',
+    cheque: 'Chèque',
+    carte: 'Carte bancaire',
+    carte_bancaire: 'Carte bancaire',
+    free_money: 'Free Money',
+    mobile_money: 'Mobile Money',
+    autre: 'Autre compte',
+  }
+
+  return labels[slug] || String(value || '').replace(/_/g, ' ')
+}
+
+function modePaiementSlug(label) {
+  return String(label || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_|_$/g, '')
+}
+
+function modePaiementIcon(label) {
+  const slug = modePaiementSlug(label)
+  const map = {
+    especes: 'ES',
+    wave: 'WV',
+    virement: 'VR',
+    orange_money: 'OM',
+    compensation: 'CP',
+    cheque: 'CH',
+    carte: 'CB',
+    carte_bancaire: 'CB',
+    free_money: 'FM',
+    mobile_money: 'MM',
+  }
+
+  if (map[slug]) return map[slug]
+  return slug.split('_').map((part) => part[0]).join('').slice(0, 2).toUpperCase() || 'MP'
+}
+
+function modePaiementColor(label, index) {
+  const slug = modePaiementSlug(label)
+  const map = {
+    especes: 'blue',
+    wave: 'green',
+    virement: 'orange',
+    orange_money: 'red',
+    compensation: 'purple',
+    cheque: 'slate',
+    carte: 'cyan',
+    carte_bancaire: 'cyan',
+    free_money: 'cyan',
+    mobile_money: 'green',
+  }
+  const fallback = ['blue', 'green', 'orange', 'red', 'purple', 'cyan', 'slate']
+
+  return map[slug] || fallback[index % fallback.length]
 }
 
 function formatPrice(value) {
