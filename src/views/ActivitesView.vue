@@ -112,6 +112,81 @@
         </div>
       </div>
 
+
+      <div class="mb-4 overflow-hidden rounded-2xl border border-red-100 bg-white shadow-sm">
+        <div class="flex flex-col gap-3 border-b border-red-100 bg-red-50/60 p-4 lg:flex-row lg:items-end">
+          <div class="flex-1">
+            <div class="text-xs font-semibold uppercase tracking-wide text-red-600">Corbeille des suppressions</div>
+            <h3 class="mt-1 text-lg font-bold text-gray-900">?l?ments supprim?s restaurables</h3>
+            <p class="mt-1 text-sm text-gray-500">
+              Les suppressions r?versibles de l?application sont centralis?es ici. Restauration r?serv?e aux administrateurs et g?rants.
+            </p>
+          </div>
+          <div class="grid grid-cols-1 gap-2 sm:grid-cols-3 lg:w-[680px]">
+            <input v-model="trashFilters.search" type="search" class="input" placeholder="Rechercher dans la corbeille..." @keyup.enter="loadCorbeille" />
+            <select v-model="trashFilters.type" class="input" @change="loadCorbeille">
+              <option value="">Tous les types</option>
+              <option v-for="type in trashTypes" :key="type.type" :value="type.type">{{ type.label }}</option>
+            </select>
+            <button type="button" class="btn-secondary" :disabled="trashLoading" @click="loadCorbeille">
+              {{ trashLoading ? 'Chargement...' : 'Actualiser corbeille' }}
+            </button>
+          </div>
+        </div>
+
+        <div v-if="trashLoading" class="p-8 text-center text-sm text-gray-500">Chargement de la corbeille...</div>
+        <div v-else-if="trashItems.length === 0" class="p-8 text-center text-sm text-gray-400">Aucune suppression restaurable pour le moment.</div>
+        <div v-else class="overflow-x-auto">
+          <table class="w-full min-w-[1080px]">
+            <thead class="bg-white text-xs uppercase tracking-wide text-gray-500">
+              <tr>
+                <th class="px-4 py-3 text-left">Suppression</th>
+                <th class="px-4 py-3 text-left">Type / module</th>
+                <th class="px-4 py-3 text-left">?l?ment</th>
+                <th class="px-4 py-3 text-left">D?tails</th>
+                <th class="px-4 py-3 text-right">Montant</th>
+                <th class="px-4 py-3 text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+              <tr v-for="item in trashItems" :key="`${item.type}-${item.id}`" class="hover:bg-red-50/30">
+                <td class="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
+                  <div class="font-medium text-gray-900">{{ formatDate(item.deleted_at) }}</div>
+                  <div class="text-xs text-gray-400">{{ formatTime(item.deleted_at) }}</div>
+                </td>
+                <td class="px-4 py-3">
+                  <span class="inline-flex rounded-full bg-red-100 px-2.5 py-1 text-xs font-bold text-red-700">{{ item.type_label }}</span>
+                  <div class="mt-1 text-xs text-gray-500">{{ item.module }}</div>
+                </td>
+                <td class="px-4 py-3">
+                  <div class="font-mono text-xs font-semibold text-gray-800">{{ item.reference || item.label }}</div>
+                  <div class="mt-1 text-sm text-gray-600">{{ item.label }}</div>
+                  <RouterLink v-if="item.route" :to="item.route" class="mt-1 inline-flex text-xs font-semibold text-cyan-700 hover:underline">Ouvrir le module</RouterLink>
+                </td>
+                <td class="px-4 py-3">
+                  <div v-if="item.details?.length" class="grid max-w-xl grid-cols-1 gap-1 text-xs sm:grid-cols-2">
+                    <div v-for="detail in item.details" :key="`${item.type}-${item.id}-${detail.label}`" class="rounded-lg bg-gray-50 px-2 py-1">
+                      <span class="font-semibold text-gray-500">{{ detail.label }} :</span>
+                      <span class="ml-1 text-gray-800">{{ formatShortValue(detail.value) }}</span>
+                    </div>
+                  </div>
+                  <span v-else class="text-xs text-gray-400">-</span>
+                </td>
+                <td class="px-4 py-3 text-right text-sm font-bold text-gray-900">
+                  <span v-if="item.amount !== null && item.amount !== undefined">{{ formatAmount(item.amount) }} XOF</span>
+                  <span v-else class="text-gray-300">-</span>
+                </td>
+                <td class="px-4 py-3 text-right">
+                  <button type="button" class="rounded-full bg-green-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-green-700 disabled:opacity-50" :disabled="trashLoading" @click="restoreTrashItem(item)">
+                    Restaurer
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       <div v-if="loading" class="rounded-2xl bg-white p-12 text-center text-gray-500 shadow-sm">
         Chargement du journal...
       </div>
@@ -235,6 +310,10 @@ const logFile = ref('')
 const updatedAt = ref(null)
 const apiCategories = ref([])
 const apiUsers = ref([])
+const trashLoading = ref(false)
+const trashItems = ref([])
+const trashTypes = ref([])
+const trashFilters = reactive({ search: '', type: '' })
 const filters = reactive({ search: '', status: '', category: '', user_id: '', date_from: '', date_to: '' })
 const page = ref(1)
 const perPage = 25
@@ -349,6 +428,42 @@ async function loadActivites() {
 
 function resetFilters() {
   Object.assign(filters, { search: '', status: '', category: '', user_id: '', date_from: '', date_to: '' })
+}
+
+async function loadCorbeille() {
+  if (!canSeeActivities.value) return
+
+  trashLoading.value = true
+  try {
+    const { data } = await api.get('/corbeille', {
+      params: {
+        limit: 200,
+        search: trashFilters.search || undefined,
+        type: trashFilters.type || undefined,
+      },
+    })
+    trashItems.value = data.data || []
+    trashTypes.value = data.types || []
+  } catch (e) {
+    toast.error(e.response?.data?.message || 'Impossible de charger la corbeille')
+  } finally {
+    trashLoading.value = false
+  }
+}
+
+async function restoreTrashItem(item) {
+  if (!window.confirm(`Restaurer ${item.type_label} ${item.reference || item.label} ?`)) return
+
+  trashLoading.value = true
+  try {
+    const { data } = await api.post(`/corbeille/${item.type}/${item.id}/restaurer`)
+    toast.success(data.message || '?l?ment restaur?')
+    await Promise.all([loadCorbeille(), loadActivites()])
+  } catch (e) {
+    toast.error(e.response?.data?.message || 'Restauration impossible')
+  } finally {
+    trashLoading.value = false
+  }
 }
 
 function exportCsv() {
@@ -558,6 +673,8 @@ function categoryLabel(category) {
     general: 'Général',
     leasing: 'Leasing',
     paiement: 'Paiement',
+    restauration: 'Restauration',
+    suppression: 'Suppression',
     prospection: 'Prospection',
     rh: 'RH',
     stock: 'Stock',
@@ -577,6 +694,8 @@ function categoryClass(category) {
     general: 'bg-slate-100 text-slate-700',
     leasing: 'bg-violet-100 text-violet-700',
     paiement: 'bg-emerald-100 text-emerald-700',
+    restauration: 'bg-green-100 text-green-700',
+    suppression: 'bg-red-100 text-red-700',
     prospection: 'bg-sky-100 text-sky-700',
     stock: 'bg-amber-100 text-amber-700',
   }[category] || 'bg-gray-100 text-gray-700'
@@ -617,9 +736,16 @@ function roleLabel(role) {
   }[role] || role || '-'
 }
 
-onMounted(loadActivites)
+onMounted(() => {
+  loadActivites()
+  loadCorbeille()
+})
 
 watch(filters, () => {
   page.value = 1
+})
+
+watch(trashFilters, () => {
+  loadCorbeille()
 })
 </script>
