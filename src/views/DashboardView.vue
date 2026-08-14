@@ -489,7 +489,7 @@ const KpiCard = {
             ? h('img', {
               src: props.iconImage,
               alt: props.label,
-              class: props.iconImage.includes('/images/dashboard/')
+              class: (props.iconImage.includes('/images/dashboard/') || props.iconImage.includes('/images/payment/'))
                 ? 'h-12 w-12 object-contain drop-shadow-sm'
                 : 'h-8 w-8 rounded-xl bg-white object-contain p-1 shadow-sm ring-1 ring-black/5',
             })
