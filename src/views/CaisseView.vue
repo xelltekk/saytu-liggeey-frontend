@@ -23,7 +23,7 @@
       Chargement...
     </div>
 
-    <div v-else-if="isAdmin" class="grid grid-cols-1 gap-5 xl:grid-cols-[420px_1fr]">
+    <div v-else-if="isAdmin && !session" class="grid grid-cols-1 gap-5 xl:grid-cols-[420px_1fr]">
       <div class="rounded-lg border border-slate-200 bg-white">
         <div class="flex items-center justify-between border-b border-slate-200 px-4 py-3">
           <div>
@@ -204,335 +204,313 @@
     </div>
 
     <div v-else class="space-y-5">
-      <div class="space-y-5">
-        <div class="rounded-lg border border-slate-200 bg-white p-4">
-          <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div>
-              <p class="text-xs uppercase text-slate-500">Caisse active</p>
-              <h3 class="text-xl font-bold text-slate-900">{{ session.reference }}</h3>
-              <p class="text-sm text-slate-500">Ouverte par {{ session.user?.name || 'Utilisateur' }} le {{ formatDateTime(session.opened_at) }}</p>
+      <section class="rounded-[2rem] border border-slate-100 bg-white/95 p-4 shadow-xl shadow-slate-200/70 sm:p-5">
+        <div class="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+          <div>
+            <p class="text-xs font-bold uppercase tracking-wide text-teal-700">GESTION DE CAISSE</p>
+            <h2 class="mt-1 text-xl font-black text-slate-950">Ouverture / fermeture de caisse</h2>
+            <p class="mt-1 text-sm text-slate-500">Ouvrez votre session avant de vendre, puis cl&ocirc;turez-la &agrave; la fin du service.</p>
+            <div class="mt-3 flex flex-wrap gap-2">
+              <span class="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700 ring-1 ring-emerald-200">Session ouverte</span>
+              <span class="rounded-full bg-cyan-50 px-3 py-1 text-xs font-semibold text-cyan-700 ring-1 ring-cyan-200">{{ formatDateTime(session.opened_at) }}</span>
+              <span class="rounded-full bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600 ring-1 ring-slate-200">Fond initial {{ formatPrice(session.solde_ouverture) }}</span>
             </div>
-            <div class="rounded-lg bg-slate-50 px-4 py-3 text-right">
-              <p class="text-xs uppercase text-slate-500">Solde theorique</p>
-              <p class="text-2xl font-bold text-slate-900">{{ formatPrice(session.solde_fermeture_theorique) }}</p>
-            </div>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button type="button" class="btn-secondary rounded-full px-5" @click="loadCaisse">Actualiser</button>
+            <a href="#fermeture-caisse" class="inline-flex items-center justify-center rounded-full bg-teal-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-teal-200 transition hover:bg-teal-700">Cl&ocirc;turer ma caisse</a>
           </div>
         </div>
 
-        <div class="rounded-lg border border-slate-200 bg-white p-4" :class="isTouchPos ? 'touch-pos-surface' : ''">
-          <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div>
-              <h3 class="font-bold text-slate-900" :class="isTouchPos ? 'text-2xl' : 'text-lg'">Vente boutique POS</h3>
-              <p class="text-sm text-slate-500" :class="isTouchPos ? 'sm:text-base' : ''">Ajoutez les articles au panier, encaissez et imprimez le ticket.</p>
-            </div>
-            <button class="btn-secondary" :class="isTouchPos ? 'min-h-12 px-5 text-base' : ''" :disabled="panier.length === 0" @click="viderPanier">Vider le panier</button>
+        <div class="mt-4 flex flex-col gap-3 lg:flex-row lg:items-center">
+          <div class="flex-1 rounded-[1.5rem] border border-slate-100 bg-slate-50 px-5 py-4">
+            <p class="text-xs font-bold uppercase tracking-wide text-slate-500">Fond de caisse</p>
+            <p class="mt-1 text-2xl font-black text-slate-950">{{ formatPrice(session.solde_fermeture_theorique) }}</p>
+            <p class="mt-1 text-xs text-slate-500">D&eacute;tail complet disponible dans l'historique et les rapports.</p>
           </div>
+          <a href="#fermeture-caisse" class="rounded-full bg-violet-50 px-5 py-3 text-sm font-semibold text-violet-700 ring-1 ring-violet-100 transition hover:bg-violet-100">Cl&ocirc;ture en fin de service</a>
+        </div>
+      </section>
 
-          <div class="mt-4 grid grid-cols-1 gap-4" :class="isTouchPos ? 'xl:grid-cols-[minmax(0,1fr)_460px]' : 'xl:grid-cols-[1fr_380px]'">
-            <div class="space-y-3">
+      <section class="rounded-[2rem] border border-slate-100 bg-white p-3 shadow-sm">
+        <div class="grid max-w-xl grid-cols-2 gap-2 rounded-full bg-slate-100 p-1">
+          <button type="button" class="rounded-full bg-violet-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm">Caisse</button>
+          <a href="#historique-caisse" class="rounded-full px-5 py-2.5 text-center text-sm font-semibold text-slate-500 hover:bg-white hover:text-slate-800">Historique</a>
+        </div>
+      </section>
+
+      <section class="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_360px] 2xl:grid-cols-[minmax(0,1fr)_400px]">
+        <div class="space-y-4">
+          <div>
+            <div class="relative">
+              <span class="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">&#9906;</span>
               <input
                 v-model="productSearch"
                 type="search"
-                class="input"
-                :class="isTouchPos ? 'min-h-14 rounded-lg text-lg' : ''"
-                placeholder="Scanner ou rechercher un produit..."
+                class="input min-h-12 rounded-full border-slate-200 bg-white pl-10 shadow-sm"
+                placeholder="Rechercher ou scanner un code-barres..."
                 @keydown.enter.prevent="ajouterPremierProduit"
               />
+            </div>
+            <p class="mt-2 text-xs text-slate-500">Lecteur 2D compatible : scannez le code-barres ou la r&eacute;f&eacute;rence SKU pour ajouter directement au panier.</p>
+          </div>
 
-              <div
-                class="overflow-y-auto rounded-lg border border-slate-200"
-                :class="isTouchPos ? 'max-h-[62vh] divide-y divide-slate-100 rounded-xl border-2 bg-white' : 'max-h-80'"
+          <div class="max-h-[68vh] overflow-y-auto pr-1">
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+              <button
+                v-for="p in produits"
+                :key="p.id"
+                type="button"
+                class="group overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-violet-200 hover:shadow-xl hover:shadow-violet-100/60 active:scale-[0.99]"
+                @click="ajouterAuPanier(p)"
               >
-                <button
-                  v-for="p in produits"
-                  :key="p.id"
-                  type="button"
-                  class="flex w-full items-center justify-between gap-3 text-left hover:bg-slate-50"
-                  :class="isTouchPos ? 'min-h-24 px-4 py-3 active:bg-cyan-50' : 'border-b border-slate-100 px-3 py-3 last:border-b-0'"
-                  @click="ajouterAuPanier(p)"
-                >
-                  <div class="min-w-0 flex-1">
-                    <p class="font-medium text-slate-900" :class="isTouchPos ? 'text-lg' : 'truncate'">{{ p.libelle }}</p>
-                    <div class="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500" :class="isTouchPos ? 'text-sm' : ''">
-                      <span class="font-mono">Ref: {{ p.reference }}</span>
-                      <span v-if="p.code_barre" class="font-mono">Code: {{ p.code_barre }}</span>
-                      <span>{{ p.type === 'service' ? 'Service' : 'Produit' }}</span>
-                    </div>
-                  </div>
-                  <div class="grid shrink-0 grid-cols-2 items-center gap-3 text-right sm:min-w-60">
-                    <div>
-                      <p class="text-xs uppercase text-slate-500">Stock</p>
-                      <p class="font-semibold" :class="[isTouchPos ? 'text-lg' : 'text-sm', stockDisponible(p) > 0 || !p.gere_stock ? 'text-slate-700' : 'text-red-600']">
-                        {{ p.gere_stock ? stockDisponible(p) : '-' }}
-                      </p>
-                    </div>
-                    <div>
-                      <p class="text-xs uppercase text-slate-500">Prix TTC</p>
-                      <p class="font-mono font-bold text-slate-900" :class="isTouchPos ? 'text-lg' : 'text-sm'">{{ formatPrice(prixTtc(p)) }}</p>
-                    </div>
-                  </div>
-                  <div v-if="isTouchPos" class="hidden shrink-0 items-center justify-center rounded-full bg-cyan-600 px-4 py-3 font-bold text-white sm:flex">
-                    +
-                  </div>
-                </button>
-                <div v-if="produits.length === 0" class="px-4 py-8 text-center text-sm text-slate-400">
-                  Aucun produit trouve
+                <div class="flex h-40 items-center justify-center overflow-hidden rounded-[1.25rem] bg-slate-50 ring-1 ring-slate-100">
+                  <img v-if="imageProduit(p)" :src="imageProduit(p)" :alt="p.libelle" class="h-full w-full object-contain p-2 transition duration-200 group-hover:scale-105" />
+                  <div v-else class="flex h-full w-full items-center justify-center text-3xl text-slate-300">&#9633;</div>
                 </div>
-              </div>
+                <div class="mt-3 min-h-[92px]">
+                  <h3 class="line-clamp-2 text-sm font-black uppercase tracking-tight text-slate-950">{{ p.libelle }}</h3>
+                  <p class="mt-1 font-mono text-sm font-black text-violet-600">{{ formatPrice(prixTtc(p)) }}</p>
+                  <div class="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                    <span>Reste : {{ p.gere_stock ? stockDisponible(p) : '-' }}</span>
+                    <span v-if="p.reference" class="font-mono">{{ p.reference }}</span>
+                  </div>
+                </div>
+              </button>
             </div>
 
-            <div class="rounded-lg border border-slate-200 bg-slate-50 p-3" :class="isTouchPos ? 'sticky top-3 self-start rounded-xl p-4' : ''">
-              <div class="mb-3 flex items-center justify-between">
-                <h4 class="font-bold text-slate-900" :class="isTouchPos ? 'text-xl' : ''">Panier</h4>
-                <span class="text-sm text-slate-500">{{ panier.length }} ligne(s)</span>
-              </div>
-
-              <div class="space-y-2 overflow-y-auto" :class="isTouchPos ? 'max-h-[36vh]' : 'max-h-72'">
-                <div v-for="ligne in panier" :key="ligne.produit_id" class="rounded-lg bg-white p-3 shadow-sm">
-                  <div class="flex items-start justify-between gap-3">
-                    <div class="min-w-0">
-                      <p class="truncate font-semibold text-slate-900" :class="isTouchPos ? 'text-base' : 'text-sm'">{{ ligne.libelle }}</p>
-                      <p class="font-mono text-xs text-slate-500">{{ formatPrice(ligne.prix_ttc) }}</p>
-                    </div>
-                    <button class="text-sm text-red-600 hover:text-red-800" :class="isTouchPos ? 'min-h-10 px-2' : ''" @click="retirerDuPanier(ligne.produit_id)">Supprimer</button>
-                  </div>
-                  <div class="mt-3 grid items-center gap-2" :class="isTouchPos ? 'grid-cols-[48px_80px_48px_1fr]' : 'grid-cols-[88px_1fr]'">
-                    <button v-if="isTouchPos" type="button" class="touch-step-btn" @click="decrementerLigne(ligne)">-</button>
-                    <input v-model.number="ligne.quantite" type="number" min="0.001" step="1" class="input text-center" :class="isTouchPos ? 'min-h-12 text-lg' : ''" />
-                    <button v-if="isTouchPos" type="button" class="touch-step-btn" @click="incrementerLigne(ligne)">+</button>
-                    <div class="text-right font-mono font-bold text-slate-900">{{ formatPrice(totalLigne(ligne)) }}</div>
-                  </div>
-                </div>
-                <div v-if="panier.length === 0" class="rounded-lg bg-white px-4 py-8 text-center text-sm text-slate-400">
-                  Panier vide
-                </div>
-              </div>
-
-              <div class="mt-4 space-y-2 border-t border-slate-200 pt-3" :class="isTouchPos ? 'text-base' : 'text-sm'">
-                <div class="flex justify-between" :class="isTouchPos ? 'text-2xl' : 'text-lg'">
-                  <span class="font-bold text-slate-900">Total</span>
-                  <strong>{{ formatPrice(totauxPanier.ttc) }}</strong>
-                </div>
-              </div>
-
-              <div class="mt-4 space-y-2">
-                <div class="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    class="touch-pay-btn"
-                    :class="posForm.document_type === 'ticket' ? 'touch-pay-btn-active' : ''"
-                    @click="posForm.document_type = 'ticket'"
-                  >
-                    Ticket
-                  </button>
-                  <button
-                    type="button"
-                    class="touch-pay-btn"
-                    :class="posForm.document_type === 'facture' ? 'touch-pay-btn-active' : ''"
-                    @click="posForm.document_type = 'facture'"
-                  >
-                    Facture client
-                  </button>
-                </div>
-                <input
-                  v-model="posForm.client_nom"
-                  class="input"
-                  :class="isTouchPos ? 'min-h-12 text-base' : ''"
-                  :placeholder="posForm.document_type === 'facture' ? 'Nom du client obligatoire' : 'Client (optionnel)'"
-                />
-                <div v-if="encaissements.length === 1" class="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                  <button
-                    v-for="mode in modesPaiementTactiles"
-                    :key="mode.value"
-                    type="button"
-                    class="touch-pay-btn"
-                    :class="encaissements[0].mode_paiement === mode.value ? 'touch-pay-btn-active' : ''"
-                    @click="encaissements[0].mode_paiement = mode.value"
-                  >
-                    {{ mode.label }}
-                  </button>
-                </div>
-                <input
-                  v-if="encaissements.length === 1 && encaissements[0].mode_paiement === 'especes'"
-                  v-model.number="encaissements[0].montant_recu"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  class="input"
-                  :class="isTouchPos ? 'min-h-12 text-base' : ''"
-                  placeholder="Espèces reçues"
-                />
-                <input
-                  v-if="encaissements.length === 1 && encaissements[0].mode_paiement !== 'especes'"
-                  v-model="encaissements[0].reference_paiement"
-                  class="input"
-                  :class="isTouchPos ? 'min-h-12 text-base' : ''"
-                  placeholder="Référence paiement (optionnel)"
-                />
-
-                <div class="space-y-2 rounded-lg border border-slate-200 bg-white p-3">
-                  <div class="flex items-center justify-between gap-2">
-                    <div>
-                      <h5 class="text-sm font-bold text-slate-900">Encaissement</h5>
-                      <p class="text-xs text-slate-500">{{ isPaiementFractionne ? 'Paiement fractionné' : 'Paiement simple' }}</p>
-                    </div>
-                    <button type="button" class="btn-secondary px-3 py-1.5 text-xs" @click="ajouterEncaissement">
-                      {{ isPaiementFractionne ? '+ Moyen de paiement' : '+ Fractionner' }}
-                    </button>
-                  </div>
-                  <div v-for="(encaissement, index) in encaissements" v-if="isPaiementFractionne" :key="encaissement.id" class="space-y-2 rounded-lg border border-slate-200 p-2">
-                    <div class="grid grid-cols-[1fr_auto] gap-2">
-                      <select v-model="encaissement.mode_paiement" class="input">
-                        <option value="especes">Especes</option>
-                        <option value="wave">Wave</option>
-                        <option value="orange_money">Orange Money</option>
-                        <option value="carte_bancaire">Carte bancaire</option>
-                        <option value="cheque">Cheque</option>
-                        <option value="virement">Virement</option>
-                        <option value="autre">Autre</option>
-                      </select>
-                      <button v-if="encaissements.length > 1" type="button" class="min-h-10 px-2 text-red-600" title="Supprimer ce paiement" @click="retirerEncaissement(index)">✕</button>
-                    </div>
-                    <div class="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto_1fr]">
-                      <input v-model.number="encaissement.montant" type="number" min="0.01" step="0.01" class="input" placeholder="Montant payé" />
-                      <button type="button" class="btn-secondary px-3 text-xs" title="Utiliser le reste à encaisser" @click="completerEncaissement(index)">Solde</button>
-                      <input
-                        v-if="encaissement.mode_paiement === 'especes'"
-                        v-model.number="encaissement.montant_recu"
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        class="input"
-                        placeholder="Espèces reçues"
-                      />
-                    </div>
-                    <input v-if="encaissement.mode_paiement !== 'especes'" v-model="encaissement.reference_paiement" class="input" placeholder="Référence paiement (optionnel)" />
-                  </div>
-                  <div class="space-y-1 border-t border-slate-200 pt-2 text-sm">
-                    <div class="flex justify-between"><span>Payé</span><strong>{{ formatPrice(totalEncaissements) }}</strong></div>
-                    <div class="flex justify-between" :class="resteAEncaisser > 0.01 ? 'text-red-700' : 'text-green-700'">
-                      <span>Reste à encaisser</span><strong>{{ formatPrice(resteAEncaisser) }}</strong>
-                    </div>
-                    <div v-if="excedentEncaissement > 0.01" class="flex justify-between font-bold text-red-700">
-                      <span>Montant en trop</span><strong>{{ formatPrice(excedentEncaissement) }}</strong>
-                    </div>
-                    <div v-if="monnaieARendre > 0" class="flex justify-between text-lg font-bold text-blue-700">
-                      <span>Monnaie à rendre</span><strong>{{ formatPrice(monnaieARendre) }}</strong>
-                    </div>
-                  </div>
-                </div>
-
-                <button class="btn-primary w-full" :class="isTouchPos ? 'min-h-16 text-lg font-bold' : ''" :disabled="saving || panier.length === 0 || Math.abs(ecartEncaissement) > 0.01" @click="encaisserVente">
-                  <span v-if="saving">Encaissement...</span>
-                  <span v-else>{{ posForm.document_type === 'facture' ? 'Encaisser et ouvrir facture' : 'Encaisser et imprimer' }}</span>
-                </button>
-              </div>
+            <div v-if="produits.length === 0" class="rounded-[1.5rem] border border-dashed border-slate-200 bg-white px-4 py-12 text-center text-sm text-slate-400">
+              Aucun produit trouv&eacute;
             </div>
           </div>
         </div>
 
-        <details class="rounded-lg border border-slate-200 bg-white p-4">
-          <summary class="cursor-pointer select-none text-lg font-bold text-slate-900">Nouveau mouvement manuel</summary>
-          <form class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2" @submit.prevent="ajouterMouvement">
-            <select v-model="movementForm.sens" class="input">
-              <option value="entree">Entree</option>
-              <option value="sortie">Sortie</option>
-            </select>
-            <select v-model="movementForm.type" class="input">
-              <option value="vente">Vente boutique</option>
-              <option value="encaissement">Encaissement facture</option>
-              <option value="depense">Depense</option>
-              <option value="retrait">Retrait caisse</option>
-              <option value="depot">Depot caisse</option>
-              <option value="correction">Correction</option>
-              <option value="remboursement">Remboursement</option>
-              <option value="autre">Autre</option>
-            </select>
-            <input v-model="movementForm.libelle" class="input md:col-span-2" placeholder="Libelle" />
-            <input v-model.number="movementForm.montant" type="number" min="0.01" step="0.01" class="input" placeholder="Montant" />
-            <select v-model="movementForm.mode_paiement" class="input">
-              <option value="especes">Especes</option>
-              <option value="wave">Wave</option>
-              <option value="orange_money">Orange Money</option>
-              <option value="carte_bancaire">Carte bancaire</option>
-              <option value="cheque">Cheque</option>
-              <option value="virement">Virement</option>
-              <option value="autre">Autre</option>
-            </select>
-            <input v-model="movementForm.reference" class="input md:col-span-2" placeholder="Reference ticket, facture ou transaction" />
-            <textarea v-model="movementForm.description" class="input md:col-span-2" rows="2" placeholder="Description (optionnel)"></textarea>
-            <div class="md:col-span-2 flex justify-end">
-              <button class="btn-primary" :disabled="saving">
-                <span v-if="saving">Enregistrement...</span>
-                <span v-else>Ajouter le mouvement</span>
+        <aside class="xl:sticky xl:top-4 xl:self-start">
+          <div class="rounded-[1.75rem] border border-slate-100 bg-white p-4 shadow-xl shadow-slate-200/70">
+            <div class="flex items-center justify-between">
+              <h3 class="text-lg font-black text-slate-950">Panier</h3>
+              <span class="rounded-full bg-violet-50 px-3 py-1 text-xs font-bold text-violet-700">{{ panier.length }} article(s)</span>
+            </div>
+
+            <div class="mt-4 space-y-3">
+              <input v-model="posForm.client_nom" class="input rounded-full" :placeholder="posForm.document_type === 'facture' ? 'Nom du client obligatoire' : 'Nom du client (optionnel)'" />
+              <input
+                v-if="encaissements.length === 1 && encaissements[0].mode_paiement !== 'especes'"
+                v-model="encaissements[0].reference_paiement"
+                class="input rounded-full"
+                placeholder="R&eacute;f&eacute;rence paiement (optionnel)"
+              />
+              <input
+                v-if="encaissements.length === 1 && encaissements[0].mode_paiement === 'especes'"
+                v-model.number="encaissements[0].montant_recu"
+                type="number"
+                min="0"
+                step="0.01"
+                class="input rounded-full"
+                placeholder="Esp&egrave;ces re&ccedil;ues"
+              />
+            </div>
+
+            <div class="mt-4 flex items-center justify-between text-xs uppercase tracking-wide text-slate-500">
+              <span>Mode pr&eacute;f&eacute;r&eacute;</span>
+              <span>{{ modePaiementLabel(encaissements[0]?.mode_paiement || 'especes') }}</span>
+            </div>
+            <div v-if="encaissements.length === 1" class="mt-2 grid grid-cols-2 gap-2">
+              <button
+                v-for="mode in modesPaiementTactiles.slice(0, 4)"
+                :key="mode.value"
+                type="button"
+                class="touch-pay-btn rounded-full"
+                :class="encaissements[0].mode_paiement === mode.value ? 'touch-pay-btn-active' : ''"
+                @click="encaissements[0].mode_paiement = mode.value"
+              >
+                {{ mode.label }}
               </button>
             </div>
-          </form>
-        </details>
 
-        <details class="overflow-hidden rounded-lg border border-slate-200 bg-white">
-          <summary class="cursor-pointer select-none px-4 py-3 font-bold text-slate-900">Historique et réimpression</summary>
-          <div class="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-            <h3 class="font-bold text-slate-900">Mouvements de caisse</h3>
-            <button class="btn-secondary px-3 py-1.5 text-sm" :disabled="exportLoading" @click="exporterMouvementsCSV(session.id)">
-              {{ exportLoading ? 'Export...' : 'Exporter' }}
+            <div class="mt-5 max-h-[32vh] space-y-2 overflow-y-auto pr-1">
+              <div v-for="ligne in panier" :key="ligne.produit_id" class="rounded-2xl border border-slate-100 bg-slate-50 p-3">
+                <div class="flex items-start justify-between gap-3">
+                  <div class="min-w-0">
+                    <p class="truncate text-sm font-bold text-slate-900">{{ ligne.libelle }}</p>
+                    <p class="font-mono text-xs text-slate-500">{{ formatPrice(ligne.prix_ttc) }}</p>
+                  </div>
+                  <button class="rounded-full px-2 py-1 text-xs font-bold text-red-500 hover:bg-red-50" @click="retirerDuPanier(ligne.produit_id)">&times;</button>
+                </div>
+                <div class="mt-3 grid grid-cols-[38px_1fr_38px_auto] items-center gap-2">
+                  <button type="button" class="touch-step-btn h-9 w-9" @click="decrementerLigne(ligne)">-</button>
+                  <input v-model.number="ligne.quantite" type="number" min="0.001" step="1" class="input h-9 rounded-full text-center text-sm" />
+                  <button type="button" class="touch-step-btn h-9 w-9" @click="incrementerLigne(ligne)">+</button>
+                  <strong class="whitespace-nowrap font-mono text-sm text-slate-900">{{ formatPrice(totalLigne(ligne)) }}</strong>
+                </div>
+              </div>
+
+              <div v-if="panier.length === 0" class="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-12 text-center text-sm text-slate-400">
+                <div class="text-4xl">&#128722;</div>
+                <p class="mt-2">S&eacute;lectionnez des produits</p>
+              </div>
+            </div>
+
+            <div class="mt-5 border-t border-slate-100 pt-4">
+              <label class="text-xs font-semibold uppercase tracking-wide text-slate-500">Remise %</label>
+              <input v-if="panier.length" v-model.number="panier[0].remise_pourcent" type="number" min="0" max="100" step="0.01" class="input mt-1 rounded-full" placeholder="Remise globale" @input="appliquerRemiseGlobale" />
+              <div class="mt-3 rounded-2xl bg-slate-50 p-3 text-sm">
+                <div class="flex justify-between text-slate-500"><span>Sous-total HT</span><strong>{{ formatPrice(totauxPanier.ht) }}</strong></div>
+                <div class="mt-1 flex justify-between text-slate-500"><span>TVA</span><strong>{{ formatPrice(totauxPanier.tva) }}</strong></div>
+                <div class="mt-3 flex justify-between text-lg font-black text-slate-950"><span>Total</span><strong class="text-violet-600">{{ formatPrice(totauxPanier.ttc) }}</strong></div>
+              </div>
+            </div>
+
+            <div class="mt-4 grid grid-cols-2 gap-2">
+              <button type="button" class="touch-pay-btn rounded-full" :class="posForm.document_type === 'ticket' ? 'touch-pay-btn-active' : ''" @click="posForm.document_type = 'ticket'">Ticket</button>
+              <button type="button" class="touch-pay-btn rounded-full" :class="posForm.document_type === 'facture' ? 'touch-pay-btn-active' : ''" @click="posForm.document_type = 'facture'">Facture</button>
+            </div>
+
+            <details class="mt-3 rounded-2xl border border-slate-100 bg-white p-3">
+              <summary class="cursor-pointer text-sm font-bold text-slate-700">Paiement fractionn&eacute;</summary>
+              <div class="mt-3 space-y-2">
+                <button type="button" class="btn-secondary w-full rounded-full px-3 py-2 text-xs" @click="ajouterEncaissement">
+                  {{ isPaiementFractionne ? '+ Moyen de paiement' : '+ Fractionner' }}
+                </button>
+                <div v-for="(encaissement, index) in encaissements" v-if="isPaiementFractionne" :key="encaissement.id" class="space-y-2 rounded-xl border border-slate-200 p-2">
+                  <div class="grid grid-cols-[1fr_auto] gap-2">
+                    <select v-model="encaissement.mode_paiement" class="input rounded-full">
+                      <option value="especes">Esp&egrave;ces</option>
+                      <option value="wave">Wave</option>
+                      <option value="orange_money">Orange Money</option>
+                      <option value="carte_bancaire">Carte bancaire</option>
+                      <option value="cheque">Ch&egrave;que</option>
+                      <option value="virement">Virement</option>
+                      <option value="autre">Autre</option>
+                    </select>
+                    <button v-if="encaissements.length > 1" type="button" class="px-2 text-red-600" title="Supprimer ce paiement" @click="retirerEncaissement(index)">&times;</button>
+                  </div>
+                  <div class="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto]">
+                    <input v-model.number="encaissement.montant" type="number" min="0.01" step="0.01" class="input rounded-full" placeholder="Montant pay&eacute;" />
+                    <button type="button" class="btn-secondary rounded-full px-3 text-xs" @click="completerEncaissement(index)">Solde</button>
+                  </div>
+                  <input v-if="encaissement.mode_paiement !== 'especes'" v-model="encaissement.reference_paiement" class="input rounded-full" placeholder="R&eacute;f&eacute;rence paiement" />
+                </div>
+              </div>
+            </details>
+
+            <div class="mt-3 space-y-1 text-sm">
+              <div class="flex justify-between"><span>Pay&eacute;</span><strong>{{ formatPrice(totalEncaissements) }}</strong></div>
+              <div class="flex justify-between" :class="resteAEncaisser > 0.01 ? 'text-red-700' : 'text-green-700'"><span>Reste &agrave; encaisser</span><strong>{{ formatPrice(resteAEncaisser) }}</strong></div>
+              <div v-if="excedentEncaissement > 0.01" class="flex justify-between font-bold text-red-700"><span>Montant en trop</span><strong>{{ formatPrice(excedentEncaissement) }}</strong></div>
+              <div v-if="monnaieARendre > 0" class="flex justify-between text-blue-700"><span>Monnaie &agrave; rendre</span><strong>{{ formatPrice(monnaieARendre) }}</strong></div>
+            </div>
+
+            <button class="mt-4 w-full rounded-2xl bg-violet-600 px-5 py-4 text-base font-black text-white shadow-xl shadow-violet-200 transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:bg-violet-300" :disabled="saving || panier.length === 0 || Math.abs(ecartEncaissement) > 0.01" @click="encaisserVente">
+              <span v-if="saving">Encaissement...</span>
+              <span v-else>Encaisser</span>
+            </button>
+            <button type="button" class="mt-2 w-full rounded-full px-4 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-50" :disabled="panier.length === 0" @click="viderPanier">Vider le panier</button>
+          </div>
+        </aside>
+      </section>
+
+      <details class="rounded-[1.5rem] border border-slate-200 bg-white p-4">
+        <summary class="cursor-pointer select-none text-lg font-bold text-slate-900">Nouveau mouvement manuel</summary>
+        <form class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2" @submit.prevent="ajouterMouvement">
+          <select v-model="movementForm.sens" class="input">
+            <option value="entree">Entr&eacute;e</option>
+            <option value="sortie">Sortie</option>
+          </select>
+          <select v-model="movementForm.type" class="input">
+            <option value="vente">Vente boutique</option>
+            <option value="encaissement">Encaissement facture</option>
+            <option value="depense">D&eacute;pense</option>
+            <option value="retrait">Retrait caisse</option>
+            <option value="depot">D&eacute;p&ocirc;t caisse</option>
+            <option value="correction">Correction</option>
+            <option value="remboursement">Remboursement</option>
+            <option value="autre">Autre</option>
+          </select>
+          <input v-model="movementForm.libelle" class="input md:col-span-2" placeholder="Libell&eacute;" />
+          <input v-model.number="movementForm.montant" type="number" min="0.01" step="0.01" class="input" placeholder="Montant" />
+          <select v-model="movementForm.mode_paiement" class="input">
+            <option value="especes">Esp&egrave;ces</option>
+            <option value="wave">Wave</option>
+            <option value="orange_money">Orange Money</option>
+            <option value="carte_bancaire">Carte bancaire</option>
+            <option value="cheque">Ch&egrave;que</option>
+            <option value="virement">Virement</option>
+            <option value="autre">Autre</option>
+          </select>
+          <input v-model="movementForm.reference" class="input md:col-span-2" placeholder="R&eacute;f&eacute;rence ticket, facture ou transaction" />
+          <textarea v-model="movementForm.description" class="input md:col-span-2" rows="2" placeholder="Description (optionnel)"></textarea>
+          <div class="md:col-span-2 flex justify-end">
+            <button class="btn-primary" :disabled="saving">
+              <span v-if="saving">Enregistrement...</span>
+              <span v-else>Ajouter le mouvement</span>
             </button>
           </div>
-          <div class="overflow-x-auto">
-            <table class="w-full">
-              <thead class="bg-slate-50 text-xs uppercase text-slate-500">
-                <tr>
-                  <th class="px-4 py-3 text-left">Heure</th>
-                  <th class="px-4 py-3 text-left">Libelle</th>
-                  <th class="px-4 py-3 text-center">Type</th>
-                  <th class="px-4 py-3 text-right">Montant</th>
-                  <th class="px-4 py-3 text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-slate-100">
-                <tr v-for="m in mouvements" :key="m.id" class="text-sm">
-                  <td class="px-4 py-3 text-slate-500">{{ formatTime(m.created_at) }}</td>
-                  <td class="px-4 py-3">
-                    <p class="font-medium text-slate-900">{{ m.libelle }}</p>
-                    <p v-if="produitsMouvement(m)" class="text-xs text-slate-600">{{ produitsMouvement(m) }}</p>
-                    <p class="text-xs text-slate-500">{{ m.reference || m.mode_paiement }}</p>
-                  </td>
-                  <td class="px-4 py-3 text-center">
-                    <span class="rounded-full px-2 py-1 text-xs font-semibold" :class="m.sens === 'entree' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'">
-                      {{ typeLabel(m.type) }}
-                    </span>
-                  </td>
-                  <td class="px-4 py-3 text-right font-mono font-semibold" :class="m.sens === 'entree' ? 'text-emerald-700' : 'text-red-700'">
-                    {{ m.sens === 'entree' ? '+' : '-' }} {{ formatPrice(m.montant) }}
-                  </td>
-                  <td class="px-4 py-3 text-right">
-                    <button v-if="m.type === 'vente' && m.facture?.id" class="btn-secondary px-3 py-1.5 text-xs" @click="reimprimerTicket(m)">
-                      Réimprimer
-                    </button>
-                  </td>
-                </tr>
-                <tr v-if="mouvements.length === 0">
-                  <td colspan="5" class="px-4 py-10 text-center text-sm text-slate-400">Aucun mouvement pour cette caisse</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </details>
-      </div>
+        </form>
+      </details>
 
-      <section class="rounded-lg border border-slate-200 bg-white p-4">
+      <details id="historique-caisse" class="overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white">
+        <summary class="cursor-pointer select-none px-4 py-3 font-bold text-slate-900">Historique et r&eacute;impression</summary>
+        <div class="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+          <h3 class="font-bold text-slate-900">Mouvements de caisse</h3>
+          <button class="btn-secondary px-3 py-1.5 text-sm" :disabled="exportLoading" @click="exporterMouvementsCSV(session.id)">
+            {{ exportLoading ? 'Export...' : 'Exporter' }}
+          </button>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full">
+            <thead class="bg-slate-50 text-xs uppercase text-slate-500">
+              <tr>
+                <th class="px-4 py-3 text-left">Heure</th>
+                <th class="px-4 py-3 text-left">Libell&eacute;</th>
+                <th class="px-4 py-3 text-center">Type</th>
+                <th class="px-4 py-3 text-right">Montant</th>
+                <th class="px-4 py-3 text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              <tr v-for="m in mouvements" :key="m.id" class="text-sm">
+                <td class="px-4 py-3 text-slate-500">{{ formatTime(m.created_at) }}</td>
+                <td class="px-4 py-3">
+                  <p class="font-medium text-slate-900">{{ m.libelle }}</p>
+                  <p v-if="produitsMouvement(m)" class="text-xs text-slate-600">{{ produitsMouvement(m) }}</p>
+                  <p class="text-xs text-slate-500">{{ m.reference || m.mode_paiement }}</p>
+                </td>
+                <td class="px-4 py-3 text-center">
+                  <span class="rounded-full px-2 py-1 text-xs font-semibold" :class="m.sens === 'entree' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'">
+                    {{ typeLabel(m.type) }}
+                  </span>
+                </td>
+                <td class="px-4 py-3 text-right font-mono font-semibold" :class="m.sens === 'entree' ? 'text-emerald-700' : 'text-red-700'">
+                  {{ m.sens === 'entree' ? '+' : '-' }} {{ formatPrice(m.montant) }}
+                </td>
+                <td class="px-4 py-3 text-right">
+                  <button v-if="m.type === 'vente' && m.facture?.id" class="btn-secondary px-3 py-1.5 text-xs" @click="reimprimerTicket(m)">
+                    R&eacute;imprimer
+                  </button>
+                </td>
+              </tr>
+              <tr v-if="mouvements.length === 0">
+                <td colspan="5" class="px-4 py-10 text-center text-sm text-slate-400">Aucun mouvement pour cette caisse</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </details>
+
+      <section id="fermeture-caisse" class="rounded-[1.5rem] border border-slate-200 bg-white p-4">
         <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <h3 class="text-lg font-bold text-slate-900">Fermer la caisse</h3>
-            <p class="mt-1 text-sm text-slate-500">Saisissez le montant reel compte dans la caisse.</p>
+            <p class="mt-1 text-sm text-slate-500">Saisissez le montant r&eacute;el compt&eacute; dans la caisse.</p>
           </div>
           <div class="rounded-lg bg-slate-50 p-3 text-sm lg:min-w-72">
             <div class="flex justify-between">
-              <span class="text-slate-500">Theorique</span>
+              <span class="text-slate-500">Th&eacute;orique</span>
               <strong>{{ formatPrice(session.solde_fermeture_theorique) }}</strong>
             </div>
             <div class="mt-2 flex justify-between">
-              <span class="text-slate-500">Ecart prevu</span>
+              <span class="text-slate-500">&Eacute;cart pr&eacute;vu</span>
               <strong :class="ecartPrevu === 0 ? 'text-slate-700' : ecartPrevu > 0 ? 'text-emerald-700' : 'text-red-700'">
                 {{ formatPrice(ecartPrevu) }}
               </strong>
@@ -540,7 +518,7 @@
           </div>
         </div>
         <form class="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-[220px_1fr_auto]" @submit.prevent="fermerCaisse">
-          <input v-model.number="closeForm.solde_fermeture_reel" type="number" min="0" step="0.01" class="input" placeholder="Solde reel" />
+          <input v-model.number="closeForm.solde_fermeture_reel" type="number" min="0" step="0.01" class="input" placeholder="Solde r&eacute;el" />
           <textarea v-model="closeForm.notes_fermeture" class="input" rows="1" placeholder="Note de fermeture (optionnel)"></textarea>
           <button class="btn-danger" :disabled="saving">Fermer la caisse</button>
         </form>
@@ -859,6 +837,20 @@ function completerEncaissement(index) {
 
 function reinitialiserEncaissements() {
   encaissements.value = [creerEncaissement(totauxPanier.value.ttc)]
+}
+
+function appliquerRemiseGlobale() {
+  const remise = Number(panier.value[0]?.remise_pourcent || 0)
+  panier.value.forEach((ligne) => {
+    ligne.remise_pourcent = remise
+  })
+}
+
+function imageProduit(produit) {
+  const image = produit?.image_url || produit?.image || produit?.photo_url || produit?.photo || produit?.image_path || produit?.photo_path
+  if (!image) return ''
+  if (String(image).startsWith('http') || String(image).startsWith('data:')) return image
+  return String(image).startsWith('/') ? image : `/${image}`
 }
 
 function totalLigne(ligne) {
