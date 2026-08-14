@@ -16,11 +16,32 @@
             <p class="mt-1 text-sm text-gray-500">
               Suivi détaillé des actions : devis, factures, paiements, dépenses, achats, stock, caisse, leasing et utilisateurs.
             </p>
+            <p v-if="updatedAt" class="mt-1 text-xs text-gray-400">
+              Dernière actualisation : {{ formatDateTime(updatedAt) }}
+            </p>
           </div>
 
-          <button @click="loadActivites" :disabled="loading" class="btn-primary whitespace-nowrap">
-            {{ loading ? 'Chargement...' : 'Actualiser' }}
-          </button>
+          <div class="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              class="btn-secondary whitespace-nowrap"
+              :disabled="!hasActiveFilters"
+              @click="resetFilters"
+            >
+              Réinitialiser
+            </button>
+            <button
+              type="button"
+              class="btn-secondary whitespace-nowrap"
+              :disabled="filteredActivites.length === 0"
+              @click="exportCsv"
+            >
+              Export CSV
+            </button>
+            <button @click="loadActivites" :disabled="loading" class="btn-primary whitespace-nowrap">
+              {{ loading ? 'Chargement...' : 'Actualiser' }}
+            </button>
+          </div>
         </div>
 
         <div class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-6">
@@ -56,6 +77,20 @@
             <input v-model="filters.date_to" type="date" class="input" />
           </div>
         </div>
+
+        <div v-if="topCategories.length" class="mt-3 flex flex-wrap items-center gap-2">
+          <span class="text-xs font-semibold uppercase tracking-wide text-gray-400">Accès rapide</span>
+          <button
+            v-for="item in topCategories"
+            :key="item.category"
+            type="button"
+            class="rounded-full border px-3 py-1 text-xs font-semibold transition"
+            :class="filters.category === item.category ? 'border-cyan-500 bg-cyan-50 text-cyan-700' : 'border-gray-200 bg-white text-gray-600 hover:border-cyan-300 hover:text-cyan-700'"
+            @click="filters.category = item.category"
+          >
+            {{ categoryLabel(item.category) }} · {{ item.count }}
+          </button>
+        </div>
       </div>
 
       <div class="stat-grid mb-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
@@ -83,7 +118,7 @@
 
       <div v-else class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
         <div class="overflow-x-auto">
-          <table class="w-full min-w-[1180px]">
+          <table class="w-full min-w-[1320px]">
             <thead class="border-b border-gray-200 bg-gray-50">
               <tr>
                 <SortableTh column="date" :active="sort.key === 'date'" :icon="sortIcon('date')" @sort="toggleSort">Date</SortableTh>
@@ -125,17 +160,24 @@
 
                 <td class="px-4 py-3">
                   <div class="font-mono text-xs font-semibold text-gray-700">{{ item.subject_label || item.reference || '-' }}</div>
-                  <div v-if="item.subject_type" class="mt-1 text-[11px] text-gray-400">
-                    {{ subjectTypeLabel(item.subject_type) }}<span v-if="item.subject_id"> #{{ item.subject_id }}</span>
+                  <div v-if="item.subject_module || item.subject_type" class="mt-1 text-[11px] text-gray-400">
+                    {{ item.subject_module || subjectTypeLabel(item.subject_type) }}<span v-if="item.subject_id"> #{{ item.subject_id }}</span>
                   </div>
+                  <RouterLink
+                    v-if="item.subject_route"
+                    :to="item.subject_route"
+                    class="mt-2 inline-flex rounded-full bg-cyan-50 px-2.5 py-1 text-[11px] font-semibold text-cyan-700 hover:bg-cyan-100"
+                  >
+                    Ouvrir le module
+                  </RouterLink>
                   <div v-if="item.amount !== null && item.amount !== undefined" class="mt-2 text-sm font-bold text-gray-900">
                     {{ formatAmount(item.amount) }} XOF
                   </div>
                 </td>
 
                 <td class="px-4 py-3">
-                  <div v-if="detailsFor(item).length" class="grid max-w-xl grid-cols-1 gap-1 text-xs sm:grid-cols-2">
-                    <div v-for="detail in detailsFor(item).slice(0, 10)" :key="`${detail.label}-${detail.value}`" class="rounded-lg bg-gray-50 px-2 py-1">
+                  <div v-if="detailsFor(item).length" class="grid max-w-2xl grid-cols-1 gap-1 text-xs sm:grid-cols-2 xl:grid-cols-3">
+                    <div v-for="detail in detailsFor(item).slice(0, 14)" :key="`${detail.label}-${detail.value}`" class="rounded-lg bg-gray-50 px-2 py-1">
                       <span class="font-semibold text-gray-500">{{ detail.label }} :</span>
                       <span class="ml-1 text-gray-800">{{ detail.value }}</span>
                     </div>
@@ -190,6 +232,7 @@ const auth = useAuthStore()
 const loading = ref(false)
 const activites = ref([])
 const logFile = ref('')
+const updatedAt = ref(null)
 const apiCategories = ref([])
 const apiUsers = ref([])
 const filters = reactive({ search: '', status: '', category: '', user_id: '', date_from: '', date_to: '' })
@@ -213,6 +256,30 @@ const availableUsers = computed(() => {
   })
   return Array.from(map.values()).sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')))
 })
+
+
+const activeModulesCount = computed(() => {
+  const modules = new Set()
+  filteredActivites.value.forEach((item) => {
+    const label = item.subject_module || subjectTypeLabel(item.subject_type)
+    if (label) modules.add(label)
+  })
+  return modules.size
+})
+
+const topCategories = computed(() => {
+  const counts = new Map()
+  activites.value.forEach((item) => {
+    if (!item.category) return
+    counts.set(item.category, (counts.get(item.category) || 0) + 1)
+  })
+  return Array.from(counts.entries())
+    .map(([category, count]) => ({ category, count }))
+    .sort((a, b) => b.count - a.count || categoryLabel(a.category).localeCompare(categoryLabel(b.category)))
+    .slice(0, 8)
+})
+
+const hasActiveFilters = computed(() => Object.values(filters).some(value => String(value || '').trim() !== ''))
 
 const filteredActivites = computed(() => {
   const search = filters.search.trim().toLowerCase()
@@ -271,12 +338,53 @@ async function loadActivites() {
     apiCategories.value = data.categories || []
     apiUsers.value = data.users || []
     logFile.value = data.file || ''
+    updatedAt.value = new Date()
     page.value = 1
   } catch (e) {
     toast.error(e.response?.data?.message || 'Impossible de charger les activités')
   } finally {
     loading.value = false
   }
+}
+
+function resetFilters() {
+  Object.assign(filters, { search: '', status: '', category: '', user_id: '', date_from: '', date_to: '' })
+}
+
+function exportCsv() {
+  const headers = ['Date', 'Utilisateur', 'Rôle', 'Catégorie', 'Événement', 'Titre', 'Description', 'Référence', 'Objet', 'Module', 'Montant', 'Statut', 'IP']
+  const rows = filteredActivites.value.map(item => [
+    formatDateTime(item.date),
+    item.user_name || 'Système',
+    roleLabel(item.user_role),
+    categoryLabel(item.category),
+    item.event || '',
+    item.title || item.action || '',
+    item.description || '',
+    item.reference || '',
+    item.subject_label || '',
+    item.subject_module || subjectTypeLabel(item.subject_type),
+    item.amount !== null && item.amount !== undefined ? formatAmount(item.amount) : '',
+    statusText(item.status),
+    item.ip || '',
+  ])
+
+  const csv = [headers, ...rows].map(row => row.map(csvEscape).join(';')).join('\n')
+  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `journal-activites-${new Date().toISOString().slice(0, 10)}.csv`
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
+  toast.success('Export CSV généré')
+}
+
+function csvEscape(value) {
+  const text = String(value ?? '').replace(/\r?\n/g, ' ')
+  return /[;"\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text
 }
 
 function searchableValues(item) {
@@ -290,7 +398,9 @@ function searchableValues(item) {
     item.description,
     item.reference,
     item.subject_label,
+    item.subject_module,
     subjectTypeLabel(item.subject_type),
+    JSON.stringify(item.details || []),
     item.action,
     item.method,
     item.path,
@@ -304,6 +414,13 @@ function detailsFor(item) {
   const details = []
   const payload = item.payload || {}
   const metadata = item.metadata || payload.metadata || {}
+
+  if (Array.isArray(item.details)) {
+    item.details.forEach((detail) => {
+      if (!detail?.label || detail.value === null || detail.value === undefined || detail.value === '') return
+      details.push({ label: detail.label, value: formatShortValue(detail.value) })
+    })
+  }
 
   appendObjectDetails(details, metadata, 'Meta')
 
@@ -398,6 +515,19 @@ function formatTime(value) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return String(value).slice(11, 16)
   return new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' }).format(date)
+}
+
+function formatDateTime(value) {
+  if (!value) return '-'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return String(value)
+  return new Intl.DateTimeFormat('fr-FR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date)
 }
 
 function statusText(status) {
