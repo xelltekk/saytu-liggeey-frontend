@@ -193,7 +193,7 @@
 
       <div v-else class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
         <div class="overflow-x-auto">
-          <table class="w-full min-w-[1320px]">
+          <table class="w-full min-w-[1180px]">
             <thead class="border-b border-gray-200 bg-gray-50">
               <tr>
                 <SortableTh column="date" :active="sort.key === 'date'" :icon="sortIcon('date')" @sort="toggleSort">Date</SortableTh>
@@ -201,39 +201,38 @@
                 <SortableTh column="categorie" :active="sort.key === 'categorie'" :icon="sortIcon('categorie')" @sort="toggleSort">Catégorie</SortableTh>
                 <SortableTh column="activite" :active="sort.key === 'activite'" :icon="sortIcon('activite')" @sort="toggleSort">Activité</SortableTh>
                 <SortableTh column="reference" :active="sort.key === 'reference'" :icon="sortIcon('reference')" @sort="toggleSort">Objet / montant</SortableTh>
-                <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-gray-600">Informations visibles</th>
+                <th class="px-4 py-2 text-left text-xs font-bold uppercase tracking-wide text-gray-600">D&eacute;tails</th>
                 <SortableTh column="statut" :active="sort.key === 'statut'" :icon="sortIcon('statut')" align="center" @sort="toggleSort">Statut</SortableTh>
                 <SortableTh column="ip" :active="sort.key === 'ip'" :icon="sortIcon('ip')" @sort="toggleSort">Technique</SortableTh>
               </tr>
             </thead>
 
             <tbody class="divide-y divide-gray-100">
-              <tr v-for="(item, index) in paginatedActivites" :key="`${item.date}-${item.id || index}`" class="align-top hover:bg-gray-50">
-                <td class="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
+              <tr v-for="(item, index) in paginatedActivites" :key="`${item.date}-${item.id || index}`" class="align-middle hover:bg-gray-50">
+                <td class="whitespace-nowrap px-4 py-2 text-sm text-gray-600">
                   <div class="font-medium text-gray-900">{{ formatDate(item.date) }}</div>
                   <div class="text-xs text-gray-400">{{ formatTime(item.date) }}</div>
                 </td>
 
-                <td class="px-4 py-3">
+                <td class="px-4 py-2">
                   <div class="text-sm font-semibold text-gray-900">{{ item.user_name || 'Système' }}</div>
                   <div class="text-xs text-gray-500">{{ roleLabel(item.user_role) }}</div>
-                  <div v-if="item.user_id" class="mt-1 font-mono text-[11px] text-gray-400">ID {{ item.user_id }}</div>
                 </td>
 
-                <td class="px-4 py-3">
+                <td class="px-4 py-2">
                   <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-bold" :class="categoryClass(item.category)">
                     {{ categoryLabel(item.category) }}
                   </span>
                   <div class="mt-2 max-w-[170px] truncate font-mono text-[11px] text-gray-400">{{ item.event || '-' }}</div>
                 </td>
 
-                <td class="px-4 py-3">
+                <td class="px-4 py-2">
                   <div class="text-sm font-semibold text-gray-900">{{ item.title || item.action || '-' }}</div>
-                  <div v-if="item.description" class="mt-1 max-w-sm text-xs leading-5 text-gray-500">{{ item.description }}</div>
+                  <div v-if="item.description" class="mt-1 max-w-md truncate text-xs text-gray-500">{{ item.description }}</div>
                   <div v-if="item.error" class="mt-1 rounded-lg bg-red-50 px-2 py-1 text-xs text-red-700">{{ item.error }}</div>
                 </td>
 
-                <td class="px-4 py-3">
+                <td class="px-4 py-2">
                   <div class="font-mono text-xs font-semibold text-gray-700">{{ item.subject_label || item.reference || '-' }}</div>
                   <div v-if="item.subject_module || item.subject_type" class="mt-1 text-[11px] text-gray-400">
                     {{ item.subject_module || subjectTypeLabel(item.subject_type) }}<span v-if="item.subject_id"> #{{ item.subject_id }}</span>
@@ -250,28 +249,25 @@
                   </div>
                 </td>
 
-                <td class="px-4 py-3">
-                  <div v-if="detailsFor(item).length" class="grid max-w-2xl grid-cols-1 gap-1 text-xs sm:grid-cols-2 xl:grid-cols-3">
-                    <div v-for="detail in detailsFor(item).slice(0, 14)" :key="`${detail.label}-${detail.value}`" class="rounded-lg bg-gray-50 px-2 py-1">
-                      <span class="font-semibold text-gray-500">{{ detail.label }} :</span>
-                      <span class="ml-1 text-gray-800">{{ detail.value }}</span>
-                    </div>
-                  </div>
-                  <span v-else class="text-xs text-gray-400">Aucun détail supplémentaire</span>
-
-                  <details v-if="hasPayload(item)" class="mt-2 text-xs text-gray-500">
-                    <summary class="cursor-pointer font-semibold text-cyan-700">Voir toutes les données</summary>
-                    <pre class="mt-2 max-h-72 max-w-xl overflow-auto rounded-xl bg-slate-950 p-3 text-[11px] leading-5 text-slate-100">{{ formatPayload(item.payload) }}</pre>
-                  </details>
+                <td class="px-4 py-2 text-center">
+                  <button
+                    v-if="activityHasDetails(item)"
+                    type="button"
+                    class="rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-xs font-bold text-cyan-700 hover:bg-cyan-100"
+                    @click="openActivityDetails(item)"
+                  >
+                    Visualiser
+                  </button>
+                  <span v-else class="text-xs text-gray-300">-</span>
                 </td>
 
-                <td class="px-4 py-3 text-center">
+                <td class="px-4 py-2 text-center">
                   <span class="rounded-full px-2 py-1 text-xs font-bold" :class="statusClass(item.status)">
                     {{ statusText(item.status) }}
                   </span>
                 </td>
 
-                <td class="px-4 py-3 text-xs text-gray-500">
+                <td class="px-4 py-2 text-xs text-gray-500">
                   <div class="font-mono">{{ item.ip || '-' }}</div>
                   <div v-if="item.method || item.path" class="mt-1 max-w-[190px] truncate font-mono text-[11px] text-gray-400">
                     {{ item.method || '' }} {{ item.path || '' }}
@@ -290,6 +286,64 @@
         <AppPagination v-if="pageMeta.total > 0" :meta="pageMeta" label="activités" @page="page = $event" />
       </div>
     </template>
+
+    <div v-if="selectedActivity" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 p-4" @click.self="closeActivityDetails">
+      <div class="max-h-[90vh] w-full max-w-4xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+        <div class="flex items-start justify-between gap-4 border-b border-gray-100 p-5">
+          <div>
+            <div class="inline-flex rounded-full px-2.5 py-1 text-xs font-bold" :class="categoryClass(selectedActivity.category)">
+              {{ categoryLabel(selectedActivity.category) }}
+            </div>
+            <h3 class="mt-2 text-lg font-bold text-gray-900">Visualisation de l&rsquo;activit&eacute;</h3>
+            <p class="mt-1 text-sm text-gray-500">
+              {{ formatDateTime(selectedActivity.date) }} &middot; {{ selectedActivity.user_name || 'Syst\u00e8me' }}
+            </p>
+          </div>
+          <button type="button" class="rounded-full px-3 py-1 text-2xl leading-none text-gray-400 hover:bg-gray-100 hover:text-gray-700" @click="closeActivityDetails">&times;</button>
+        </div>
+
+        <div class="max-h-[70vh] overflow-y-auto p-5">
+          <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <div class="rounded-xl bg-gray-50 p-3">
+              <div class="text-xs font-semibold uppercase text-gray-400">Action</div>
+              <div class="mt-1 text-sm font-bold text-gray-900">{{ selectedActivity.title || selectedActivity.action || '-' }}</div>
+              <div v-if="selectedActivity.description" class="mt-1 text-sm text-gray-600">{{ selectedActivity.description }}</div>
+            </div>
+            <div class="rounded-xl bg-gray-50 p-3">
+              <div class="text-xs font-semibold uppercase text-gray-400">Objet</div>
+              <div class="mt-1 font-mono text-sm font-bold text-gray-900">{{ selectedActivity.subject_label || selectedActivity.reference || '-' }}</div>
+              <div class="mt-1 text-xs text-gray-500">{{ selectedActivity.subject_module || subjectTypeLabel(selectedActivity.subject_type) || '-' }}</div>
+            </div>
+            <div class="rounded-xl bg-gray-50 p-3">
+              <div class="text-xs font-semibold uppercase text-gray-400">Utilisateur</div>
+              <div class="mt-1 text-sm font-bold text-gray-900">{{ selectedActivity.user_name || 'Syst\u00e8me' }}</div>
+              <div class="mt-1 text-xs text-gray-500">{{ roleLabel(selectedActivity.user_role) }}</div>
+            </div>
+            <div class="rounded-xl bg-gray-50 p-3">
+              <div class="text-xs font-semibold uppercase text-gray-400">Technique</div>
+              <div class="mt-1 font-mono text-xs text-gray-700">{{ selectedActivity.method || '-' }} {{ selectedActivity.path || '' }}</div>
+              <div class="mt-1 font-mono text-xs text-gray-500">IP : {{ selectedActivity.ip || '-' }}</div>
+            </div>
+          </div>
+
+          <div v-if="selectedActivity.error" class="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">
+            {{ selectedActivity.error }}
+          </div>
+
+          <div v-if="selectedActivityDetails.length" class="mt-4 grid grid-cols-1 gap-2 md:grid-cols-2">
+            <div v-for="detail in selectedActivityDetails" :key="`${detail.label}-${detail.value}`" class="rounded-xl border border-gray-100 bg-white px-3 py-2 text-sm">
+              <span class="font-semibold text-gray-500">{{ detail.label }} :</span>
+              <span class="ml-1 text-gray-900">{{ detail.value }}</span>
+            </div>
+          </div>
+
+          <div v-if="hasPayload(selectedActivity)" class="mt-4">
+            <div class="mb-2 text-xs font-semibold uppercase text-gray-400">Donn&eacute;es techniques compl&egrave;tes</div>
+            <pre class="max-h-72 overflow-auto rounded-xl bg-slate-950 p-3 text-[11px] leading-5 text-slate-100">{{ formatPayload(selectedActivity.payload) }}</pre>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -314,6 +368,7 @@ const trashLoading = ref(false)
 const trashItems = ref([])
 const trashTypes = ref([])
 const trashFilters = reactive({ search: '', type: '' })
+const selectedActivity = ref(null)
 const filters = reactive({ search: '', status: '', category: '', user_id: '', date_from: '', date_to: '' })
 const page = ref(1)
 const perPage = 25
@@ -379,6 +434,8 @@ const filteredActivites = computed(() => {
     return searchableValues(item).some(value => String(value || '').toLowerCase().includes(search))
   })
 })
+
+const selectedActivityDetails = computed(() => selectedActivity.value ? detailsFor(selectedActivity.value) : [])
 
 const successCount = computed(() => filteredActivites.value.filter(item => Number(item.status || 0) < 400).length)
 const errorCount = computed(() => filteredActivites.value.filter(item => Number(item.status || 0) >= 400).length)
@@ -601,8 +658,20 @@ function formatShortValue(value) {
   return text.length > 90 ? `${text.slice(0, 87)}...` : text
 }
 
+function activityHasDetails(item) {
+  return detailsFor(item).length > 0 || hasPayload(item) || Boolean(item.error)
+}
+
+function openActivityDetails(item) {
+  selectedActivity.value = item
+}
+
+function closeActivityDetails() {
+  selectedActivity.value = null
+}
+
 function hasPayload(item) {
-  return item.payload && Object.keys(item.payload).length > 0
+  return item?.payload && Object.keys(item.payload).length > 0
 }
 
 function formatPayload(payload) {
