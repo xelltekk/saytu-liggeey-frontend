@@ -642,7 +642,7 @@ const menuGroupDefinitions = [
   },
   {
     key: 'boutique',
-    label: 'Boutique / Caisse',
+    label: 'Caisse',
     icon: Wallet,
     items: ['/caisse']
   },
