@@ -1,8 +1,8 @@
 <template>
   <div>
     <div v-if="!canSeeActivities" class="rounded-2xl border border-orange-200 bg-orange-50 p-6 text-orange-800 shadow-sm">
-      <h3 class="text-lg font-bold">AccÃ¨s rÃ©servÃ©</h3>
-      <p class="mt-1 text-sm">Le journal des activitÃ©s est visible uniquement par les administrateurs et les gÃ©rants.</p>
+      <h3 class="text-lg font-bold">Accès réservé</h3>
+      <p class="mt-1 text-sm">Le journal des activités est visible uniquement par les administrateurs et les gérants.</p>
     </div>
 
     <template v-else>
@@ -10,11 +10,11 @@
         <div class="flex flex-col gap-4 xl:flex-row xl:items-end">
           <div class="flex-1">
             <div class="inline-flex rounded-full bg-cyan-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-cyan-700">
-              Administration Â· Admin & gÃ©rants
+              Administration · Admin & gérants
             </div>
-            <h3 class="mt-2 text-xl font-bold text-gray-900">Journal des activitÃ©s</h3>
+            <h3 class="mt-2 text-xl font-bold text-gray-900">Journal des activités</h3>
             <p class="mt-1 text-sm text-gray-500">
-              Suivi dÃ©taillÃ© des actions : devis, factures, paiements, dÃ©penses, achats, stock, caisse, leasing et utilisateurs.
+              Suivi détaillé des actions : devis, factures, paiements, dépenses, achats, stock, caisse, leasing et utilisateurs.
             </p>
           </div>
 
@@ -28,11 +28,11 @@
             v-model="filters.search"
             type="search"
             class="input xl:col-span-2"
-            placeholder="Rechercher utilisateur, rÃ©fÃ©rence, client, action..."
+            placeholder="Rechercher utilisateur, référence, client, action..."
           />
 
           <select v-model="filters.category" class="input">
-            <option value="">Toutes catÃ©gories</option>
+            <option value="">Toutes catégories</option>
             <option v-for="category in availableCategories" :key="category" :value="category">
               {{ categoryLabel(category) }}
             </option>
@@ -41,13 +41,13 @@
           <select v-model="filters.user_id" class="input">
             <option value="">Tous utilisateurs</option>
             <option v-for="user in availableUsers" :key="user.id" :value="String(user.id)">
-              {{ user.name }} Â· {{ roleLabel(user.role) }}
+              {{ user.name }} · {{ roleLabel(user.role) }}
             </option>
           </select>
 
           <select v-model="filters.status" class="input">
             <option value="">Tous statuts</option>
-            <option value="success">RÃ©ussies</option>
+            <option value="success">Réussies</option>
             <option value="error">Erreurs</option>
           </select>
 
@@ -60,11 +60,11 @@
 
       <div class="stat-grid mb-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
         <div class="rounded-2xl border border-blue-200 bg-blue-50 p-4">
-          <div class="text-xs font-semibold uppercase text-blue-600">ActivitÃ©s affichÃ©es</div>
+          <div class="text-xs font-semibold uppercase text-blue-600">Activités affichées</div>
           <div class="mt-1 text-2xl font-bold text-blue-800">{{ filteredActivites.length }}</div>
         </div>
         <div class="rounded-2xl border border-green-200 bg-green-50 p-4">
-          <div class="text-xs font-semibold uppercase text-green-600">Actions rÃ©ussies</div>
+          <div class="text-xs font-semibold uppercase text-green-600">Actions réussies</div>
           <div class="mt-1 text-2xl font-bold text-green-700">{{ successCount }}</div>
         </div>
         <div class="rounded-2xl border border-red-200 bg-red-50 p-4">
@@ -72,7 +72,7 @@
           <div class="mt-1 text-2xl font-bold text-red-700">{{ errorCount }}</div>
         </div>
         <div class="rounded-2xl border border-cyan-200 bg-cyan-50 p-4">
-          <div class="text-xs font-semibold uppercase text-cyan-600">CatÃ©gories actives</div>
+          <div class="text-xs font-semibold uppercase text-cyan-600">Catégories actives</div>
           <div class="mt-1 text-2xl font-bold text-cyan-800">{{ availableCategories.length }}</div>
         </div>
       </div>
@@ -88,8 +88,8 @@
               <tr>
                 <SortableTh column="date" :active="sort.key === 'date'" :icon="sortIcon('date')" @sort="toggleSort">Date</SortableTh>
                 <SortableTh column="utilisateur" :active="sort.key === 'utilisateur'" :icon="sortIcon('utilisateur')" @sort="toggleSort">Utilisateur</SortableTh>
-                <SortableTh column="categorie" :active="sort.key === 'categorie'" :icon="sortIcon('categorie')" @sort="toggleSort">CatÃ©gorie</SortableTh>
-                <SortableTh column="activite" :active="sort.key === 'activite'" :icon="sortIcon('activite')" @sort="toggleSort">ActivitÃ©</SortableTh>
+                <SortableTh column="categorie" :active="sort.key === 'categorie'" :icon="sortIcon('categorie')" @sort="toggleSort">Catégorie</SortableTh>
+                <SortableTh column="activite" :active="sort.key === 'activite'" :icon="sortIcon('activite')" @sort="toggleSort">Activité</SortableTh>
                 <SortableTh column="reference" :active="sort.key === 'reference'" :icon="sortIcon('reference')" @sort="toggleSort">Objet / montant</SortableTh>
                 <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-gray-600">Informations visibles</th>
                 <SortableTh column="statut" :active="sort.key === 'statut'" :icon="sortIcon('statut')" align="center" @sort="toggleSort">Statut</SortableTh>
@@ -105,7 +105,7 @@
                 </td>
 
                 <td class="px-4 py-3">
-                  <div class="text-sm font-semibold text-gray-900">{{ item.user_name || 'SystÃ¨me' }}</div>
+                  <div class="text-sm font-semibold text-gray-900">{{ item.user_name || 'Système' }}</div>
                   <div class="text-xs text-gray-500">{{ roleLabel(item.user_role) }}</div>
                   <div v-if="item.user_id" class="mt-1 font-mono text-[11px] text-gray-400">ID {{ item.user_id }}</div>
                 </td>
@@ -140,10 +140,10 @@
                       <span class="ml-1 text-gray-800">{{ detail.value }}</span>
                     </div>
                   </div>
-                  <span v-else class="text-xs text-gray-400">Aucun dÃ©tail supplÃ©mentaire</span>
+                  <span v-else class="text-xs text-gray-400">Aucun détail supplémentaire</span>
 
                   <details v-if="hasPayload(item)" class="mt-2 text-xs text-gray-500">
-                    <summary class="cursor-pointer font-semibold text-cyan-700">Voir toutes les donnÃ©es</summary>
+                    <summary class="cursor-pointer font-semibold text-cyan-700">Voir toutes les données</summary>
                     <pre class="mt-2 max-h-72 max-w-xl overflow-auto rounded-xl bg-slate-950 p-3 text-[11px] leading-5 text-slate-100">{{ formatPayload(item.payload) }}</pre>
                   </details>
                 </td>
@@ -164,13 +164,13 @@
 
               <tr v-if="filteredActivites.length === 0">
                 <td colspan="8" class="px-4 py-12 text-center text-sm text-gray-400">
-                  Aucune activitÃ© trouvÃ©e
+                  Aucune activité trouvée
                 </td>
               </tr>
             </tbody>
           </table>
         </div>
-        <AppPagination v-if="pageMeta.total > 0" :meta="pageMeta" label="activitÃ©s" @page="page = $event" />
+        <AppPagination v-if="pageMeta.total > 0" :meta="pageMeta" label="activités" @page="page = $event" />
       </div>
     </template>
   </div>
@@ -273,7 +273,7 @@ async function loadActivites() {
     logFile.value = data.file || ''
     page.value = 1
   } catch (e) {
-    toast.error(e.response?.data?.message || 'Impossible de charger les activitÃ©s')
+    toast.error(e.response?.data?.message || 'Impossible de charger les activités')
   } finally {
     loading.value = false
   }
@@ -327,14 +327,14 @@ function appendValueDetail(details, key, value) {
   if (value === null || value === undefined || value === '') return
 
   if (Array.isArray(value)) {
-    details.push({ label: humanizeKey(key), value: `${value.length} Ã©lÃ©ment(s)` })
+    details.push({ label: humanizeKey(key), value: `${value.length} élément(s)` })
     return
   }
 
   if (typeof value === 'object') {
     const entries = Object.entries(value).filter(([, child]) => child !== null && child !== undefined && child !== '')
-    const short = entries.slice(0, 3).map(([childKey, childValue]) => `${humanizeKey(childKey)}: ${formatShortValue(childValue)}`).join(' Â· ')
-    details.push({ label: humanizeKey(key), value: short || 'Objet renseignÃ©' })
+    const short = entries.slice(0, 3).map(([childKey, childValue]) => `${humanizeKey(childKey)}: ${formatShortValue(childValue)}`).join(' · ')
+    details.push({ label: humanizeKey(key), value: short || 'Objet renseigné' })
     return
   }
 
@@ -404,7 +404,7 @@ function statusText(status) {
   const code = Number(status || 0)
   if (!code) return '-'
   if (code >= 500) return `${code} Erreur`
-  if (code >= 400) return `${code} RejetÃ©e`
+  if (code >= 400) return `${code} Rejetée`
   if (code >= 300) return `${code} Redirection`
   return `${code} OK`
 }
@@ -422,17 +422,17 @@ function categoryLabel(category) {
     achat: 'Achat',
     client: 'Client',
     caisse: 'Caisse',
-    depense: 'DÃ©pense',
+    depense: 'Dépense',
     devis: 'Devis',
     facture: 'Facture',
-    general: 'GÃ©nÃ©ral',
+    general: 'Général',
     leasing: 'Leasing',
     paiement: 'Paiement',
     prospection: 'Prospection',
     rh: 'RH',
     stock: 'Stock',
     utilisateur: 'Utilisateur',
-  }[category] || humanizeKey(category || 'activitÃ©')
+  }[category] || humanizeKey(category || 'activité')
 }
 
 function categoryClass(category) {
@@ -461,15 +461,15 @@ function subjectTypeLabel(subjectType) {
     CaisseMouvement: 'Mouvement caisse',
     CaisseSession: 'Session caisse',
     Client: 'Client/Fournisseur',
-    Depense: 'DÃ©pense',
+    Depense: 'Dépense',
     Devis: 'Devis',
     Facture: 'Facture',
     FournisseurFacture: 'Facture fournisseur',
-    FournisseurReglement: 'RÃ¨glement fournisseur',
+    FournisseurReglement: 'Règlement fournisseur',
     LeasingContrat: 'Contrat leasing',
     LeasingImprimante: 'Imprimante leasing',
     LeasingIntervention: 'Intervention leasing',
-    LeasingReleve: 'RelevÃ© leasing',
+    LeasingReleve: 'Relevé leasing',
     Paiement: 'Paiement',
     Produit: 'Produit',
     User: 'Utilisateur',
@@ -479,7 +479,7 @@ function subjectTypeLabel(subjectType) {
 function roleLabel(role) {
   return {
     admin: 'Administrateur',
-    gerant: 'GÃ©rant',
+    gerant: 'Gérant',
     commercial: 'Commercial',
     magasinier: 'Gestionnaire de stock',
     comptable: 'Comptable',
