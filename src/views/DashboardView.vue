@@ -246,38 +246,68 @@
 
         <section class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
           <div class="mb-4 flex items-center justify-between">
-            <h3 class="font-semibold text-gray-900 dark:text-white">Factures en retard</h3>
-            <router-link :to="{ path: '/factures', query: { quick: 'en_retard' } }" class="text-xs text-xelltekk-600 hover:underline dark:text-cyan-300">Voir tout</router-link>
+            <h3 class="font-semibold text-gray-900 dark:text-white">Top 10 produits vendus</h3>
+            <span class="text-xs text-gray-500 dark:text-slate-400">Année en cours</span>
           </div>
-          <div v-if="facturesRetard.length" class="max-h-96 space-y-2 overflow-y-auto">
+          <div v-if="topProduits.length" class="space-y-2">
             <router-link
-              v-for="facture in facturesRetard"
-              :key="facture.id"
-              :to="{ path: '/factures', query: { open: facture.id } }"
-              class="block rounded-lg border border-red-100 bg-red-50 p-3 transition-colors hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-300 dark:border-red-500/30 dark:bg-red-950/30"
+              v-for="(produit, index) in topProduits"
+              :key="produit.id"
+              :to="{ path: '/produits', query: { open: produit.id } }"
+              class="flex items-center gap-3 rounded p-2 transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-xelltekk-400 dark:hover:bg-slate-800"
             >
-              <div class="flex items-start justify-between gap-2">
-                <div class="min-w-0 flex-1">
-                  <div class="flex items-center gap-2">
-                    <span class="font-mono text-xs font-semibold text-gray-700 dark:text-slate-200">{{ facture.numero }}</span>
-                    <span class="badge bg-red-200 text-[10px] text-red-800">{{ facture.jours_retard }} j</span>
-                  </div>
-                  <div class="mt-1 truncate text-sm font-medium text-gray-900 dark:text-white">{{ facture.client?.nom || 'Client' }}</div>
-                  <div class="text-xs text-gray-500 dark:text-slate-400">Echu le {{ formatDate(facture.date_echeance) }}</div>
+              <div class="flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold" :class="rangColor(index)">
+                {{ index + 1 }}
+              </div>
+              <div class="min-w-0 flex-1">
+                <div class="truncate text-sm font-medium text-gray-900 dark:text-white">{{ produit.libelle }}</div>
+                <div class="text-xs text-gray-500 dark:text-slate-400">
+                  {{ produit.reference || 'Sans référence' }} - Qté {{ formatQty(produit.quantite_vendue) }} - {{ produit.nb_factures }} facture(s)
                 </div>
-                <div class="whitespace-nowrap text-right">
-                  <div class="font-mono font-bold text-red-700 dark:text-red-300">{{ formatPrice(facture.reste_a_payer) }}</div>
-                  <div class="text-[10px] text-gray-500 dark:text-slate-400">XOF</div>
-                </div>
+              </div>
+              <div class="whitespace-nowrap font-mono text-sm font-semibold text-green-700 dark:text-green-300">
+                {{ formatPrice(produit.ca_total) }}
               </div>
             </router-link>
           </div>
-          <div v-else class="py-8 text-center text-sm text-green-600 dark:text-green-300">
-            Aucune facture en retard.
+          <div v-else class="py-8 text-center text-sm text-gray-400">
+            Aucun produit vendu cette année
           </div>
         </section>
       </div>
 
+      <section v-if="isBusinessDashboard" class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+        <div class="mb-4 flex items-center justify-between">
+          <h3 class="font-semibold text-gray-900 dark:text-white">Factures en retard</h3>
+          <router-link :to="{ path: '/factures', query: { quick: 'en_retard' } }" class="text-xs text-xelltekk-600 hover:underline dark:text-cyan-300">Voir tout</router-link>
+        </div>
+        <div v-if="facturesRetard.length" class="grid grid-cols-1 gap-3 lg:grid-cols-2">
+          <router-link
+            v-for="facture in facturesRetard"
+            :key="facture.id"
+            :to="{ path: '/factures', query: { open: facture.id } }"
+            class="block rounded-lg border border-red-100 bg-red-50 p-3 transition-colors hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-300 dark:border-red-500/30 dark:bg-red-950/30"
+          >
+            <div class="flex items-start justify-between gap-2">
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-2">
+                  <span class="font-mono text-xs font-semibold text-gray-700 dark:text-slate-200">{{ facture.numero }}</span>
+                  <span class="badge bg-red-200 text-[10px] text-red-800">{{ facture.jours_retard }} j</span>
+                </div>
+                <div class="mt-1 truncate text-sm font-medium text-gray-900 dark:text-white">{{ facture.client?.nom || 'Client' }}</div>
+                <div class="text-xs text-gray-500 dark:text-slate-400">Echu le {{ formatDate(facture.date_echeance) }}</div>
+              </div>
+              <div class="whitespace-nowrap text-right">
+                <div class="font-mono font-bold text-red-700 dark:text-red-300">{{ formatPrice(facture.reste_a_payer) }}</div>
+                <div class="text-[10px] text-gray-500 dark:text-slate-400">XOF</div>
+              </div>
+            </div>
+          </router-link>
+        </div>
+        <div v-else class="py-8 text-center text-sm text-green-600 dark:text-green-300">
+          Aucune facture en retard.
+        </div>
+      </section>
       <div v-if="!isStockManager" class="grid grid-cols-1 gap-6" :class="isBusinessDashboard ? 'lg:grid-cols-2' : ''">
         <section v-if="isBusinessDashboard" class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
           <div class="mb-4 flex items-center justify-between">
@@ -383,6 +413,7 @@ const annonces = ref([])
 const caChartData = ref(null)
 const soldesTresorerie = ref({ total: 0, comptes: [] })
 const topClients = ref([])
+const topProduits = ref([])
 const facturesRetard = ref([])
 const derniersPaiements = ref([])
 const devisEnAttente = ref([])
@@ -555,6 +586,7 @@ async function loadDashboard() {
     soldesTresorerie.value = normalizeSoldesTresorerie(data.soldes_tresorerie)
 
     topClients.value = data.top_clients || []
+    topProduits.value = data.top_produits || []
     facturesRetard.value = data.factures_retard || []
     derniersPaiements.value = data.derniers_paiements || []
     devisEnAttente.value = data.devis_en_attente || []
