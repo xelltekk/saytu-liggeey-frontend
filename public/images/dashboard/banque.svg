@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Banque">
+  <rect width="128" height="128" rx="34" fill="#FFF4E8"/>
+  <path d="M25 51 64 29l39 22" fill="#FFFFFF" stroke="#F06423" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M35 58h58M39 94h50M47 62v28M64 62v28M81 62v28" stroke="#F06423" stroke-width="8" stroke-linecap="round"/>
+  <path d="M33 104h62" stroke="#C94F1B" stroke-width="8" stroke-linecap="round"/>
+</svg>

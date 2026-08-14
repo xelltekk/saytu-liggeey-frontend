@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Carte bancaire">
+  <rect width="128" height="128" rx="34" fill="#ECFEFF"/>
+  <rect x="25" y="39" width="78" height="52" rx="14" fill="#FFFFFF" stroke="#0891B2" stroke-width="8"/>
+  <path d="M25 57h78" stroke="#0891B2" stroke-width="8"/>
+  <path d="M41 76h20" stroke="#0891B2" stroke-width="7" stroke-linecap="round"/>
+  <path d="M73 76h14" stroke="#00AEEF" stroke-width="7" stroke-linecap="round"/>
+</svg>

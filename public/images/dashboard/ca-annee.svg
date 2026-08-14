@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="CA de l'année">
+  <rect width="128" height="128" rx="34" fill="#EAF3FF"/>
+  <rect x="28" y="31" width="72" height="72" rx="15" fill="#FFFFFF" stroke="#2F66F4" stroke-width="8"/>
+  <path d="M28 53h72" stroke="#2F66F4" stroke-width="8" stroke-linecap="round"/>
+  <path d="M48 22v20M80 22v20" stroke="#2F66F4" stroke-width="8" stroke-linecap="round"/>
+  <circle cx="49" cy="70" r="6" fill="#2F66F4"/>
+  <circle cx="64" cy="70" r="6" fill="#2F66F4"/>
+  <circle cx="79" cy="70" r="6" fill="#2F66F4"/>
+  <path d="M45 90c11-11 22-10 34-2" fill="none" stroke="#00AEEF" stroke-width="7" stroke-linecap="round"/>
+</svg>

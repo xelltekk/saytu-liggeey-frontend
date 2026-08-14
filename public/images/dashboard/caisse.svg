@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Caisse">
+  <rect width="128" height="128" rx="34" fill="#EAF3FF"/>
+  <rect x="25" y="42" width="78" height="48" rx="13" fill="#FFFFFF" stroke="#2F66F4" stroke-width="8"/>
+  <circle cx="47" cy="66" r="8" fill="#2F66F4"/>
+  <circle cx="81" cy="66" r="8" fill="#2F66F4"/>
+  <path d="M40 100h48" stroke="#00AEEF" stroke-width="9" stroke-linecap="round"/>
+</svg>

@@ -36,10 +36,10 @@
       </section>
 
       <div v-if="hasKpiCards" class="stat-grid grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
-        <KpiCard v-if="isBusinessDashboard" :to="{ path: '/factures', query: { quick: 'ca_mois' } }" label="CA du mois" :value="formatPrice(kpi.ca_mois)" suffix="XOF" icon="CA" :icon-component="TrendingUp" color="green" />
-        <KpiCard v-if="isBusinessDashboard" :to="{ path: '/factures', query: { quick: 'ca_annee' } }" label="CA de l'année" :value="formatPrice(kpi.ca_annee)" suffix="XOF" icon="An" :icon-component="CalendarDays" color="blue" />
-        <KpiCard v-if="isBusinessDashboard" :to="{ path: '/factures', query: { quick: 'encours' } }" label="Encours total" :value="formatPrice(kpi.encours_total)" suffix="XOF" icon="EC" :icon-component="FileClock" color="orange" />
-        <KpiCard v-if="isBusinessDashboard" :to="{ path: '/factures', query: { quick: 'impayees' } }" label="Factures impayees" :value="kpi.factures_impayees || 0" icon="FI" :icon-component="FileWarning" color="purple" :sub="`dont ${kpi.factures_en_retard || 0} en retard`" />
+        <KpiCard v-if="isBusinessDashboard" :to="{ path: '/factures', query: { quick: 'ca_mois' } }" label="CA du mois" :value="formatPrice(kpi.ca_mois)" suffix="XOF" icon="CA" icon-image="/images/dashboard/ca-mois.svg" :icon-component="TrendingUp" color="green" />
+        <KpiCard v-if="isBusinessDashboard" :to="{ path: '/factures', query: { quick: 'ca_annee' } }" label="CA de l'année" :value="formatPrice(kpi.ca_annee)" suffix="XOF" icon="An" icon-image="/images/dashboard/ca-annee.svg" :icon-component="CalendarDays" color="blue" />
+        <KpiCard v-if="isBusinessDashboard" :to="{ path: '/factures', query: { quick: 'encours' } }" label="Encours total" :value="formatPrice(kpi.encours_total)" suffix="XOF" icon="EC" icon-image="/images/dashboard/encours.svg" :icon-component="FileClock" color="orange" />
+        <KpiCard v-if="isBusinessDashboard" :to="{ path: '/factures', query: { quick: 'impayees' } }" label="Factures impayees" :value="kpi.factures_impayees || 0" icon="FI" icon-image="/images/dashboard/factures-impayees.svg" :icon-component="FileWarning" color="purple" :sub="`dont ${kpi.factures_en_retard || 0} en retard`" />
 
         <KpiCard v-if="isCommercial" to="/clients" label="Mes clients actifs" :value="kpi.clients_actifs || 0" icon="CL" :icon-component="UsersRound" color="green" />
         <KpiCard v-if="isCommercial" to="/devis" label="Mes devis en cours" :value="kpi.devis_en_cours || 0" icon="DV" :icon-component="FileText" color="blue" />
@@ -131,6 +131,7 @@
             :value="formatPrice(soldesTresorerieTotal)"
             suffix="XOF"
             icon="TR"
+            icon-image="/images/dashboard/solde-total.svg"
             :icon-component="Wallet"
             color="blue"
             :sub="`${soldesTresorerieComptes.length} compte(s) actif(s)`"
@@ -166,53 +167,6 @@
           </div>
         </section>
       </div>
-
-      <section v-if="isManagerDashboard" class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:p-5">
-        <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h3 class="font-semibold text-gray-900 dark:text-white">Avancement des commerciaux</h3>
-            <p class="mt-0.5 text-xs text-gray-500 dark:text-slate-400">Objectifs actifs et réalisations sur leur période en cours.</p>
-          </div>
-          <div class="flex flex-wrap gap-2">
-            <router-link to="/prospection" class="btn-secondary px-3 py-1.5 text-xs">Voir le suivi</router-link>
-            <button type="button" class="btn-primary px-3 py-1.5 text-xs" :disabled="commercialPdfLoading" @click="ouvrirEtatCommerciauxPdf">
-              {{ commercialPdfLoading ? 'PDF...' : 'État PDF' }}
-            </button>
-          </div>
-        </div>
-
-        <div v-if="avancementCommerciaux.length" class="overflow-x-auto">
-          <table class="w-full">
-            <thead class="border-b border-gray-200 bg-gray-50 dark:border-slate-700 dark:bg-slate-800">
-              <tr>
-                <th class="px-3 py-2 text-left text-xs font-semibold uppercase text-gray-600 dark:text-slate-300">Commercial</th>
-                <th class="px-3 py-2 text-left text-xs font-semibold uppercase text-gray-600 dark:text-slate-300">Score global</th>
-                <th class="px-3 py-2 text-left text-xs font-semibold uppercase text-gray-600 dark:text-slate-300">Prospects</th>
-                <th class="px-3 py-2 text-left text-xs font-semibold uppercase text-gray-600 dark:text-slate-300">Actions</th>
-                <th class="px-3 py-2 text-left text-xs font-semibold uppercase text-gray-600 dark:text-slate-300">Devis</th>
-                <th class="px-3 py-2 text-left text-xs font-semibold uppercase text-gray-600 dark:text-slate-300">CA</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-100 dark:divide-slate-700">
-              <tr v-for="ligne in avancementCommerciaux" :key="ligne.commercial?.id || ligne.commercial_id || ligne.id" class="hover:bg-gray-50 dark:hover:bg-slate-800">
-                <td class="px-3 py-3">
-                  <div class="font-medium text-gray-900 dark:text-white">{{ ligne.commercial?.name || 'Commercial' }}</div>
-                  <div class="text-xs text-gray-500 dark:text-slate-400">{{ formatDate(ligne.periode_debut) }} - {{ formatDate(ligne.periode_fin) }}</div>
-                  <div v-if="!ligne.has_objectif" class="mt-1 text-[11px] font-medium text-orange-700 dark:text-orange-300">Aucun objectif actif</div>
-                </td>
-                <td class="px-3 py-3"><CommercialProgress :percent="ligne.score_global" score /></td>
-                <td class="px-3 py-3"><CommercialProgress :value="ligne.realisation.prospects" :target="ligne.targets.prospects" :percent="ligne.percentages.prospects" /></td>
-                <td class="px-3 py-3"><CommercialProgress :value="ligne.realisation.actions" :target="ligne.targets.actions" :percent="ligne.percentages.actions" /></td>
-                <td class="px-3 py-3"><CommercialProgress :value="ligne.realisation.devis" :target="ligne.targets.devis" :percent="ligne.percentages.devis" /></td>
-                <td class="px-3 py-3"><CommercialProgress :value="ligne.realisation.ca" :target="ligne.targets.ca" :percent="ligne.percentages.ca" money /></td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <div v-else class="rounded-lg border border-dashed border-gray-300 px-4 py-8 text-center text-sm text-gray-500 dark:border-slate-700 dark:text-slate-400">
-          Aucun objectif commercial actif. Créez les objectifs depuis la rubrique Prospection.
-        </div>
-      </section>
 
       <div v-if="isBusinessDashboard" class="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <section class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
@@ -370,6 +324,53 @@
           </div>
         </section>
       </div>
+      <section v-if="isManagerDashboard" class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:p-5">
+        <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h3 class="font-semibold text-gray-900 dark:text-white">Avancement des commerciaux</h3>
+            <p class="mt-0.5 text-xs text-gray-500 dark:text-slate-400">Objectifs actifs et réalisations sur leur période en cours.</p>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <router-link to="/prospection" class="btn-secondary px-3 py-1.5 text-xs">Voir le suivi</router-link>
+            <button type="button" class="btn-primary px-3 py-1.5 text-xs" :disabled="commercialPdfLoading" @click="ouvrirEtatCommerciauxPdf">
+              {{ commercialPdfLoading ? 'PDF...' : 'État PDF' }}
+            </button>
+          </div>
+        </div>
+
+        <div v-if="avancementCommerciaux.length" class="overflow-x-auto">
+          <table class="w-full">
+            <thead class="border-b border-gray-200 bg-gray-50 dark:border-slate-700 dark:bg-slate-800">
+              <tr>
+                <th class="px-3 py-2 text-left text-xs font-semibold uppercase text-gray-600 dark:text-slate-300">Commercial</th>
+                <th class="px-3 py-2 text-left text-xs font-semibold uppercase text-gray-600 dark:text-slate-300">Score global</th>
+                <th class="px-3 py-2 text-left text-xs font-semibold uppercase text-gray-600 dark:text-slate-300">Prospects</th>
+                <th class="px-3 py-2 text-left text-xs font-semibold uppercase text-gray-600 dark:text-slate-300">Actions</th>
+                <th class="px-3 py-2 text-left text-xs font-semibold uppercase text-gray-600 dark:text-slate-300">Devis</th>
+                <th class="px-3 py-2 text-left text-xs font-semibold uppercase text-gray-600 dark:text-slate-300">CA</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100 dark:divide-slate-700">
+              <tr v-for="ligne in avancementCommerciaux" :key="ligne.commercial?.id || ligne.commercial_id || ligne.id" class="hover:bg-gray-50 dark:hover:bg-slate-800">
+                <td class="px-3 py-3">
+                  <div class="font-medium text-gray-900 dark:text-white">{{ ligne.commercial?.name || 'Commercial' }}</div>
+                  <div class="text-xs text-gray-500 dark:text-slate-400">{{ formatDate(ligne.periode_debut) }} - {{ formatDate(ligne.periode_fin) }}</div>
+                  <div v-if="!ligne.has_objectif" class="mt-1 text-[11px] font-medium text-orange-700 dark:text-orange-300">Aucun objectif actif</div>
+                </td>
+                <td class="px-3 py-3"><CommercialProgress :percent="ligne.score_global" score /></td>
+                <td class="px-3 py-3"><CommercialProgress :value="ligne.realisation.prospects" :target="ligne.targets.prospects" :percent="ligne.percentages.prospects" /></td>
+                <td class="px-3 py-3"><CommercialProgress :value="ligne.realisation.actions" :target="ligne.targets.actions" :percent="ligne.percentages.actions" /></td>
+                <td class="px-3 py-3"><CommercialProgress :value="ligne.realisation.devis" :target="ligne.targets.devis" :percent="ligne.percentages.devis" /></td>
+                <td class="px-3 py-3"><CommercialProgress :value="ligne.realisation.ca" :target="ligne.targets.ca" :percent="ligne.percentages.ca" money /></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div v-else class="rounded-lg border border-dashed border-gray-300 px-4 py-8 text-center text-sm text-gray-500 dark:border-slate-700 dark:text-slate-400">
+          Aucun objectif commercial actif. Créez les objectifs depuis la rubrique Prospection.
+        </div>
+      </section>
+
     </div>
   </div>
 </template>
@@ -485,7 +486,7 @@ const KpiCard = {
         h('div', { class: 'mb-1 flex items-center justify-between' }, [
           h('span', { class: 'text-xs font-semibold uppercase opacity-75' }, props.label),
           props.iconImage
-            ? h('img', { src: props.iconImage, alt: props.label, class: 'h-7 w-7 rounded-full bg-white object-contain p-1 shadow-sm ring-1 ring-black/5' })
+            ? h('img', { src: props.iconImage, alt: props.label, class: 'h-8 w-8 rounded-xl bg-white object-contain p-1 shadow-sm ring-1 ring-black/5' })
             : props.iconComponent
               ? h(props.iconComponent, { class: 'h-6 w-6 opacity-80', strokeWidth: 2.2, 'aria-hidden': 'true' })
               : h('span', { class: 'text-sm font-bold opacity-80' }, props.icon),
@@ -692,7 +693,11 @@ function modePaiementIconImage(label) {
   if (slug.includes('wave')) return '/images/payment/wave.png'
   if (slug.includes('orange_money') || slug === 'om' || slug.includes('orange')) return '/images/payment/orange-money.png'
   if (slug.includes('free_money') || slug.includes('yas')) return '/images/payment/yas.svg'
-  return null
+  if (slug.includes('banque') || slug.includes('bank')) return '/images/dashboard/banque.svg'
+  if (slug.includes('caisse') || slug.includes('especes')) return '/images/dashboard/caisse.svg'
+  if (slug.includes('virement') || slug.includes('compensation')) return '/images/dashboard/virement.svg'
+  if (slug.includes('carte')) return '/images/dashboard/carte.svg'
+  return '/images/dashboard/solde-total.svg'
 }
 function modePaiementIconComponent(label) {
   const slug = modePaiementSlug(label)

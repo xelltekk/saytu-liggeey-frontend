@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="CA du mois">
+  <rect width="128" height="128" rx="34" fill="#EAFBF2"/>
+  <path d="M25 82c17-2 27-12 38-27 8-11 18-12 29-4" fill="none" stroke="#16A667" stroke-width="12" stroke-linecap="round"/>
+  <path d="M77 35h26v26" fill="none" stroke="#16A667" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M103 35 68 70" fill="none" stroke="#16A667" stroke-width="12" stroke-linecap="round"/>
+  <circle cx="29" cy="83" r="8" fill="#0F8A55"/>
+</svg>

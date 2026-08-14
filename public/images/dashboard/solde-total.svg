@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Solde total disponible">
+  <rect width="128" height="128" rx="34" fill="#EAF3FF"/>
+  <path d="M28 42h70c8 0 14 6 14 14v38c0 8-6 14-14 14H28c-8 0-14-6-14-14V56c0-8 6-14 14-14Z" fill="#FFFFFF" stroke="#2F66F4" stroke-width="8"/>
+  <path d="M34 42c5-14 16-22 33-22h24c8 0 13 9 8 16l-5 6" fill="#DDF6FF" stroke="#2F66F4" stroke-width="8" stroke-linejoin="round"/>
+  <rect x="78" y="63" width="28" height="23" rx="10" fill="#EAF3FF" stroke="#2F66F4" stroke-width="7"/>
+  <circle cx="91" cy="74.5" r="4" fill="#2F66F4"/>
+</svg>
