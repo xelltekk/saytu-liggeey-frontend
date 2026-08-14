@@ -117,9 +117,9 @@
         <div class="flex flex-col gap-3 border-b border-red-100 bg-red-50/60 p-4 lg:flex-row lg:items-end">
           <div class="flex-1">
             <div class="text-xs font-semibold uppercase tracking-wide text-red-600">Corbeille des suppressions</div>
-            <h3 class="mt-1 text-lg font-bold text-gray-900">?l?ments supprim?s restaurables</h3>
+            <h3 class="mt-1 text-lg font-bold text-gray-900">&Eacute;l&eacute;ments supprim&eacute;s restaurables</h3>
             <p class="mt-1 text-sm text-gray-500">
-              Les suppressions r?versibles de l?application sont centralis?es ici. Restauration r?serv?e aux administrateurs et g?rants.
+              Les suppressions r&eacute;versibles de l&rsquo;application sont centralis&eacute;es ici. Restauration r&eacute;serv&eacute;e aux administrateurs et g&eacute;rants.
             </p>
           </div>
           <div class="grid grid-cols-1 gap-2 sm:grid-cols-3 lg:w-[680px]">
@@ -142,8 +142,8 @@
               <tr>
                 <th class="px-4 py-3 text-left">Suppression</th>
                 <th class="px-4 py-3 text-left">Type / module</th>
-                <th class="px-4 py-3 text-left">?l?ment</th>
-                <th class="px-4 py-3 text-left">D?tails</th>
+                <th class="px-4 py-3 text-left">&Eacute;l&eacute;ment</th>
+                <th class="px-4 py-3 text-left">D&eacute;tails</th>
                 <th class="px-4 py-3 text-right">Montant</th>
                 <th class="px-4 py-3 text-right">Action</th>
               </tr>
@@ -457,7 +457,7 @@ async function restoreTrashItem(item) {
   trashLoading.value = true
   try {
     const { data } = await api.post(`/corbeille/${item.type}/${item.id}/restaurer`)
-    toast.success(data.message || '?l?ment restaur?')
+    toast.success(data.message || '\u00c9l\u00e9ment restaur\u00e9')
     await Promise.all([loadCorbeille(), loadActivites()])
   } catch (e) {
     toast.error(e.response?.data?.message || 'Restauration impossible')
