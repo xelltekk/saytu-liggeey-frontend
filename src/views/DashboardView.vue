@@ -36,18 +36,18 @@
       </section>
 
       <div v-if="hasKpiCards" class="stat-grid grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
-        <KpiCard v-if="isBusinessDashboard" :to="{ path: '/factures', query: { quick: 'ca_mois' } }" label="CA du mois" :value="formatPrice(kpi.ca_mois)" suffix="XOF" icon="CA" color="green" />
-        <KpiCard v-if="isBusinessDashboard" :to="{ path: '/factures', query: { quick: 'ca_annee' } }" label="CA de l'année" :value="formatPrice(kpi.ca_annee)" suffix="XOF" icon="An" color="blue" />
-        <KpiCard v-if="isBusinessDashboard" :to="{ path: '/factures', query: { quick: 'encours' } }" label="Encours total" :value="formatPrice(kpi.encours_total)" suffix="XOF" icon="EC" color="orange" />
-        <KpiCard v-if="isBusinessDashboard" :to="{ path: '/factures', query: { quick: 'impayees' } }" label="Factures impayees" :value="kpi.factures_impayees || 0" icon="FI" color="purple" :sub="`dont ${kpi.factures_en_retard || 0} en retard`" />
+        <KpiCard v-if="isBusinessDashboard" :to="{ path: '/factures', query: { quick: 'ca_mois' } }" label="CA du mois" :value="formatPrice(kpi.ca_mois)" suffix="XOF" icon="CA" :icon-component="TrendingUp" color="green" />
+        <KpiCard v-if="isBusinessDashboard" :to="{ path: '/factures', query: { quick: 'ca_annee' } }" label="CA de l'année" :value="formatPrice(kpi.ca_annee)" suffix="XOF" icon="An" :icon-component="CalendarDays" color="blue" />
+        <KpiCard v-if="isBusinessDashboard" :to="{ path: '/factures', query: { quick: 'encours' } }" label="Encours total" :value="formatPrice(kpi.encours_total)" suffix="XOF" icon="EC" :icon-component="FileClock" color="orange" />
+        <KpiCard v-if="isBusinessDashboard" :to="{ path: '/factures', query: { quick: 'impayees' } }" label="Factures impayees" :value="kpi.factures_impayees || 0" icon="FI" :icon-component="FileWarning" color="purple" :sub="`dont ${kpi.factures_en_retard || 0} en retard`" />
 
-        <KpiCard v-if="isCommercial" to="/clients" label="Mes clients actifs" :value="kpi.clients_actifs || 0" icon="CL" color="green" />
-        <KpiCard v-if="isCommercial" to="/devis" label="Mes devis en cours" :value="kpi.devis_en_cours || 0" icon="DV" color="blue" />
+        <KpiCard v-if="isCommercial" to="/clients" label="Mes clients actifs" :value="kpi.clients_actifs || 0" icon="CL" :icon-component="UsersRound" color="green" />
+        <KpiCard v-if="isCommercial" to="/devis" label="Mes devis en cours" :value="kpi.devis_en_cours || 0" icon="DV" :icon-component="FileText" color="blue" />
 
-        <KpiCard v-if="isStockManager" to="/stock" label="Produits en stock" :value="kpi.produits_stockes || 0" icon="ST" color="green" />
-        <KpiCard v-if="isStockManager" to="/stock" label="Alertes stock" :value="kpi.stock_alertes || 0" icon="AL" color="orange" />
-        <KpiCard v-if="isStockManager" to="/stock" label="Ruptures" :value="kpi.ruptures_stock || 0" icon="RP" color="purple" />
-        <KpiCard v-if="isStockManager" to="/stock" label="Valeur stock" :value="formatPrice(kpi.valeur_stock)" suffix="XOF" icon="VS" color="blue" />
+        <KpiCard v-if="isStockManager" to="/stock" label="Produits en stock" :value="kpi.produits_stockes || 0" icon="ST" :icon-component="Package" color="green" />
+        <KpiCard v-if="isStockManager" to="/stock" label="Alertes stock" :value="kpi.stock_alertes || 0" icon="AL" :icon-component="TriangleAlert" color="orange" />
+        <KpiCard v-if="isStockManager" to="/stock" label="Ruptures" :value="kpi.ruptures_stock || 0" icon="RP" :icon-component="TriangleAlert" color="purple" />
+        <KpiCard v-if="isStockManager" to="/stock" label="Valeur stock" :value="formatPrice(kpi.valeur_stock)" suffix="XOF" icon="VS" :icon-component="Wallet" color="blue" />
       </div>
 
       <section v-else class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
@@ -131,6 +131,7 @@
             :value="formatPrice(soldesTresorerieTotal)"
             suffix="XOF"
             icon="TR"
+            :icon-component="Wallet"
             color="blue"
             :sub="`${soldesTresorerieComptes.length} compte(s) actif(s)`"
             to="/tresorerie-comptes"
@@ -143,6 +144,7 @@
             suffix="XOF"
             :icon="compte.icon"
             :icon-image="compte.iconImage"
+            :icon-component="compte.iconComponent"
             :color="compte.color"
             :sub="compte.sub"
             to="/tresorerie-comptes"
@@ -346,6 +348,21 @@
 import { ref, computed, onMounted, h, resolveComponent } from 'vue'
 import { Line } from 'vue-chartjs'
 import {
+  ArrowRightLeft,
+  Banknote,
+  CalendarDays,
+  CreditCard,
+  FileClock,
+  FileText,
+  FileWarning,
+  Landmark,
+  Package,
+  TriangleAlert,
+  TrendingUp,
+  UsersRound,
+  Wallet,
+} from 'lucide-vue-next'
+import {
   Chart as ChartJS, Title, Tooltip, Legend,
   CategoryScale, LinearScale, PointElement, LineElement, Filler,
 } from 'chart.js'
@@ -404,7 +421,8 @@ const soldesTresorerieComptes = computed(() => {
       solde_actuel: solde,
       label: tresorerieCompteLabel(compte),
       icon: modePaiementIcon(compte.mode_paiement || compte.type || compte.libelle),
-      iconImage: modePaiementIconImage(compte.mode_paiement || compte.type || compte.libelle),
+      iconImage: modePaiementIconImage([compte.mode_paiement, compte.type, compte.libelle].filter(Boolean).join(' ')),
+      iconComponent: modePaiementIconComponent([compte.mode_paiement, compte.type, compte.libelle].filter(Boolean).join(' ')),
       color: modePaiementColor(compte.mode_paiement || compte.type || compte.libelle, index),
       sub: tresorerieCompteSub(compte),
     }
@@ -419,7 +437,7 @@ const soldesTresorerieTotal = computed(() => {
 })
 
 const KpiCard = {
-  props: ['label', 'value', 'suffix', 'icon', 'iconImage', 'color', 'sub', 'to'],
+  props: ['label', 'value', 'suffix', 'icon', 'iconImage', 'iconComponent', 'color', 'sub', 'to'],
   setup(props) {
     const RouterLink = resolveComponent('RouterLink')
     const bgClass = {
@@ -437,7 +455,9 @@ const KpiCard = {
           h('span', { class: 'text-xs font-semibold uppercase opacity-75' }, props.label),
           props.iconImage
             ? h('img', { src: props.iconImage, alt: props.label, class: 'h-7 w-7 rounded-full bg-white object-contain p-1 shadow-sm ring-1 ring-black/5' })
-            : h('span', { class: 'text-sm font-bold opacity-80' }, props.icon),
+            : props.iconComponent
+              ? h(props.iconComponent, { class: 'h-6 w-6 opacity-80', strokeWidth: 2.2, 'aria-hidden': 'true' })
+              : h('span', { class: 'text-sm font-bold opacity-80' }, props.icon),
         ]),
         h('div', { class: 'flex items-baseline gap-1' }, [
           h('span', { class: 'text-xl font-bold' }, props.value),
@@ -641,6 +661,16 @@ function modePaiementIconImage(label) {
   if (slug.includes('orange_money') || slug === 'om' || slug.includes('orange')) return '/images/payment/orange-money.png'
   if (slug.includes('free_money') || slug.includes('yas')) return '/images/payment/yas.svg'
   return null
+}
+function modePaiementIconComponent(label) {
+  const slug = modePaiementSlug(label)
+  if (slug.includes('wave') || slug.includes('orange') || slug.includes('free_money') || slug.includes('yas')) return null
+  if (slug.includes('banque') || slug.includes('bank')) return Landmark
+  if (slug.includes('caisse') || slug.includes('especes')) return Banknote
+  if (slug.includes('virement') || slug.includes('compensation')) return ArrowRightLeft
+  if (slug.includes('cheque')) return FileText
+  if (slug.includes('carte')) return CreditCard
+  return Wallet
 }
 function modePaiementColor(label, index) {
   const slug = modePaiementSlug(label)
