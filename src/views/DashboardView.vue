@@ -36,10 +36,10 @@
       </section>
 
       <div v-if="hasKpiCards" class="stat-grid grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
-        <KpiCard v-if="isBusinessDashboard" :to="{ path: '/factures', query: { quick: 'ca_mois' } }" label="CA du mois" :value="formatPrice(kpi.ca_mois)" suffix="XOF" icon="CA" icon-image="/images/dashboard/ca-mois.svg" :icon-component="TrendingUp" color="green" />
-        <KpiCard v-if="isBusinessDashboard" :to="{ path: '/factures', query: { quick: 'ca_annee' } }" label="CA de l'année" :value="formatPrice(kpi.ca_annee)" suffix="XOF" icon="An" icon-image="/images/dashboard/ca-annee.svg" :icon-component="CalendarDays" color="blue" />
-        <KpiCard v-if="isBusinessDashboard" :to="{ path: '/factures', query: { quick: 'encours' } }" label="Encours total" :value="formatPrice(kpi.encours_total)" suffix="XOF" icon="EC" icon-image="/images/dashboard/encours.svg" :icon-component="FileClock" color="orange" />
-        <KpiCard v-if="isBusinessDashboard" :to="{ path: '/factures', query: { quick: 'impayees' } }" label="Factures impayees" :value="kpi.factures_impayees || 0" icon="FI" icon-image="/images/dashboard/factures-impayees.svg" :icon-component="FileWarning" color="purple" :sub="`dont ${kpi.factures_en_retard || 0} en retard`" />
+        <KpiCard v-if="isBusinessDashboard" :to="{ path: '/factures', query: { quick: 'ca_mois' } }" label="CA du mois" :value="formatPrice(kpi.ca_mois)" suffix="XOF" icon="CA" icon-image="/images/dashboard/ca-mois.png" :icon-component="TrendingUp" color="green" />
+        <KpiCard v-if="isBusinessDashboard" :to="{ path: '/factures', query: { quick: 'ca_annee' } }" label="CA de l'année" :value="formatPrice(kpi.ca_annee)" suffix="XOF" icon="An" icon-image="/images/dashboard/ca-annee.png" :icon-component="CalendarDays" color="blue" />
+        <KpiCard v-if="isBusinessDashboard" :to="{ path: '/factures', query: { quick: 'encours' } }" label="Encours total" :value="formatPrice(kpi.encours_total)" suffix="XOF" icon="EC" icon-image="/images/dashboard/encours.png" :icon-component="FileClock" color="orange" />
+        <KpiCard v-if="isBusinessDashboard" :to="{ path: '/factures', query: { quick: 'impayees' } }" label="Factures impayees" :value="kpi.factures_impayees || 0" icon="FI" icon-image="/images/dashboard/factures-impayees.png" :icon-component="FileWarning" color="purple" :sub="`dont ${kpi.factures_en_retard || 0} en retard`" />
 
         <KpiCard v-if="isCommercial" to="/clients" label="Mes clients actifs" :value="kpi.clients_actifs || 0" icon="CL" :icon-component="UsersRound" color="green" />
         <KpiCard v-if="isCommercial" to="/devis" label="Mes devis en cours" :value="kpi.devis_en_cours || 0" icon="DV" :icon-component="FileText" color="blue" />
@@ -131,7 +131,7 @@
             :value="formatPrice(soldesTresorerieTotal)"
             suffix="XOF"
             icon="TR"
-            icon-image="/images/dashboard/solde-total.svg"
+            icon-image="/images/dashboard/solde-total.png"
             :icon-component="Wallet"
             color="blue"
             :sub="`${soldesTresorerieComptes.length} compte(s) actif(s)`"
@@ -486,7 +486,13 @@ const KpiCard = {
         h('div', { class: 'mb-1 flex items-center justify-between' }, [
           h('span', { class: 'text-xs font-semibold uppercase opacity-75' }, props.label),
           props.iconImage
-            ? h('img', { src: props.iconImage, alt: props.label, class: 'h-8 w-8 rounded-xl bg-white object-contain p-1 shadow-sm ring-1 ring-black/5' })
+            ? h('img', {
+              src: props.iconImage,
+              alt: props.label,
+              class: props.iconImage.includes('/images/dashboard/')
+                ? 'h-12 w-12 object-contain drop-shadow-sm'
+                : 'h-8 w-8 rounded-xl bg-white object-contain p-1 shadow-sm ring-1 ring-black/5',
+            })
             : props.iconComponent
               ? h(props.iconComponent, { class: 'h-6 w-6 opacity-80', strokeWidth: 2.2, 'aria-hidden': 'true' })
               : h('span', { class: 'text-sm font-bold opacity-80' }, props.icon),
@@ -693,11 +699,11 @@ function modePaiementIconImage(label) {
   if (slug.includes('wave')) return '/images/payment/wave.png'
   if (slug.includes('orange_money') || slug === 'om' || slug.includes('orange')) return '/images/payment/orange-money.png'
   if (slug.includes('free_money') || slug.includes('yas')) return '/images/payment/yas.svg'
-  if (slug.includes('banque') || slug.includes('bank')) return '/images/dashboard/banque.svg'
-  if (slug.includes('caisse') || slug.includes('especes')) return '/images/dashboard/caisse.svg'
+  if (slug.includes('banque') || slug.includes('bank')) return '/images/dashboard/banque.png'
+  if (slug.includes('caisse') || slug.includes('especes')) return '/images/dashboard/caisse.png'
   if (slug.includes('virement') || slug.includes('compensation')) return '/images/dashboard/virement.svg'
   if (slug.includes('carte')) return '/images/dashboard/carte.svg'
-  return '/images/dashboard/solde-total.svg'
+  return '/images/dashboard/solde-total.png'
 }
 function modePaiementIconComponent(label) {
   const slug = modePaiementSlug(label)
