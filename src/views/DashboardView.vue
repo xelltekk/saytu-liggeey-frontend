@@ -489,9 +489,11 @@ const KpiCard = {
             ? h('img', {
               src: props.iconImage,
               alt: props.label,
-              class: (props.iconImage.includes('/images/dashboard/') || props.iconImage.includes('/images/payment/'))
-                ? 'h-12 w-12 object-contain drop-shadow-sm'
-                : 'h-8 w-8 rounded-xl bg-white object-contain p-1 shadow-sm ring-1 ring-black/5',
+              class: props.iconImage.includes('/images/payment/')
+                ? 'h-12 w-12 rounded-full bg-white object-contain p-1.5 shadow-sm ring-1 ring-black/5'
+                : props.iconImage.includes('/images/dashboard/')
+                  ? 'h-12 w-12 rounded-full object-contain drop-shadow-sm'
+                  : 'h-8 w-8 rounded-xl bg-white object-contain p-1 shadow-sm ring-1 ring-black/5',
             })
             : props.iconComponent
               ? h(props.iconComponent, { class: 'h-6 w-6 opacity-80', strokeWidth: 2.2, 'aria-hidden': 'true' })

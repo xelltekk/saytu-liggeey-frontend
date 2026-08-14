@@ -1,105 +1,178 @@
 <template>
   <div>
-    <div class="mb-4 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-      <div class="flex flex-col gap-3 lg:flex-row lg:items-center">
-        <div class="flex-1">
-          <h3 class="text-lg font-bold text-gray-900">Journal des activités</h3>
-          <p class="text-sm text-gray-500">Historique métier en temps réel : caisse, ventes, devis, factures, paiements.</p>
+    <div v-if="!canSeeActivities" class="rounded-2xl border border-orange-200 bg-orange-50 p-6 text-orange-800 shadow-sm">
+      <h3 class="text-lg font-bold">AccÃ¨s rÃ©servÃ©</h3>
+      <p class="mt-1 text-sm">Le journal des activitÃ©s est visible uniquement par les administrateurs et les gÃ©rants.</p>
+    </div>
+
+    <template v-else>
+      <div class="mb-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+        <div class="flex flex-col gap-4 xl:flex-row xl:items-end">
+          <div class="flex-1">
+            <div class="inline-flex rounded-full bg-cyan-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-cyan-700">
+              Administration Â· Admin & gÃ©rants
+            </div>
+            <h3 class="mt-2 text-xl font-bold text-gray-900">Journal des activitÃ©s</h3>
+            <p class="mt-1 text-sm text-gray-500">
+              Suivi dÃ©taillÃ© des actions : devis, factures, paiements, dÃ©penses, achats, stock, caisse, leasing et utilisateurs.
+            </p>
+          </div>
+
+          <button @click="loadActivites" :disabled="loading" class="btn-primary whitespace-nowrap">
+            {{ loading ? 'Chargement...' : 'Actualiser' }}
+          </button>
         </div>
 
-        <input
-          v-model="filters.search"
-          type="search"
-          class="input lg:w-80"
-          placeholder="Rechercher utilisateur, action, chemin..."
-        />
+        <div class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-6">
+          <input
+            v-model="filters.search"
+            type="search"
+            class="input xl:col-span-2"
+            placeholder="Rechercher utilisateur, rÃ©fÃ©rence, client, action..."
+          />
 
-        <select v-model="filters.status" class="input lg:w-44">
-          <option value="">Tous statuts</option>
-          <option value="success">Réussies</option>
-          <option value="error">Erreurs</option>
-        </select>
+          <select v-model="filters.category" class="input">
+            <option value="">Toutes catÃ©gories</option>
+            <option v-for="category in availableCategories" :key="category" :value="category">
+              {{ categoryLabel(category) }}
+            </option>
+          </select>
 
-        <button @click="loadActivites" :disabled="loading" class="btn-primary whitespace-nowrap">
-          {{ loading ? 'Chargement...' : 'Actualiser' }}
-        </button>
+          <select v-model="filters.user_id" class="input">
+            <option value="">Tous utilisateurs</option>
+            <option v-for="user in availableUsers" :key="user.id" :value="String(user.id)">
+              {{ user.name }} Â· {{ roleLabel(user.role) }}
+            </option>
+          </select>
+
+          <select v-model="filters.status" class="input">
+            <option value="">Tous statuts</option>
+            <option value="success">RÃ©ussies</option>
+            <option value="error">Erreurs</option>
+          </select>
+
+          <div class="grid grid-cols-2 gap-2">
+            <input v-model="filters.date_from" type="date" class="input" />
+            <input v-model="filters.date_to" type="date" class="input" />
+          </div>
+        </div>
       </div>
-    </div>
 
-    <div class="stat-grid mb-4 grid grid-cols-1 sm:grid-cols-3">
-      <div class="rounded-lg border border-gray-200 bg-white p-4">
-        <div class="text-xs font-semibold uppercase text-gray-500">Activités affichées</div>
-        <div class="mt-1 text-2xl font-bold text-gray-900">{{ filteredActivites.length }}</div>
+      <div class="stat-grid mb-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
+        <div class="rounded-2xl border border-blue-200 bg-blue-50 p-4">
+          <div class="text-xs font-semibold uppercase text-blue-600">ActivitÃ©s affichÃ©es</div>
+          <div class="mt-1 text-2xl font-bold text-blue-800">{{ filteredActivites.length }}</div>
+        </div>
+        <div class="rounded-2xl border border-green-200 bg-green-50 p-4">
+          <div class="text-xs font-semibold uppercase text-green-600">Actions rÃ©ussies</div>
+          <div class="mt-1 text-2xl font-bold text-green-700">{{ successCount }}</div>
+        </div>
+        <div class="rounded-2xl border border-red-200 bg-red-50 p-4">
+          <div class="text-xs font-semibold uppercase text-red-600">Erreurs</div>
+          <div class="mt-1 text-2xl font-bold text-red-700">{{ errorCount }}</div>
+        </div>
+        <div class="rounded-2xl border border-cyan-200 bg-cyan-50 p-4">
+          <div class="text-xs font-semibold uppercase text-cyan-600">CatÃ©gories actives</div>
+          <div class="mt-1 text-2xl font-bold text-cyan-800">{{ availableCategories.length }}</div>
+        </div>
       </div>
-      <div class="rounded-lg border border-gray-200 bg-white p-4">
-        <div class="text-xs font-semibold uppercase text-gray-500">Actions réussies</div>
-        <div class="mt-1 text-2xl font-bold text-green-700">{{ successCount }}</div>
+
+      <div v-if="loading" class="rounded-2xl bg-white p-12 text-center text-gray-500 shadow-sm">
+        Chargement du journal...
       </div>
-      <div class="rounded-lg border border-gray-200 bg-white p-4">
-        <div class="text-xs font-semibold uppercase text-gray-500">Erreurs</div>
-        <div class="mt-1 text-2xl font-bold text-red-700">{{ errorCount }}</div>
+
+      <div v-else class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <div class="overflow-x-auto">
+          <table class="w-full min-w-[1180px]">
+            <thead class="border-b border-gray-200 bg-gray-50">
+              <tr>
+                <SortableTh column="date" :active="sort.key === 'date'" :icon="sortIcon('date')" @sort="toggleSort">Date</SortableTh>
+                <SortableTh column="utilisateur" :active="sort.key === 'utilisateur'" :icon="sortIcon('utilisateur')" @sort="toggleSort">Utilisateur</SortableTh>
+                <SortableTh column="categorie" :active="sort.key === 'categorie'" :icon="sortIcon('categorie')" @sort="toggleSort">CatÃ©gorie</SortableTh>
+                <SortableTh column="activite" :active="sort.key === 'activite'" :icon="sortIcon('activite')" @sort="toggleSort">ActivitÃ©</SortableTh>
+                <SortableTh column="reference" :active="sort.key === 'reference'" :icon="sortIcon('reference')" @sort="toggleSort">Objet / montant</SortableTh>
+                <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-gray-600">Informations visibles</th>
+                <SortableTh column="statut" :active="sort.key === 'statut'" :icon="sortIcon('statut')" align="center" @sort="toggleSort">Statut</SortableTh>
+                <SortableTh column="ip" :active="sort.key === 'ip'" :icon="sortIcon('ip')" @sort="toggleSort">Technique</SortableTh>
+              </tr>
+            </thead>
+
+            <tbody class="divide-y divide-gray-100">
+              <tr v-for="(item, index) in paginatedActivites" :key="`${item.date}-${item.id || index}`" class="align-top hover:bg-gray-50">
+                <td class="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
+                  <div class="font-medium text-gray-900">{{ formatDate(item.date) }}</div>
+                  <div class="text-xs text-gray-400">{{ formatTime(item.date) }}</div>
+                </td>
+
+                <td class="px-4 py-3">
+                  <div class="text-sm font-semibold text-gray-900">{{ item.user_name || 'SystÃ¨me' }}</div>
+                  <div class="text-xs text-gray-500">{{ roleLabel(item.user_role) }}</div>
+                  <div v-if="item.user_id" class="mt-1 font-mono text-[11px] text-gray-400">ID {{ item.user_id }}</div>
+                </td>
+
+                <td class="px-4 py-3">
+                  <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-bold" :class="categoryClass(item.category)">
+                    {{ categoryLabel(item.category) }}
+                  </span>
+                  <div class="mt-2 max-w-[170px] truncate font-mono text-[11px] text-gray-400">{{ item.event || '-' }}</div>
+                </td>
+
+                <td class="px-4 py-3">
+                  <div class="text-sm font-semibold text-gray-900">{{ item.title || item.action || '-' }}</div>
+                  <div v-if="item.description" class="mt-1 max-w-sm text-xs leading-5 text-gray-500">{{ item.description }}</div>
+                  <div v-if="item.error" class="mt-1 rounded-lg bg-red-50 px-2 py-1 text-xs text-red-700">{{ item.error }}</div>
+                </td>
+
+                <td class="px-4 py-3">
+                  <div class="font-mono text-xs font-semibold text-gray-700">{{ item.subject_label || item.reference || '-' }}</div>
+                  <div v-if="item.subject_type" class="mt-1 text-[11px] text-gray-400">
+                    {{ subjectTypeLabel(item.subject_type) }}<span v-if="item.subject_id"> #{{ item.subject_id }}</span>
+                  </div>
+                  <div v-if="item.amount !== null && item.amount !== undefined" class="mt-2 text-sm font-bold text-gray-900">
+                    {{ formatAmount(item.amount) }} XOF
+                  </div>
+                </td>
+
+                <td class="px-4 py-3">
+                  <div v-if="detailsFor(item).length" class="grid max-w-xl grid-cols-1 gap-1 text-xs sm:grid-cols-2">
+                    <div v-for="detail in detailsFor(item).slice(0, 10)" :key="`${detail.label}-${detail.value}`" class="rounded-lg bg-gray-50 px-2 py-1">
+                      <span class="font-semibold text-gray-500">{{ detail.label }} :</span>
+                      <span class="ml-1 text-gray-800">{{ detail.value }}</span>
+                    </div>
+                  </div>
+                  <span v-else class="text-xs text-gray-400">Aucun dÃ©tail supplÃ©mentaire</span>
+
+                  <details v-if="hasPayload(item)" class="mt-2 text-xs text-gray-500">
+                    <summary class="cursor-pointer font-semibold text-cyan-700">Voir toutes les donnÃ©es</summary>
+                    <pre class="mt-2 max-h-72 max-w-xl overflow-auto rounded-xl bg-slate-950 p-3 text-[11px] leading-5 text-slate-100">{{ formatPayload(item.payload) }}</pre>
+                  </details>
+                </td>
+
+                <td class="px-4 py-3 text-center">
+                  <span class="rounded-full px-2 py-1 text-xs font-bold" :class="statusClass(item.status)">
+                    {{ statusText(item.status) }}
+                  </span>
+                </td>
+
+                <td class="px-4 py-3 text-xs text-gray-500">
+                  <div class="font-mono">{{ item.ip || '-' }}</div>
+                  <div v-if="item.method || item.path" class="mt-1 max-w-[190px] truncate font-mono text-[11px] text-gray-400">
+                    {{ item.method || '' }} {{ item.path || '' }}
+                  </div>
+                </td>
+              </tr>
+
+              <tr v-if="filteredActivites.length === 0">
+                <td colspan="8" class="px-4 py-12 text-center text-sm text-gray-400">
+                  Aucune activitÃ© trouvÃ©e
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <AppPagination v-if="pageMeta.total > 0" :meta="pageMeta" label="activitÃ©s" @page="page = $event" />
       </div>
-    </div>
-
-    <div v-if="loading" class="rounded-lg bg-white p-12 text-center text-gray-500">
-      Chargement du journal...
-    </div>
-
-    <div v-else class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
-      <div class="overflow-x-auto">
-        <table class="w-full">
-          <thead class="border-b border-gray-200 bg-gray-50">
-            <tr>
-              <SortableTh column="date" :active="sort.key === 'date'" :icon="sortIcon('date')" @sort="toggleSort">Date</SortableTh>
-              <SortableTh column="utilisateur" :active="sort.key === 'utilisateur'" :icon="sortIcon('utilisateur')" @sort="toggleSort">Utilisateur</SortableTh>
-              <SortableTh column="activite" :active="sort.key === 'activite'" :icon="sortIcon('activite')" @sort="toggleSort">Activité</SortableTh>
-              <SortableTh column="reference" :active="sort.key === 'reference'" :icon="sortIcon('reference')" @sort="toggleSort">Référence</SortableTh>
-              <SortableTh column="statut" :active="sort.key === 'statut'" :icon="sortIcon('statut')" align="center" @sort="toggleSort">Statut</SortableTh>
-              <SortableTh column="ip" :active="sort.key === 'ip'" :icon="sortIcon('ip')" @sort="toggleSort">IP</SortableTh>
-            </tr>
-          </thead>
-
-          <tbody class="divide-y divide-gray-100">
-            <tr v-for="(item, index) in paginatedActivites" :key="`${item.date}-${index}`" class="hover:bg-gray-50">
-              <td class="whitespace-nowrap px-4 py-3 text-sm text-gray-600">{{ item.date || '-' }}</td>
-              <td class="px-4 py-3">
-                <div class="text-sm font-semibold text-gray-900">{{ item.user_name || 'Invité' }}</div>
-                <div class="text-xs text-gray-500">{{ item.user_role || '-' }}</div>
-              </td>
-              <td class="px-4 py-3">
-                <div class="text-sm font-medium text-gray-900">{{ item.title || item.action || '-' }}</div>
-                <div class="mt-1 text-xs uppercase tracking-wide text-cyan-700">{{ item.category || 'activité' }}</div>
-                <div v-if="item.description" class="mt-1 text-xs text-gray-500">{{ item.description }}</div>
-                <div v-if="item.error" class="mt-1 text-xs text-red-600">{{ item.error }}</div>
-              </td>
-              <td class="px-4 py-3">
-                <div class="font-mono text-xs text-gray-600">{{ item.reference || '-' }}</div>
-                <div v-if="item.amount !== null && item.amount !== undefined" class="mt-1 text-sm font-semibold text-gray-900">
-                  {{ formatAmount(item.amount) }}
-                </div>
-                <details v-if="hasPayload(item)" class="mt-1 text-xs text-gray-500">
-                  <summary class="cursor-pointer text-cyan-700">Détails</summary>
-                  <pre class="mt-2 max-w-xl overflow-x-auto rounded bg-gray-50 p-2">{{ formatPayload(item.payload) }}</pre>
-                </details>
-              </td>
-              <td class="px-4 py-3 text-center">
-                <span class="rounded-full px-2 py-1 text-xs font-bold" :class="statusClass(item.status)">
-                  {{ item.status || '-' }}
-                </span>
-              </td>
-              <td class="whitespace-nowrap px-4 py-3 font-mono text-xs text-gray-600">{{ item.ip || '-' }}</td>
-            </tr>
-
-            <tr v-if="filteredActivites.length === 0">
-              <td colspan="6" class="px-4 py-12 text-center text-sm text-gray-400">
-                Aucune activité trouvée
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <AppPagination v-if="pageMeta.total > 0" :meta="pageMeta" label="activités" @page="page = $event" />
-    </div>
+    </template>
   </div>
 </template>
 
@@ -110,15 +183,36 @@ import AppPagination from '@/components/AppPagination.vue'
 import SortableTh from '@/components/SortableTh.vue'
 import { useToast } from '@/composables/useToast'
 import { useTableSort } from '@/composables/useTableSort'
+import { useAuthStore } from '@/stores/auth'
 
 const toast = useToast()
+const auth = useAuthStore()
 const loading = ref(false)
 const activites = ref([])
 const logFile = ref('')
-const filters = reactive({ search: '', status: '' })
+const apiCategories = ref([])
+const apiUsers = ref([])
+const filters = reactive({ search: '', status: '', category: '', user_id: '', date_from: '', date_to: '' })
 const page = ref(1)
 const perPage = 25
 const { sort, toggleSort, sortIcon, sortedRows } = useTableSort('date', 'desc')
+
+const canSeeActivities = computed(() => ['admin', 'gerant'].includes(auth.user?.role))
+
+const availableCategories = computed(() => {
+  const values = new Set(apiCategories.value)
+  activites.value.forEach(item => item.category && values.add(item.category))
+  return Array.from(values).sort((a, b) => categoryLabel(a).localeCompare(categoryLabel(b)))
+})
+
+const availableUsers = computed(() => {
+  const map = new Map()
+  apiUsers.value.forEach(user => user?.id && map.set(String(user.id), user))
+  activites.value.forEach((item) => {
+    if (item.user_id) map.set(String(item.user_id), { id: item.user_id, name: item.user_name || `Utilisateur ${item.user_id}`, role: item.user_role })
+  })
+  return Array.from(map.values()).sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')))
+})
 
 const filteredActivites = computed(() => {
   const search = filters.search.trim().toLowerCase()
@@ -130,23 +224,13 @@ const filteredActivites = computed(() => {
       || (filters.status === 'error' && status >= 400)
 
     if (!statusOk) return false
+    if (filters.category && item.category !== filters.category) return false
+    if (filters.user_id && String(item.user_id || '') !== String(filters.user_id)) return false
+    if (filters.date_from && dateOnly(item.date) < filters.date_from) return false
+    if (filters.date_to && dateOnly(item.date) > filters.date_to) return false
     if (!search) return true
 
-    return [
-      item.date,
-      item.user_name,
-      item.user_role,
-      item.category,
-      item.event,
-      item.title,
-      item.description,
-      item.reference,
-      item.action,
-      item.method,
-      item.path,
-      item.ip,
-      item.error,
-    ].some(value => String(value || '').toLowerCase().includes(search))
+    return searchableValues(item).some(value => String(value || '').toLowerCase().includes(search))
   })
 })
 
@@ -155,8 +239,9 @@ const errorCount = computed(() => filteredActivites.value.filter(item => Number(
 const sortedActivites = computed(() => sortedRows(filteredActivites.value, {
   date: 'date',
   utilisateur: (item) => item.user_name || '',
+  categorie: (item) => categoryLabel(item.category),
   activite: (item) => item.title || item.action || '',
-  reference: 'reference',
+  reference: (item) => item.subject_label || item.reference || '',
   statut: (item) => Number(item.status || 0),
   ip: 'ip',
 }))
@@ -177,25 +262,111 @@ const pageMeta = computed(() => {
 })
 
 async function loadActivites() {
+  if (!canSeeActivities.value) return
+
   loading.value = true
   try {
-    const { data } = await api.get('/activites', { params: { limit: 500 } })
+    const { data } = await api.get('/activites', { params: { limit: 1000 } })
     activites.value = data.data || []
+    apiCategories.value = data.categories || []
+    apiUsers.value = data.users || []
     logFile.value = data.file || ''
     page.value = 1
   } catch (e) {
-    toast.error(e.response.data.message || 'Impossible de charger les activités')
+    toast.error(e.response?.data?.message || 'Impossible de charger les activitÃ©s')
   } finally {
     loading.value = false
   }
 }
 
-function statusClass(status) {
-  const code = Number(status || 0)
-  if (code >= 500) return 'bg-red-100 text-red-700'
-  if (code >= 400) return 'bg-orange-100 text-orange-700'
-  if (code >= 300) return 'bg-blue-100 text-blue-700'
-  return 'bg-green-100 text-green-700'
+function searchableValues(item) {
+  return [
+    item.date,
+    item.user_name,
+    item.user_role,
+    item.category,
+    item.event,
+    item.title,
+    item.description,
+    item.reference,
+    item.subject_label,
+    subjectTypeLabel(item.subject_type),
+    item.action,
+    item.method,
+    item.path,
+    item.ip,
+    item.error,
+    JSON.stringify(item.payload || {}),
+  ]
+}
+
+function detailsFor(item) {
+  const details = []
+  const payload = item.payload || {}
+  const metadata = item.metadata || payload.metadata || {}
+
+  appendObjectDetails(details, metadata, 'Meta')
+
+  Object.entries(payload).forEach(([key, value]) => {
+    if (key === 'metadata') return
+    appendValueDetail(details, key, value)
+  })
+
+  return uniqueDetails(details)
+}
+
+function appendObjectDetails(details, object, prefix = '') {
+  if (!object || typeof object !== 'object' || Array.isArray(object)) return
+
+  Object.entries(object).forEach(([key, value]) => {
+    appendValueDetail(details, prefix ? `${prefix} ${key}` : key, value)
+  })
+}
+
+function appendValueDetail(details, key, value) {
+  if (value === null || value === undefined || value === '') return
+
+  if (Array.isArray(value)) {
+    details.push({ label: humanizeKey(key), value: `${value.length} Ã©lÃ©ment(s)` })
+    return
+  }
+
+  if (typeof value === 'object') {
+    const entries = Object.entries(value).filter(([, child]) => child !== null && child !== undefined && child !== '')
+    const short = entries.slice(0, 3).map(([childKey, childValue]) => `${humanizeKey(childKey)}: ${formatShortValue(childValue)}`).join(' Â· ')
+    details.push({ label: humanizeKey(key), value: short || 'Objet renseignÃ©' })
+    return
+  }
+
+  details.push({ label: humanizeKey(key), value: formatShortValue(value) })
+}
+
+function uniqueDetails(details) {
+  const seen = new Set()
+  return details.filter((detail) => {
+    const key = `${detail.label}:${detail.value}`
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+}
+
+function humanizeKey(key) {
+  return String(key || '')
+    .replace(/_/g, ' ')
+    .replace(/\bid\b/gi, 'ID')
+    .replace(/\bttc\b/gi, 'TTC')
+    .replace(/\bht\b/gi, 'HT')
+    .replace(/\btva\b/gi, 'TVA')
+    .replace(/^./, char => char.toUpperCase())
+}
+
+function formatShortValue(value) {
+  if (value === true) return 'Oui'
+  if (value === false) return 'Non'
+  if (typeof value === 'number') return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 }).format(value)
+  const text = String(value)
+  return text.length > 90 ? `${text.slice(0, 87)}...` : text
 }
 
 function hasPayload(item) {
@@ -208,6 +379,112 @@ function formatPayload(payload) {
 
 function formatAmount(amount) {
   return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(Number(amount || 0))
+}
+
+function dateOnly(value) {
+  if (!value) return ''
+  return String(value).slice(0, 10)
+}
+
+function formatDate(value) {
+  if (!value) return '-'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return String(value).slice(0, 10)
+  return new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(date)
+}
+
+function formatTime(value) {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return String(value).slice(11, 16)
+  return new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' }).format(date)
+}
+
+function statusText(status) {
+  const code = Number(status || 0)
+  if (!code) return '-'
+  if (code >= 500) return `${code} Erreur`
+  if (code >= 400) return `${code} RejetÃ©e`
+  if (code >= 300) return `${code} Redirection`
+  return `${code} OK`
+}
+
+function statusClass(status) {
+  const code = Number(status || 0)
+  if (code >= 500) return 'bg-red-100 text-red-700'
+  if (code >= 400) return 'bg-orange-100 text-orange-700'
+  if (code >= 300) return 'bg-blue-100 text-blue-700'
+  return 'bg-green-100 text-green-700'
+}
+
+function categoryLabel(category) {
+  return {
+    achat: 'Achat',
+    client: 'Client',
+    caisse: 'Caisse',
+    depense: 'DÃ©pense',
+    devis: 'Devis',
+    facture: 'Facture',
+    general: 'GÃ©nÃ©ral',
+    leasing: 'Leasing',
+    paiement: 'Paiement',
+    prospection: 'Prospection',
+    rh: 'RH',
+    stock: 'Stock',
+    utilisateur: 'Utilisateur',
+  }[category] || humanizeKey(category || 'activitÃ©')
+}
+
+function categoryClass(category) {
+  if (String(category || '').startsWith('rh')) return 'bg-purple-100 text-purple-700'
+  return {
+    achat: 'bg-orange-100 text-orange-700',
+    client: 'bg-cyan-100 text-cyan-700',
+    caisse: 'bg-green-100 text-green-700',
+    depense: 'bg-red-100 text-red-700',
+    devis: 'bg-blue-100 text-blue-700',
+    facture: 'bg-indigo-100 text-indigo-700',
+    general: 'bg-slate-100 text-slate-700',
+    leasing: 'bg-violet-100 text-violet-700',
+    paiement: 'bg-emerald-100 text-emerald-700',
+    prospection: 'bg-sky-100 text-sky-700',
+    stock: 'bg-amber-100 text-amber-700',
+  }[category] || 'bg-gray-100 text-gray-700'
+}
+
+function subjectTypeLabel(subjectType) {
+  if (!subjectType) return ''
+  const name = String(subjectType).split('\\').pop()
+  return {
+    AchatCommande: 'Bon de commande fournisseur',
+    AchatDemande: 'Demande achat',
+    CaisseMouvement: 'Mouvement caisse',
+    CaisseSession: 'Session caisse',
+    Client: 'Client/Fournisseur',
+    Depense: 'DÃ©pense',
+    Devis: 'Devis',
+    Facture: 'Facture',
+    FournisseurFacture: 'Facture fournisseur',
+    FournisseurReglement: 'RÃ¨glement fournisseur',
+    LeasingContrat: 'Contrat leasing',
+    LeasingImprimante: 'Imprimante leasing',
+    LeasingIntervention: 'Intervention leasing',
+    LeasingReleve: 'RelevÃ© leasing',
+    Paiement: 'Paiement',
+    Produit: 'Produit',
+    User: 'Utilisateur',
+  }[name] || name
+}
+
+function roleLabel(role) {
+  return {
+    admin: 'Administrateur',
+    gerant: 'GÃ©rant',
+    commercial: 'Commercial',
+    magasinier: 'Gestionnaire de stock',
+    comptable: 'Comptable',
+    caissier: 'Caissier',
+  }[role] || role || '-'
 }
 
 onMounted(loadActivites)
