@@ -142,6 +142,7 @@
             :value="formatPrice(compte.solde_actuel)"
             suffix="XOF"
             :icon="compte.icon"
+            :icon-image="compte.iconImage"
             :color="compte.color"
             :sub="compte.sub"
             to="/tresorerie-comptes"
