@@ -4,8 +4,8 @@
       Chargement du tableau de bord...
     </div>
 
-    <div v-else class="space-y-4">
-      <div class="rounded-lg bg-gradient-to-r from-xelltekk-700 to-xelltekk-900 px-4 py-3 text-white shadow-sm sm:px-5">
+    <div v-else class="dashboard-page space-y-4">
+      <div class="dashboard-hero rounded-lg px-4 py-3 text-white shadow-sm sm:px-5">
         <div class="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h2 class="text-lg font-bold">Bonjour {{ userName }}</h2>
@@ -376,7 +376,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, h, resolveComponent } from 'vue'
+import { ref, computed, onMounted, h, resolveComponent, watch } from 'vue'
 import { Line } from 'vue-chartjs'
 import {
   ArrowRightLeft,
@@ -391,6 +391,7 @@ import {
   TriangleAlert,
   TrendingUp,
   UsersRound,
+  Smartphone,
   Wallet,
 } from 'lucide-vue-next'
 import {
@@ -401,11 +402,13 @@ import api from '@/services/api'
 import { ouvrirPDF } from '@/services/pdf'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
+import { useTheme } from '@/composables/useTheme'
 
 ChartJS.register(Title, Tooltip, Legend, CategoryScale, LinearScale, PointElement, LineElement, Filler)
 
 const auth = useAuthStore()
 const toast = useToast()
+const { themeId } = useTheme()
 
 const loading = ref(true)
 const dashboardScope = ref('business')
@@ -472,45 +475,31 @@ const KpiCard = {
   props: ['label', 'value', 'suffix', 'icon', 'iconImage', 'iconComponent', 'color', 'sub', 'to'],
   setup(props) {
     const RouterLink = resolveComponent('RouterLink')
-    const bgClass = {
-      green: 'bg-green-50 text-green-700 border-green-200 dark:bg-green-950/30 dark:text-green-300 dark:border-green-500/30',
-      blue: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/30 dark:text-blue-300 dark:border-blue-500/30',
-      orange: 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950/30 dark:text-orange-300 dark:border-orange-500/30',
-      purple: 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/30 dark:text-purple-300 dark:border-purple-500/30',
-      red: 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950/30 dark:text-red-300 dark:border-red-500/30',
-      cyan: 'bg-cyan-50 text-cyan-700 border-cyan-200 dark:bg-cyan-950/30 dark:text-cyan-300 dark:border-cyan-500/30',
-      slate: 'bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700',
-    }[props.color] || 'bg-gray-50 text-gray-700 border-gray-200 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700'
+    const toneClass = dashboardToneClass(props.color)
+
+    const iconNode = () => h('span', { class: 'dashboard-kpi-icon' }, [
+      props.iconComponent
+        ? h(props.iconComponent, { class: 'h-6 w-6', strokeWidth: 2.3, 'aria-hidden': 'true' })
+        : h('span', { class: 'dashboard-kpi-icon-text' }, props.icon || 'SL'),
+    ])
 
     const children = () => [
-        h('div', { class: 'mb-1 flex items-center justify-between' }, [
-          h('span', { class: 'text-xs font-semibold uppercase opacity-75' }, props.label),
-          props.iconImage
-            ? h('img', {
-              src: props.iconImage,
-              alt: props.label,
-              class: props.iconImage.includes('/images/payment/')
-                ? 'h-12 w-12 rounded-full bg-white object-contain p-1.5 shadow-sm ring-1 ring-black/5'
-                : props.iconImage.includes('/images/dashboard/')
-                  ? 'h-12 w-12 rounded-full object-contain drop-shadow-sm'
-                  : 'h-8 w-8 rounded-xl bg-white object-contain p-1 shadow-sm ring-1 ring-black/5',
-            })
-            : props.iconComponent
-              ? h(props.iconComponent, { class: 'h-6 w-6 opacity-80', strokeWidth: 2.2, 'aria-hidden': 'true' })
-              : h('span', { class: 'text-sm font-bold opacity-80' }, props.icon),
+        h('div', { class: 'mb-2 flex items-center justify-between gap-3' }, [
+          h('span', { class: 'dashboard-kpi-label text-xs font-semibold uppercase' }, props.label),
+          iconNode(),
         ]),
         h('div', { class: 'flex items-baseline gap-1' }, [
-          h('span', { class: 'text-xl font-bold' }, props.value),
-          props.suffix ? h('span', { class: 'text-xs opacity-75' }, props.suffix) : null,
+          h('span', { class: 'dashboard-kpi-value text-xl font-bold' }, props.value),
+          props.suffix ? h('span', { class: 'dashboard-kpi-suffix text-xs' }, props.suffix) : null,
         ]),
-        props.sub ? h('div', { class: 'mt-0.5 text-xs opacity-75' }, props.sub) : null,
+        props.sub ? h('div', { class: 'dashboard-kpi-sub mt-0.5 text-xs' }, props.sub) : null,
       ]
 
     return () => h(
       props.to ? RouterLink : 'div',
       {
         ...(props.to ? { to: props.to } : {}),
-        class: `block rounded-lg border p-3 transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-xelltekk-400 ${bgClass}`,
+        class: `dashboard-kpi-card ${toneClass} block rounded-lg border p-3 transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-xelltekk-400`,
       },
       props.to ? { default: children } : children()
     )
@@ -581,11 +570,11 @@ async function loadDashboard() {
         datasets: [{
           label: 'CA',
           data: data.ca_mensuel.data,
-          borderColor: '#1e40af',
-          backgroundColor: 'rgba(30, 64, 175, 0.1)',
+          borderColor: dashboardThemeColor('--saytu-brand-from', '#2563eb'),
+          backgroundColor: dashboardThemeAlpha('--saytu-brand-from', 0.12, '#2563eb'),
           fill: true,
           tension: 0.3,
-          pointBackgroundColor: '#1e40af',
+          pointBackgroundColor: dashboardThemeColor('--saytu-brand-to', '#22d3ee'),
           pointRadius: 4,
           pointHoverRadius: 6,
         }],
@@ -709,7 +698,7 @@ function modePaiementIconImage(label) {
 }
 function modePaiementIconComponent(label) {
   const slug = modePaiementSlug(label)
-  if (slug.includes('wave') || slug.includes('orange') || slug.includes('free_money') || slug.includes('yas')) return null
+  if (slug.includes('wave') || slug.includes('orange') || slug.includes('free_money') || slug.includes('yas') || slug.includes('mobile_money')) return Smartphone
   if (slug.includes('banque') || slug.includes('bank')) return Landmark
   if (slug.includes('caisse') || slug.includes('especes')) return Banknote
   if (slug.includes('virement') || slug.includes('compensation')) return ArrowRightLeft
@@ -721,20 +710,60 @@ function modePaiementColor(label, index) {
   const slug = modePaiementSlug(label)
   const map = {
     especes: 'blue',
-    wave: 'green',
+    caisse: 'blue',
+    banque: 'orange',
     virement: 'orange',
-    orange_money: 'red',
-    compensation: 'purple',
-    cheque: 'slate',
-    carte: 'cyan',
-    carte_bancaire: 'cyan',
-    free_money: 'purple',
-    yas: 'purple',
+    wave: 'green',
+    orange_money: 'orange',
+    orange: 'orange',
+    om: 'orange',
+    compensation: 'green',
+    cheque: 'blue',
+    carte: 'blue',
+    carte_bancaire: 'blue',
+    free_money: 'green',
+    yas: 'green',
     mobile_money: 'green',
   }
-  const fallback = ['blue', 'green', 'orange', 'red', 'purple', 'cyan', 'slate']
+  const fallback = ['blue', 'green', 'orange']
 
   return map[slug] || fallback[index % fallback.length]
+}
+
+function dashboardToneClass(color) {
+  return {
+    green: 'dashboard-tone-1',
+    blue: 'dashboard-tone-2',
+    cyan: 'dashboard-tone-2',
+    orange: 'dashboard-tone-3',
+    red: 'dashboard-tone-3',
+    purple: 'dashboard-tone-1',
+    slate: 'dashboard-tone-3',
+  }[color] || 'dashboard-tone-1'
+}
+
+function dashboardThemeColor(variable, fallback) {
+  if (typeof window === 'undefined') return fallback
+  return getComputedStyle(document.documentElement).getPropertyValue(variable).trim() || fallback
+}
+
+function dashboardThemeAlpha(variable, alpha = 0.12, fallback = '#2563eb') {
+  const color = dashboardThemeColor(variable, fallback)
+  const hex = color.replace('#', '').trim()
+  if (!/^[0-9a-f]{6}$/i.test(hex)) return color
+  const r = parseInt(hex.slice(0, 2), 16)
+  const g = parseInt(hex.slice(2, 4), 16)
+  const b = parseInt(hex.slice(4, 6), 16)
+  return 'rgba(' + r + ', ' + g + ', ' + b + ', ' + alpha + ')'
+}
+
+function refreshChartTheme() {
+  const dataset = caChartData.value?.datasets?.[0]
+  if (!dataset) return
+  dataset.borderColor = dashboardThemeColor('--saytu-brand-from', '#2563eb')
+  dataset.backgroundColor = dashboardThemeAlpha('--saytu-brand-from', 0.12, '#2563eb')
+  dataset.pointBackgroundColor = dashboardThemeColor('--saytu-brand-to', '#22d3ee')
+  caChartData.value = { ...caChartData.value, datasets: [{ ...dataset }] }
 }
 
 function formatPrice(value) {
@@ -758,28 +787,26 @@ function formatDateTime(value) {
 }
 
 function rangColor(index) {
-  return {
-    0: 'bg-yellow-400 text-yellow-950',
-    1: 'bg-gray-300 text-gray-800',
-    2: 'bg-orange-400 text-orange-950',
-  }[index] || 'bg-gray-100 text-gray-600'
+  return ['dashboard-rank dashboard-tone-1', 'dashboard-rank dashboard-tone-2', 'dashboard-rank dashboard-tone-3'][index % 3]
 }
 
 function mouvementTypeClass(type) {
   return {
-    entree: 'text-green-700 dark:text-green-300',
-    sortie: 'text-red-700 dark:text-red-300',
-    ajustement: 'text-blue-700 dark:text-blue-300',
-  }[type] || 'text-gray-800 dark:text-slate-200'
+    entree: 'dashboard-text-tone-1',
+    sortie: 'dashboard-text-tone-3',
+    ajustement: 'dashboard-text-tone-2',
+  }[type] || 'dashboard-text-tone-3'
 }
 
 function progressColor(percent) {
-  if (percent === null || percent === undefined) return { bar: 'bg-slate-400', text: 'text-slate-500 dark:text-slate-300' }
-  if (percent >= 100) return { bar: 'bg-green-500', text: 'text-green-700 dark:text-green-300' }
-  if (percent >= 70) return { bar: 'bg-blue-500', text: 'text-blue-700 dark:text-blue-300' }
-  if (percent >= 40) return { bar: 'bg-orange-500', text: 'text-orange-700 dark:text-orange-300' }
-  return { bar: 'bg-red-500', text: 'text-red-700 dark:text-red-300' }
+  if (percent === null || percent === undefined) return { bar: 'dashboard-progress-tone-3', text: 'dashboard-text-tone-3' }
+  if (percent >= 100) return { bar: 'dashboard-progress-tone-1', text: 'dashboard-text-tone-1' }
+  if (percent >= 70) return { bar: 'dashboard-progress-tone-2', text: 'dashboard-text-tone-2' }
+  if (percent >= 40) return { bar: 'dashboard-progress-tone-3', text: 'dashboard-text-tone-3' }
+  return { bar: 'dashboard-progress-tone-3', text: 'dashboard-text-tone-3' }
 }
+
+watch(themeId, () => refreshChartTheme())
 
 onMounted(() => loadDashboard())
 </script>
