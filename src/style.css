@@ -110,6 +110,106 @@
     --saytu-primary-hover: #059669;
     --saytu-focus: #34d399;
   }
+
+  html[data-theme='login-aqua'] {
+    --saytu-shell-bg: #14384a;
+    --saytu-shell-text: #e0f2fe;
+    --saytu-surface: #ffffff;
+    --saytu-topbar: rgb(255 255 255 / 0.9);
+    --saytu-border: #bae6fd;
+    --saytu-topbar-title: #082f49;
+    --saytu-topbar-subtitle: #0f6f8f;
+    --saytu-sidebar-from: #12344a;
+    --saytu-sidebar-via: #0f4c81;
+    --saytu-sidebar-to: #0e7490;
+    --saytu-brand-from: #0ea5e9;
+    --saytu-brand-to: #2dd4bf;
+    --saytu-primary: #0ea5e9;
+    --saytu-primary-hover: #0284c7;
+    --saytu-focus: #22d3ee;
+    --saytu-shell-glow-a: rgb(34 211 238 / 0.28);
+    --saytu-shell-glow-b: rgb(14 165 233 / 0.22);
+  }
+
+  html[data-theme='ocean-business'] {
+    --saytu-shell-bg: #e0f7ff;
+    --saytu-shell-text: #0f3442;
+    --saytu-surface: #ffffff;
+    --saytu-topbar: rgb(240 253 255 / 0.92);
+    --saytu-border: #a5f3fc;
+    --saytu-topbar-title: #0f3a4a;
+    --saytu-topbar-subtitle: #3f6470;
+    --saytu-sidebar-from: #0f3a4a;
+    --saytu-sidebar-via: #0e7490;
+    --saytu-sidebar-to: #075985;
+    --saytu-brand-from: #0284c7;
+    --saytu-brand-to: #06b6d4;
+    --saytu-primary: #0891b2;
+    --saytu-primary-hover: #0e7490;
+    --saytu-focus: #06b6d4;
+    --saytu-shell-glow-a: rgb(6 182 212 / 0.2);
+    --saytu-shell-glow-b: rgb(14 116 144 / 0.14);
+  }
+
+  html[data-theme='emerald-finance'] {
+    --saytu-shell-bg: #ecfdf5;
+    --saytu-shell-text: #064e3b;
+    --saytu-surface: #ffffff;
+    --saytu-topbar: rgb(240 253 244 / 0.92);
+    --saytu-border: #bbf7d0;
+    --saytu-topbar-title: #064e3b;
+    --saytu-topbar-subtitle: #34745c;
+    --saytu-sidebar-from: #052e16;
+    --saytu-sidebar-via: #064e3b;
+    --saytu-sidebar-to: #065f46;
+    --saytu-brand-from: #10b981;
+    --saytu-brand-to: #84cc16;
+    --saytu-primary: #059669;
+    --saytu-primary-hover: #047857;
+    --saytu-focus: #10b981;
+    --saytu-shell-glow-a: rgb(16 185 129 / 0.18);
+    --saytu-shell-glow-b: rgb(132 204 22 / 0.14);
+  }
+
+  html[data-theme='amber-premium'] {
+    --saytu-shell-bg: #fff7ed;
+    --saytu-shell-text: #431407;
+    --saytu-surface: #ffffff;
+    --saytu-topbar: rgb(255 247 237 / 0.94);
+    --saytu-border: #fed7aa;
+    --saytu-topbar-title: #7c2d12;
+    --saytu-topbar-subtitle: #9a4b1d;
+    --saytu-sidebar-from: #431407;
+    --saytu-sidebar-via: #7c2d12;
+    --saytu-sidebar-to: #9a3412;
+    --saytu-brand-from: #f97316;
+    --saytu-brand-to: #facc15;
+    --saytu-primary: #ea580c;
+    --saytu-primary-hover: #c2410c;
+    --saytu-focus: #f97316;
+    --saytu-shell-glow-a: rgb(249 115 22 / 0.18);
+    --saytu-shell-glow-b: rgb(250 204 21 / 0.16);
+  }
+
+  html[data-theme='violet-direction'] {
+    --saytu-shell-bg: #f5f3ff;
+    --saytu-shell-text: #2e1065;
+    --saytu-surface: #ffffff;
+    --saytu-topbar: rgb(250 245 255 / 0.92);
+    --saytu-border: #ddd6fe;
+    --saytu-topbar-title: #2e1065;
+    --saytu-topbar-subtitle: #65459d;
+    --saytu-sidebar-from: #2e1065;
+    --saytu-sidebar-via: #4c1d95;
+    --saytu-sidebar-to: #6d28d9;
+    --saytu-brand-from: #7c3aed;
+    --saytu-brand-to: #22d3ee;
+    --saytu-primary: #7c3aed;
+    --saytu-primary-hover: #6d28d9;
+    --saytu-focus: #8b5cf6;
+    --saytu-shell-glow-a: rgb(124 58 237 / 0.18);
+    --saytu-shell-glow-b: rgb(34 211 238 / 0.14);
+  }
 }
 
 @layer components {
@@ -126,8 +226,8 @@
     background-color: var(--saytu-shell-bg, #f4f7fb) !important;
     color: var(--saytu-shell-text, #334155);
     background-image:
-      radial-gradient(circle at top left, rgb(59 130 246 / 0.14), transparent 28%),
-      radial-gradient(circle at top right, rgb(34 211 238 / 0.12), transparent 24%);
+      radial-gradient(circle at top left, var(--saytu-shell-glow-a, rgb(59 130 246 / 0.14)), transparent 28%),
+      radial-gradient(circle at top right, var(--saytu-shell-glow-b, rgb(34 211 238 / 0.12)), transparent 24%);
   }
   .app-sidebar {
     background-image: linear-gradient(
@@ -162,15 +262,26 @@
     box-shadow: 0 16px 50px rgb(15 23 42 / 0.06);
   }
   html[data-theme='saytu-light'] .app-surface,
-  html[data-theme='blue-pro'] .app-surface {
+  html[data-theme='blue-pro'] .app-surface,
+  html[data-theme='login-aqua'] .app-surface,
+  html[data-theme='ocean-business'] .app-surface,
+  html[data-theme='emerald-finance'] .app-surface,
+  html[data-theme='amber-premium'] .app-surface,
+  html[data-theme='violet-direction'] .app-surface {
     color: #0f172a;
   }
   html[data-theme] .btn-primary {
-    background-color: var(--saytu-primary, #2563eb);
+    background-color: var(--saytu-primary, #2563eb) !important;
+    background-image: linear-gradient(
+      to right,
+      var(--saytu-brand-from, #3b82f6),
+      var(--saytu-brand-to, #22d3ee)
+    ) !important;
   }
   html[data-theme] .btn-primary:hover {
-    background-color: var(--saytu-primary-hover, #1d4ed8);
+    background-color: var(--saytu-primary-hover, #1d4ed8) !important;
     box-shadow: 0 4px 12px rgb(15 23 42 / 0.16);
+    filter: brightness(0.96);
   }
   .btn-secondary {
     @apply btn bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300;

@@ -31,6 +31,41 @@ export const themes = [
     mode: 'dark',
     swatches: ['#07130f', '#10b981', '#f8fafc'],
   },
+  {
+    id: 'login-aqua',
+    name: 'Connexion Aqua',
+    description: 'Bleu et cyan inspires du login',
+    mode: 'light',
+    swatches: ['#14384a', '#0ea5e9', '#22d3ee'],
+  },
+  {
+    id: 'ocean-business',
+    name: 'Ocean Business',
+    description: 'Bleu profond et turquoise calme',
+    mode: 'light',
+    swatches: ['#e0f7ff', '#0284c7', '#0f3a4a'],
+  },
+  {
+    id: 'emerald-finance',
+    name: 'Vert Finance',
+    description: 'Ambiance claire pour tresorerie',
+    mode: 'light',
+    swatches: ['#ecfdf5', '#10b981', '#064e3b'],
+  },
+  {
+    id: 'amber-premium',
+    name: 'Ambre Premium',
+    description: 'Tons chauds et professionnels',
+    mode: 'light',
+    swatches: ['#fff7ed', '#f97316', '#7c2d12'],
+  },
+  {
+    id: 'violet-direction',
+    name: 'Violet Direction',
+    description: 'Violet moderne pour pilotage',
+    mode: 'light',
+    swatches: ['#f5f3ff', '#7c3aed', '#2e1065'],
+  },
 ]
 
 const themeId = ref(readInitialTheme())

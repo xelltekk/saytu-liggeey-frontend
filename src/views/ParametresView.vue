@@ -25,7 +25,7 @@
           <h3 class="font-semibold text-gray-900">Apparence</h3>
         </div>
         <div class="p-5">
-          <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+          <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
             <button
               v-for="theme in themes"
               :key="theme.id"
