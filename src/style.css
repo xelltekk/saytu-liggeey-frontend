@@ -323,16 +323,26 @@
     --dashboard-tone-2: var(--saytu-brand-to, #22d3ee);
     --dashboard-tone-3: var(--saytu-sidebar-from, #0f172a);
   }
+  .theme-hero,
   .dashboard-hero {
     background-color: var(--saytu-sidebar-via, #1e293b) !important;
     background-image:
-      radial-gradient(circle at top right, color-mix(in srgb, var(--dashboard-tone-2) 34%, transparent), transparent 28%),
+      radial-gradient(circle at top right, color-mix(in srgb, var(--saytu-brand-to, #22d3ee) 34%, transparent), transparent 28%),
       linear-gradient(
         to right,
         var(--saytu-sidebar-from, #0f172a),
         var(--saytu-sidebar-via, #1e293b),
         var(--saytu-sidebar-to, #0f172a)
       ) !important;
+  }
+  .theme-hero-action {
+    background-color: rgb(255 255 255 / 0.92);
+    color: var(--saytu-sidebar-via, #1e293b);
+    box-shadow: 0 10px 24px rgb(15 23 42 / 0.12);
+  }
+  .theme-hero-action:hover {
+    background-color: #ffffff;
+    color: var(--saytu-sidebar-from, #0f172a);
   }
   .dashboard-tone-1 {
     --dashboard-card-color: var(--dashboard-tone-1);

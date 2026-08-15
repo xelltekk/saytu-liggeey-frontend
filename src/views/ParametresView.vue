@@ -7,13 +7,13 @@
 
     <div v-else class="space-y-5 max-w-5xl mx-auto">
       <!-- Bandeau intro -->
-      <div class="bg-gradient-to-r from-xelltekk-700 to-xelltekk-900 rounded-lg p-5 text-white shadow-sm">
+      <div class="theme-hero rounded-lg p-5 text-white shadow-sm">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 class="text-xl font-bold">⚙️ Paramètres de la société</h2>
-            <p class="text-sm text-xelltekk-100 mt-1">Ces informations apparaîtront sur tous vos PDF (factures, devis...).</p>
+            <p class="mt-1 text-sm text-white/85">Ces informations apparaîtront sur tous vos PDF (factures, devis...).</p>
           </div>
-          <button @click="ouvrirApercu" class="bg-white text-xelltekk-700 font-semibold px-4 py-2 rounded hover:bg-xelltekk-50 transition" :disabled="!apercuPossible">
+          <button @click="ouvrirApercu" class="theme-hero-action font-semibold px-4 py-2 rounded transition" :disabled="!apercuPossible">
             👁️ Aperçu PDF
           </button>
         </div>
