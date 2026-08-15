@@ -1,85 +1,66 @@
 <template>
-  <div class="auth-shell flex items-center justify-center p-4 sm:p-6 lg:p-8">
-    <div class="auth-card relative grid w-full max-w-6xl overflow-hidden rounded-[2rem] lg:grid-cols-[1.08fr_0.92fr]">
-      <section class="auth-hero hidden flex-col justify-between p-8 text-white lg:flex xl:p-10">
-        <div>
-          <div class="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white/90 backdrop-blur">
-            <span class="h-2.5 w-2.5 rounded-full bg-emerald-400"></span>
-            ERP Xelltekk
-          </div>
+  <div class="auth-shell relative flex min-h-screen items-center justify-center overflow-hidden bg-[#14384a] px-4 py-8 sm:px-6 lg:px-8">
+    <div class="pointer-events-none absolute inset-0 opacity-95">
+      <div class="absolute -left-32 top-20 h-80 w-80 rounded-full bg-cyan-400/25 blur-3xl"></div>
+      <div class="absolute -right-24 bottom-16 h-96 w-96 rounded-full bg-blue-600/35 blur-3xl"></div>
+      <div class="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-cyan-400/25 via-blue-600/15 to-transparent"></div>
+    </div>
 
-          <div class="mt-10 max-w-xl">
-            <h1 class="text-4xl font-black leading-tight tracking-tight xl:text-5xl">
-              Une expérience plus claire, plus rapide, plus agréable.
-            </h1>
-            <p class="mt-4 max-w-lg text-base leading-7 text-slate-200 xl:text-lg">
-              Retrouvez vos ventes, achats, stock, caisse et facturation dans un espace plus lisible,
-              avec une navigation plus fluide et un meilleur confort d’utilisation.
-            </p>
+    <section class="relative w-full max-w-[430px] overflow-hidden rounded-[2rem] bg-white shadow-2xl shadow-slate-950/30">
+      <div class="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-br from-blue-600 via-cyan-400 to-teal-300"></div>
+      <div class="absolute inset-x-0 bottom-0 h-28 rounded-t-[55%] bg-white"></div>
+
+      <div class="relative px-7 pb-10 pt-9 sm:px-9">
+        <div class="mb-7 flex flex-col items-center text-center">
+          <div class="mb-4 flex h-20 w-20 items-center justify-center rounded-full border-4 border-cyan-100 bg-white shadow-lg shadow-cyan-100">
+            <img
+              v-if="logoUrl"
+              :src="logoUrl"
+              :alt="identity.nom || 'Saytu Ligg&eacute;ey 2.0'"
+              class="max-h-14 max-w-16 object-contain"
+            />
+            <UserCircle v-else class="h-12 w-12 text-blue-600" />
           </div>
+          <p class="text-sm font-bold uppercase tracking-[0.22em] text-cyan-600">Xelltekk ERP</p>
+          <h1 class="mt-2 text-2xl font-black text-slate-900">Connexion</h1>
+          <p class="mt-1 text-sm text-slate-500">Acc&eacute;dez &agrave; votre espace Saytu Ligg&eacute;ey 2.0</p>
         </div>
 
-        <div class="grid gap-3 sm:grid-cols-3">
-          <div class="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur">
-            <p class="text-xs font-semibold uppercase tracking-wide text-cyan-100">Pilotage</p>
-            <p class="mt-2 text-sm text-white/90">Vue plus lisible pour les indicateurs clés.</p>
-          </div>
-          <div class="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur">
-            <p class="text-xs font-semibold uppercase tracking-wide text-cyan-100">Rapidité</p>
-            <p class="mt-2 text-sm text-white/90">Actions plus accessibles et moins de friction.</p>
-          </div>
-          <div class="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur">
-            <p class="text-xs font-semibold uppercase tracking-wide text-cyan-100">Confort</p>
-            <p class="mt-2 text-sm text-white/90">Interface adaptée au bureau comme au mobile.</p>
-          </div>
-        </div>
-      </section>
-
-      <section class="flex items-center justify-center bg-white px-6 py-10 sm:px-10 lg:px-12 dark:bg-slate-950">
-        <div class="w-full max-w-md">
-          <div class="mb-8 text-center">
-            <div v-if="logoUrl" class="mb-5 flex justify-center">
-              <img
-                :src="logoUrl"
-                :alt="identity.nom || 'Saytu Liggéey 2.0'"
-                class="max-h-20 max-w-52 object-contain"
-              />
+        <form @submit.prevent="handleLogin" class="space-y-4">
+          <label class="block">
+            <span class="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Email</span>
+            <div class="group flex min-h-12 items-center rounded-full bg-gradient-to-r from-blue-600 to-cyan-400 p-[2px] shadow-sm transition focus-within:shadow-lg focus-within:shadow-cyan-100">
+              <div class="flex h-full min-h-11 w-full items-center rounded-full bg-white px-4">
+                <Mail class="mr-3 h-5 w-5 text-blue-600" />
+                <input
+                  v-model="form.email"
+                  type="email"
+                  class="min-w-0 flex-1 border-0 bg-transparent text-sm font-medium text-slate-900 outline-none placeholder:text-slate-400 focus:ring-0"
+                  placeholder="votre@email.com"
+                  autocomplete="username"
+                  required
+                  autofocus
+                />
+              </div>
             </div>
-            <div v-else class="mx-auto mb-5 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-xelltekk-600 to-xelltekk-700 shadow-lg">
-              <span class="text-3xl font-black text-white">X</span>
-            </div>
-            <h1 class="text-2xl font-bold text-slate-900 dark:text-white">Saytu Liggéey 2.0</h1>
-            <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">Connectez-vous à votre espace de travail.</p>
-          </div>
+          </label>
 
-          <form @submit.prevent="handleLogin" class="space-y-5">
-            <div class="space-y-1.5">
-              <label class="block text-sm font-medium text-slate-700 dark:text-slate-200">Email</label>
-              <input
-                v-model="form.email"
-                type="email"
-                class="input"
-                placeholder="votre@email.com"
-                autocomplete="username"
-                required
-                autofocus
-              />
-            </div>
-
-            <div class="space-y-1.5">
-              <label class="block text-sm font-medium text-slate-700 dark:text-slate-200">Mot de passe</label>
-              <div class="relative">
+          <label class="block">
+            <span class="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Mot de passe</span>
+            <div class="group flex min-h-12 items-center rounded-full bg-gradient-to-r from-blue-600 to-cyan-400 p-[2px] shadow-sm transition focus-within:shadow-lg focus-within:shadow-cyan-100">
+              <div class="flex h-full min-h-11 w-full items-center rounded-full bg-white px-4">
+                <LockKeyhole class="mr-3 h-5 w-5 text-blue-600" />
                 <input
                   v-model="form.password"
                   :type="showPassword ? 'text' : 'password'"
-                  class="input pr-12"
+                  class="min-w-0 flex-1 border-0 bg-transparent text-sm font-medium text-slate-900 outline-none placeholder:text-slate-400 focus:ring-0"
                   placeholder="••••••••"
                   autocomplete="current-password"
                   required
                 />
                 <button
                   type="button"
-                  class="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+                  class="ml-2 flex h-9 w-9 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
                   :title="showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'"
                   :aria-label="showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'"
                   @click="showPassword = !showPassword"
@@ -89,47 +70,49 @@
                 </button>
               </div>
             </div>
+          </label>
 
-            <label class="inline-flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+          <div class="flex items-center justify-between gap-3 text-xs text-slate-500">
+            <label class="inline-flex items-center gap-2">
               <input
                 v-model="rememberEmail"
                 type="checkbox"
-                class="rounded border-slate-300 text-xelltekk-600 focus:ring-xelltekk-500"
+                class="rounded-full border-slate-300 text-blue-600 focus:ring-cyan-400"
               />
-              Se souvenir de mon email sur ce navigateur
+              Se souvenir de mon email
             </label>
-
-            <div v-if="sessionExpired" class="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700 dark:border-blue-500/30 dark:bg-blue-950/30 dark:text-blue-200">
-              Votre session a expiré après 30 minutes d'inactivité. Veuillez vous reconnecter.
-            </div>
-
-            <div v-if="error" class="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-500/30 dark:bg-red-950/30 dark:text-red-200">
-              {{ error }}
-            </div>
-
-            <button
-              type="submit"
-              :disabled="loading"
-              class="btn-primary w-full justify-center py-3 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <span v-if="loading">Connexion...</span>
-              <span v-else>Se connecter</span>
-            </button>
-          </form>
-
-          <div class="mt-6 text-center text-xs text-slate-400">
-            © 2026 Saytu Liggéey 2.0 – Dakar, Sénégal
           </div>
-        </div>
-      </section>
-    </div>
+
+          <div v-if="sessionExpired" class="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700">
+            Votre session a expir&eacute; apr&egrave;s 30 minutes d'inactivit&eacute;. Veuillez vous reconnecter.
+          </div>
+
+          <div v-if="error" class="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {{ error }}
+          </div>
+
+          <button
+            type="submit"
+            :disabled="loading"
+            class="mt-2 flex w-full items-center justify-center rounded-full bg-gradient-to-r from-blue-600 to-cyan-400 px-6 py-3 text-base font-black text-white shadow-xl shadow-cyan-100 transition hover:-translate-y-0.5 hover:shadow-cyan-200 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <span v-if="loading">Connexion...</span>
+            <span v-else>Se connecter</span>
+          </button>
+        </form>
+
+        <p class="relative z-10 mt-16 text-center text-xs font-medium text-slate-500">
+          &copy; 2026 Saytu Ligg&eacute;ey 2.0 - Dakar, S&eacute;n&eacute;gal
+        </p>
+      </div>
+    </section>
   </div>
 </template>
 
 <script setup>
 import { computed, onMounted, ref, reactive } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Eye, EyeOff } from 'lucide-vue-next'
+import { Eye, EyeOff, LockKeyhole, Mail, UserCircle } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
 import api from '@/services/api'
 
