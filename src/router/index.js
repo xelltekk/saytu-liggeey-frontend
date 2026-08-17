@@ -23,6 +23,11 @@ const routes = [
         redirect: { name: 'dashboard' },
       },
       {
+        path: 'aujourdhui',
+        name: 'aujourdhui',
+        component: () => import('@/views/AujourdhuiView.vue'),
+      },
+      {
         path: 'clients',
         name: 'clients',
         component: () => import('@/views/ClientsView.vue'),
@@ -153,6 +158,7 @@ const router = createRouter({
 // Mapping route → rôles autorisés
 const routeRoles = {
   '/clients': ['admin', 'gerant', 'commercial', 'comptable'],
+  '/aujourdhui': ['admin', 'gerant', 'commercial', 'magasinier', 'comptable', 'caissier'],
   '/prospection': ['admin', 'gerant', 'commercial'],
   '/produits': ['admin', 'gerant', 'commercial', 'magasinier', 'comptable'],
   '/entrepots': ['admin', 'gerant', 'magasinier', 'comptable'],

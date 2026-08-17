@@ -353,6 +353,7 @@ import {
   Settings,
   UserCog,
   ClipboardList,
+  Sparkles,
   Search,
   PanelLeftOpen,
   PanelLeftClose,
@@ -411,6 +412,13 @@ const tousLesMenus = [
     label: 'Tableau de bord',
     icon: LayoutDashboard,
     roles: ['admin', 'gerant', 'commercial', 'magasinier', 'comptable']
+  },
+
+  {
+    to: '/aujourdhui',
+    label: "Aujourd'hui",
+    icon: Sparkles,
+    roles: ['admin', 'gerant', 'commercial', 'magasinier', 'comptable', 'caissier']
   },
 
   {
@@ -641,6 +649,12 @@ const dashboardMenuItem = computed(() => {
 })
 
 const menuGroupDefinitions = [
+  {
+    key: 'pilotage',
+    label: 'Pilotage',
+    icon: Sparkles,
+    items: ['/aujourdhui']
+  },
   {
     key: 'ventes',
     label: 'Ventes',
