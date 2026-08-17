@@ -79,7 +79,7 @@
           </div>
 
           <div>
-            <label class="label">Capital social (XOF)</label>
+            <label class="label">Capital social</label>
             <input v-model.number="societe.capital_social" type="number" min="0" step="100000" class="input" placeholder="1 000 000" />
           </div>
 
@@ -352,6 +352,7 @@ function notifierIdentiteSociete() {
       slogan: societe.slogan,
       logo: societe.logo,
       couleur_principale: societe.couleur_principale,
+      devise_defaut: societe.devise_defaut,
     },
   }))
 }

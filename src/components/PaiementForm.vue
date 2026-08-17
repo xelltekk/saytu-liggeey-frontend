@@ -17,7 +17,7 @@
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Montant (XOF) <span class="text-red-500">*</span></label>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Montant <span class="text-red-500">*</span></label>
           <input v-model.number="form.montant" type="number" step="0.01" min="0.01" class="input" required />
         </div>
 

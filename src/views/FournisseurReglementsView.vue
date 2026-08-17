@@ -735,7 +735,7 @@ function showApiError(error, fallback = 'Une erreur est survenue.') {
 }
 
 function formatPrice(value) {
-  return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(Number(value || 0)) + ' XOF'
+  return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(Number(value || 0))
 }
 
 function formatDate(value) {

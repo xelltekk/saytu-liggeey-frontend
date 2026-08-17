@@ -36,9 +36,9 @@
       </section>
 
       <div v-if="hasKpiCards" class="stat-grid grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
-        <KpiCard v-if="isBusinessDashboard" :to="{ path: '/factures', query: { quick: 'ca_mois' } }" label="CA du mois" :value="formatPrice(kpi.ca_mois)" suffix="XOF" icon="CA" icon-image="/images/dashboard/ca-mois.png" :icon-component="TrendingUp" color="green" />
-        <KpiCard v-if="isBusinessDashboard" :to="{ path: '/factures', query: { quick: 'ca_annee' } }" label="CA de l'année" :value="formatPrice(kpi.ca_annee)" suffix="XOF" icon="An" icon-image="/images/dashboard/ca-annee.png" :icon-component="CalendarDays" color="blue" />
-        <KpiCard v-if="isBusinessDashboard" :to="{ path: '/factures', query: { quick: 'encours' } }" label="Encours total" :value="formatPrice(kpi.encours_total)" suffix="XOF" icon="EC" icon-image="/images/dashboard/encours.png" :icon-component="FileClock" color="orange" />
+        <KpiCard v-if="isBusinessDashboard" :to="{ path: '/factures', query: { quick: 'ca_mois' } }" label="CA du mois" :value="formatPrice(kpi.ca_mois)" icon="CA" icon-image="/images/dashboard/ca-mois.png" :icon-component="TrendingUp" color="green" />
+        <KpiCard v-if="isBusinessDashboard" :to="{ path: '/factures', query: { quick: 'ca_annee' } }" label="CA de l'année" :value="formatPrice(kpi.ca_annee)" icon="An" icon-image="/images/dashboard/ca-annee.png" :icon-component="CalendarDays" color="blue" />
+        <KpiCard v-if="isBusinessDashboard" :to="{ path: '/factures', query: { quick: 'encours' } }" label="Encours total" :value="formatPrice(kpi.encours_total)" icon="EC" icon-image="/images/dashboard/encours.png" :icon-component="FileClock" color="orange" />
         <KpiCard v-if="isBusinessDashboard" :to="{ path: '/factures', query: { quick: 'impayees' } }" label="Factures impayees" :value="kpi.factures_impayees || 0" icon="FI" icon-image="/images/dashboard/factures-impayees.png" :icon-component="FileWarning" color="purple" :sub="`dont ${kpi.factures_en_retard || 0} en retard`" />
 
         <KpiCard v-if="isCommercial" to="/clients" label="Mes clients actifs" :value="kpi.clients_actifs || 0" icon="CL" :icon-component="UsersRound" color="green" />
@@ -47,7 +47,7 @@
         <KpiCard v-if="isStockManager" to="/stock" label="Produits en stock" :value="kpi.produits_stockes || 0" icon="ST" :icon-component="Package" color="green" />
         <KpiCard v-if="isStockManager" to="/stock" label="Alertes stock" :value="kpi.stock_alertes || 0" icon="AL" :icon-component="TriangleAlert" color="orange" />
         <KpiCard v-if="isStockManager" to="/stock" label="Ruptures" :value="kpi.ruptures_stock || 0" icon="RP" :icon-component="TriangleAlert" color="purple" />
-        <KpiCard v-if="isStockManager" to="/stock" label="Valeur stock" :value="formatPrice(kpi.valeur_stock)" suffix="XOF" icon="VS" :icon-component="Wallet" color="blue" />
+        <KpiCard v-if="isStockManager" to="/stock" label="Valeur stock" :value="formatPrice(kpi.valeur_stock)" icon="VS" :icon-component="Wallet" color="blue" />
       </div>
 
       <section v-else class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
@@ -129,7 +129,6 @@
           <KpiCard
             label="Solde total disponible"
             :value="formatPrice(soldesTresorerieTotal)"
-            suffix="XOF"
             icon="TR"
             icon-image="/images/dashboard/solde-total.png"
             :icon-component="Wallet"
@@ -142,7 +141,6 @@
             :key="compte.id || compte.code"
             :label="compte.label"
             :value="formatPrice(compte.solde_actuel)"
-            suffix="XOF"
             :icon="compte.icon"
             :icon-image="compte.iconImage"
             :icon-component="compte.iconComponent"
@@ -253,7 +251,7 @@
               </div>
               <div class="whitespace-nowrap text-right">
                 <div class="font-mono font-bold text-red-700 dark:text-red-300">{{ formatPrice(facture.reste_a_payer) }}</div>
-                <div class="text-[10px] text-gray-500 dark:text-slate-400">XOF</div>
+
               </div>
             </div>
           </router-link>
@@ -314,7 +312,7 @@
                 </div>
                 <div class="whitespace-nowrap text-right">
                   <div class="font-mono font-bold text-gray-900 dark:text-white">{{ formatPrice(devis.total_ttc) }}</div>
-                  <div class="text-[10px] text-gray-500 dark:text-slate-400">XOF</div>
+
                 </div>
               </div>
             </router-link>
@@ -537,7 +535,7 @@ const caChartOptions = {
     legend: { display: false },
     tooltip: {
       callbacks: {
-        label: (ctx) => 'CA : ' + new Intl.NumberFormat('fr-FR').format(ctx.parsed.y) + ' XOF',
+        label: (ctx) => 'CA : ' + new Intl.NumberFormat('fr-FR').format(ctx.parsed.y) ,
       },
     },
   },

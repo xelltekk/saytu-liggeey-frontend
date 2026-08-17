@@ -173,7 +173,7 @@
                   <span v-else class="text-xs text-gray-400">-</span>
                 </td>
                 <td class="px-4 py-3 text-right text-sm font-bold text-gray-900">
-                  <span v-if="item.amount !== null && item.amount !== undefined">{{ formatAmount(item.amount) }} XOF</span>
+                  <span v-if="item.amount !== null && item.amount !== undefined">{{ formatAmount(item.amount) }}</span>
                   <span v-else class="text-gray-300">-</span>
                 </td>
                 <td class="px-4 py-3 text-right">
@@ -245,7 +245,7 @@
                     Ouvrir le module
                   </RouterLink>
                   <div v-if="item.amount !== null && item.amount !== undefined" class="mt-2 text-sm font-bold text-gray-900">
-                    {{ formatAmount(item.amount) }} XOF
+                    {{ formatAmount(item.amount) }}
                   </div>
                 </td>
 

@@ -234,7 +234,7 @@
                 <div class="font-medium text-sm">{{ ligne.designation }}</div>
                 <div class="text-xs text-gray-500">
                   Qté facturée : <strong>{{ formatQte(ligne.quantite) }}</strong> {{ ligne.unite }} ×
-                  {{ formatPrice(ligne.prix_unitaire_ht) }} XOF HT
+                  {{ formatPrice(ligne.prix_unitaire_ht) }} HT
                 </div>
               </div>
               <div v-if="lignesPartielles[ligne.id]" class="w-24">
@@ -274,7 +274,7 @@
       <div v-if="payeeFacture" class="space-y-4">
         <div class="p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-800">
           <p class="font-semibold mb-1">💡 Action de régularisation</p>
-          <p>Un paiement automatique sera créé pour solder le montant restant <strong>{{ formatPrice(payeeFacture.reste_a_payer || payeeFacture.total_ttc) }} XOF</strong>.</p>
+          <p>Un paiement automatique sera créé pour solder le montant restant <strong>{{ formatPrice(payeeFacture.reste_a_payer || payeeFacture.total_ttc) }}</strong>.</p>
           <p class="mt-1">L'écriture comptable correspondante sera générée.</p>
         </div>
 

@@ -319,11 +319,12 @@
 </template>
 
 <script setup>
-import { computed, reactive, ref, onMounted, onBeforeUnmount, watch } from 'vue'
+import { computed, reactive, ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useNotificationsStore } from '@/stores/notifications'
 import { useTheme } from '@/composables/useTheme'
+import { setCurrency, syncAmountTableNotes } from '@/composables/useCurrency'
 import { useViewport } from '@/composables/useViewport'
 import api from '@/services/api'
 
@@ -382,9 +383,11 @@ const inactivityEvents = ['click', 'keydown', 'mousemove', 'mousedown', 'scroll'
 const lastActivityAt = ref(Date.now())
 let inactivityCheckTimer = null
 let inactivityLogoutRunning = false
+let amountTableObserver = null
 const company = reactive({
   nom: 'Saytu Liggéey 2.0',
   logo: '',
+  devise_defaut: 'XOF',
 })
 const openMenuGroups = ref({
   ventes: false,
@@ -609,7 +612,9 @@ async function loadCompanyIdentity() {
     Object.assign(company, {
       nom: data.nom || 'Saytu Liggéey 2.0',
       logo: data.logo || '',
+      devise_defaut: data.devise_defaut || 'XOF',
     })
+    setCurrency(company.devise_defaut)
     logoVersion.value = Date.now()
   } catch (e) {
     company.logo = ''
@@ -625,7 +630,9 @@ function handleCompanyIdentityUpdated(event) {
   Object.assign(company, {
     nom: detail.nom || company.nom,
     logo: detail.logo || '',
+    devise_defaut: detail.devise_defaut || company.devise_defaut || 'XOF',
   })
+  setCurrency(company.devise_defaut)
   logoVersion.value = Date.now()
 }
 
@@ -883,10 +890,33 @@ function handleGlobalKeydown(event) {
 
 watch(
   () => route.fullPath,
-  () => {
+  async () => {
     mobileSidebarOpen.value = false
+    await nextTick()
+    syncAmountTableNotes(document)
   }
 )
+
+function handleCurrencyChanged() {
+  syncAmountTableNotes(document)
+}
+
+function startAmountTableObserver() {
+  syncAmountTableNotes(document)
+  amountTableObserver = new MutationObserver(() => {
+    window.requestAnimationFrame(() => syncAmountTableNotes(document))
+  })
+  amountTableObserver.observe(document.body, { childList: true, subtree: true })
+  window.addEventListener('currency:changed', handleCurrencyChanged)
+  document.addEventListener('change', handleCurrencyChanged, true)
+}
+
+function stopAmountTableObserver() {
+  amountTableObserver?.disconnect()
+  amountTableObserver = null
+  window.removeEventListener('currency:changed', handleCurrencyChanged)
+  document.removeEventListener('change', handleCurrencyChanged, true)
+}
 
 onMounted(() => {
   applyTheme()
@@ -901,6 +931,7 @@ onMounted(() => {
   document.addEventListener('fullscreenchange', syncFullscreenState)
   document.addEventListener('keydown', handleGlobalKeydown)
   window.addEventListener('societe:updated', handleCompanyIdentityUpdated)
+  startAmountTableObserver()
 })
 
 onBeforeUnmount(() => {
@@ -908,6 +939,7 @@ onBeforeUnmount(() => {
   document.removeEventListener('fullscreenchange', syncFullscreenState)
   document.removeEventListener('keydown', handleGlobalKeydown)
   window.removeEventListener('societe:updated', handleCompanyIdentityUpdated)
+  stopAmountTableObserver()
   stopInactivityWatcher()
 })
 </script>

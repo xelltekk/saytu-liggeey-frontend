@@ -128,7 +128,7 @@
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Plafond de crédit (XOF)</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Plafond de crédit</label>
           <input v-model.number="form.plafond_credit" type="number" class="input" step="0.01" min="0" />
         </div>
 

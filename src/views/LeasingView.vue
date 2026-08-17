@@ -1094,7 +1094,7 @@ function normalizeDate(value) {
 }
 
 function money(value) {
-  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'XOF', maximumFractionDigits: 0 }).format(Number(value || 0))
+  return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(Number(value  || 0))
 }
 
 function dateLabel(value) {

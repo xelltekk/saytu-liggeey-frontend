@@ -872,7 +872,7 @@ function objectifPercentClass(percent) {
 
 function inputDate(value) { return value ? String(value).slice(0, 10) : '' }
 function formatNumber(n) { return new Intl.NumberFormat('fr-FR').format(Math.round(n || 0)) }
-function formatPrice(n) { return new Intl.NumberFormat('fr-FR').format(Math.round(n || 0)) + ' XOF' }
+function formatPrice(n) { return new Intl.NumberFormat('fr-FR').format(Math.round(n || 0))  }
 function formatDate(d) { return d ? new Date(d).toLocaleDateString('fr-FR') : '-' }
 function formatDateTime(d) { return d ? new Date(d).toLocaleString('fr-FR') : '-' }
 function isLate(date, statut) { return date && statut !== 'effectuee' && new Date(date) < new Date() }

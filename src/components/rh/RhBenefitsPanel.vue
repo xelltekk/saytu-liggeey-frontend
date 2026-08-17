@@ -125,8 +125,8 @@ function label(v) { return { assurance_sante: 'Assurance sante', retraite: 'Retr
 function statusLabel(v) { return { active: 'Active', suspendue: 'Suspendue', terminee: 'Terminee' }[v] || v }
 function nom(e) { return e ? `${e.prenom || ''} ${e.nom || ''}`.trim() : '-' }
 function date(v) { return v ? new Date(v).toLocaleDateString('fr-FR') : '-' }
-function money(v) { return new Intl.NumberFormat('fr-FR').format(Number(v || 0)) + ' XOF' }
-function moneyShort(v) { return new Intl.NumberFormat('fr-FR', { notation: 'compact', maximumFractionDigits: 1 }).format(Number(v || 0)) + ' XOF' }
+function money(v) { return new Intl.NumberFormat('fr-FR').format(Number(v || 0))  }
+function moneyShort(v) { return new Intl.NumberFormat('fr-FR', { notation: 'compact', maximumFractionDigits: 1 }).format(Number(v || 0))  }
 function normalizeDate(v) { return v ? String(v).slice(0, 10) : null }
 function applyBenefitQuickFilter(key) {
   if (key === 'all') Object.assign(benefitFilters, { search: '', type: '', active: '' })

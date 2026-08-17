@@ -262,7 +262,7 @@ async function handleDelete() {
   finally { deleting.value = false }
 }
 
-function formatPrice(n) { return new Intl.NumberFormat('fr-FR').format(Math.round(n || 0)) + ' XOF' }
+function formatPrice(n) { return new Intl.NumberFormat('fr-FR').format(Math.round(n || 0))  }
 function formatDate(d) { return d ? new Date(d).toLocaleDateString('fr-FR') : '–' }
 function modeLabel(m) {
   return { virement: 'Virement', cheque: 'Chèque', especes: 'Espèces', carte_bancaire: 'CB',

@@ -127,15 +127,15 @@
       <div class="space-y-1 max-w-md ml-auto">
         <div class="flex justify-between text-sm">
           <span class="text-gray-600">Total HT</span>
-          <span class="font-mono font-semibold">{{ formatPrice(totalHt) }} XOF</span>
+          <span class="font-mono font-semibold">{{ formatPrice(totalHt) }}</span>
         </div>
         <div class="flex justify-between text-sm">
           <span class="text-gray-600">TVA</span>
-          <span class="font-mono">{{ formatPrice(totalTva) }} XOF</span>
+          <span class="font-mono">{{ formatPrice(totalTva) }}</span>
         </div>
         <div class="flex justify-between text-base pt-2 border-t border-xelltekk-200 mt-2">
           <span class="font-bold text-xelltekk-900">Total TTC</span>
-          <span class="font-mono font-bold text-xelltekk-700">{{ formatPrice(totalTtc) }} XOF</span>
+          <span class="font-mono font-bold text-xelltekk-700">{{ formatPrice(totalTtc) }}</span>
         </div>
       </div>
     </fieldset>

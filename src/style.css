@@ -416,6 +416,25 @@
   .dashboard-progress-tone-3 {
     background-color: var(--dashboard-tone-3) !important;
   }
+  .amount-unit-note {
+    margin: 0 0 0.5rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    border-radius: 9999px;
+    border: 1px solid color-mix(in srgb, var(--saytu-primary, #2563eb) 18%, transparent);
+    background: color-mix(in srgb, var(--saytu-primary, #2563eb) 7%, var(--saytu-surface, #ffffff));
+    padding: 0.25rem 0.65rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    line-height: 1.2;
+    color: color-mix(in srgb, var(--saytu-primary, #2563eb) 72%, var(--saytu-shell-text, #334155));
+  }
+  .amount-unit-note::before {
+    content: 'ⓘ';
+    font-size: 0.78rem;
+    opacity: 0.75;
+  }
   html[data-theme='saytu-light'] .app-surface,
   html[data-theme='blue-pro'] .app-surface,
   html[data-theme='login-aqua'] .app-surface,

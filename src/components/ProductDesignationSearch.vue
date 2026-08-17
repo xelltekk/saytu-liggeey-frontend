@@ -43,7 +43,7 @@
           <span class="min-w-0 flex-1">
             <span class="block truncate font-medium text-gray-900">{{ product.libelle }}</span>
             <span class="block truncate text-xs text-gray-500">
-              {{ product.type || 'produit' }} · {{ formatPrice(product.prix_vente_ht) }} XOF HT · TVA {{ Number(product.taux_tva || 0) }}%
+              {{ product.type || 'produit' }} · {{ formatPrice(product.prix_vente_ht) }} HT · TVA {{ Number(product.taux_tva || 0) }}%
             </span>
           </span>
         </button>

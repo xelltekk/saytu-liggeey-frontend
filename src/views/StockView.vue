@@ -392,7 +392,7 @@ function onMouvementSaved() {
 }
 
 function formatQte(n) { return parseFloat(n || 0).toLocaleString('fr-FR', { maximumFractionDigits: 3 }) }
-function formatPrice(n) { return new Intl.NumberFormat('fr-FR').format(Math.round(n || 0)) + ' XOF' }
+function formatPrice(n) { return new Intl.NumberFormat('fr-FR').format(Math.round(n || 0))  }
 function formatDateTime(d) { return d ? new Date(d).toLocaleString('fr-FR') : '–' }
 function typeLabel(t) { return { entree: 'Entrée', sortie: 'Sortie', transfert: 'Transfert', ajustement: 'Ajustement', inventaire: 'Inventaire' }[t] || t }
 function emplacementLabel(emp) {

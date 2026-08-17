@@ -76,7 +76,7 @@
 
     <!-- Prix -->
     <fieldset class="border border-gray-200 rounded-lg p-4">
-      <legend class="px-2 text-sm font-semibold text-gray-700">Prix (XOF)</legend>
+      <legend class="px-2 text-sm font-semibold text-gray-700">Prix</legend>
 
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
@@ -101,7 +101,7 @@
       <div v-if="form.prix_vente_ht > 0" class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4 p-3 bg-xelltekk-50 rounded-lg text-sm">
         <div>
           <span class="text-gray-600">Prix TTC :</span>
-          <strong class="ml-2 text-xelltekk-800">{{ formatPrice(prixTtc) }} XOF</strong>
+          <strong class="ml-2 text-xelltekk-800">{{ formatPrice(prixTtc) }}</strong>
         </div>
         <div v-if="form.prix_achat_ht > 0">
           <span class="text-gray-600">Marge :</span>

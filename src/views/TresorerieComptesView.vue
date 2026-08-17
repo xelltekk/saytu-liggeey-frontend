@@ -385,7 +385,7 @@ function syncModeFromType() {
 }
 
 function typeLabel(type) { return types.value[type] || type || '-' }
-function formatPrice(n) { return new Intl.NumberFormat('fr-FR').format(Math.round(n || 0)) + ' XOF' }
+function formatPrice(n) { return new Intl.NumberFormat('fr-FR').format(Math.round(n || 0))  }
 function typeBadge(type) {
   return {
     banque: 'bg-blue-100 text-blue-800',

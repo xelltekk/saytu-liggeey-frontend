@@ -433,7 +433,7 @@ const evaluationAverage = computed(() => number(evaluationCriteria.reduce((sum, 
 const performanceSummary = computed(() => { const scored = supplierPerformance.value.filter(item => item.score_global !== null); return { count: supplierPerformance.value.length, averageScore: scored.length ? Math.round(scored.reduce((sum, item) => sum + Number(item.score_global), 0) / scored.length) : null, best: scored[0]?.nom || null } })
 const demandEstimatedTotal = computed(() => demandForm.lignes.reduce((sum, line) => sum + demandLineTotal(line), 0))
 
-function money(value) { return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(Number(value || 0)) + ' XOF' }
+function money(value) { return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(Number(value || 0))  }
 function number(value) { return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 3 }).format(Number(value || 0)) }
 function formatDate(value) { return value ? new Date(value).toLocaleDateString('fr-FR') : '-' }
 function statusLabel(status) { return { brouillon: 'Brouillon', soumise: 'Soumise', approuvee: 'Approuvée', partiellement_recue: 'Partiellement reçue', recue: 'Reçue', annulee: 'Annulée' }[status] || status }

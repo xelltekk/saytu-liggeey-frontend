@@ -1040,7 +1040,7 @@ async function fermerCaisse() {
 }
 
 function formatPrice(n) {
-  return new Intl.NumberFormat('fr-FR').format(Math.round(Number(n || 0))) + ' XOF'
+  return new Intl.NumberFormat('fr-FR').format(Math.round(Number(n || 0)))
 }
 
 function formatDateTime(value) {
