@@ -24,6 +24,10 @@
         </div>
 
         <div class="flex flex-wrap items-center gap-2">
+          <button type="button" class="agenda-primary-button" :disabled="savingRdv" @click="openRdvModal()">
+            <Plus class="h-4 w-4" />
+            Rendez-vous
+          </button>
           <button type="button" class="agenda-nav-button" :disabled="loading" @click="changeAgendaMonth(-1)">
             <ChevronLeft class="h-4 w-4" />
           </button>
@@ -56,9 +60,14 @@
             <span class="text-xs font-black" :class="day.isToday ? 'agenda-today-number' : 'pilotage-title'">
               {{ day.dayNumber }}
             </span>
-            <span v-if="day.events.length" class="rounded-full px-2 py-0.5 text-[10px] font-black" style="background: color-mix(in srgb, var(--saytu-primary) 10%, var(--saytu-surface)); color: var(--saytu-primary);">
-              {{ day.events.length }}
-            </span>
+            <div class="flex items-center gap-1">
+              <span v-if="day.events.length" class="rounded-full px-2 py-0.5 text-[10px] font-black" style="background: color-mix(in srgb, var(--saytu-primary) 10%, var(--saytu-surface)); color: var(--saytu-primary);">
+                {{ day.events.length }}
+              </span>
+              <button type="button" class="agenda-day-add" title="Ajouter un rendez-vous" @click="openRdvModal(day)">
+                +
+              </button>
+            </div>
           </div>
 
           <div class="space-y-1.5">
@@ -68,9 +77,11 @@
               type="button"
               class="agenda-event w-full rounded-xl border px-2 py-1.5 text-left text-xs shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
               :style="agendaEventStyle(event)"
-              @click="go(event.route)"
+              @click="handleEventClick(event)"
             >
-              <span class="block truncate font-black">{{ event.title }}</span>
+              <span class="block truncate font-black">
+                <span v-if="event.time" class="mr-1 opacity-75">{{ event.time }}</span>{{ event.title }}
+              </span>
               <span class="mt-0.5 block truncate opacity-80">{{ event.subtitle }}</span>
               <span v-if="Number(event.amount) > 0" class="mt-1 block font-bold">{{ formatAmount(event.amount) }}</span>
             </button>
@@ -87,24 +98,124 @@
         </span>
       </div>
     </section>
+
+    <AppModal v-model="showRdvModal" title="Nouveau rendez-vous" size="md" centered>
+      <form class="space-y-4" @submit.prevent="saveRdv">
+        <label class="field-label">
+          Titre du rendez-vous
+          <input v-model.trim="rdvForm.titre" class="input" placeholder="Ex : Rendez-vous client, réunion interne..." required />
+        </label>
+
+        <div class="grid gap-3 md:grid-cols-2">
+          <label class="field-label">
+            Début
+            <input v-model="rdvForm.date_debut" type="datetime-local" class="input" required />
+          </label>
+          <label class="field-label">
+            Fin
+            <input v-model="rdvForm.date_fin" type="datetime-local" class="input" />
+          </label>
+        </div>
+
+        <div class="grid gap-3 md:grid-cols-2">
+          <label class="field-label">
+            Client / contact
+            <input v-model.trim="rdvForm.client_nom" class="input" placeholder="Optionnel" />
+          </label>
+          <label class="field-label">
+            Lieu
+            <input v-model.trim="rdvForm.lieu" class="input" placeholder="Bureau, téléphone, adresse..." />
+          </label>
+        </div>
+
+        <div class="grid gap-3 md:grid-cols-2">
+          <label class="field-label">
+            Visibilité
+            <select v-model="rdvForm.visibilite" class="input">
+              <option value="equipe">Visible par l’équipe</option>
+              <option value="personnelle">Personnel</option>
+            </select>
+          </label>
+          <label class="field-label">
+            Priorité
+            <select v-model="rdvForm.priorite" class="input">
+              <option value="info">Information</option>
+              <option value="todo">À faire</option>
+              <option value="warning">Attention</option>
+              <option value="critical">Critique</option>
+            </select>
+          </label>
+        </div>
+
+        <label class="field-label">
+          Notes
+          <textarea v-model.trim="rdvForm.description" rows="3" class="input" placeholder="Détails utiles pour le rendez-vous..."></textarea>
+        </label>
+
+        <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <button type="button" class="btn-secondary" @click="showRdvModal = false">Annuler</button>
+          <button class="btn-primary" :disabled="savingRdv">
+            {{ savingRdv ? 'Enregistrement...' : 'Ajouter à l’agenda' }}
+          </button>
+        </div>
+      </form>
+    </AppModal>
+
+    <AppModal v-model="showEventModal" title="Détail du rendez-vous" size="sm" centered>
+      <div v-if="selectedEvent" class="space-y-4">
+        <div>
+          <p class="text-xs font-black uppercase tracking-wide text-[color:var(--saytu-primary)]">Rendez-vous</p>
+          <h2 class="mt-1 text-xl font-black text-[color:var(--saytu-topbar-title)]">{{ selectedEvent.title }}</h2>
+          <p class="mt-1 text-sm text-[color:var(--saytu-topbar-subtitle)]">{{ selectedEvent.subtitle }}</p>
+        </div>
+
+        <div class="rounded-2xl border p-4 text-sm" style="border-color: var(--saytu-border); background: var(--saytu-surface);">
+          <p v-if="selectedEvent.meta"><strong>Détails :</strong> {{ selectedEvent.meta }}</p>
+          <p v-if="selectedEvent.description" class="mt-2 whitespace-pre-line"><strong>Notes :</strong> {{ selectedEvent.description }}</p>
+        </div>
+
+        <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <button type="button" class="btn-secondary" @click="showEventModal = false">Fermer</button>
+          <button
+            v-if="selectedEvent.source === 'rendez_vous' && selectedEvent.can_manage"
+            type="button"
+            class="inline-flex items-center justify-center gap-2 rounded-2xl bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-60"
+            :disabled="savingRdv"
+            @click="deleteSelectedRdv"
+          >
+            <Trash2 class="h-4 w-4" />
+            Supprimer
+          </button>
+        </div>
+      </div>
+    </AppModal>
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-vue-next'
+import { CalendarDays, ChevronLeft, ChevronRight, Plus, Trash2 } from 'lucide-vue-next'
+import AppModal from '@/components/AppModal.vue'
 import api from '@/services/api'
 import { formatMoney } from '@/composables/useCurrency'
+import { useToast } from '@/composables/useToast'
 
 const router = useRouter()
+const toast = useToast()
 const data = ref(null)
 const loading = ref(false)
 const error = ref('')
 const agendaMonth = ref(monthKey(new Date()))
+const savingRdv = ref(false)
+const showRdvModal = ref(false)
+const showEventModal = ref(false)
+const selectedEvent = ref(null)
+const rdvForm = reactive(defaultRdvForm())
 
 const weekDays = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
 const agendaTypes = [
+  { key: 'rendez_vous', label: 'Rendez-vous' },
   { key: 'facture', label: 'Factures' },
   { key: 'devis', label: 'Devis' },
   { key: 'achat', label: 'Achats' },
@@ -178,6 +289,53 @@ function resetAgendaMonth() {
   loadAgenda()
 }
 
+function openRdvModal(day = null) {
+  Object.assign(rdvForm, defaultRdvForm(day?.key))
+  showRdvModal.value = true
+}
+
+async function saveRdv() {
+  savingRdv.value = true
+  try {
+    await api.post('/agenda/rendez-vous', normalizeRdvPayload())
+    toast.success('Rendez-vous ajouté à l’agenda.')
+    showRdvModal.value = false
+    await loadAgenda()
+  } catch (e) {
+    toast.error(apiError(e, 'Enregistrement du rendez-vous impossible.'))
+  } finally {
+    savingRdv.value = false
+  }
+}
+
+async function deleteSelectedRdv() {
+  if (!selectedEvent.value?.source_id) return
+  if (!confirm('Supprimer ce rendez-vous de l’agenda ?')) return
+
+  savingRdv.value = true
+  try {
+    await api.delete(`/agenda/rendez-vous/${selectedEvent.value.source_id}`)
+    toast.success('Rendez-vous supprimé.')
+    showEventModal.value = false
+    selectedEvent.value = null
+    await loadAgenda()
+  } catch (e) {
+    toast.error(apiError(e, 'Suppression du rendez-vous impossible.'))
+  } finally {
+    savingRdv.value = false
+  }
+}
+
+function handleEventClick(event) {
+  if (event.route) {
+    go(event.route)
+    return
+  }
+
+  selectedEvent.value = event
+  showEventModal.value = true
+}
+
 function go(route) {
   if (!route) return
   router.push(typeof route === 'string' ? { path: route } : route)
@@ -201,9 +359,68 @@ function dateFromMonth(value) {
   return new Date(year, month - 1, 1)
 }
 
+function dateFromKey(value) {
+  const [year, month, day] = String(value || '').split('-').map(Number)
+  if (!year || !month || !day) return new Date()
+  return new Date(year, month - 1, day, 9, 0, 0)
+}
+
+function defaultRdvForm(dateKeyValue = null) {
+  const start = dateKeyValue ? dateFromKey(dateKeyValue) : nextDefaultDateTime()
+  const end = new Date(start)
+  end.setHours(end.getHours() + 1)
+
+  return {
+    titre: '',
+    description: '',
+    date_debut: toDateTimeLocal(start),
+    date_fin: toDateTimeLocal(end),
+    lieu: '',
+    client_nom: '',
+    visibilite: 'equipe',
+    priorite: 'todo',
+  }
+}
+
+function nextDefaultDateTime() {
+  const date = new Date()
+  date.setMinutes(0, 0, 0)
+  date.setHours(date.getHours() + 1)
+  return date
+}
+
+function toDateTimeLocal(date) {
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, '0'),
+    String(date.getDate()).padStart(2, '0'),
+  ].join('-') + `T${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+}
+
+function normalizeRdvPayload() {
+  return {
+    titre: rdvForm.titre,
+    description: rdvForm.description || null,
+    date_debut: rdvForm.date_debut,
+    date_fin: rdvForm.date_fin || null,
+    lieu: rdvForm.lieu || null,
+    client_nom: rdvForm.client_nom || null,
+    visibilite: rdvForm.visibilite,
+    priorite: rdvForm.priorite,
+    statut: 'planifie',
+  }
+}
+
+function apiError(e, fallback) {
+  const errors = e.response?.data?.errors || {}
+  const firstError = Object.values(errors).flat().find(Boolean)
+  return e.response?.data?.message || firstError || fallback
+}
+
 function agendaAccent(type, priority = 'info') {
   if (priority === 'critical') return 'var(--saytu-primary-hover)'
   return {
+    rendez_vous: 'var(--saytu-primary)',
     facture: 'var(--saytu-primary)',
     devis: 'var(--saytu-brand-to)',
     achat: 'var(--saytu-focus)',
@@ -264,6 +481,7 @@ onMounted(loadAgenda)
 }
 
 .agenda-nav-button,
+.agenda-primary-button,
 .agenda-today-button {
   display: inline-flex;
   align-items: center;
@@ -279,9 +497,22 @@ onMounted(loadAgenda)
   transition: 160ms ease;
 }
 
+.agenda-primary-button {
+  gap: 0.45rem;
+  background: linear-gradient(135deg, var(--saytu-primary), var(--saytu-brand-to));
+  border-color: color-mix(in srgb, var(--saytu-primary) 40%, var(--saytu-border));
+  color: white;
+  box-shadow: 0 12px 25px color-mix(in srgb, var(--saytu-primary) 18%, transparent);
+}
+
 .agenda-nav-button {
   width: 2.5rem;
   padding: 0;
+}
+
+.agenda-primary-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  filter: brightness(1.04);
 }
 
 .agenda-nav-button:hover:not(:disabled),
@@ -291,6 +522,7 @@ onMounted(loadAgenda)
 }
 
 .agenda-nav-button:disabled,
+.agenda-primary-button:disabled,
 .agenda-today-button:disabled {
   cursor: wait;
   opacity: 0.55;
@@ -304,6 +536,27 @@ onMounted(loadAgenda)
 .agenda-day {
   border-color: color-mix(in srgb, var(--saytu-primary) 14%, var(--saytu-border));
   background: color-mix(in srgb, var(--saytu-surface) 96%, var(--saytu-primary) 4%);
+}
+
+.agenda-day-add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--saytu-primary) 22%, var(--saytu-border));
+  background: color-mix(in srgb, var(--saytu-primary) 7%, var(--saytu-surface));
+  color: var(--saytu-primary);
+  font-size: 0.85rem;
+  font-weight: 900;
+  line-height: 1;
+  transition: 160ms ease;
+}
+
+.agenda-day-add:hover {
+  background: color-mix(in srgb, var(--saytu-primary) 15%, var(--saytu-surface));
+  transform: translateY(-1px);
 }
 
 .agenda-day-outside {
