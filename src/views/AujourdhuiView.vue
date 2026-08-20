@@ -60,7 +60,7 @@
       />
     </section>
 
-    <section class="pilotage-panel rounded-3xl border p-4 shadow-sm sm:p-5">
+    <section id="agenda" class="pilotage-panel scroll-mt-24 rounded-3xl border p-4 shadow-sm sm:p-5">
       <div class="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
         <div class="flex items-start gap-3">
           <span class="inline-flex h-11 w-11 items-center justify-center rounded-2xl" style="background: color-mix(in srgb, var(--saytu-primary) 12%, var(--saytu-surface)); color: var(--saytu-primary);">

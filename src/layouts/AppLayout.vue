@@ -354,6 +354,7 @@ import {
   UserCog,
   ClipboardList,
   Sparkles,
+  CalendarDays,
   Search,
   PanelLeftOpen,
   PanelLeftClose,
@@ -418,6 +419,13 @@ const tousLesMenus = [
     to: '/aujourdhui',
     label: "Aujourd'hui",
     icon: Sparkles,
+    roles: ['admin', 'gerant', 'commercial', 'magasinier', 'comptable', 'caissier']
+  },
+
+  {
+    to: '/aujourdhui#agenda',
+    label: 'Agenda',
+    icon: CalendarDays,
     roles: ['admin', 'gerant', 'commercial', 'magasinier', 'comptable', 'caissier']
   },
 
@@ -653,7 +661,7 @@ const menuGroupDefinitions = [
     key: 'pilotage',
     label: 'Pilotage',
     icon: Sparkles,
-    items: ['/aujourdhui']
+    items: ['/aujourdhui', '/aujourdhui#agenda']
   },
   {
     key: 'ventes',
@@ -718,9 +726,30 @@ const groupedMenuItems = computed(() => {
     .filter(group => group.items.length > 0)
 })
 
+function menuTarget(to) {
+  if (typeof to !== 'string') {
+    return {
+      path: to?.path || '/',
+      hash: to?.hash || '',
+    }
+  }
+
+  const [pathAndQuery, hash] = to.split('#')
+  return {
+    path: pathAndQuery.split('?')[0] || '/',
+    hash: hash ? `#${hash}` : '',
+  }
+}
+
 function isActive(to) {
-  if (to === '/') return route.path === '/'
-  return route.path.startsWith(to)
+  const target = menuTarget(to)
+
+  if (target.path === '/') return route.path === '/' && !target.hash
+  if (!route.path.startsWith(target.path)) return false
+  if (target.hash) return route.hash === target.hash
+  if (target.path === '/aujourdhui' && route.hash) return false
+
+  return true
 }
 
 function isGroupActive(group) {
@@ -754,19 +783,21 @@ function groupBadgeColor(group) {
 }
 
 function getBadgeCount(to) {
-  if (to === '/factures') return notif.badges.factures_retard
-  if (to === '/devis') return notif.badges.devis_attente
-  if (to === '/stock') return notif.badges.stock_alerte
-  if (to === '/depenses') return notif.badges.demandes_validation
+  const path = menuTarget(to).path
+  if (path === '/factures') return notif.badges.factures_retard
+  if (path === '/devis') return notif.badges.devis_attente
+  if (path === '/stock') return notif.badges.stock_alerte
+  if (path === '/depenses') return notif.badges.demandes_validation
 
   return 0
 }
 
 function getBadgeColor(to) {
-  if (to === '/factures') return 'bg-red-500 text-white'
-  if (to === '/devis') return 'bg-yellow-500 text-white'
-  if (to === '/stock') return 'bg-orange-500 text-white'
-  if (to === '/depenses') return 'bg-blue-500 text-white'
+  const path = menuTarget(to).path
+  if (path === '/factures') return 'bg-red-500 text-white'
+  if (path === '/devis') return 'bg-yellow-500 text-white'
+  if (path === '/stock') return 'bg-orange-500 text-white'
+  if (path === '/depenses') return 'bg-blue-500 text-white'
 
   return 'bg-slate-500 text-white'
 }
