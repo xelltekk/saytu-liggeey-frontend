@@ -423,7 +423,7 @@ const tousLesMenus = [
   },
 
   {
-    to: '/aujourdhui#agenda',
+    to: '/agenda',
     label: 'Agenda',
     icon: CalendarDays,
     roles: ['admin', 'gerant', 'commercial', 'magasinier', 'comptable', 'caissier']
@@ -661,7 +661,7 @@ const menuGroupDefinitions = [
     key: 'pilotage',
     label: 'Pilotage',
     icon: Sparkles,
-    items: ['/aujourdhui', '/aujourdhui#agenda']
+    items: ['/aujourdhui', '/agenda']
   },
   {
     key: 'ventes',

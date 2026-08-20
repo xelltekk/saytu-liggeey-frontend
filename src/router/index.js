@@ -28,6 +28,11 @@ const routes = [
         component: () => import('@/views/AujourdhuiView.vue'),
       },
       {
+        path: 'agenda',
+        name: 'agenda',
+        component: () => import('@/views/AgendaView.vue'),
+      },
+      {
         path: 'clients',
         name: 'clients',
         component: () => import('@/views/ClientsView.vue'),
@@ -171,6 +176,7 @@ const router = createRouter({
 const routeRoles = {
   '/clients': ['admin', 'gerant', 'commercial', 'comptable'],
   '/aujourdhui': ['admin', 'gerant', 'commercial', 'magasinier', 'comptable', 'caissier'],
+  '/agenda': ['admin', 'gerant', 'commercial', 'magasinier', 'comptable', 'caissier'],
   '/prospection': ['admin', 'gerant', 'commercial'],
   '/produits': ['admin', 'gerant', 'commercial', 'magasinier', 'comptable'],
   '/entrepots': ['admin', 'gerant', 'magasinier', 'comptable'],
