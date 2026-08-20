@@ -102,7 +102,7 @@
       <div class="space-y-2.5">
         <div
           v-for="(ligne, index) in form.lignes"
-          :key="index"
+          :key="ligne._key"
           class="document-line-card"
         >
           <div class="mb-2 flex items-center justify-between gap-2">
@@ -118,7 +118,7 @@
                 title="Monter la ligne"
                 @click="deplacerLigne(index, -1)"
               >
-                ↑
+                ↑ Monter
               </button>
               <button
                 type="button"
@@ -127,7 +127,7 @@
                 title="Descendre la ligne"
                 @click="deplacerLigne(index, 1)"
               >
-                ↓
+                ↓ Descendre
               </button>
               <button
                 type="button"
@@ -327,6 +327,7 @@ const errorLabels = {
 const clients = ref([])
 const produits = ref([])
 const paymentModalities = ref('')
+let lineKey = 0
 const paymentConditionPresets = [
   { label: 'À la réception', texte: 'Paiement à la réception.' },
   { label: '50/50', texte: 'Paiement 50 % à la commande, 50 % à la livraison.' },
@@ -358,7 +359,7 @@ function calculerLigne(ligne) {
 }
 
 function ajouterLigne() {
-  form.lignes.push({
+  form.lignes.push(withLineKey({
     produit_id: null,
     designation: '',
     description: '',
@@ -368,7 +369,7 @@ function ajouterLigne() {
     remise_pourcent: 0,
     taux_tva: 18,
     type_ligne: 'produit',
-  })
+  }))
 }
 
 function supprimerLigne(index) {
@@ -380,6 +381,40 @@ function deplacerLigne(index, direction) {
   if (target < 0 || target >= form.lignes.length) return
   const [ligne] = form.lignes.splice(index, 1)
   form.lignes.splice(target, 0, ligne)
+}
+
+function withLineKey(ligne = {}) {
+  return {
+    ...ligne,
+    _key: ligne._key || `devis-line-${++lineKey}`,
+  }
+}
+
+function cleanLineForSubmit(ligne) {
+  const { _key, ...payload } = ligne
+  return payload
+}
+
+function dateForInput(value, fallback = '') {
+  if (!value) return fallback
+
+  if (typeof value === 'string') {
+    const match = value.match(/^(\d{4}-\d{2}-\d{2})/)
+    if (match) return match[1]
+  }
+
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? fallback : date.toISOString().slice(0, 10)
+}
+
+function devisForForm(devis) {
+  const defaults = defaultForm()
+  return {
+    ...devis,
+    date_devis: dateForInput(devis?.date_devis, defaults.date_devis),
+    date_validite: dateForInput(devis?.date_validite, defaults.date_validite),
+    lignes: (devis?.lignes || []).map(l => withLineKey({ ...l })),
+  }
 }
 
 function conditionsPaiementTexte(condition = '') {
@@ -469,8 +504,7 @@ watch(() => props.devis, async (val) => {
   hydrating.value = true
   if (val) {
     Object.assign(form, defaultForm(), {
-      ...val,
-      lignes: val.lignes.map(l => ({ ...l })) || [],
+      ...devisForForm(val),
     })
   } else {
     Object.assign(form, defaultForm())
@@ -516,7 +550,12 @@ async function handleSubmit() {
   errors.value = {}
 
   try {
-    const payload = { ...form }
+    const payload = {
+      ...form,
+      date_devis: form.date_devis || dateForInput(props.devis?.date_devis),
+      date_validite: form.date_validite || dateForInput(props.devis?.date_validite),
+      lignes: form.lignes.map(cleanLineForSubmit),
+    }
     Object.keys(payload).forEach(k => {
       if (payload[k] === '') payload[k] = null
     })

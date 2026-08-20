@@ -72,14 +72,14 @@
       </legend>
 
       <div class="space-y-2.5">
-        <div v-for="(ligne, index) in form.lignes" :key="index" class="document-line-card">
+        <div v-for="(ligne, index) in form.lignes" :key="ligne._key" class="document-line-card">
           <div class="mb-2 flex items-center justify-between gap-2">
             <span class="rounded-full px-2.5 py-1 text-xs font-bold" style="background: color-mix(in srgb, var(--saytu-primary) 10%, var(--saytu-surface)); color: var(--saytu-primary);">
               Ligne {{ index + 1 }}
             </span>
             <div class="flex items-center gap-1">
-              <button type="button" class="document-line-order-button" :disabled="index === 0 || form.lignes.length < 2" title="Monter la ligne" @click="deplacerLigne(index, -1)">↑</button>
-              <button type="button" class="document-line-order-button" :disabled="index === form.lignes.length - 1 || form.lignes.length < 2" title="Descendre la ligne" @click="deplacerLigne(index, 1)">↓</button>
+              <button type="button" class="document-line-order-button" :disabled="index === 0 || form.lignes.length < 2" title="Monter la ligne" @click="deplacerLigne(index, -1)">↑ Monter</button>
+              <button type="button" class="document-line-order-button" :disabled="index === form.lignes.length - 1 || form.lignes.length < 2" title="Descendre la ligne" @click="deplacerLigne(index, 1)">↓ Descendre</button>
               <button type="button" @click="supprimerLigne(index)" class="document-line-delete-button" title="Supprimer">🗑️</button>
             </div>
           </div>
@@ -216,6 +216,7 @@ const errorLabels = {
 }
 const clients = ref([])
 const produits = ref([])
+let lineKey = 0
 
 const totalHt = computed(() => form.lignes.reduce((s, l) => s + calculerLigne(l), 0))
 const totalTva = computed(() => form.lignes.reduce((s, l) => s + calculerLigne(l) * ((l.taux_tva || 0) / 100), 0))
@@ -227,10 +228,10 @@ function calculerLigne(ligne) {
 }
 
 function ajouterLigne() {
-  form.lignes.push({
+  form.lignes.push(withLineKey({
     produit_id: null, designation: '', description: '', quantite: 1, unite: 'pièce',
     prix_unitaire_ht: 0, remise_pourcent: 0, taux_tva: 18, type_ligne: 'produit',
-  })
+  }))
 }
 
 function supprimerLigne(i) { form.lignes.splice(i, 1) }
@@ -240,6 +241,18 @@ function deplacerLigne(index, direction) {
   if (target < 0 || target >= form.lignes.length) return
   const [ligne] = form.lignes.splice(index, 1)
   form.lignes.splice(target, 0, ligne)
+}
+
+function withLineKey(ligne = {}) {
+  return {
+    ...ligne,
+    _key: ligne._key || `facture-line-${++lineKey}`,
+  }
+}
+
+function cleanLineForSubmit(ligne) {
+  const { _key, ...payload } = ligne
+  return payload
 }
 
 function appliquerProduit(index, produit) {
@@ -299,7 +312,7 @@ watch(form, () => {
 watch(() => props.facture, async (val) => {
   hydrating.value = true
   if (val) {
-    Object.assign(form, defaultForm(), { ...val, lignes: val.lignes.map(l => ({ ...l })) || [] })
+    Object.assign(form, defaultForm(), { ...val, lignes: val.lignes.map(l => withLineKey({ ...l })) || [] })
   } else {
     Object.assign(form, defaultForm())
     if (props.client?.id) {
@@ -333,7 +346,10 @@ async function handleSubmit() {
   errors.value = {}
   errorMessages.value = []
   try {
-    const payload = { ...form }
+    const payload = {
+      ...form,
+      lignes: form.lignes.map(cleanLineForSubmit),
+    }
     Object.keys(payload).forEach(k => { if (payload[k] === '') payload[k] = null })
     let response
     if (props.facture?.id) {

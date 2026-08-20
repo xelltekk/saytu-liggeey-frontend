@@ -125,8 +125,8 @@
               <div class="mb-2 flex items-center justify-between gap-2">
                 <span class="rounded-full px-2.5 py-1 text-xs font-bold" style="background: color-mix(in srgb, var(--saytu-primary) 10%, var(--saytu-surface)); color: var(--saytu-primary);">Ligne {{ index + 1 }}</span>
                 <div class="flex items-center gap-1">
-                  <button type="button" class="document-line-order-button" :disabled="index === 0 || demandForm.lignes.length < 2" title="Monter la ligne" @click="moveDemandLine(index, -1)">↑</button>
-                  <button type="button" class="document-line-order-button" :disabled="index === demandForm.lignes.length - 1 || demandForm.lignes.length < 2" title="Descendre la ligne" @click="moveDemandLine(index, 1)">↓</button>
+                  <button type="button" class="document-line-order-button" :disabled="index === 0 || demandForm.lignes.length < 2" title="Monter la ligne" @click="moveDemandLine(index, -1)">↑ Monter</button>
+                  <button type="button" class="document-line-order-button" :disabled="index === demandForm.lignes.length - 1 || demandForm.lignes.length < 2" title="Descendre la ligne" @click="moveDemandLine(index, 1)">↓ Descendre</button>
                   <button type="button" class="document-line-delete-button" title="Supprimer la ligne" @click="removeDemandLine(index)"><Trash2 :size="17" /></button>
                 </div>
               </div>
@@ -177,8 +177,8 @@
               <div class="mb-2 flex items-center justify-between gap-2">
                 <span class="rounded-full px-2.5 py-1 text-xs font-bold" style="background: color-mix(in srgb, var(--saytu-primary) 10%, var(--saytu-surface)); color: var(--saytu-primary);">Ligne {{ index + 1 }}</span>
                 <div class="flex items-center gap-1">
-                  <button type="button" class="document-line-order-button" :disabled="index === 0 || form.lignes.length < 2" title="Monter la ligne" @click="moveLine(index, -1)">↑</button>
-                  <button type="button" class="document-line-order-button" :disabled="index === form.lignes.length - 1 || form.lignes.length < 2" title="Descendre la ligne" @click="moveLine(index, 1)">↓</button>
+                  <button type="button" class="document-line-order-button" :disabled="index === 0 || form.lignes.length < 2" title="Monter la ligne" @click="moveLine(index, -1)">↑ Monter</button>
+                  <button type="button" class="document-line-order-button" :disabled="index === form.lignes.length - 1 || form.lignes.length < 2" title="Descendre la ligne" @click="moveLine(index, 1)">↓ Descendre</button>
                   <button type="button" class="document-line-delete-button" title="Supprimer la ligne" @click="removeLine(index)"><Trash2 :size="18" /></button>
                 </div>
               </div>
