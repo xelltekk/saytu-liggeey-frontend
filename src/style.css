@@ -486,53 +486,76 @@
     border: 1px solid color-mix(in srgb, var(--saytu-primary, #2563eb) 16%, var(--saytu-border, #e2e8f0));
     background: color-mix(in srgb, var(--saytu-surface, #ffffff) 94%, var(--saytu-primary, #2563eb) 6%);
     border-radius: 1rem;
-    padding: 0.75rem;
+    padding: 0.55rem;
     color: var(--saytu-shell-text, #334155);
+  }
+  .document-line-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.45rem;
   }
   .document-line-label {
     display: block;
-    margin-bottom: 0.25rem;
+    margin-bottom: 0.2rem;
     color: var(--saytu-topbar-subtitle, #64748b);
-    font-size: 0.68rem;
+    font-size: 0.64rem;
     font-weight: 800;
     letter-spacing: 0.045em;
     line-height: 1;
     text-transform: uppercase;
   }
   .document-line-card .input {
-    border-radius: 0.85rem;
-    padding: 0.55rem 0.75rem;
-    font-size: 0.875rem;
+    border-radius: 0.78rem;
+    padding: 0.42rem 0.65rem;
+    font-size: 0.82rem;
+  }
+  .document-line-description {
+    margin-top: 0.45rem;
+  }
+  .document-line-description-input {
+    min-height: 2rem;
+    resize: vertical;
   }
   .document-line-total {
-    min-height: 2.35rem;
-    border-radius: 0.85rem;
+    min-height: 2.05rem;
+    border-radius: 0.78rem;
     border: 1px solid color-mix(in srgb, var(--saytu-primary, #2563eb) 18%, var(--saytu-border, #e2e8f0));
     background: color-mix(in srgb, var(--saytu-primary, #2563eb) 8%, var(--saytu-surface, #ffffff));
     color: var(--saytu-primary, #2563eb);
     display: flex;
     align-items: center;
     justify-content: flex-end;
-    padding: 0.55rem 0.75rem;
+    padding: 0.42rem 0.65rem;
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-    font-size: 0.875rem;
+    font-size: 0.82rem;
     font-weight: 800;
   }
+  .document-line-toggle-button,
   .document-line-order-button,
   .document-line-delete-button {
     display: inline-flex;
-    height: 2rem;
-    min-width: 2rem;
+    height: 1.8rem;
+    min-width: 1.8rem;
     align-items: center;
     justify-content: center;
     border-radius: 999px;
     border: 1px solid color-mix(in srgb, var(--saytu-primary, #2563eb) 18%, var(--saytu-border, #e2e8f0));
     background: color-mix(in srgb, var(--saytu-surface, #ffffff) 90%, var(--saytu-primary, #2563eb) 10%);
     color: var(--saytu-primary, #2563eb);
-    font-size: 0.8rem;
+    font-size: 0.72rem;
     font-weight: 900;
-    padding: 0 0.7rem;
+    padding: 0 0.55rem;
     transition: 160ms ease;
+  }
+  .document-line-toggle-button {
+    background: color-mix(in srgb, var(--saytu-accent, #06b6d4) 9%, var(--saytu-surface, #ffffff));
+    border-color: color-mix(in srgb, var(--saytu-accent, #06b6d4) 22%, var(--saytu-border, #e2e8f0));
+    color: var(--saytu-primary, #2563eb);
+  }
+  .document-line-toggle-button:hover {
+    background: color-mix(in srgb, var(--saytu-accent, #06b6d4) 14%, var(--saytu-surface, #ffffff));
   }
   .document-line-order-button:hover:not(:disabled) {
     background: color-mix(in srgb, var(--saytu-primary, #2563eb) 15%, var(--saytu-surface, #ffffff));

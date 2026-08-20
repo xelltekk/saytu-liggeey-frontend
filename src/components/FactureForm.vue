@@ -73,11 +73,19 @@
 
       <div class="space-y-2.5">
         <div v-for="(ligne, index) in form.lignes" :key="ligne._key" class="document-line-card">
-          <div class="mb-2 flex items-center justify-between gap-2">
+          <div class="document-line-header">
             <span class="rounded-full px-2.5 py-1 text-xs font-bold" style="background: color-mix(in srgb, var(--saytu-primary) 10%, var(--saytu-surface)); color: var(--saytu-primary);">
               Ligne {{ index + 1 }}
             </span>
             <div class="flex items-center gap-1">
+              <button
+                type="button"
+                class="document-line-toggle-button"
+                title="Afficher ou masquer la description complémentaire"
+                @click="toggleDescription(ligne)"
+              >
+                {{ ligne._descriptionOpen ? 'Masquer desc.' : (ligne.description ? 'Voir desc.' : '+ Desc.') }}
+              </button>
               <button type="button" class="document-line-order-button" :disabled="index === 0 || form.lignes.length < 2" title="Monter la ligne" @click="deplacerLigne(index, -1)">↑ Monter</button>
               <button type="button" class="document-line-order-button" :disabled="index === form.lignes.length - 1 || form.lignes.length < 2" title="Descendre la ligne" @click="deplacerLigne(index, 1)">↓ Descendre</button>
               <button type="button" @click="supprimerLigne(index)" class="document-line-delete-button" title="Supprimer">🗑️</button>
@@ -117,9 +125,9 @@
             </div>
           </div>
 
-          <label class="mt-2 block">
+          <label v-if="ligne._descriptionOpen" class="document-line-description block">
             <span class="document-line-label">Description complémentaire</span>
-            <textarea v-model="ligne.description" class="input text-xs" rows="1" placeholder="Optionnel"></textarea>
+            <textarea v-model="ligne.description" class="input document-line-description-input text-xs" rows="1" placeholder="Optionnel"></textarea>
           </label>
         </div>
 
@@ -243,15 +251,23 @@ function deplacerLigne(index, direction) {
   form.lignes.splice(target, 0, ligne)
 }
 
+function toggleDescription(ligne) {
+  ligne._descriptionOpen = !ligne._descriptionOpen
+}
+
 function withLineKey(ligne = {}) {
+  const hasDescriptionState = typeof ligne._descriptionOpen === 'boolean'
+  const hasDescription = Boolean(String(ligne.description || '').trim())
+
   return {
     ...ligne,
     _key: ligne._key || `facture-line-${++lineKey}`,
+    _descriptionOpen: hasDescriptionState ? ligne._descriptionOpen : hasDescription,
   }
 }
 
 function cleanLineForSubmit(ligne) {
-  const { _key, ...payload } = ligne
+  const { _key, _descriptionOpen, ...payload } = ligne
   return payload
 }
 
@@ -265,6 +281,7 @@ function appliquerProduit(index, produit) {
   ligne.produit_id = produit.id
   ligne.designation = produit.libelle
   ligne.description = produit.description || ''
+  ligne._descriptionOpen = Boolean(String(ligne.description || '').trim())
   ligne.prix_unitaire_ht = parseFloat(produit.prix_vente_ht || 0)
   ligne.taux_tva = parseFloat(produit.taux_tva || 0)
   ligne.unite = produit.unite || 'pièce'
@@ -290,7 +307,7 @@ function formatPrice(n) { return new Intl.NumberFormat('fr-FR').format(Math.roun
 function formSnapshot() {
   return JSON.stringify({
     ...form,
-    lignes: form.lignes.map(ligne => ({ ...ligne })),
+    lignes: form.lignes.map(cleanLineForSubmit),
   })
 }
 
