@@ -120,7 +120,24 @@
         </div>
         <div class="border-y border-slate-200 py-4">
           <div class="mb-3 flex items-center justify-between"><div><h3 class="font-bold">Produits demandés</h3><p class="text-sm text-slate-500">Les prix d’achat servent uniquement d’estimation.</p></div><button type="button" class="btn-secondary" @click="addDemandLine">Ajouter une ligne</button></div>
-          <div class="space-y-3"><div v-for="(line, index) in demandForm.lignes" :key="line.key" class="grid items-end gap-2 rounded-lg border border-slate-200 p-3 lg:grid-cols-[1fr_120px_160px_160px_42px]"><label class="field-label">Produit<select v-model.number="line.produit_id" class="input" required @change="selectDemandProduct(line)"><option :value="null">Choisir</option><option v-for="product in referentiels.produits" :key="product.id" :value="product.id">{{ product.reference }} - {{ product.libelle }}</option></select></label><label class="field-label">Quantité<input v-model.number="line.quantite" type="number" min="0.001" step="0.001" class="input" required /></label><label class="field-label">Prix estimé HT<input v-model.number="line.prix_estime_ht" type="number" min="0" step="1" class="input" /></label><div><span class="caption">Estimation TTC</span><strong>{{ money(demandLineTotal(line)) }}</strong></div><button type="button" class="flex h-10 w-10 items-center justify-center text-red-600" @click="removeDemandLine(index)"><Trash2 :size="17" /></button></div></div>
+          <div class="space-y-2.5">
+            <div v-for="(line, index) in demandForm.lignes" :key="line.key" class="document-line-card">
+              <div class="mb-2 flex items-center justify-between gap-2">
+                <span class="rounded-full px-2.5 py-1 text-xs font-bold" style="background: color-mix(in srgb, var(--saytu-primary) 10%, var(--saytu-surface)); color: var(--saytu-primary);">Ligne {{ index + 1 }}</span>
+                <div class="flex items-center gap-1">
+                  <button type="button" class="document-line-order-button" :disabled="index === 0 || demandForm.lignes.length < 2" title="Monter la ligne" @click="moveDemandLine(index, -1)">↑</button>
+                  <button type="button" class="document-line-order-button" :disabled="index === demandForm.lignes.length - 1 || demandForm.lignes.length < 2" title="Descendre la ligne" @click="moveDemandLine(index, 1)">↓</button>
+                  <button type="button" class="document-line-delete-button" title="Supprimer la ligne" @click="removeDemandLine(index)"><Trash2 :size="17" /></button>
+                </div>
+              </div>
+              <div class="grid items-end gap-2 lg:grid-cols-[minmax(260px,1fr)_110px_150px_150px]">
+                <label class="block"><span class="document-line-label">Produit</span><select v-model.number="line.produit_id" class="input" required @change="selectDemandProduct(line)"><option :value="null">Choisir</option><option v-for="product in referentiels.produits" :key="product.id" :value="product.id">{{ product.reference }} - {{ product.libelle }}</option></select></label>
+                <label class="block"><span class="document-line-label">Quantité</span><input v-model.number="line.quantite" type="number" min="0.001" step="0.001" class="input text-right" required /></label>
+                <label class="block"><span class="document-line-label">Prix estimé HT</span><input v-model.number="line.prix_estime_ht" type="number" min="0" step="1" class="input text-right" /></label>
+                <div><span class="document-line-label">Estimation TTC</span><div class="document-line-total">{{ money(demandLineTotal(line)) }}</div></div>
+              </div>
+            </div>
+          </div>
         </div>
         <div class="flex flex-wrap items-center justify-between gap-3"><strong>Estimation totale : {{ money(demandEstimatedTotal) }}</strong><div class="flex gap-2"><button type="button" class="btn-secondary" @click="showDemandForm = false">Annuler</button><button class="btn-primary" :disabled="saving">{{ saving ? 'Enregistrement...' : 'Enregistrer la demande' }}</button></div></div>
       </form>
@@ -155,14 +172,23 @@
             <div><h3 class="font-bold text-slate-900">Produits commandés</h3><p class="text-sm text-slate-500">Les prix d’achat sont préremplis depuis les fiches produits.</p></div>
             <div class="flex gap-2"><input v-model="productSearch" class="input sm:w-72" placeholder="Filtrer les produits..." /><button type="button" class="btn-secondary inline-flex items-center gap-2" @click="addLine"><Plus :size="16" /> Ligne</button></div>
           </div>
-          <div class="space-y-3">
-            <div v-for="(line, index) in form.lignes" :key="line.key" class="grid items-end gap-2 rounded-lg border border-slate-200 p-3 lg:grid-cols-[minmax(260px,1fr)_110px_150px_110px_150px_42px]">
-              <label class="field-label">Produit<select v-model.number="line.produit_id" class="input" required @change="selectProduct(line)"><option :value="null">{{ loadingReferentiels ? 'Chargement des produits...' : 'Choisir un produit' }}</option><option v-if="!loadingReferentiels && !referentiels.produits.length" disabled>Aucun produit disponible</option><option v-for="p in visibleProducts(line)" :key="p.id" :value="p.id">{{ p.reference }} - {{ p.libelle }}</option></select></label>
-              <label class="field-label">Quantité<input v-model.number="line.quantite" type="number" min="0.001" step="0.001" class="input" required /></label>
-              <label class="field-label">Prix achat HT<input v-model.number="line.prix_unitaire_ht" type="number" min="0" step="1" class="input" required /></label>
-              <label class="field-label">TVA %<input v-model.number="line.taux_tva" type="number" min="0" max="100" step="0.01" class="input" /></label>
-              <div><span class="block text-xs font-medium text-slate-500">Total TTC</span><strong class="mt-2 block">{{ money(lineTotal(line)) }}</strong></div>
-              <button type="button" class="flex h-10 w-10 items-center justify-center text-red-600" title="Supprimer la ligne" @click="removeLine(index)"><Trash2 :size="18" /></button>
+          <div class="space-y-2.5">
+            <div v-for="(line, index) in form.lignes" :key="line.key" class="document-line-card">
+              <div class="mb-2 flex items-center justify-between gap-2">
+                <span class="rounded-full px-2.5 py-1 text-xs font-bold" style="background: color-mix(in srgb, var(--saytu-primary) 10%, var(--saytu-surface)); color: var(--saytu-primary);">Ligne {{ index + 1 }}</span>
+                <div class="flex items-center gap-1">
+                  <button type="button" class="document-line-order-button" :disabled="index === 0 || form.lignes.length < 2" title="Monter la ligne" @click="moveLine(index, -1)">↑</button>
+                  <button type="button" class="document-line-order-button" :disabled="index === form.lignes.length - 1 || form.lignes.length < 2" title="Descendre la ligne" @click="moveLine(index, 1)">↓</button>
+                  <button type="button" class="document-line-delete-button" title="Supprimer la ligne" @click="removeLine(index)"><Trash2 :size="18" /></button>
+                </div>
+              </div>
+              <div class="grid items-end gap-2 lg:grid-cols-[minmax(260px,1fr)_110px_150px_110px_150px]">
+                <label class="block"><span class="document-line-label">Produit</span><select v-model.number="line.produit_id" class="input" required @change="selectProduct(line)"><option :value="null">{{ loadingReferentiels ? 'Chargement des produits...' : 'Choisir un produit' }}</option><option v-if="!loadingReferentiels && !referentiels.produits.length" disabled>Aucun produit disponible</option><option v-for="p in visibleProducts(line)" :key="p.id" :value="p.id">{{ p.reference }} - {{ p.libelle }}</option></select></label>
+                <label class="block"><span class="document-line-label">Quantité</span><input v-model.number="line.quantite" type="number" min="0.001" step="0.001" class="input text-right" required /></label>
+                <label class="block"><span class="document-line-label">Prix achat HT</span><input v-model.number="line.prix_unitaire_ht" type="number" min="0" step="1" class="input text-right" required /></label>
+                <label class="block"><span class="document-line-label">TVA %</span><input v-model.number="line.taux_tva" type="number" min="0" max="100" step="0.01" class="input text-right" /></label>
+                <div><span class="document-line-label">Total TTC</span><div class="document-line-total">{{ money(lineTotal(line)) }}</div></div>
+              </div>
             </div>
           </div>
         </div>
@@ -449,10 +475,12 @@ function visibleProducts(line) { const term = productSearch.value.trim().toLower
 function selectProduct(line) { const product = referentiels.produits.find(p => Number(p.id) === Number(line.produit_id)); if (!product) return; line.prix_unitaire_ht = Number(product.prix_achat_ht || 0); line.taux_tva = Number(product.taux_tva || 0) }
 function addLine() { form.lignes.push(emptyLine()) }
 function removeLine(index) { if (form.lignes.length === 1) return toast.error('Le bon doit contenir au moins une ligne.'); form.lignes.splice(index, 1) }
+function moveLine(index, direction) { const target = index + direction; if (target < 0 || target >= form.lignes.length) return; const [line] = form.lignes.splice(index, 1); form.lignes.splice(target, 0, line) }
 function demandLineTotal(line) { const product = referentiels.produits.find(item => Number(item.id) === Number(line.produit_id)); return Number(line.quantite || 0) * Number(line.prix_estime_ht || 0) * (1 + Number(product?.taux_tva || 0) / 100) }
 function selectDemandProduct(line) { const product = referentiels.produits.find(item => Number(item.id) === Number(line.produit_id)); if (product) line.prix_estime_ht = Number(product.prix_achat_ht || 0) }
 function addDemandLine() { demandForm.lignes.push(emptyDemandLine()) }
 function removeDemandLine(index) { if (demandForm.lignes.length === 1) return toast.error('La demande doit contenir au moins une ligne.'); demandForm.lignes.splice(index, 1) }
+function moveDemandLine(index, direction) { const target = index + direction; if (target < 0 || target >= demandForm.lignes.length) return; const [line] = demandForm.lignes.splice(index, 1); demandForm.lignes.splice(target, 0, line) }
 function applyStatFilter(key) { filters.statut = key === 'total' || key === 'engagement' ? '' : key; loadCommandes(1) }
 
 function normalizeListPayload(payload) { return Array.isArray(payload?.data) ? payload.data : (Array.isArray(payload) ? payload : []) }

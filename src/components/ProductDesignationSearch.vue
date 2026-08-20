@@ -21,7 +21,7 @@
       class="absolute left-0 right-0 top-full z-[120] mt-1 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xl"
     >
       <div class="border-b border-gray-100 px-3 py-2 text-xs text-gray-500">
-        Recherchez par référence ou libellé. Vous pouvez aussi garder une désignation libre.
+        Rechercher par référence ou libellé.
       </div>
 
       <div v-if="loading" class="px-3 py-3 text-sm text-gray-500">
@@ -50,7 +50,7 @@
       </div>
 
       <div v-else class="px-3 py-3 text-sm text-gray-500">
-        Aucun produit trouvé. Continuez la saisie pour créer une ligne libre.
+        Aucun produit trouvé.
       </div>
     </div>
   </div>

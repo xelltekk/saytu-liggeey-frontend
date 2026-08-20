@@ -71,18 +71,22 @@
         Lignes ({{ form.lignes.length }})
       </legend>
 
-      <div class="space-y-3">
-        <div v-for="(ligne, index) in form.lignes" :key="index" class="border border-gray-200 rounded-lg p-3 bg-gray-50">
-          <div class="flex items-start gap-2 mb-2">
-            <span class="text-xs text-gray-500 mt-2 w-6">{{ index + 1 }}.</span>
-            <div class="flex-1 rounded-lg border border-dashed border-gray-200 bg-white px-3 py-2 text-xs text-gray-500">
-              Cliquez dans la désignation pour rechercher un produit, ou saisissez une ligne libre.
+      <div class="space-y-2.5">
+        <div v-for="(ligne, index) in form.lignes" :key="index" class="document-line-card">
+          <div class="mb-2 flex items-center justify-between gap-2">
+            <span class="rounded-full px-2.5 py-1 text-xs font-bold" style="background: color-mix(in srgb, var(--saytu-primary) 10%, var(--saytu-surface)); color: var(--saytu-primary);">
+              Ligne {{ index + 1 }}
+            </span>
+            <div class="flex items-center gap-1">
+              <button type="button" class="document-line-order-button" :disabled="index === 0 || form.lignes.length < 2" title="Monter la ligne" @click="deplacerLigne(index, -1)">↑</button>
+              <button type="button" class="document-line-order-button" :disabled="index === form.lignes.length - 1 || form.lignes.length < 2" title="Descendre la ligne" @click="deplacerLigne(index, 1)">↓</button>
+              <button type="button" @click="supprimerLigne(index)" class="document-line-delete-button" title="Supprimer">🗑️</button>
             </div>
-            <button type="button" @click="supprimerLigne(index)" class="text-red-600 hover:text-red-800 text-lg px-2" title="Supprimer">🗑️</button>
           </div>
 
-          <div class="grid grid-cols-1 md:grid-cols-12 gap-2">
-            <div class="md:col-span-5">
+          <div class="grid grid-cols-1 gap-2 lg:grid-cols-[minmax(260px,1fr)_88px_120px_88px_88px_120px]">
+            <label class="block">
+              <span class="document-line-label">Désignation</span>
               <ProductDesignationSearch
                 v-model="ligne.designation"
                 :products="produits"
@@ -90,29 +94,33 @@
                 required
                 @select="(produit) => appliquerProduit(index, produit)"
               />
-              <p v-if="ligne.produit_id" class="mt-1 text-xs text-gray-500">
-                Produit sélectionné : {{ produitLabel(ligne.produit_id) }}
-              </p>
-              <p v-else-if="ligne.designation" class="mt-1 text-xs text-gray-400">
-                Ligne libre
-              </p>
-            </div>
-            <div class="md:col-span-1">
+            </label>
+            <label class="block">
+              <span class="document-line-label">Quantité</span>
               <input v-model.number="ligne.quantite" type="number" step="0.001" min="0.001" class="input text-sm text-right" placeholder="Qté" required />
-            </div>
-            <div class="md:col-span-2">
+            </label>
+            <label class="block">
+              <span class="document-line-label">Prix unitaire HT</span>
               <input v-model.number="ligne.prix_unitaire_ht" type="number" step="0.01" min="0" class="input text-sm text-right" placeholder="P.U." required />
-            </div>
-            <div class="md:col-span-1">
+            </label>
+            <label class="block">
+              <span class="document-line-label">Remise %</span>
               <input v-model.number="ligne.remise_pourcent" type="number" step="0.01" min="0" max="100" class="input text-sm text-right" placeholder="Rem.%" />
-            </div>
-            <div class="md:col-span-1">
+            </label>
+            <label class="block">
+              <span class="document-line-label">TVA %</span>
               <input v-model.number="ligne.taux_tva" type="number" step="0.01" min="0" max="100" class="input text-sm text-right" placeholder="TVA%" />
-            </div>
-            <div class="md:col-span-2 text-right pt-2 font-mono text-sm font-semibold text-xelltekk-700">
-              {{ formatPrice(calculerLigne(ligne)) }}
+            </label>
+            <div>
+              <span class="document-line-label">Total HT</span>
+              <div class="document-line-total">{{ formatPrice(calculerLigne(ligne)) }}</div>
             </div>
           </div>
+
+          <label class="mt-2 block">
+            <span class="document-line-label">Description complémentaire</span>
+            <textarea v-model="ligne.description" class="input text-xs" rows="1" placeholder="Optionnel"></textarea>
+          </label>
         </div>
 
         <button type="button" @click="ajouterLigne" class="btn-secondary w-full justify-center text-sm">
@@ -220,12 +228,19 @@ function calculerLigne(ligne) {
 
 function ajouterLigne() {
   form.lignes.push({
-    produit_id: null, designation: '', quantite: 1, unite: 'pièce',
+    produit_id: null, designation: '', description: '', quantite: 1, unite: 'pièce',
     prix_unitaire_ht: 0, remise_pourcent: 0, taux_tva: 18, type_ligne: 'produit',
   })
 }
 
 function supprimerLigne(i) { form.lignes.splice(i, 1) }
+
+function deplacerLigne(index, direction) {
+  const target = index + direction
+  if (target < 0 || target >= form.lignes.length) return
+  const [ligne] = form.lignes.splice(index, 1)
+  form.lignes.splice(target, 0, ligne)
+}
 
 function appliquerProduit(index, produit) {
   if (!produit || !form.lignes[index]) return
@@ -236,6 +251,7 @@ function appliquerProduit(index, produit) {
   const ligne = form.lignes[index]
   ligne.produit_id = produit.id
   ligne.designation = produit.libelle
+  ligne.description = produit.description || ''
   ligne.prix_unitaire_ht = parseFloat(produit.prix_vente_ht || 0)
   ligne.taux_tva = parseFloat(produit.taux_tva || 0)
   ligne.unite = produit.unite || 'pièce'

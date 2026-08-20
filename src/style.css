@@ -482,6 +482,89 @@
     box-shadow: 0 0 0 4px rgb(2 132 199 / 0.12);
     outline: none;
   }
+  .document-line-card {
+    border: 1px solid color-mix(in srgb, var(--saytu-primary, #2563eb) 16%, var(--saytu-border, #e2e8f0));
+    background: color-mix(in srgb, var(--saytu-surface, #ffffff) 94%, var(--saytu-primary, #2563eb) 6%);
+    border-radius: 1rem;
+    padding: 0.75rem;
+    color: var(--saytu-shell-text, #334155);
+  }
+  .document-line-label {
+    display: block;
+    margin-bottom: 0.25rem;
+    color: var(--saytu-topbar-subtitle, #64748b);
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.045em;
+    line-height: 1;
+    text-transform: uppercase;
+  }
+  .document-line-card .input {
+    border-radius: 0.85rem;
+    padding: 0.55rem 0.75rem;
+    font-size: 0.875rem;
+  }
+  .document-line-total {
+    min-height: 2.35rem;
+    border-radius: 0.85rem;
+    border: 1px solid color-mix(in srgb, var(--saytu-primary, #2563eb) 18%, var(--saytu-border, #e2e8f0));
+    background: color-mix(in srgb, var(--saytu-primary, #2563eb) 8%, var(--saytu-surface, #ffffff));
+    color: var(--saytu-primary, #2563eb);
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 0.55rem 0.75rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-size: 0.875rem;
+    font-weight: 800;
+  }
+  .document-line-order-button,
+  .document-line-delete-button {
+    display: inline-flex;
+    height: 2rem;
+    min-width: 2rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--saytu-primary, #2563eb) 18%, var(--saytu-border, #e2e8f0));
+    background: color-mix(in srgb, var(--saytu-surface, #ffffff) 90%, var(--saytu-primary, #2563eb) 10%);
+    color: var(--saytu-primary, #2563eb);
+    font-size: 0.8rem;
+    font-weight: 900;
+    transition: 160ms ease;
+  }
+  .document-line-order-button:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--saytu-primary, #2563eb) 15%, var(--saytu-surface, #ffffff));
+  }
+  .document-line-order-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.35;
+  }
+  .document-line-delete-button {
+    border-color: color-mix(in srgb, #ef4444 22%, var(--saytu-border, #e2e8f0));
+    color: #dc2626;
+    background: color-mix(in srgb, #ef4444 8%, var(--saytu-surface, #ffffff));
+  }
+  .document-line-delete-button:hover {
+    background: color-mix(in srgb, #ef4444 14%, var(--saytu-surface, #ffffff));
+  }
+  .payment-condition-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--saytu-primary, #2563eb) 22%, var(--saytu-border, #e2e8f0));
+    background: color-mix(in srgb, var(--saytu-primary, #2563eb) 8%, var(--saytu-surface, #ffffff));
+    color: var(--saytu-primary, #2563eb);
+    padding: 0.42rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 800;
+    transition: 160ms ease;
+  }
+  .payment-condition-button:hover {
+    background: color-mix(in srgb, var(--saytu-primary, #2563eb) 15%, var(--saytu-surface, #ffffff));
+    transform: translateY(-1px);
+  }
   select.input,
   select.input option {
     background-color: #ffffff;

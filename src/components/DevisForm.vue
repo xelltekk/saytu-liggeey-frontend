@@ -53,6 +53,43 @@
           <label class="block text-sm font-medium text-gray-700 mb-1">Objet du devis</label>
           <input v-model="form.objet" type="text" class="input" placeholder="Ex: Fourniture de matériel informatique" />
         </div>
+
+        <div class="md:col-span-2">
+          <div class="mb-1 flex items-center justify-between gap-2">
+            <label class="block text-sm font-medium text-gray-700">Conditions et modalités de paiement</label>
+            <button
+              v-if="paymentModalities"
+              type="button"
+              class="text-xs font-semibold text-[color:var(--saytu-primary)] hover:underline"
+              @click="reprendreModalitesEntreprise"
+            >
+              Reprendre les modalités entreprise
+            </button>
+          </div>
+          <div class="mb-2">
+            <span class="document-line-label">Conditions rapides</span>
+            <div class="flex flex-wrap gap-2">
+              <button
+                v-for="condition in paymentConditionPresets"
+                :key="condition.label"
+                type="button"
+                class="payment-condition-button"
+                @click="appliquerConditionPaiement(condition.texte)"
+              >
+                {{ condition.label }}
+              </button>
+            </div>
+          </div>
+          <textarea
+            v-model="form.conditions_paiement"
+            rows="2"
+            class="input text-sm"
+            placeholder="Ex: Paiement 50 % à la commande, 50 % à la livraison..."
+          ></textarea>
+          <p class="mt-1 text-xs text-gray-500">
+            Ce texte apparaît sur le PDF du devis dans les conditions de règlement.
+          </p>
+        </div>
       </div>
     </fieldset>
 
@@ -62,31 +99,50 @@
         Lignes de devis ({{ form.lignes.length }})
       </legend>
 
-      <div class="space-y-3">
+      <div class="space-y-2.5">
         <div
           v-for="(ligne, index) in form.lignes"
           :key="index"
-          class="border border-gray-200 rounded-lg p-3 bg-gray-50"
+          class="document-line-card"
         >
-          <div class="flex items-start gap-2 mb-2">
-            <span class="text-xs text-gray-500 mt-2 w-6">{{ index + 1 }}.</span>
+          <div class="mb-2 flex items-center justify-between gap-2">
+            <span class="rounded-full px-2.5 py-1 text-xs font-bold" style="background: color-mix(in srgb, var(--saytu-primary) 10%, var(--saytu-surface)); color: var(--saytu-primary);">
+              Ligne {{ index + 1 }}
+            </span>
 
-            <div class="flex-1 rounded-lg border border-dashed border-gray-200 bg-white px-3 py-2 text-xs text-gray-500">
-              Cliquez dans la désignation pour rechercher un produit, ou saisissez une ligne libre.
+            <div class="flex items-center gap-1">
+              <button
+                type="button"
+                class="document-line-order-button"
+                :disabled="index === 0 || form.lignes.length < 2"
+                title="Monter la ligne"
+                @click="deplacerLigne(index, -1)"
+              >
+                ↑
+              </button>
+              <button
+                type="button"
+                class="document-line-order-button"
+                :disabled="index === form.lignes.length - 1 || form.lignes.length < 2"
+                title="Descendre la ligne"
+                @click="deplacerLigne(index, 1)"
+              >
+                ↓
+              </button>
+              <button
+                type="button"
+                @click="supprimerLigne(index)"
+                class="document-line-delete-button"
+                title="Supprimer cette ligne"
+              >
+                🗑️
+              </button>
             </div>
-
-            <button
-              type="button"
-              @click="supprimerLigne(index)"
-              class="text-red-600 hover:text-red-800 text-lg px-2"
-              title="Supprimer cette ligne"
-            >
-              🗑️
-            </button>
           </div>
 
-          <div class="grid grid-cols-1 md:grid-cols-12 gap-2">
-            <div class="md:col-span-5">
+          <div class="grid grid-cols-1 gap-2 lg:grid-cols-[minmax(260px,1fr)_88px_120px_88px_88px_120px]">
+            <label class="block">
+              <span class="document-line-label">Désignation</span>
               <ProductDesignationSearch
                 v-model="ligne.designation"
                 :products="produits"
@@ -94,15 +150,10 @@
                 required
                 @select="(produit) => appliquerProduit(index, produit)"
               />
-              <p v-if="ligne.produit_id" class="mt-1 text-xs text-gray-500">
-                Produit sélectionné : {{ produitLabel(ligne.produit_id) }}
-              </p>
-              <p v-else-if="ligne.designation" class="mt-1 text-xs text-gray-400">
-                Ligne libre
-              </p>
-            </div>
+            </label>
 
-            <div class="md:col-span-1">
+            <label class="block">
+              <span class="document-line-label">Quantité</span>
               <input
                 v-model.number="ligne.quantite"
                 type="number"
@@ -112,9 +163,10 @@
                 placeholder="Qté"
                 required
               />
-            </div>
+            </label>
 
-            <div class="md:col-span-2">
+            <label class="block">
+              <span class="document-line-label">Prix unitaire HT</span>
               <input
                 v-model.number="ligne.prix_unitaire_ht"
                 type="number"
@@ -124,9 +176,10 @@
                 placeholder="P.U. HT"
                 required
               />
-            </div>
+            </label>
 
-            <div class="md:col-span-1">
+            <label class="block">
+              <span class="document-line-label">Remise %</span>
               <input
                 v-model.number="ligne.remise_pourcent"
                 type="number"
@@ -136,9 +189,10 @@
                 class="input text-sm text-right"
                 placeholder="Rem.%"
               />
-            </div>
+            </label>
 
-            <div class="md:col-span-1">
+            <label class="block">
+              <span class="document-line-label">TVA %</span>
               <input
                 v-model.number="ligne.taux_tva"
                 type="number"
@@ -148,19 +202,23 @@
                 class="input text-sm text-right"
                 placeholder="TVA%"
               />
-            </div>
+            </label>
 
-            <div class="md:col-span-2 text-right pt-2 font-mono text-sm font-semibold text-xelltekk-700">
-              {{ formatPrice(calculerLigne(ligne)) }}
+            <div>
+              <span class="document-line-label">Total HT</span>
+              <div class="document-line-total">{{ formatPrice(calculerLigne(ligne)) }}</div>
             </div>
           </div>
 
-          <textarea
-            v-model="ligne.description"
-            class="input text-xs mt-2"
-            rows="1"
-            placeholder="Description complémentaire (optionnel)"
-          ></textarea>
+          <label class="mt-2 block">
+            <span class="document-line-label">Description complémentaire</span>
+            <textarea
+              v-model="ligne.description"
+              class="input text-xs"
+              rows="1"
+              placeholder="Optionnel"
+            ></textarea>
+          </label>
         </div>
 
         <button
@@ -245,6 +303,7 @@ const defaultForm = () => ({
   reference_client: '',
   objet: '',
   delai_paiement_jours: 30,
+  conditions_paiement: '',
   notes_publiques: '',
   notes_privees: '',
   lignes: [],
@@ -258,6 +317,7 @@ const errorLabels = {
   date_devis: 'Date du devis',
   date_validite: 'Date de validité',
   delai_paiement_jours: 'Délai paiement',
+  conditions_paiement: 'Conditions et modalités de paiement',
   lignes: 'Ligne',
   designation: 'Désignation',
   quantite: 'Quantité',
@@ -266,6 +326,15 @@ const errorLabels = {
 }
 const clients = ref([])
 const produits = ref([])
+const paymentModalities = ref('')
+const paymentConditionPresets = [
+  { label: 'À la réception', texte: 'Paiement à la réception.' },
+  { label: '50/50', texte: 'Paiement 50 % à la commande, 50 % à la livraison.' },
+  { label: '30/70', texte: 'Paiement 30 % à la commande, 70 % à la livraison.' },
+  { label: '40/60', texte: 'Paiement 40 % à la commande, 60 % à la livraison.' },
+  { label: '100 % commande', texte: 'Paiement 100 % à la commande.' },
+  { label: 'À 30 jours', texte: 'Paiement à 30 jours date de facture.' },
+]
 const initialSnapshot = ref('')
 const hydrating = ref(false)
 
@@ -304,6 +373,48 @@ function ajouterLigne() {
 
 function supprimerLigne(index) {
   form.lignes.splice(index, 1)
+}
+
+function deplacerLigne(index, direction) {
+  const target = index + direction
+  if (target < 0 || target >= form.lignes.length) return
+  const [ligne] = form.lignes.splice(index, 1)
+  form.lignes.splice(target, 0, ligne)
+}
+
+function conditionsPaiementTexte(condition = '') {
+  const parts = []
+  const conditionTexte = String(condition || '').trim()
+  const modalitesTexte = String(paymentModalities.value || '').trim()
+
+  if (conditionTexte) {
+    parts.push(conditionTexte)
+  }
+
+  if (modalitesTexte) {
+    parts.push('Moyens de paiement :')
+    parts.push(modalitesTexte)
+  }
+
+  return parts.join('\n')
+}
+
+function appliquerConditionPaiement(condition) {
+  form.conditions_paiement = conditionsPaiementTexte(condition)
+}
+
+function reprendreModalitesEntreprise() {
+  const modalitesTexte = String(paymentModalities.value || '').trim()
+  if (!modalitesTexte) return
+
+  const texteActuel = String(form.conditions_paiement || '').trim()
+  if (!texteActuel) {
+    form.conditions_paiement = modalitesTexte
+    return
+  }
+
+  if (texteActuel.includes(modalitesTexte)) return
+  form.conditions_paiement = `${texteActuel}\nMoyens de paiement :\n${modalitesTexte}`
 }
 
 function appliquerProduit(index, produit) {
@@ -366,6 +477,7 @@ watch(() => props.devis, async (val) => {
     if (props.client?.id) {
       form.client_id = Number(props.client.id)
     }
+    form.conditions_paiement = conditionsPaiementTexte(paymentConditionPresets[0].texte)
     ajouterLigne() // Une ligne par défaut
   }
   errors.value = {}
@@ -376,12 +488,19 @@ watch(() => props.devis, async (val) => {
 
 onMounted(async () => {
   try {
-    const [respClients, respProduits] = await Promise.all([
+    const [respClients, respProduits, respModalites] = await Promise.all([
       api.get('/clients', { params: { per_page: 100 } }),
       api.get('/produits', { params: { per_page: 100, actifs_seulement: 1 } }),
+      api.get('/societe/modalites-paiement').catch(() => ({ data: { texte: '' } })),
     ])
     clients.value = respClients.data.data
     produits.value = respProduits.data.data
+    paymentModalities.value = respModalites.data?.texte || ''
+    if (!props.devis?.id && paymentModalities.value && (!form.conditions_paiement || form.conditions_paiement === paymentConditionPresets[0].texte)) {
+      form.conditions_paiement = conditionsPaiementTexte(paymentConditionPresets[0].texte)
+      await nextTick()
+      markClean()
+    }
   } catch (e) {
     toast.error('Erreur de chargement des données')
   }
