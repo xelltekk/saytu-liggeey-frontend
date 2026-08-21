@@ -592,7 +592,7 @@
 
       <template #footer>
         <button type="button" class="btn-secondary" @click="showTicketPreview = false">Fermer</button>
-        <button type="button" class="btn-primary" @click="imprimerTicket(ticketPreview)">Imprimer</button>
+        <button type="button" class="btn-primary" @click="lancerImpressionTicket">Imprimer</button>
       </template>
     </AppModal>
   </div>
@@ -1023,8 +1023,14 @@ function escapeHtml(value) {
   }[char]))
 }
 
+function lancerImpressionTicket() {
+  if (imprimerTicket(ticketPreview.value)) {
+    showTicketPreview.value = false
+  }
+}
+
 function imprimerTicket(data = ticketPreview.value) {
-  if (!data?.ticket) return
+  if (!data?.ticket) return false
   const lignes = extraireLignesTicket(data)
   const paiements = extrairePaiementsTicket(data)
   const html = `
@@ -1082,7 +1088,7 @@ function imprimerTicket(data = ticketPreview.value) {
   if (!doc) {
     frame.remove()
     toast.error('Impression impossible')
-    return
+    return false
   }
 
   doc.open()
@@ -1094,6 +1100,7 @@ function imprimerTicket(data = ticketPreview.value) {
     frame.contentWindow?.print()
     setTimeout(() => frame.remove(), 1000)
   }, 120)
+  return true
 }
 
 function modePaiementLabel(mode) {
