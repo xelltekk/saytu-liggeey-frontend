@@ -74,6 +74,31 @@
       </div>
     </fieldset>
 
+    <!-- Photo -->
+    <fieldset class="border border-gray-200 rounded-lg p-4">
+      <legend class="px-2 text-sm font-semibold text-gray-700">Photo du produit</legend>
+
+      <div class="flex flex-col gap-4 sm:flex-row sm:items-center">
+        <div class="flex h-28 w-28 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-gray-200 bg-slate-50 text-3xl text-slate-300">
+          <img v-if="produitImagePreviewUrl" :src="produitImagePreviewUrl" :alt="form.libelle || 'Photo produit'" class="h-full w-full object-cover" />
+          <span v-else>▣</span>
+        </div>
+
+        <div class="min-w-0 flex-1 space-y-2">
+          <input ref="imageInput" type="file" accept="image/png,image/jpeg,image/webp" class="hidden" @change="onImageSelected" />
+          <div class="flex flex-wrap gap-2">
+            <button type="button" class="btn-secondary text-sm" @click="imageInput.click()">
+              Choisir une photo
+            </button>
+            <button v-if="produitImagePreviewUrl" type="button" class="btn-secondary text-sm" @click="retirerImage">
+              Retirer
+            </button>
+          </div>
+          <p class="text-xs text-gray-500">PNG, JPG ou WEBP. Taille maximale : 2 Mo. La photo sera visible dans la liste produits et dans la caisse.</p>
+        </div>
+      </div>
+    </fieldset>
+
     <!-- Prix -->
     <fieldset class="border border-gray-200 rounded-lg p-4">
       <legend class="px-2 text-sm font-semibold text-gray-700">Prix</legend>
@@ -166,7 +191,7 @@
 </template>
 
 <script setup>
-import { reactive, ref, computed, watch, onMounted } from 'vue'
+import { reactive, ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import api from '@/services/api'
 import { useToast } from '@/composables/useToast'
 import FormErrorSummary from '@/components/FormErrorSummary.vue'
@@ -198,11 +223,16 @@ const defaultForm = () => ({
   garantie_mois: null,
   est_serialise: false,
   is_active: true,
+  image: '',
 })
 
 const form = reactive(defaultForm())
 const saving = ref(false)
 const errors = ref({})
+const imageInput = ref(null)
+const selectedImage = ref(null)
+const selectedImagePreview = ref('')
+const removeImage = ref(false)
 const errorLabels = {
   reference: 'Référence',
   code_barre: 'Code-barres',
@@ -216,6 +246,7 @@ const errorLabels = {
   stock_alerte: "Stock d'alerte",
   unite: 'Unité',
   garantie_mois: 'Garantie',
+  image: 'Photo produit',
 }
 const categories = ref([])
 
@@ -234,8 +265,20 @@ const margeColor = computed(() => {
   return 'text-green-600'
 })
 
+const produitImagePreviewUrl = computed(() => {
+  if (selectedImagePreview.value) return selectedImagePreview.value
+  if (!form.image || removeImage.value) return ''
+  return imageUrl(form.image)
+})
+
 function formatPrice(n) {
   return new Intl.NumberFormat('fr-FR').format(n)
+}
+
+function imageUrl(image) {
+  if (!image) return ''
+  if (String(image).startsWith('http') || String(image).startsWith('data:') || String(image).startsWith('blob:')) return image
+  return String(image).startsWith('/') ? image : `/${image}`
 }
 
 watch(() => props.produit, (val) => {
@@ -244,8 +287,13 @@ watch(() => props.produit, (val) => {
   } else {
     Object.assign(form, defaultForm())
   }
+  resetImageSelection()
   errors.value = {}
 }, { immediate: true })
+
+onBeforeUnmount(() => {
+  if (selectedImagePreview.value) URL.revokeObjectURL(selectedImagePreview.value)
+})
 
 onMounted(async () => {
   try {
@@ -265,6 +313,71 @@ onMounted(async () => {
   }
 })
 
+function resetImageSelection() {
+  selectedImage.value = null
+  removeImage.value = false
+  if (selectedImagePreview.value) {
+    URL.revokeObjectURL(selectedImagePreview.value)
+    selectedImagePreview.value = ''
+  }
+  if (imageInput.value) imageInput.value.value = ''
+}
+
+function onImageSelected(event) {
+  const file = event.target.files?.[0]
+  if (!file) return
+
+  if (!file.type.startsWith('image/')) {
+    errors.value = { image: ['Le fichier choisi doit être une image.'] }
+    toast.error('Le fichier choisi doit être une image.')
+    if (imageInput.value) imageInput.value.value = ''
+    return
+  }
+
+  if (file.size > 2 * 1024 * 1024) {
+    errors.value = { image: ['La photo produit dépasse 2 Mo.'] }
+    toast.error('La photo produit dépasse 2 Mo.')
+    if (imageInput.value) imageInput.value.value = ''
+    return
+  }
+
+  selectedImage.value = file
+  removeImage.value = false
+  if (selectedImagePreview.value) URL.revokeObjectURL(selectedImagePreview.value)
+  selectedImagePreview.value = URL.createObjectURL(file)
+}
+
+function retirerImage() {
+  selectedImage.value = null
+  removeImage.value = true
+  form.image = ''
+  if (selectedImagePreview.value) {
+    URL.revokeObjectURL(selectedImagePreview.value)
+    selectedImagePreview.value = ''
+  }
+  if (imageInput.value) imageInput.value.value = ''
+}
+
+async function syncImage(produitId, produitData) {
+  let nextProduit = produitData
+
+  if (removeImage.value && props.produit?.image && !selectedImage.value) {
+    const { data } = await api.delete(`/produits/${produitId}/image`)
+    nextProduit = data.produit
+  }
+
+  if (selectedImage.value) {
+    const formData = new FormData()
+    formData.append('image', selectedImage.value)
+    const { data } = await api.post(`/produits/${produitId}/image`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    nextProduit = data.produit
+  }
+
+  return nextProduit
+}
+
 async function handleSubmit() {
   saving.value = true
   errors.value = {}
@@ -277,20 +390,23 @@ async function handleSubmit() {
     })
 
     let response
+    let produitEnregistre
     if (props.produit?.id) {
       response = await api.put(`/produits/${props.produit.id}`, payload)
-      toast.success(`Produit "${response.data.libelle}" mis à jour`)
+      produitEnregistre = await syncImage(props.produit.id, response.data)
+      toast.success(`Produit "${produitEnregistre.libelle}" mis à jour`)
     } else {
       response = await api.post('/produits', payload)
-      toast.success(`Produit "${response.data.libelle}" créé (${response.data.reference})`)
+      produitEnregistre = await syncImage(response.data.id, response.data)
+      toast.success(`Produit "${produitEnregistre.libelle}" créé (${produitEnregistre.reference})`)
     }
-    emit('saved', response.data)
+    emit('saved', produitEnregistre)
   } catch (err) {
-    if (err.response.status === 422) {
+    if (err.response?.status === 422) {
       errors.value = validationErrors(err)
       toast.error(errorMessagesFromResponse(err, errorLabels))
     } else {
-      toast.error(err.response.data.message || 'Erreur lors de l\'enregistrement')
+      toast.error(err.response?.data?.message || 'Erreur lors de l\'enregistrement')
     }
   } finally {
     saving.value = false

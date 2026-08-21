@@ -80,9 +80,17 @@
             <tr v-for="produit in sortedProduits" :key="produit.id" class="hover:bg-gray-50">
               <td class="px-4 py-3 text-sm font-mono text-gray-600">{{ produit.reference }}</td>
               <td class="px-4 py-3">
-                <div class="font-medium text-gray-900">{{ produit.libelle }}</div>
-                <div v-if="produit.marque || produit.modele" class="text-xs text-gray-500">
-                  {{ [produit.marque, produit.modele].filter(Boolean).join(' • ') }}
+                <div class="flex items-center gap-3">
+                  <div class="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-gray-200 bg-slate-50 text-lg text-slate-300">
+                    <img v-if="imageUrl(produit.image)" :src="imageUrl(produit.image)" :alt="produit.libelle" class="h-full w-full object-cover" />
+                    <span v-else>▣</span>
+                  </div>
+                  <div class="min-w-0">
+                    <div class="font-medium text-gray-900">{{ produit.libelle }}</div>
+                    <div v-if="produit.marque || produit.modele" class="text-xs text-gray-500">
+                      {{ [produit.marque, produit.modele].filter(Boolean).join(' • ') }}
+                    </div>
+                  </div>
                 </div>
               </td>
               <td class="px-4 py-3 text-sm text-gray-600">{{ produit.categorie?.libelle || '–' }}</td>
@@ -348,6 +356,12 @@ function prixTtc(produit) {
 
 function formatPrice(n) {
   return new Intl.NumberFormat('fr-FR').format(n || 0)
+}
+
+function imageUrl(image) {
+  if (!image) return ''
+  if (String(image).startsWith('http') || String(image).startsWith('data:') || String(image).startsWith('blob:')) return image
+  return String(image).startsWith('/') ? image : `/${image}`
 }
 
 function typeBadgeClass(type) {
