@@ -524,11 +524,83 @@
         </form>
       </section>
     </div>
+
+    <AppModal v-model="showTicketPreview" :title="ticketModalTitle" size="sm" centered>
+      <div v-if="ticketPreview" class="ticket-preview-shell">
+        <div class="ticket-paper">
+          <div class="ticket-topline">
+            <span>Ticket</span>
+            <strong>{{ ticketPreview.ticket?.numero || '-' }}</strong>
+          </div>
+
+          <div class="ticket-brand">
+            <div class="ticket-logo">SL</div>
+            <div>
+              <h3>Saytu Liggéey 2.0</h3>
+              <p>{{ ticketPreview.ticket?.date || '-' }}</p>
+            </div>
+          </div>
+
+          <div class="ticket-meta">
+            <div>
+              <span>Caissier</span>
+              <strong>{{ ticketPreview.ticket?.caissier || '-' }}</strong>
+            </div>
+            <div v-if="ticketClientLabel">
+              <span>Client</span>
+              <strong>{{ ticketClientLabel }}</strong>
+            </div>
+          </div>
+
+          <div class="ticket-divider"></div>
+
+          <div class="space-y-2">
+            <div v-for="(ligne, index) in ticketPreviewLignes" :key="`${ligne.designation}-${ligne.total_ttc}-${index}`" class="ticket-line">
+              <div>
+                <strong>{{ ligne.designation }}</strong>
+                <span>Qté {{ Number(ligne.quantite || 0) }}</span>
+              </div>
+              <strong>{{ formatPrice(ligne.total_ttc) }}</strong>
+            </div>
+          </div>
+
+          <div class="ticket-divider"></div>
+
+          <div class="ticket-total">
+            <span>Total</span>
+            <strong>{{ formatPrice(ticketPreview.ticket?.total_ttc) }}</strong>
+          </div>
+
+          <div class="mt-2 space-y-1">
+            <div v-for="(paiement, index) in ticketPreviewPaiements" :key="`${paiement.mode_paiement}-${paiement.montant}-${index}`" class="ticket-payment">
+              <span>{{ modePaiementLabel(paiement.mode_paiement) }}</span>
+              <strong>{{ formatPrice(paiement.montant) }}</strong>
+            </div>
+            <div v-if="Number(ticketPreview.ticket?.monnaie_rendue || 0) > 0" class="ticket-payment">
+              <span>Reçu</span>
+              <strong>{{ formatPrice(ticketPreview.ticket?.total_recu) }}</strong>
+            </div>
+            <div v-if="Number(ticketPreview.ticket?.monnaie_rendue || 0) > 0" class="ticket-payment font-black">
+              <span>Monnaie rendue</span>
+              <strong>{{ formatPrice(ticketPreview.ticket?.monnaie_rendue) }}</strong>
+            </div>
+          </div>
+
+          <p class="ticket-thanks">Merci pour votre achat</p>
+        </div>
+      </div>
+
+      <template #footer>
+        <button type="button" class="btn-secondary" @click="showTicketPreview = false">Fermer</button>
+        <button type="button" class="btn-primary" @click="imprimerTicket(ticketPreview)">Imprimer</button>
+      </template>
+    </AppModal>
   </div>
 </template>
 
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue'
+import AppModal from '@/components/AppModal.vue'
 import api from '@/services/api'
 import { useToast } from '@/composables/useToast'
 import { useAuthStore } from '@/stores/auth'
@@ -550,6 +622,8 @@ const journalAdmin = ref([])
 const produits = ref([])
 const panier = ref([])
 const productSearch = ref('')
+const showTicketPreview = ref(false)
+const ticketPreview = ref(null)
 const stats = reactive({ sessions_ouvertes: 0, entrees_jour: 0, sorties_jour: 0, solde_net_jour: 0 })
 
 const openForm = reactive({ solde_ouverture: 0, notes_ouverture: '' })
@@ -625,6 +699,18 @@ const monnaieARendre = computed(() => {
     if (item.mode_paiement !== 'especes') return total
     return total + Math.max(Number(item.montant_recu || 0) - Number(item.montant || 0), 0)
   }, 0)
+})
+
+const ticketModalTitle = computed(() => {
+  const numero = ticketPreview.value?.ticket?.numero
+  return numero ? `Aperçu ticket ${numero}` : 'Aperçu ticket'
+})
+
+const ticketPreviewLignes = computed(() => extraireLignesTicket(ticketPreview.value))
+const ticketPreviewPaiements = computed(() => extrairePaiementsTicket(ticketPreview.value))
+const ticketClientLabel = computed(() => {
+  const data = ticketPreview.value
+  return data?.facture?.client?.nom || data?.facture?.client_nom || data?.ticket?.client_nom || ''
 })
 
 watch(() => totauxPanier.value.ttc, (nouveauTotal, ancienTotal) => {
@@ -895,7 +981,7 @@ async function encaisserVente() {
         await ouvrirPDF(`/caisse/factures/${data.facture.id}/pdf`, `${data.facture.numero}.pdf`)
       }
     } else {
-      imprimerTicket(data)
+      afficherTicket(data)
     }
     viderPanier()
     Object.assign(posForm, { client_nom: '', mode_paiement: 'especes', reference_paiement: '', document_type: 'ticket' })
@@ -908,16 +994,48 @@ async function encaisserVente() {
   }
 }
 
-function imprimerTicket(data) {
-  const lignes = data.facture?.lignes || []
-  const paiements = data.ticket.paiements || []
+function afficherTicket(data) {
+  ticketPreview.value = data
+  showTicketPreview.value = true
+}
+
+function extraireLignesTicket(data) {
+  return data?.facture?.lignes || []
+}
+
+function extrairePaiementsTicket(data) {
+  const paiements = data?.ticket?.paiements || []
+  if (paiements.length) return paiements
+  if (!data?.ticket?.mode_paiement) return []
+  return [{
+    mode_paiement: data.ticket.mode_paiement,
+    montant: Number(data.ticket.total_ttc || 0),
+  }]
+}
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (char) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#039;',
+  }[char]))
+}
+
+function imprimerTicket(data = ticketPreview.value) {
+  if (!data?.ticket) return
+  const lignes = extraireLignesTicket(data)
+  const paiements = extrairePaiementsTicket(data)
   const html = `
     <html>
       <head>
-        <title>Ticket ${data.ticket.numero}</title>
+        <title>Ticket ${escapeHtml(data.ticket.numero)}</title>
         <style>
-          body { font-family: Arial, sans-serif; width: 280px; margin: 0 auto; color: #111; }
-          h1 { font-size: 16px; text-align: center; margin: 12px 0 4px; }
+          @page { size: 80mm auto; margin: 5mm; }
+          * { box-sizing: border-box; }
+          body { font-family: Arial, sans-serif; width: 72mm; margin: 0 auto; color: #111; }
+          h1 { font-size: 15px; text-align: center; margin: 8px 0 4px; }
           .center { text-align: center; }
           .line { border-top: 1px dashed #999; margin: 8px 0; }
           .row { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; margin: 4px 0; }
@@ -926,22 +1044,19 @@ function imprimerTicket(data) {
         </style>
       </head>
       <body>
-        <h1>Saytu Liggeey 2.0</h1>
-        <div class="center"><small>Ticket ${data.ticket.numero}</small></div>
-        <div class="center"><small>${data.ticket.date} - ${data.ticket.caissier}</small></div>
+        <h1>Saytu Liggéey 2.0</h1>
+        <div class="center"><small>Ticket ${escapeHtml(data.ticket.numero)}</small></div>
+        <div class="center"><small>${escapeHtml(data.ticket.date)} - ${escapeHtml(data.ticket.caissier)}</small></div>
         <div class="line"></div>
         ${lignes.map(l => `
           <div class="row">
-            <span>${l.designation} x ${Number(l.quantite)}</span>
+            <span>${escapeHtml(l.designation)} x ${Number(l.quantite)}</span>
             <strong>${formatPrice(l.total_ttc)}</strong>
           </div>
         `).join('')}
         <div class="line"></div>
         <div class="row total"><span>Total</span><strong>${formatPrice(data.ticket.total_ttc)}</strong></div>
-        ${paiements.length ?
-           paiements.map(p => `<div class="row"><span>${modePaiementLabel(p.mode_paiement)}</span><strong>${formatPrice(p.montant)}</strong></div>`).join('')
-          : `<div class="row"><span>Paiement</span><strong>${modePaiementLabel(data.ticket.mode_paiement)}</strong></div>`
-        }
+        ${paiements.map(p => `<div class="row"><span>${escapeHtml(modePaiementLabel(p.mode_paiement))}</span><strong>${formatPrice(p.montant)}</strong></div>`).join('')}
         ${Number(data.ticket.monnaie_rendue || 0) > 0 ? `
           <div class="row"><span>Reçu</span><strong>${formatPrice(data.ticket.total_recu)}</strong></div>
           <div class="row total"><span>Monnaie rendue</span><strong>${formatPrice(data.ticket.monnaie_rendue)}</strong></div>
@@ -951,12 +1066,34 @@ function imprimerTicket(data) {
       </body>
     </html>
   `
-  const win = window.open('', '_blank', 'width=360,height=640')
-  if (!win) return
-  win.document.write(html)
-  win.document.close()
-  win.focus()
-  win.print()
+  const frame = document.createElement('iframe')
+  frame.setAttribute('title', `Ticket ${data.ticket.numero}`)
+  frame.style.position = 'fixed'
+  frame.style.right = '0'
+  frame.style.bottom = '0'
+  frame.style.width = '0'
+  frame.style.height = '0'
+  frame.style.border = '0'
+  frame.style.opacity = '0'
+  frame.style.pointerEvents = 'none'
+  document.body.appendChild(frame)
+
+  const doc = frame.contentDocument || frame.contentWindow?.document
+  if (!doc) {
+    frame.remove()
+    toast.error('Impression impossible')
+    return
+  }
+
+  doc.open()
+  doc.write(html)
+  doc.close()
+
+  setTimeout(() => {
+    frame.contentWindow?.focus()
+    frame.contentWindow?.print()
+    setTimeout(() => frame.remove(), 1000)
+  }, 120)
 }
 
 function modePaiementLabel(mode) {
@@ -981,7 +1118,7 @@ async function reimprimerTicket(mouvement) {
 
   try {
     const { data } = await api.get(`/caisse/factures/${mouvement.facture?.id}/ticket`)
-    imprimerTicket(data)
+    afficherTicket(data)
   } catch (e) {
     toast.error(e.response.data.message || 'Réimpression impossible')
   }
@@ -1110,5 +1247,135 @@ onMounted(loadCaisse)
   border-color: rgb(8 145 178);
   background: rgb(236 254 255);
   color: rgb(14 116 144);
+}
+
+.ticket-preview-shell {
+  border-radius: 1.5rem;
+  border: 1px solid color-mix(in srgb, var(--saytu-primary, #2563eb) 18%, var(--saytu-border, #e2e8f0));
+  background:
+    radial-gradient(circle at top left, color-mix(in srgb, var(--saytu-primary, #2563eb) 16%, transparent), transparent 34%),
+    color-mix(in srgb, var(--saytu-surface, #ffffff) 92%, var(--saytu-primary, #2563eb) 8%);
+  padding: 1rem;
+}
+
+.ticket-paper {
+  margin: 0 auto;
+  max-width: 20rem;
+  border-radius: 1.25rem;
+  border: 1px solid color-mix(in srgb, var(--saytu-primary, #2563eb) 16%, var(--saytu-border, #e2e8f0));
+  background: var(--saytu-surface, #ffffff);
+  color: var(--saytu-shell-text, #0f172a);
+  padding: 1rem;
+  box-shadow: 0 18px 45px color-mix(in srgb, var(--saytu-primary, #2563eb) 12%, transparent);
+}
+
+.ticket-topline,
+.ticket-line,
+.ticket-total,
+.ticket-payment {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.ticket-topline {
+  color: var(--saytu-topbar-subtitle, #64748b);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.ticket-brand {
+  margin-top: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.ticket-logo {
+  display: inline-flex;
+  height: 2.6rem;
+  width: 2.6rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 1rem;
+  background: linear-gradient(135deg, var(--saytu-primary, #2563eb), var(--saytu-brand-to, #06b6d4));
+  color: white;
+  font-size: 0.85rem;
+  font-weight: 900;
+  box-shadow: 0 12px 22px color-mix(in srgb, var(--saytu-primary, #2563eb) 20%, transparent);
+}
+
+.ticket-brand h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+.ticket-brand p,
+.ticket-meta span,
+.ticket-line span {
+  color: var(--saytu-topbar-subtitle, #64748b);
+  font-size: 0.76rem;
+}
+
+.ticket-meta {
+  margin-top: 0.9rem;
+  display: grid;
+  gap: 0.45rem;
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--saytu-primary, #2563eb) 6%, var(--saytu-surface, #ffffff));
+  padding: 0.75rem;
+  font-size: 0.8rem;
+}
+
+.ticket-meta div {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.ticket-divider {
+  margin: 0.85rem 0;
+  border-top: 1px dashed color-mix(in srgb, var(--saytu-primary, #2563eb) 28%, var(--saytu-border, #e2e8f0));
+}
+
+.ticket-line {
+  align-items: flex-start;
+  font-size: 0.82rem;
+}
+
+.ticket-line div {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.ticket-total {
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--saytu-primary, #2563eb) 11%, var(--saytu-surface, #ffffff));
+  padding: 0.75rem;
+  color: var(--saytu-primary, #2563eb);
+  font-size: 0.95rem;
+  font-weight: 900;
+}
+
+.ticket-payment {
+  color: var(--saytu-topbar-subtitle, #64748b);
+  font-size: 0.8rem;
+}
+
+.ticket-payment strong,
+.ticket-line > strong {
+  color: var(--saytu-shell-text, #0f172a);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.ticket-thanks {
+  margin-top: 1rem;
+  text-align: center;
+  color: var(--saytu-primary, #2563eb);
+  font-size: 0.82rem;
+  font-weight: 800;
 }
 </style>
