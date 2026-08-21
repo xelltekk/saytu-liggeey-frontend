@@ -552,6 +552,7 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import api from '@/services/api'
 import { ouvrirPDF } from '@/services/pdf'
 import AppModal from '@/components/AppModal.vue'
@@ -560,7 +561,8 @@ import { useAuthStore } from '@/stores/auth'
 
 const toast = useToast()
 const auth = useAuthStore()
-const activeTab = ref('contrats')
+const route = useRoute()
+const activeTab = ref(tabFromRoute(route.query) || 'contrats')
 const loading = ref(false)
 const saving = ref(false)
 const previewLoading = ref(false)
@@ -655,6 +657,7 @@ watch(
 onMounted(init)
 
 async function init() {
+  applyRouteContext(false)
   await Promise.allSettled([
     loadReferentiels(),
     loadStats(),
@@ -663,6 +666,35 @@ async function init() {
     loadReleves(),
     loadInterventions(),
   ])
+  applyRouteContext(false)
+}
+
+watch(
+  () => route.query,
+  () => applyRouteContext(true),
+  { deep: true }
+)
+
+function applyRouteContext(reload = false) {
+  const tab = tabFromRoute(route.query)
+  if (tab) activeTab.value = tab
+
+  if (tab === 'interventions' && route.query.search !== undefined) {
+    const search = String(route.query.search || '')
+    if (filters.interventions.search !== search) {
+      filters.interventions.search = search
+      if (reload) loadInterventions()
+    }
+  }
+}
+
+function tabFromRoute(query = {}) {
+  const requested = String(query.tab || '')
+  if (['contrats', 'imprimantes', 'releves', 'interventions'].includes(requested)) return requested
+  if (query.intervention) return 'interventions'
+  if (query.releve) return 'releves'
+  if (query.contrat) return 'contrats'
+  return null
 }
 
 async function loadReferentiels() {

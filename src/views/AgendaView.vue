@@ -161,21 +161,45 @@
       </form>
     </AppModal>
 
-    <AppModal v-model="showEventModal" title="Détail du rendez-vous" size="sm" centered>
+    <AppModal v-model="showEventModal" :title="eventModalTitle" size="sm" centered>
       <div v-if="selectedEvent" class="space-y-4">
         <div>
-          <p class="text-xs font-black uppercase tracking-wide text-[color:var(--saytu-primary)]">Rendez-vous</p>
+          <p class="text-xs font-black uppercase tracking-wide text-[color:var(--saytu-primary)]">{{ eventTypeLabel(selectedEvent) }}</p>
           <h2 class="mt-1 text-xl font-black text-[color:var(--saytu-topbar-title)]">{{ selectedEvent.title }}</h2>
           <p class="mt-1 text-sm text-[color:var(--saytu-topbar-subtitle)]">{{ selectedEvent.subtitle }}</p>
         </div>
 
+        <div class="grid gap-2 text-sm sm:grid-cols-2">
+          <div
+            v-for="detail in selectedEventDetails"
+            :key="detail.label"
+            class="rounded-2xl border p-3"
+            style="border-color: var(--saytu-border); background: var(--saytu-surface);"
+          >
+            <span class="block text-[11px] font-black uppercase tracking-wide text-[color:var(--saytu-topbar-subtitle)]">{{ detail.label }}</span>
+            <strong class="mt-1 block text-[color:var(--saytu-topbar-title)]">{{ detail.value }}</strong>
+          </div>
+        </div>
+
         <div class="rounded-2xl border p-4 text-sm" style="border-color: var(--saytu-border); background: var(--saytu-surface);">
-          <p v-if="selectedEvent.meta"><strong>Détails :</strong> {{ selectedEvent.meta }}</p>
+          <p v-if="selectedEvent.meta" class="whitespace-pre-line"><strong>Détails :</strong> {{ selectedEvent.meta }}</p>
           <p v-if="selectedEvent.description" class="mt-2 whitespace-pre-line"><strong>Notes :</strong> {{ selectedEvent.description }}</p>
+          <p v-if="!selectedEvent.meta && !selectedEvent.description" class="text-[color:var(--saytu-topbar-subtitle)]">
+            Aucun détail complémentaire pour cet événement.
+          </p>
         </div>
 
         <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <button type="button" class="btn-secondary" @click="showEventModal = false">Fermer</button>
+          <button
+            v-if="selectedEvent.route"
+            type="button"
+            class="btn-primary inline-flex items-center justify-center gap-2"
+            @click="openSelectedEvent"
+          >
+            Ouvrir
+            <ExternalLink class="h-4 w-4" />
+          </button>
           <button
             v-if="selectedEvent.source === 'rendez_vous' && selectedEvent.can_manage"
             type="button"
@@ -195,7 +219,7 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { CalendarDays, ChevronLeft, ChevronRight, Plus, Trash2 } from 'lucide-vue-next'
+import { CalendarDays, ChevronLeft, ChevronRight, ExternalLink, Plus, Trash2 } from 'lucide-vue-next'
 import AppModal from '@/components/AppModal.vue'
 import api from '@/services/api'
 import { formatMoney } from '@/composables/useCurrency'
@@ -229,6 +253,19 @@ const agenda = computed(() => data.value?.agenda || { month: agendaMonth.value, 
 const agendaMonthLabel = computed(() => {
   const date = dateFromMonth(agenda.value.month || agendaMonth.value)
   return new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric' }).format(date)
+})
+const eventModalTitle = computed(() => selectedEvent.value ? `Détail ${eventTypeLabel(selectedEvent.value).toLowerCase()}` : 'Détail')
+const selectedEventDetails = computed(() => {
+  const event = selectedEvent.value
+  if (!event) return []
+
+  return [
+    { label: 'Date', value: formatEventDate(event.date) },
+    { label: 'Heure', value: event.time },
+    { label: 'Montant', value: Number(event.amount) > 0 ? formatAmount(event.amount) : null },
+    { label: 'Priorité', value: priorityLabel(event.priority) },
+    { label: 'Référence', value: event.source_id ? String(event.source_id) : null },
+  ].filter(item => item.value)
 })
 
 const agendaEventsByDate = computed(() => {
@@ -327,13 +364,16 @@ async function deleteSelectedRdv() {
 }
 
 function handleEventClick(event) {
-  if (event.route) {
-    go(event.route)
-    return
-  }
-
   selectedEvent.value = event
   showEventModal.value = true
+}
+
+function openSelectedEvent() {
+  if (!selectedEvent.value?.route) return
+  const route = selectedEvent.value.route
+  showEventModal.value = false
+  selectedEvent.value = null
+  go(route)
 }
 
 function go(route) {
@@ -343,6 +383,35 @@ function go(route) {
 
 function formatAmount(value) {
   return formatMoney(value || 0)
+}
+
+function formatEventDate(value) {
+  if (!value) return null
+  const date = new Date(`${value}T00:00:00`)
+  if (Number.isNaN(date.getTime())) return value
+  return new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(date)
+}
+
+function eventTypeLabel(event) {
+  return {
+    rendez_vous: 'Rendez-vous',
+    facture: 'Facture',
+    devis: 'Devis',
+    achat: event?.source === 'achat_demande' ? 'Demande d’achat' : 'Achat fournisseur',
+    fournisseur: 'Facture fournisseur',
+    leasing: event?.source === 'leasing_releve' ? 'Relevé leasing' : 'Contrat leasing',
+    intervention: 'Intervention',
+    caisse: 'Caisse',
+  }[event?.type] || 'Événement'
+}
+
+function priorityLabel(value) {
+  return {
+    critical: 'Critique',
+    warning: 'Attention',
+    todo: 'À faire',
+    info: 'Information',
+  }[value] || value || null
 }
 
 function monthKey(date) {
