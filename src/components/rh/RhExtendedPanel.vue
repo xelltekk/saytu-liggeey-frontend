@@ -23,7 +23,7 @@
           <input v-model="candidatForm.prenom" class="input" placeholder="Prenom" required />
           <input v-model="candidatForm.nom" class="input" placeholder="Nom" required />
           <input v-model="candidatForm.email" type="email" class="input" placeholder="Email" />
-          <input v-model="candidatForm.telephone" class="input" placeholder="Telephone" />
+          <input v-model="candidatForm.telephone" type="tel" data-phone-input class="input" placeholder="77 123 45 67" />
           <input v-model="candidatForm.source" class="input" placeholder="Source : LinkedIn, recommandation..." />
           <select v-model="candidatForm.statut" class="input"><option v-for="s in candidatStatuts" :key="s" :value="s">{{ statusLabel(s) }}</option></select>
           <select v-model.number="candidatForm.offre_id" class="input sm:col-span-2">
@@ -566,4 +566,3 @@ watch(() => props.section, load); onMounted(load)
 <style scoped>
 .panel { @apply rounded-lg border border-slate-200 bg-white p-4; }.title { @apply font-bold text-slate-900; } th { @apply whitespace-nowrap bg-slate-50 px-3 py-2 text-left text-xs uppercase text-slate-500; } td { @apply whitespace-nowrap border-t border-slate-100 px-3 py-2 text-sm text-slate-700; }.empty { @apply py-8 text-center text-sm text-slate-400; }
 </style>
-

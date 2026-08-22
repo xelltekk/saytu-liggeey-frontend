@@ -153,7 +153,7 @@
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Telephone</label>
-            <input v-model="form.telephone" class="input" />
+            <input v-model="form.telephone" type="tel" data-phone-input class="input" placeholder="77 123 45 67" />
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">IBAN</label>

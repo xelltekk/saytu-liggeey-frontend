@@ -29,7 +29,7 @@
         <p class="mt-1 text-sm text-slate-500">Les informations contractuelles restent gerees par le responsable RH.</p>
         <div class="mt-4 grid gap-3 sm:grid-cols-2">
           <label class="label">Email personnel<input v-model="form.email" type="email" class="input" /></label>
-          <label class="label">Telephone<input v-model="form.telephone" class="input" /></label>
+          <label class="label">Telephone<input v-model="form.telephone" type="tel" data-phone-input class="input" placeholder="77 123 45 67" /></label>
           <label class="label sm:col-span-2">Adresse<input v-model="form.adresse" class="input" /></label>
           <label class="label">Date de naissance<input v-model="form.date_naissance" type="date" class="input" /></label>
           <label class="label">Contact d'urgence<input v-model="form.contact_urgence" class="input" /></label>

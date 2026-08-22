@@ -142,12 +142,12 @@
 
           <div>
             <label class="label">Téléphone fixe</label>
-            <input v-model="societe.telephone" type="text" class="input" placeholder="+221 33 835 15 10" />
+            <input v-model="societe.telephone" type="tel" data-phone-input class="input" placeholder="33 835 15 10" />
           </div>
 
           <div>
             <label class="label">Mobile</label>
-            <input v-model="societe.mobile" type="text" class="input" placeholder="+221 77 437 09 52" />
+            <input v-model="societe.mobile" type="tel" data-phone-input class="input" placeholder="77 437 09 52" />
           </div>
 
           <div>

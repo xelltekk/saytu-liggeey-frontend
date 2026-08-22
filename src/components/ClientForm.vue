@@ -85,12 +85,12 @@
 
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Téléphone</label>
-          <input v-model="form.telephone" type="text" class="input" placeholder="+221 ..." />
+          <input v-model="form.telephone" type="tel" data-phone-input class="input" placeholder="77 123 45 67" />
         </div>
 
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Mobile</label>
-          <input v-model="form.mobile" type="text" class="input" />
+          <input v-model="form.mobile" type="tel" data-phone-input class="input" placeholder="77 123 45 67" />
         </div>
 
         <div>
