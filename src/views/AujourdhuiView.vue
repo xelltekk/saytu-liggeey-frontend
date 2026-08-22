@@ -258,7 +258,7 @@ function cardStyle(tone) {
 
   return {
     '--pilotage-card-accent': accent,
-    color: 'var(--saytu-shell-text)',
+    color: 'var(--saytu-topbar-title)',
     borderColor: `color-mix(in srgb, ${accent} 28%, var(--saytu-border))`,
     background: `linear-gradient(135deg, color-mix(in srgb, ${accent} 10%, var(--saytu-surface)), var(--saytu-surface))`,
   }
@@ -285,9 +285,12 @@ const SummaryCard = {
     return () => h('article', { class: 'rounded-3xl border p-4 shadow-sm', style: cardStyle(props.tone) }, [
       h('div', { class: 'flex items-start justify-between gap-3' }, [
         h('div', [
-          h('div', { class: 'text-xs font-bold uppercase tracking-wide opacity-80' }, props.label),
+          h('div', {
+            class: 'text-xs font-bold uppercase tracking-wide',
+            style: { color: 'color-mix(in srgb, var(--pilotage-card-accent) 72%, var(--saytu-topbar-title))' },
+          }, props.label),
           h('div', { class: 'mt-3 text-2xl font-black', style: { color: 'var(--saytu-topbar-title)' } }, String(props.value ?? 0)),
-          h('div', { class: 'mt-1 text-xs opacity-80' }, props.sub || ''),
+          h('div', { class: 'mt-1 text-xs', style: { color: 'var(--saytu-topbar-subtitle)' } }, props.sub || ''),
         ]),
         h('span', {
           class: 'inline-flex h-10 w-10 items-center justify-center rounded-2xl',

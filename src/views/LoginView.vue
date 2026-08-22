@@ -29,13 +29,13 @@
         <form @submit.prevent="handleLogin" class="space-y-4">
           <label class="block">
             <span class="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Email</span>
-            <div class="group flex min-h-12 items-center rounded-full bg-gradient-to-r from-blue-600 to-cyan-400 p-[2px] shadow-sm transition focus-within:shadow-lg focus-within:shadow-cyan-100">
+            <div class="login-input-shell">
               <div class="flex h-full min-h-11 w-full items-center rounded-full bg-white px-4">
                 <Mail class="mr-3 h-5 w-5 text-blue-600" />
                 <input
                   v-model="form.email"
                   type="email"
-                  class="min-w-0 flex-1 border-0 bg-transparent text-sm font-medium text-slate-900 outline-none placeholder:text-slate-400 focus:ring-0"
+                  class="login-input"
                   placeholder="votre@email.com"
                   autocomplete="username"
                   required
@@ -47,13 +47,13 @@
 
           <label class="block">
             <span class="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Mot de passe</span>
-            <div class="group flex min-h-12 items-center rounded-full bg-gradient-to-r from-blue-600 to-cyan-400 p-[2px] shadow-sm transition focus-within:shadow-lg focus-within:shadow-cyan-100">
+            <div class="login-input-shell">
               <div class="flex h-full min-h-11 w-full items-center rounded-full bg-white px-4">
                 <LockKeyhole class="mr-3 h-5 w-5 text-blue-600" />
                 <input
                   v-model="form.password"
                   :type="showPassword ? 'text' : 'password'"
-                  class="min-w-0 flex-1 border-0 bg-transparent text-sm font-medium text-slate-900 outline-none placeholder:text-slate-400 focus:ring-0"
+                  class="login-input"
                   placeholder="••••••••"
                   autocomplete="current-password"
                   required
@@ -193,3 +193,52 @@ onMounted(() => {
   }
 })
 </script>
+
+<style scoped>
+.login-input-shell {
+  display: flex;
+  min-height: 3rem;
+  align-items: center;
+  border-radius: 9999px;
+  border: 1px solid rgb(226 232 240);
+  background: #ffffff;
+  box-shadow: 0 8px 20px rgb(15 23 42 / 0.05);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.login-input-shell:focus-within {
+  border-color: rgb(203 213 225);
+  box-shadow: 0 10px 24px rgb(15 23 42 / 0.08);
+}
+
+.login-input {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  background: #ffffff !important;
+  color: rgb(15 23 42);
+  font-size: 0.875rem;
+  font-weight: 500;
+  outline: none;
+  box-shadow: none !important;
+}
+
+.login-input::placeholder {
+  color: rgb(148 163 184);
+}
+
+.login-input:focus {
+  outline: none;
+  box-shadow: none !important;
+}
+
+.login-input:-webkit-autofill,
+.login-input:-webkit-autofill:hover,
+.login-input:-webkit-autofill:focus,
+.login-input:-webkit-autofill:active {
+  -webkit-text-fill-color: rgb(15 23 42);
+  caret-color: rgb(15 23 42);
+  box-shadow: 0 0 0 1000px #ffffff inset !important;
+  transition: background-color 9999s ease-out 0s;
+}
+</style>
