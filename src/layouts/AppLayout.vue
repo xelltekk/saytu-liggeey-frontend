@@ -494,8 +494,8 @@ const tousLesMenus = [
 
   {
     to: '/tresorerie-comptes',
-    label: 'Comptes de trésorerie',
-    icon: CreditCard,
+    label: 'Trésorerie',
+    icon: Wallet,
     roles: ['admin', 'gerant', 'comptable']
   },
 

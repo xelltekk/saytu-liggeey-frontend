@@ -1,6 +1,76 @@
 <template>
-  <div class="space-y-4">
-    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+  <div class="space-y-5">
+    <section class="treasury-hero overflow-hidden rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div class="min-w-0">
+          <span class="inline-flex rounded-full px-3 py-1 text-xs font-bold uppercase tracking-[0.2em]">
+            Trésorerie
+          </span>
+          <h1 class="mt-3 text-2xl font-black text-slate-950 dark:text-white">
+            Vue d’ensemble financière
+          </h1>
+          <p class="mt-2 max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-300">
+            Suivez les soldes disponibles, les comptes actifs, les entrées, les sorties et les points de contrôle de la trésorerie.
+          </p>
+        </div>
+
+        <button @click="openCreate" class="btn-primary whitespace-nowrap">
+          + Nouveau compte
+        </button>
+      </div>
+    </section>
+
+    <section class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <article
+        v-for="card in overviewCards"
+        :key="card.key"
+        class="treasury-kpi rounded-3xl border bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:bg-slate-900"
+        :style="{ '--kpi-accent': card.color }"
+      >
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <p class="text-xs font-bold uppercase tracking-wide">{{ card.label }}</p>
+            <p class="mt-3 text-2xl font-black">{{ card.value }}</p>
+            <p class="mt-1 text-xs">{{ card.sub }}</p>
+          </div>
+          <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-sm font-black">
+            {{ card.short }}
+          </span>
+        </div>
+      </article>
+    </section>
+
+    <section class="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <div class="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h2 class="text-lg font-black text-slate-950 dark:text-white">Centre de contrôle</h2>
+          <p class="text-sm text-slate-500 dark:text-slate-400">Les actions clés pour piloter la trésorerie au quotidien.</p>
+        </div>
+        <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+          Temps réel
+        </span>
+      </div>
+
+      <div class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+        <article
+          v-for="module in treasuryModules"
+          :key="module.key"
+          class="rounded-2xl border border-slate-200 bg-slate-50 p-4 transition hover:border-[var(--saytu-primary)] hover:bg-white dark:border-slate-800 dark:bg-slate-950/40 dark:hover:bg-slate-900"
+        >
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <h3 class="font-bold text-slate-900 dark:text-white">{{ module.title }}</h3>
+              <p class="mt-1 text-sm leading-5 text-slate-500 dark:text-slate-400">{{ module.description }}</p>
+            </div>
+            <span class="rounded-full px-2.5 py-1 text-xs font-bold" :class="module.badgeClass">
+              {{ module.status }}
+            </span>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <div class="rounded-3xl border border-gray-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
       <div class="flex flex-col gap-3 lg:flex-row">
         <input v-model="filters.search" @input="onSearchInput" type="search" placeholder="Code, libellé, banque, numéro..." class="input flex-1" />
         <select v-model="filters.type" @change="loadComptes(1)" class="input lg:w-52">
@@ -16,28 +86,9 @@
       </div>
     </div>
 
-    <div class="stat-grid grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
-      <div class="bg-white rounded-lg border border-gray-200 p-3">
-        <div class="text-xs text-gray-500 uppercase">Comptes</div>
-        <div class="text-2xl font-bold text-gray-900">{{ stats.total || 0 }}</div>
-      </div>
-      <div class="bg-white rounded-lg border border-gray-200 p-3">
-        <div class="text-xs text-gray-500 uppercase">Actifs</div>
-        <div class="text-2xl font-bold text-green-700">{{ stats.actifs || 0 }}</div>
-      </div>
-      <div class="bg-white rounded-lg border border-gray-200 p-3">
-        <div class="text-xs text-gray-500 uppercase">Banques</div>
-        <div class="text-2xl font-bold text-blue-700">{{ stats.par_type.banque || 0 }}</div>
-      </div>
-      <div class="bg-white rounded-lg border border-gray-200 p-3">
-        <div class="text-xs text-gray-500 uppercase">Solde actuel</div>
-        <div class="text-xl font-bold text-slate-900">{{ formatPrice(stats.solde_actuel_total) }}</div>
-      </div>
-    </div>
+    <div v-if="loading" class="rounded-3xl bg-white p-12 text-center text-gray-500 shadow-sm dark:bg-slate-900">Chargement...</div>
 
-    <div v-if="loading" class="bg-white rounded-lg p-12 text-center text-gray-500">Chargement...</div>
-
-    <div v-else class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+    <div v-else class="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
       <div class="overflow-x-auto">
         <table class="w-full">
           <thead class="bg-gray-50 border-b border-gray-200">
@@ -210,6 +261,86 @@ const showModal = ref(false)
 const editing = ref(null)
 const form = reactive(defaultForm())
 const { sort, toggleSort, sortIcon, sortedRows } = useTableSort('created_at', 'desc')
+
+const overviewCards = computed(() => [
+  {
+    key: 'solde',
+    label: 'Solde disponible',
+    value: formatPrice(stats.solde_actuel_total),
+    sub: `${stats.actifs || 0} compte(s) actif(s)`,
+    short: 'TR',
+    color: 'var(--saytu-primary)',
+  },
+  {
+    key: 'entrees',
+    label: 'Entrées cumulées',
+    value: formatPrice(stats.total_entrees),
+    sub: 'Toutes les entrées enregistrées',
+    short: '+',
+    color: 'var(--saytu-secondary)',
+  },
+  {
+    key: 'sorties',
+    label: 'Sorties cumulées',
+    value: formatPrice(stats.total_sorties),
+    sub: 'Toutes les sorties enregistrées',
+    short: '-',
+    color: 'var(--saytu-danger)',
+  },
+  {
+    key: 'banques',
+    label: 'Comptes bancaires',
+    value: stats.par_type?.banque || 0,
+    sub: `${stats.total || 0} compte(s) au total`,
+    short: 'BQ',
+    color: 'var(--saytu-accent)',
+  },
+])
+
+const treasuryModules = computed(() => [
+  {
+    key: 'comptes',
+    title: 'Comptes',
+    description: 'Banque, caisse, Wave, Orange Money, YAS et autres comptes de trésorerie.',
+    status: `${stats.actifs || 0} actif(s)`,
+    badgeClass: 'bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-200',
+  },
+  {
+    key: 'mouvements',
+    title: 'Mouvements',
+    description: 'Lecture rapide des entrées et sorties liées aux paiements, dépenses et règlements.',
+    status: 'Suivi',
+    badgeClass: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200',
+  },
+  {
+    key: 'virements',
+    title: 'Virements internes',
+    description: 'Prévu pour les transferts Banque → Caisse, Caisse → Wave, Wave → Banque.',
+    status: 'À venir',
+    badgeClass: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200',
+  },
+  {
+    key: 'rapprochement',
+    title: 'Rapprochement',
+    description: 'Contrôler les soldes réels avec les écritures et les comptes de paiement.',
+    status: 'Contrôle',
+    badgeClass: 'bg-violet-50 text-violet-700 dark:bg-violet-500/15 dark:text-violet-200',
+  },
+  {
+    key: 'previsions',
+    title: 'Prévisions',
+    description: 'Anticiper les encaissements attendus et les sorties prochaines.',
+    status: 'Planning',
+    badgeClass: 'bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-200',
+  },
+  {
+    key: 'alertes',
+    title: 'Alertes',
+    description: 'Repérer les soldes faibles, écarts et mouvements à vérifier.',
+    status: 'Sécurité',
+    badgeClass: 'bg-red-50 text-red-700 dark:bg-red-500/15 dark:text-red-200',
+  },
+])
 
 const sortedComptes = computed(() => sortedRows(comptes.value, {
   created_at: 'created_at',
@@ -404,3 +535,54 @@ onMounted(() => {
   loadStats()
 })
 </script>
+
+<style scoped>
+.treasury-hero {
+  background:
+    radial-gradient(circle at top right, color-mix(in srgb, var(--saytu-secondary) 22%, transparent), transparent 32rem),
+    linear-gradient(135deg, color-mix(in srgb, var(--saytu-primary) 10%, white), white 62%);
+}
+
+.treasury-hero span {
+  background: color-mix(in srgb, var(--saytu-primary) 12%, white);
+  color: var(--saytu-primary);
+}
+
+.treasury-kpi {
+  border-color: color-mix(in srgb, var(--kpi-accent) 30%, transparent);
+  color: var(--kpi-accent);
+  background:
+    radial-gradient(circle at top right, color-mix(in srgb, var(--kpi-accent) 14%, transparent), transparent 12rem),
+    color-mix(in srgb, var(--kpi-accent) 5%, white);
+}
+
+.treasury-kpi span {
+  background: color-mix(in srgb, var(--kpi-accent) 14%, white);
+  color: var(--kpi-accent);
+}
+
+.treasury-kpi p:last-child {
+  color: color-mix(in srgb, var(--kpi-accent) 78%, #475569);
+}
+
+:global(.dark) .treasury-hero {
+  background:
+    radial-gradient(circle at top right, color-mix(in srgb, var(--saytu-secondary) 20%, transparent), transparent 28rem),
+    linear-gradient(135deg, color-mix(in srgb, var(--saytu-sidebar-via) 82%, #020617), #020617 70%);
+}
+
+:global(.dark) .treasury-hero span {
+  background: color-mix(in srgb, var(--saytu-primary) 20%, #020617);
+  color: color-mix(in srgb, var(--saytu-primary) 78%, white);
+}
+
+:global(.dark) .treasury-kpi {
+  background:
+    radial-gradient(circle at top right, color-mix(in srgb, var(--kpi-accent) 18%, transparent), transparent 11rem),
+    color-mix(in srgb, var(--kpi-accent) 8%, #020617);
+}
+
+:global(.dark) .treasury-kpi span {
+  background: color-mix(in srgb, var(--kpi-accent) 18%, #020617);
+}
+</style>
