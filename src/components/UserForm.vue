@@ -103,7 +103,7 @@ const props = defineProps({ user: Object })
 const emit = defineEmits(['saved', 'cancel'])
 const toast = useToast()
 
-const roles = [
+const fallbackRoles = [
   { value: 'admin', label: 'Administrateur', emoji: '🔴', description: 'Accès total' },
   { value: 'gerant', label: 'Gérant', emoji: '🟣', description: 'Pilotage métier' },
   { value: 'commercial', label: 'Commercial', emoji: '🟢', description: 'Ventes' },
@@ -111,6 +111,7 @@ const roles = [
   { value: 'comptable', label: 'Comptable', emoji: '🟡', description: 'Comptabilité' },
   { value: 'caissier', label: 'Caissier', emoji: '', description: 'Caisse boutique' },
 ]
+const roles = ref(fallbackRoles)
 
 const form = reactive({
   name: '', email: '', phone: '', role: 'commercial',
@@ -140,7 +141,8 @@ const photoPreviewUrl = computed(() => {
   return form.photo
 })
 
-onMounted(() => {
+onMounted(async () => {
+  await loadRoles()
   if (props.user) {
     Object.assign(form, {
       name: props.user.name, email: props.user.email, phone: props.user.phone || '',
@@ -148,6 +150,31 @@ onMounted(() => {
     })
   }
 })
+
+async function loadRoles() {
+  try {
+    const { data } = await api.get('/access-control/role-options')
+    roles.value = data.map((role) => ({
+      value: role.code,
+      label: role.label,
+      emoji: role.is_system ? roleEmoji(role.code) : '🔐',
+      description: role.description || (role.is_system ? 'Rôle système' : 'Rôle personnalisé'),
+    }))
+  } catch (e) {
+    roles.value = fallbackRoles
+  }
+}
+
+function roleEmoji(role) {
+  return {
+    admin: '🔴',
+    gerant: '🟣',
+    commercial: '🟢',
+    magasinier: '🔵',
+    comptable: '🟡',
+    caissier: '',
+  }[role] || '🔐'
+}
 
 function onPhotoSelected(event) {
   const file = event.target.files?.[0]

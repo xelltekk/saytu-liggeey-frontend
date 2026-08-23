@@ -84,12 +84,9 @@
 
         <select v-model="filters.role" @change="loadUsers(1)" class="input md:w-44">
           <option value="">Tous rôles</option>
-          <option value="admin">🔴 Administrateur</option>
-          <option value="gerant">🟣 Gérant</option>
-          <option value="commercial">🟢 Commercial</option>
-          <option value="magasinier">🔵 Gestionnaire de stock</option>
-          <option value="comptable">🟡 Comptable</option>
-          <option value="caissier">Caissier</option>
+          <option v-for="role in roleOptions" :key="role.code" :value="role.code">
+            {{ roleEmoji(role.code) }} {{ role.label }}
+          </option>
         </select>
 
         <select v-model="filters.is_active" @change="loadUsers(1)" class="input md:w-40">
@@ -243,6 +240,7 @@ import { telechargerCSV } from '@/services/exports'
 const toast = useToast()
 const auth = useAuthStore()
 const users = ref([])
+const roleOptions = ref([])
 const { sort, toggleSort, sortIcon, sortedRows } = useTableSort('created_at', 'desc')
 const loading = ref(false)
 const exportLoading = ref(false)
@@ -440,6 +438,22 @@ async function loadStats() {
   } catch (e) {}
 }
 
+async function loadRoleOptions() {
+  try {
+    const { data } = await api.get('/access-control/role-options')
+    roleOptions.value = data
+  } catch (e) {
+    roleOptions.value = [
+      { code: 'admin', label: 'Administrateur' },
+      { code: 'gerant', label: 'Gérant' },
+      { code: 'commercial', label: 'Commercial' },
+      { code: 'magasinier', label: 'Gestionnaire de stock' },
+      { code: 'comptable', label: 'Comptable' },
+      { code: 'caissier', label: 'Caissier' },
+    ]
+  }
+}
+
 function openCreate() { editingUser.value = null; showModal.value = true }
 function openEdit(u) { editingUser.value = { ...u }; showModal.value = true }
 
@@ -544,11 +558,13 @@ function photoUrl(u) {
 }
 
 function roleEmoji(r) {
-  return { admin: '🔴', gerant: '🟣', commercial: '🟢', magasinier: '🔵', comptable: '🟡', caissier: '' }[r] || '⚪'
+  return { admin: '🔴', gerant: '🟣', commercial: '🟢', magasinier: '🔵', comptable: '🟡', caissier: '' }[r] || '🔐'
 }
 
 function roleLabel(r) {
-  return { admin: 'Admin', gerant: 'Gérant', commercial: 'Commercial', magasinier: 'Gestionnaire stock', comptable: 'Compta', caissier: 'Caissier' }[r] || r
+  return roleOptions.value.find((role) => role.code === r)?.label
+    || { admin: 'Admin', gerant: 'Gérant', commercial: 'Commercial', magasinier: 'Gestionnaire stock', comptable: 'Compta', caissier: 'Caissier' }[r]
+    || r
 }
 
 function roleBadge(r) {
@@ -562,7 +578,7 @@ function roleBadge(r) {
   }[r] || 'bg-gray-100'
 }
 
-onMounted(() => { loadUsers(); loadStats() })
+onMounted(() => { loadRoleOptions(); loadUsers(); loadStats() })
 </script>
 
 <style scoped>

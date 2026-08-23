@@ -352,6 +352,7 @@ import {
   Scale,
   Settings,
   UserCog,
+  ShieldCheck,
   ClipboardList,
   Sparkles,
   CalendarDays,
@@ -412,6 +413,7 @@ const tousLesMenus = [
     to: '/',
     label: 'Tableau de bord',
     icon: LayoutDashboard,
+    permission: 'dashboard.view',
     roles: ['admin', 'gerant', 'commercial', 'magasinier', 'comptable']
   },
 
@@ -419,6 +421,7 @@ const tousLesMenus = [
     to: '/aujourdhui',
     label: "Aujourd'hui",
     icon: Sparkles,
+    permission: 'pilotage.view',
     roles: ['admin', 'gerant', 'commercial', 'magasinier', 'comptable', 'caissier']
   },
 
@@ -426,6 +429,7 @@ const tousLesMenus = [
     to: '/agenda',
     label: 'Agenda',
     icon: CalendarDays,
+    permission: 'agenda.view',
     roles: ['admin', 'gerant', 'commercial', 'magasinier', 'comptable', 'caissier']
   },
 
@@ -433,6 +437,7 @@ const tousLesMenus = [
     to: '/clients',
     label: 'Clients',
     icon: Users,
+    permission: 'clients.view',
     roles: ['admin', 'gerant', 'commercial', 'comptable']
   },
 
@@ -440,6 +445,7 @@ const tousLesMenus = [
     to: '/prospection',
     label: 'Prospection',
     icon: Target,
+    permission: 'prospection.view',
     roles: ['admin', 'gerant', 'commercial']
   },
 
@@ -447,6 +453,7 @@ const tousLesMenus = [
     to: '/devis',
     label: 'Devis',
     icon: FileText,
+    permission: 'devis.view',
     roles: ['admin', 'gerant', 'commercial', 'comptable']
   },
 
@@ -454,6 +461,7 @@ const tousLesMenus = [
     to: '/factures',
     label: 'Factures',
     icon: Receipt,
+    permission: 'factures.view',
     roles: ['admin', 'gerant', 'commercial', 'comptable']
   },
 
@@ -461,6 +469,7 @@ const tousLesMenus = [
     to: '/caisse',
     label: 'Caisse',
     icon: Wallet,
+    permission: 'caisse.view',
     roles: ['admin', 'gerant', 'comptable', 'caissier']
   },
 
@@ -468,6 +477,7 @@ const tousLesMenus = [
     to: '/achats',
     label: 'Achats fournisseurs',
     icon: ShoppingCart,
+    permission: 'achats.view',
     roles: ['admin', 'gerant', 'magasinier', 'comptable']
   },
 
@@ -475,6 +485,7 @@ const tousLesMenus = [
     to: '/produits',
     label: 'Produits',
     icon: Package,
+    permission: 'produits.view',
     roles: ['admin', 'gerant', 'commercial', 'magasinier', 'comptable']
   },
 
@@ -482,6 +493,7 @@ const tousLesMenus = [
     to: '/entrepots',
     label: 'Entrepôts',
     icon: Warehouse,
+    permission: 'stock.view',
     roles: ['admin', 'gerant', 'magasinier', 'comptable']
   },
 
@@ -489,6 +501,7 @@ const tousLesMenus = [
     to: '/stock',
     label: 'Stock',
     icon: Boxes,
+    permission: 'stock.view',
     roles: ['admin', 'gerant', 'magasinier', 'comptable']
   },
 
@@ -496,6 +509,7 @@ const tousLesMenus = [
     to: '/tresorerie-comptes',
     label: 'Trésorerie',
     icon: Wallet,
+    permission: 'tresorerie.view',
     roles: ['admin', 'gerant', 'comptable']
   },
 
@@ -503,6 +517,7 @@ const tousLesMenus = [
     to: '/compta/plan',
     label: 'Plan comptable',
     icon: BookOpen,
+    permission: 'comptabilite.view',
     roles: ['admin', 'gerant', 'comptable']
   },
 
@@ -510,6 +525,7 @@ const tousLesMenus = [
     to: '/compta/grand-livre',
     label: 'Grand livre',
     icon: BookMarked,
+    permission: 'comptabilite.view',
     roles: ['admin', 'gerant', 'comptable']
   },
 
@@ -517,6 +533,7 @@ const tousLesMenus = [
     to: '/compta/balance',
     label: 'Balance',
     icon: Scale,
+    permission: 'comptabilite.view',
     roles: ['admin', 'gerant', 'comptable']
   },
 
@@ -524,6 +541,7 @@ const tousLesMenus = [
     to: '/paiements',
     label: 'Paiements clients',
     icon: CreditCard,
+    permission: 'paiements.view',
     roles: ['admin', 'gerant', 'comptable', 'caissier']
   },
 
@@ -531,6 +549,7 @@ const tousLesMenus = [
     to: '/fournisseurs-reglements',
     label: 'Règlements fournisseurs',
     icon: Truck,
+    permission: 'fournisseurs_reglements.view',
     roles: ['admin', 'gerant', 'comptable']
   },
 
@@ -538,6 +557,7 @@ const tousLesMenus = [
     to: '/compta/ecritures',
     label: 'Écritures',
     icon: ScrollText,
+    permission: 'comptabilite.view',
     roles: ['admin', 'gerant', 'comptable']
   },
 
@@ -545,6 +565,7 @@ const tousLesMenus = [
     to: '/depenses',
     label: 'Dépenses',
     icon: Wallet,
+    permission: 'depenses.view',
     roles: ['admin', 'gerant', 'comptable', 'caissier', 'commercial', 'magasinier']
   },
 
@@ -552,6 +573,7 @@ const tousLesMenus = [
     to: '/rh',
     label: 'Ressources humaines',
     icon: Users,
+    permission: 'rh.view',
     roles: ['admin', 'gerant', 'commercial', 'magasinier', 'comptable']
   },
 
@@ -559,6 +581,7 @@ const tousLesMenus = [
     to: '/leasing',
     label: 'Leasing imprimantes',
     icon: Printer,
+    permission: 'leasing.view',
     roles: ['admin', 'gerant', 'commercial', 'magasinier', 'comptable']
   },
 
@@ -566,6 +589,15 @@ const tousLesMenus = [
     to: '/utilisateurs',
     label: 'Accès & Utilisateurs',
     icon: UserCog,
+    permission: 'utilisateurs.view',
+    roles: ['admin']
+  },
+
+  {
+    to: '/roles-permissions',
+    label: 'Rôles & permissions',
+    icon: ShieldCheck,
+    permission: 'access_control.view',
     roles: ['admin']
   },
 
@@ -573,6 +605,7 @@ const tousLesMenus = [
     to: '/parametres',
     label: 'Paramètres',
     icon: Settings,
+    permission: 'parametres.view',
     roles: ['admin']
   },
 
@@ -580,6 +613,7 @@ const tousLesMenus = [
     to: '/activites',
     label: 'Activités',
     icon: ClipboardList,
+    permission: 'activites.view',
     roles: ['admin', 'gerant']
   }
 ]
@@ -588,8 +622,23 @@ const menuItems = computed(() => {
   const role = auth.user?.role
   if (!role) return []
 
-  return tousLesMenus.filter(m => m.roles.includes(role))
+  return tousLesMenus.filter(canAccessMenuItem)
 })
+
+function canAccessMenuItem(item) {
+  const role = auth.user?.role
+  if (!role) return false
+  if (role === 'admin') return true
+  if (item.roles.includes(role)) return true
+  if (item.permission && userHasPermission(item.permission)) return true
+
+  return false
+}
+
+function userHasPermission(permission) {
+  const permissions = auth.user?.permissions?.flat
+  return Array.isArray(permissions) && permissions.includes(permission)
+}
 
 const companyLogoUrl = computed(() => {
   if (!company.logo) return ''
@@ -709,7 +758,7 @@ const menuGroupDefinitions = [
     key: 'administration',
     label: 'Administration',
     icon: Settings,
-    items: ['/leasing', '/utilisateurs', '/parametres', '/activites']
+    items: ['/leasing', '/utilisateurs', '/roles-permissions', '/parametres', '/activites']
   },
 ]
 

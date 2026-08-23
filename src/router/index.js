@@ -137,6 +137,11 @@ const routes = [
         component: () => import('@/views/UtilisateursView.vue'),
       },
       {
+        path: 'roles-permissions',
+        name: 'roles-permissions',
+        component: () => import('@/views/RolesPermissionsView.vue'),
+      },
+      {
         path: 'activites',
         name: 'activites',
         component: () => import('@/views/ActivitesView.vue'),
@@ -192,10 +197,43 @@ const routeRoles = {
   '/caisse': ['admin', 'gerant', 'comptable', 'caissier'],
   '/compta': ['admin', 'gerant', 'comptable'],
   '/utilisateurs': ['admin'],
+  '/roles-permissions': ['admin'],
   '/activites': ['admin', 'gerant'],
   '/notifications': ['admin', 'gerant', 'commercial', 'magasinier', 'comptable', 'caissier'],
   '/rh': ['admin', 'gerant', 'commercial', 'magasinier', 'comptable'],
   '/parametres': ['admin'],
+}
+
+const routePermissions = {
+  '/clients': 'clients.view',
+  '/aujourdhui': 'pilotage.view',
+  '/agenda': 'agenda.view',
+  '/prospection': 'prospection.view',
+  '/produits': 'produits.view',
+  '/entrepots': 'stock.view',
+  '/stock': 'stock.view',
+  '/devis': 'devis.view',
+  '/factures': 'factures.view',
+  '/paiements': 'paiements.view',
+  '/achats': 'achats.view',
+  '/leasing': 'leasing.view',
+  '/fournisseurs-reglements': 'fournisseurs_reglements.view',
+  '/depenses': 'depenses.view',
+  '/tresorerie-comptes': 'tresorerie.view',
+  '/caisse': 'caisse.view',
+  '/compta': 'comptabilite.view',
+  '/utilisateurs': 'utilisateurs.view',
+  '/roles-permissions': 'access_control.view',
+  '/activites': 'activites.view',
+  '/notifications': 'notifications.view',
+  '/rh': 'rh.view',
+  '/parametres': 'parametres.view',
+}
+
+function hasPermission(user, permission) {
+  if (!permission) return false
+  if (user?.role === 'admin') return true
+  return Array.isArray(user?.permissions?.flat) && user.permissions.flat.includes(permission)
 }
 
 router.beforeEach((to, from, next) => {
@@ -224,7 +262,7 @@ router.beforeEach((to, from, next) => {
     const prefix = Object.keys(routeRoles).find(p => to.path.startsWith(p))
     if (prefix) {
       const allowedRoles = routeRoles[prefix]
-      if (! allowedRoles.includes(role)) {
+      if (! allowedRoles.includes(role) && !hasPermission(auth.user, routePermissions[prefix])) {
         // Pas autorisé → vers le dashboard (évite la boucle car dashboard est libre)
         if (to.name !== 'dashboard') {
           return next({ name: role === 'caissier' ? 'caisse' : 'dashboard' })
