@@ -564,7 +564,7 @@ const tousLesMenus = [
 
   {
     to: '/utilisateurs',
-    label: 'Utilisateurs',
+    label: 'Accès & Utilisateurs',
     icon: UserCog,
     roles: ['admin']
   },
