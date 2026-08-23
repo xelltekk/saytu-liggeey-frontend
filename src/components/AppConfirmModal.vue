@@ -1,5 +1,5 @@
 <template>
-  <AppModal v-model="visible" :title="title" size="sm" centered>
+  <AppModal v-model="visible" :title="title" size="sm" centered stack="confirm">
     <div class="space-y-4">
       <div class="flex items-start gap-3">
         <div class="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-600 dark:bg-amber-500/15 dark:text-amber-300">

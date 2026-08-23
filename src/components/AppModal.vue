@@ -48,6 +48,7 @@ const props = defineProps({
   size: { type: String, default: 'md' }, // sm, md, lg, xl
   centered: { type: Boolean, default: false },
   beforeClose: { type: Function, default: null },
+  stack: { type: String, default: 'default' }, // default, confirm
 })
 
 const emit = defineEmits(['update:modelValue'])
@@ -62,11 +63,12 @@ const sizeClass = computed(() => ({
   xl: 'max-w-6xl',
 }[props.size]))
 
-const overlayClass = computed(() => (
-  props.centered
-    ? 'fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-md'
-    : 'fixed inset-0 z-[80] flex items-end justify-center bg-slate-950/55 p-0 backdrop-blur-md sm:items-center sm:p-4'
-))
+const overlayClass = computed(() => {
+  const zIndexClass = props.stack === 'confirm' ? 'z-[120]' : 'z-[80]'
+  return props.centered
+    ? `fixed inset-0 ${zIndexClass} flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-md`
+    : `fixed inset-0 ${zIndexClass} flex items-end justify-center bg-slate-950/55 p-0 backdrop-blur-md sm:items-center sm:p-4`
+})
 
 const panelClass = computed(() => (
   props.centered
