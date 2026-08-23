@@ -42,6 +42,29 @@
       </div>
     </div>
 
+    <div class="grid grid-cols-1 gap-3 mb-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div class="rounded-2xl border border-xelltekk-100 bg-gradient-to-br from-white to-xelltekk-50 p-4 shadow-sm">
+        <div class="text-xs font-semibold uppercase tracking-wide text-xelltekk-600">Clients affichés</div>
+        <div class="mt-2 text-2xl font-black text-slate-900">{{ meta.total }}</div>
+        <div class="text-xs text-slate-500">Base filtrée en cours</div>
+      </div>
+      <div class="rounded-2xl border border-emerald-100 bg-gradient-to-br from-white to-emerald-50 p-4 shadow-sm">
+        <div class="text-xs font-semibold uppercase tracking-wide text-emerald-600">CA cumulé</div>
+        <div class="mt-2 text-2xl font-black text-emerald-700">{{ formatPrice(clientsSummary.ca) }}</div>
+        <div class="text-xs text-slate-500">{{ amountNoteText }}</div>
+      </div>
+      <div class="rounded-2xl border border-amber-100 bg-gradient-to-br from-white to-amber-50 p-4 shadow-sm">
+        <div class="text-xs font-semibold uppercase tracking-wide text-amber-600">À encaisser</div>
+        <div class="mt-2 text-2xl font-black text-amber-700">{{ formatPrice(clientsSummary.reste) }}</div>
+        <div class="text-xs text-slate-500">{{ clientsSummary.impayes }} facture(s) impayée(s)</div>
+      </div>
+      <div class="rounded-2xl border border-rose-100 bg-gradient-to-br from-white to-rose-50 p-4 shadow-sm">
+        <div class="text-xs font-semibold uppercase tracking-wide text-rose-600">À relancer</div>
+        <div class="mt-2 text-2xl font-black text-rose-700">{{ clientsSummary.retards }}</div>
+        <div class="text-xs text-slate-500">Client(s) avec retard</div>
+      </div>
+    </div>
+
     <!-- Loader -->
     <div v-if="loading" class="bg-white rounded-lg p-12 text-center text-gray-500">
       Chargement...
@@ -49,37 +72,47 @@
 
     <!-- Tableau -->
     <div v-else class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+      <div class="border-b border-slate-100 px-4 py-3">
+        <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 class="text-base font-bold text-slate-900">Portefeuille clients</h2>
+            <p class="text-xs text-slate-500">Vue enrichie : activité, encours, alertes et raccourcis commerciaux.</p>
+          </div>
+          <p class="text-xs font-medium text-slate-500">{{ amountNoteText }}</p>
+        </div>
+      </div>
       <div class="overflow-x-auto">
         <table class="w-full">
           <thead class="bg-gray-50 border-b border-gray-200">
             <tr>
-              <SortableTh column="code" :active="sort.key === 'code'" :icon="sortIcon('code')" @sort="toggleSort">Code</SortableTh>
-              <SortableTh column="nom" :active="sort.key === 'nom'" :icon="sortIcon('nom')" @sort="toggleSort">Nom</SortableTh>
-              <SortableTh column="type" :active="sort.key === 'type'" :icon="sortIcon('type')" @sort="toggleSort">Type</SortableTh>
-              <SortableTh column="tags" :active="sort.key === 'tags'" :icon="sortIcon('tags')" @sort="toggleSort">Tags</SortableTh>
+              <SortableTh column="code" :active="sort.key === 'code'" :icon="sortIcon('code')" @sort="toggleSort">Client</SortableTh>
+              <SortableTh column="type" :active="sort.key === 'type'" :icon="sortIcon('type')" @sort="toggleSort">Profil</SortableTh>
               <SortableTh column="contact" :active="sort.key === 'contact'" :icon="sortIcon('contact')" @sort="toggleSort">Contact</SortableTh>
-              <SortableTh column="ville" :active="sort.key === 'ville'" :icon="sortIcon('ville')" @sort="toggleSort">Ville</SortableTh>
-              <SortableTh column="statut" :active="sort.key === 'statut'" :icon="sortIcon('statut')" @sort="toggleSort">Statut</SortableTh>
-              <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Actions</th>
+              <SortableTh column="ca" :active="sort.key === 'ca'" :icon="sortIcon('ca')" align="right" @sort="toggleSort">CA</SortableTh>
+              <SortableTh column="reste" :active="sort.key === 'reste'" :icon="sortIcon('reste')" align="right" @sort="toggleSort">Impayés</SortableTh>
+              <SortableTh column="last_activity" :active="sort.key === 'last_activity'" :icon="sortIcon('last_activity')" @sort="toggleSort">Dernière activité</SortableTh>
+              <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Actions rapides</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-100">
-            <tr v-for="client in sortedClients" :key="client.id" class="hover:bg-gray-50">
-              <td class="px-4 py-3 text-sm font-mono text-gray-600">{{ client.code }}</td>
+            <tr v-for="client in sortedClients" :key="client.id" class="hover:bg-gray-50/80">
               <td class="px-4 py-3">
-                <div class="font-medium text-gray-900">{{ client.nom }}</div>
-                <div v-if="client.secteur_activite" class="text-xs text-gray-500">
-                  {{ client.secteur_activite }}
+                <button type="button" class="text-left" @click="openClient360(client)">
+                  <div class="font-mono text-xs font-semibold text-xelltekk-600">{{ client.code }}</div>
+                  <div class="font-semibold text-gray-900 hover:text-xelltekk-700">{{ client.nom }}</div>
+                </button>
+                <div class="mt-1 flex flex-wrap items-center gap-1">
+                  <span class="badge text-[10px]" :class="statutBadgeClass(client.statut)">
+                    {{ client.statut }}
+                  </span>
+                  <span class="badge text-[10px]" :class="scoreBadgeClass(summary(client).score_relation?.tone)">
+                    {{ summary(client).score_relation?.label || 'Nouveau' }}
+                  </span>
                 </div>
-                <div class="text-xs text-blue-600">Commercial : {{ client.commercial?.name || 'Non affecté' }}</div>
               </td>
               <td class="px-4 py-3">
-                <span class="badge" :class="typeBadgeClass(client.type)">
-                  {{ typeLabel(client.type) }}
-                </span>
-              </td>
-              <td class="px-4 py-3">
-                <div class="flex flex-wrap gap-1 max-w-[180px]">
+                <div class="flex flex-wrap gap-1">
+                  <span class="badge" :class="typeBadgeClass(client.type)">{{ typeLabel(client.type) }}</span>
                   <span
                     v-for="t in client.tags || []"
                     :key="t.id"
@@ -89,21 +122,43 @@
                   >
                     {{ t.emoji }} {{ t.libelle }}
                   </span>
-                  <span v-if="!(client.tags || []).length" class="text-xs text-gray-300">–</span>
                 </div>
+                <div v-if="client.secteur_activite" class="mt-1 text-xs text-gray-500">{{ client.secteur_activite }}</div>
+                <div class="text-xs text-blue-600">Commercial : {{ client.commercial?.name || 'Non affecté' }}</div>
               </td>
               <td class="px-4 py-3 text-sm">
                 <div v-if="client.email" class="text-gray-700 truncate max-w-[180px]">{{ client.email }}</div>
-                <div v-if="client.telephone" class="text-xs text-gray-500">{{ client.telephone }}</div>
+                <div v-if="client.telephone || client.mobile" class="text-xs text-gray-500">{{ client.telephone || client.mobile }}</div>
+                <div v-if="client.ville" class="text-xs text-gray-400">{{ client.ville }}</div>
                 <div v-if="!client.email && !client.telephone" class="text-xs text-gray-400">–</div>
               </td>
-              <td class="px-4 py-3 text-sm text-gray-700">{{ client.ville || '–' }}</td>
-              <td class="px-4 py-3">
-                <span class="badge" :class="statutBadgeClass(client.statut)">
-                  {{ client.statut }}
-                </span>
+              <td class="px-4 py-3 text-right">
+                <div class="font-mono text-sm font-bold text-emerald-700">{{ formatPrice(summary(client).ca_total) }}</div>
+                <div class="text-[11px] text-gray-400">{{ summary(client).factures_count || 0 }} facture(s)</div>
+              </td>
+              <td class="px-4 py-3 text-right">
+                <div class="font-mono text-sm font-bold" :class="Number(summary(client).reste_a_payer || 0) > 0 ? 'text-amber-700' : 'text-slate-400'">
+                  {{ formatPrice(summary(client).reste_a_payer) }}
+                </div>
+                <div v-if="summary(client).factures_retard_count" class="text-[11px] font-semibold text-rose-600">
+                  {{ summary(client).factures_retard_count }} en retard
+                </div>
+                <div v-else class="text-[11px] text-gray-400">RAS</div>
+              </td>
+              <td class="px-4 py-3 text-sm">
+                <div v-if="summary(client).dernier_document" class="text-gray-700">
+                  <span class="capitalize">{{ summary(client).dernier_document.type }}</span>
+                  <span class="font-mono text-xs text-gray-500">{{ summary(client).dernier_document.reference }}</span>
+                </div>
+                <div class="text-xs text-gray-500">{{ formatDate(summary(client).dernier_document?.date) }}</div>
+                <div v-if="summary(client).interventions_ouvertes_count" class="text-[11px] font-semibold text-blue-600">
+                  {{ summary(client).interventions_ouvertes_count }} intervention(s) ouverte(s)
+                </div>
               </td>
               <td class="px-4 py-3 text-right whitespace-nowrap">
+                <button @click="openClient360(client)" class="text-slate-700 hover:text-xelltekk-700 text-sm font-semibold mr-3">
+                  Vue 360°
+                </button>
                 <button v-if="canSellTo(client)" @click="creerDevis(client)" class="text-emerald-600 hover:text-emerald-800 text-sm font-medium mr-3">
                   + Devis
                 </button>
@@ -112,6 +167,9 @@
                 </button>
                 <button v-if="isAdmin" @click="openAssignClient(client)" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium mr-3">
                   Affecter
+                </button>
+                <button v-if="Number(summary(client).reste_a_payer || 0) > 0" @click="relancerClient(client)" class="text-amber-700 hover:text-amber-900 text-sm font-medium mr-3">
+                  Relancer
                 </button>
                 <button @click="openEdit(client)" class="text-xelltekk-600 hover:text-xelltekk-800 text-sm font-medium mr-3">
                   ✏️ Modifier
@@ -177,6 +235,162 @@
       @assigned="onAssigned"
     />
 
+    <AppModal
+      v-model="showClient360Modal"
+      :title="client360 ? `Client 360° : ${client360.nom}` : 'Client 360°'"
+      size="xl"
+    >
+      <div v-if="client360Loading" class="rounded-2xl bg-white p-10 text-center text-slate-500">
+        Chargement de la fiche client...
+      </div>
+
+      <div v-else-if="client360" class="space-y-5">
+        <section class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="rounded-full bg-xelltekk-50 px-3 py-1 font-mono text-xs font-bold text-xelltekk-700">{{ client360.code }}</span>
+                <span class="badge" :class="typeBadgeClass(client360.type)">{{ typeLabel(client360.type) }}</span>
+                <span class="badge" :class="statutBadgeClass(client360.statut)">{{ client360.statut }}</span>
+                <span class="badge" :class="scoreBadgeClass(summary(client360).score_relation?.tone)">{{ summary(client360).score_relation?.label }}</span>
+              </div>
+              <h2 class="mt-3 text-2xl font-black text-slate-900">{{ client360.nom }}</h2>
+              <p class="mt-1 text-sm text-slate-500">
+                {{ client360.secteur_activite || 'Secteur non renseigné' }}
+                <span v-if="client360.commercial?.name"> · Commercial : {{ client360.commercial.name }}</span>
+              </p>
+              <div class="mt-3 grid gap-1 text-sm text-slate-600 sm:grid-cols-2">
+                <div>📞 {{ client360.telephone || client360.mobile || 'Téléphone non renseigné' }}</div>
+                <div>✉️ {{ client360.email || 'Email non renseigné' }}</div>
+                <div>📍 {{ [client360.adresse, client360.ville, client360.pays].filter(Boolean).join(', ') || 'Adresse non renseignée' }}</div>
+                <div>🧾 NINEA : {{ client360.ninea || '—' }} · RCCM : {{ client360.rccm || '—' }}</div>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:w-[420px]">
+              <button v-if="canSellTo(client360)" type="button" class="quick-client-btn" @click="creerDevis(client360)">+ Devis</button>
+              <button v-if="canSellTo(client360)" type="button" class="quick-client-btn" @click="creerFacture(client360)">+ Facture</button>
+              <button type="button" class="quick-client-btn" @click="creerPaiement(client360)">+ Paiement</button>
+              <button type="button" class="quick-client-btn" @click="creerRdv(client360)">+ Rendez-vous</button>
+              <button type="button" class="quick-client-btn" @click="creerIntervention(client360)">+ Intervention</button>
+              <button type="button" class="quick-client-btn" @click="relancerClient(client360)">Relancer</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <div class="client360-card">
+            <div class="client360-label">CA total</div>
+            <div class="client360-value text-emerald-700">{{ formatPrice(summary(client360).ca_total) }}</div>
+            <div class="client360-help">{{ summary(client360).factures_count || 0 }} facture(s)</div>
+          </div>
+          <div class="client360-card">
+            <div class="client360-label">Reste à payer</div>
+            <div class="client360-value text-amber-700">{{ formatPrice(summary(client360).reste_a_payer) }}</div>
+            <div class="client360-help">{{ summary(client360).factures_impayees_count || 0 }} facture(s) impayée(s)</div>
+          </div>
+          <div class="client360-card">
+            <div class="client360-label">Retard</div>
+            <div class="client360-value text-rose-700">{{ formatPrice(summary(client360).retard_total) }}</div>
+            <div class="client360-help">{{ summary(client360).factures_retard_count || 0 }} facture(s) à relancer</div>
+          </div>
+          <div class="client360-card">
+            <div class="client360-label">Crédit disponible</div>
+            <div class="client360-value text-blue-700">{{ formatPrice(summary(client360).credit_disponible) }}</div>
+            <div class="client360-help">Plafond : {{ formatPrice(summary(client360).plafond_credit) }}</div>
+          </div>
+        </section>
+
+        <section class="grid grid-cols-1 gap-4 xl:grid-cols-3">
+          <Client360List
+            title="Alertes impayées"
+            empty="Aucune facture en retard"
+            :items="client360.alertes?.factures_en_retard || []"
+          >
+            <template #default="{ item }">
+              <div class="font-mono font-semibold">{{ item.numero }}</div>
+              <div class="text-xs text-slate-500">Échéance {{ formatDate(item.date_echeance) }}</div>
+              <div class="font-mono text-sm font-bold text-rose-700">{{ formatPrice(item.reste_a_payer) }}</div>
+            </template>
+          </Client360List>
+
+          <Client360List
+            title="Devis à relancer"
+            empty="Aucun devis proche de l’échéance"
+            :items="client360.alertes?.devis_a_relancer || []"
+          >
+            <template #default="{ item }">
+              <div class="font-mono font-semibold">{{ item.numero }}</div>
+              <div class="text-xs text-slate-500">Valide jusqu’au {{ formatDate(item.date_validite) }}</div>
+              <div class="font-mono text-sm font-bold text-blue-700">{{ formatPrice(item.total_ttc) }}</div>
+            </template>
+          </Client360List>
+
+          <Client360List
+            title="Interventions ouvertes"
+            empty="Aucune intervention ouverte"
+            :items="client360.alertes?.interventions_ouvertes || []"
+          >
+            <template #default="{ item }">
+              <div class="font-mono font-semibold">{{ item.reference }}</div>
+              <div class="text-xs text-slate-500">{{ item.type }} · {{ formatDate(item.date_intervention) }}</div>
+              <span class="badge text-[10px]" :class="genericStatusBadge(item.statut)">{{ item.statut }}</span>
+            </template>
+          </Client360List>
+        </section>
+
+        <section class="grid grid-cols-1 gap-4 xl:grid-cols-2">
+          <Client360List title="Dernières factures" empty="Aucune facture" :items="client360.historique?.factures || []">
+            <template #default="{ item }">
+              <button type="button" class="text-left font-mono font-semibold text-xelltekk-700 hover:underline" @click="goToDocument('/factures', item.id)">{{ item.numero }}</button>
+              <div class="text-xs text-slate-500">{{ formatDate(item.date_facture) }} · {{ item.statut }}</div>
+              <div class="font-mono text-sm font-bold text-slate-900">{{ formatPrice(item.total_ttc) }}</div>
+            </template>
+          </Client360List>
+
+          <Client360List title="Derniers devis" empty="Aucun devis" :items="client360.historique?.devis || []">
+            <template #default="{ item }">
+              <button type="button" class="text-left font-mono font-semibold text-xelltekk-700 hover:underline" @click="goToDocument('/devis', item.id)">{{ item.numero }}</button>
+              <div class="text-xs text-slate-500">{{ formatDate(item.date_devis) }} · {{ item.statut }}</div>
+              <div class="font-mono text-sm font-bold text-slate-900">{{ formatPrice(item.total_ttc) }}</div>
+            </template>
+          </Client360List>
+
+          <Client360List title="Derniers paiements" empty="Aucun paiement" :items="client360.historique?.paiements || []">
+            <template #default="{ item }">
+              <div class="font-mono font-semibold">{{ item.reference }}</div>
+              <div class="text-xs text-slate-500">{{ formatDate(item.date_paiement) }} · {{ modeLabel(item.mode_paiement) }}</div>
+              <div class="font-mono text-sm font-bold text-emerald-700">{{ formatPrice(item.montant) }}</div>
+            </template>
+          </Client360List>
+
+          <Client360List title="Leasing & interventions" empty="Aucun élément leasing" :items="leasingTimeline">
+            <template #default="{ item }">
+              <button type="button" class="text-left font-mono font-semibold text-xelltekk-700 hover:underline" @click="goToLeasing(item)">
+                {{ item.reference }}
+              </button>
+              <div class="text-xs text-slate-500">{{ item.kind }} · {{ item.subtitle }}</div>
+              <span class="badge text-[10px]" :class="genericStatusBadge(item.statut)">{{ item.statut }}</span>
+            </template>
+          </Client360List>
+        </section>
+
+        <section v-if="client360.notes_privees || client360.notes_publiques" class="rounded-2xl border border-slate-200 bg-white p-4">
+          <h3 class="font-bold text-slate-900">Notes client</h3>
+          <div class="mt-3 grid gap-3 md:grid-cols-2">
+            <div class="rounded-2xl bg-slate-50 p-3">
+              <div class="text-xs font-semibold uppercase text-slate-500">Notes publiques</div>
+              <p class="mt-1 whitespace-pre-line text-sm text-slate-700">{{ client360.notes_publiques || '—' }}</p>
+            </div>
+            <div class="rounded-2xl bg-amber-50 p-3">
+              <div class="text-xs font-semibold uppercase text-amber-700">Notes privées</div>
+              <p class="mt-1 whitespace-pre-line text-sm text-slate-700">{{ client360.notes_privees || '—' }}</p>
+            </div>
+          </div>
+        </section>
+      </div>
+    </AppModal>
+
     <!-- Modal confirmation suppression -->
     <AppModal v-model="showDeleteModal" title="Confirmer la suppression" size="sm">
       <p class="text-gray-700">
@@ -204,6 +418,7 @@ import { useRoute, useRouter } from 'vue-router'
 import api from '@/services/api'
 import AppModal from '@/components/AppModal.vue'
 import ClientForm from '@/components/ClientForm.vue'
+import Client360List from '@/components/Client360List.vue'
 import AssignCommercialModal from '@/components/AssignCommercialModal.vue'
 import SortableTh from '@/components/SortableTh.vue'
 import { useToast } from '@/composables/useToast'
@@ -211,12 +426,14 @@ import { telechargerCSV } from '@/services/exports'
 import { contrastTextColor } from '@/utils/color'
 import { useTableSort } from '@/composables/useTableSort'
 import { useAuthStore } from '@/stores/auth'
+import { useCurrency } from '@/composables/useCurrency'
 
 const toast = useToast()
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
 const isAdmin = computed(() => ['admin', 'gerant'].includes(auth.user?.role))
+const { amountNoteText, formatMoney } = useCurrency()
 
 const clients = ref([])
 const { sort, toggleSort, sortIcon, sortedRows } = useTableSort('created_at', 'desc')
@@ -234,6 +451,9 @@ const deleting = ref(false)
 const showAssignModal = ref(false)
 const assignTarget = ref(null)
 const assignEndpoint = computed(() => assignTarget.value ? `/clients/${assignTarget.value.id}/assign-commercial` : '/clients/0/assign-commercial')
+const showClient360Modal = ref(false)
+const client360 = ref(null)
+const client360Loading = ref(false)
 
 const sortedClients = computed(() => sortedRows(clients.value, {
   created_at: 'created_at',
@@ -241,10 +461,40 @@ const sortedClients = computed(() => sortedRows(clients.value, {
   nom: 'nom',
   type: 'type',
   tags: (client) => (client.tags || []).map((tag) => tag.libelle).join(', '),
-  contact: (client) => client.email || client.telephone || '',
+  contact: (client) => client.email || client.telephone || client.mobile || '',
   ville: 'ville',
   statut: 'statut',
+  ca: (client) => Number(summary(client).ca_total || 0),
+  reste: (client) => Number(summary(client).reste_a_payer || 0),
+  last_activity: (client) => summary(client).dernier_document?.date || '',
 }))
+
+const clientsSummary = computed(() => clients.value.reduce((acc, client) => {
+  const resume = summary(client)
+  acc.ca += Number(resume.ca_total || 0)
+  acc.reste += Number(resume.reste_a_payer || 0)
+  acc.impayes += Number(resume.factures_impayees_count || 0)
+  if (Number(resume.factures_retard_count || 0) > 0) acc.retards += 1
+  return acc
+}, { ca: 0, reste: 0, impayes: 0, retards: 0 }))
+
+const leasingTimeline = computed(() => {
+  const contrats = (client360.value?.historique?.leasing_contrats || []).map((contrat) => ({
+    ...contrat,
+    kind: 'Contrat',
+    reference: contrat.numero,
+    subtitle: `${formatDate(contrat.date_debut)} · ${contrat.imprimante?.designation || contrat.imprimante?.reference || 'Imprimante'}`,
+    routeTab: 'contrats',
+  }))
+  const interventions = (client360.value?.historique?.leasing_interventions || []).map((intervention) => ({
+    ...intervention,
+    kind: 'Intervention',
+    reference: intervention.reference,
+    subtitle: `${formatDate(intervention.date_intervention)} · ${intervention.imprimante?.designation || intervention.type || 'Intervention'}`,
+    routeTab: 'interventions',
+  }))
+  return [...interventions, ...contrats].slice(0, 8)
+})
 
 let searchTimeout = null
 function onSearchInput() {
@@ -322,12 +572,86 @@ function canSellTo(client) {
   return ['client', 'client_fournisseur'].includes(client.type)
 }
 
+function summary(client) {
+  return client?.resume_commercial || {}
+}
+
 function creerDevis(client) {
   router.push({ path: '/devis', query: { create_client: client.id } })
 }
 
 function creerFacture(client) {
   router.push({ path: '/factures', query: { create_client: client.id } })
+}
+
+function creerPaiement(client) {
+  router.push({ path: '/paiements', query: { search: client.code || client.nom } })
+}
+
+function creerRdv(client) {
+  router.push({ path: '/agenda', query: { search: client.code || client.nom } })
+}
+
+function creerIntervention(client) {
+  router.push({ path: '/leasing', query: { tab: 'interventions', search: client.code || client.nom } })
+}
+
+async function openClient360(client) {
+  showClient360Modal.value = true
+  client360.value = client
+  client360Loading.value = true
+
+  try {
+    const { data } = await api.get(`/clients/${client.id}`)
+    client360.value = data
+  } catch (e) {
+    toast.error('Impossible de charger la fiche 360°')
+  } finally {
+    client360Loading.value = false
+  }
+}
+
+function goToDocument(path, id) {
+  showClient360Modal.value = false
+  router.push({ path, query: { open: id } })
+}
+
+function goToLeasing(item) {
+  showClient360Modal.value = false
+  router.push({
+    path: '/leasing',
+    query: item.routeTab === 'interventions'
+      ? { tab: 'interventions', search: item.reference }
+      : { tab: 'contrats', search: item.reference },
+  })
+}
+
+async function relancerClient(client) {
+  const resume = summary(client)
+  const montant = formatPrice(resume.reste_a_payer || 0)
+  const subject = encodeURIComponent(`Relance paiement - ${client.nom}`)
+  const body = encodeURIComponent([
+    `Bonjour ${client.nom},`,
+    '',
+    `Sauf erreur de notre part, votre compte présente un solde à régulariser de ${montant}.`,
+    'Merci de nous confirmer la situation ou de procéder au règlement.',
+    '',
+    'Cordialement,',
+    'XELLTEKK',
+  ].join('\n'))
+
+  if (client.email) {
+    window.location.href = `mailto:${client.email}?subject=${subject}&body=${body}`
+    return
+  }
+
+  const message = `Relance ${client.nom} : solde à régulariser ${montant}.`
+  try {
+    await navigator.clipboard?.writeText(message)
+    toast.success('Message de relance copié')
+  } catch (e) {
+    toast.info(message)
+  }
 }
 
 async function openFromRoute(id) {
@@ -345,6 +669,9 @@ async function openFromRoute(id) {
 function onClientSaved() {
   showModal.value = false
   loadClients(meta.current_page)
+  if (showClient360Modal.value && client360.value?.id) {
+    openClient360(client360.value)
+  }
 }
 
 function confirmDelete(client) {
@@ -391,6 +718,57 @@ function statutBadgeClass(statut) {
   }[statut] || 'bg-gray-100 text-gray-700'
 }
 
+function scoreBadgeClass(tone) {
+  return {
+    emerald: 'bg-emerald-100 text-emerald-700',
+    amber: 'bg-amber-100 text-amber-700',
+    red: 'bg-rose-100 text-rose-700',
+    blue: 'bg-blue-100 text-blue-700',
+    slate: 'bg-slate-100 text-slate-600',
+  }[tone] || 'bg-slate-100 text-slate-600'
+}
+
+function genericStatusBadge(statut) {
+  return {
+    payee: 'bg-emerald-100 text-emerald-700',
+    valide: 'bg-emerald-100 text-emerald-700',
+    actif: 'bg-emerald-100 text-emerald-700',
+    accepte: 'bg-emerald-100 text-emerald-700',
+    en_cours: 'bg-blue-100 text-blue-700',
+    planifiee: 'bg-blue-100 text-blue-700',
+    envoye: 'bg-blue-100 text-blue-700',
+    partiellement_payee: 'bg-amber-100 text-amber-700',
+    impayee: 'bg-amber-100 text-amber-700',
+    brouillon: 'bg-slate-100 text-slate-600',
+    annulee: 'bg-rose-100 text-rose-700',
+    refuse: 'bg-rose-100 text-rose-700',
+  }[statut] || 'bg-slate-100 text-slate-600'
+}
+
+function modeLabel(mode) {
+  return {
+    especes: 'Espèces',
+    virement: 'Virement',
+    cheque: 'Chèque',
+    wave: 'Wave',
+    orange_money: 'Orange Money',
+    free_money: 'YAS',
+    carte_bancaire: 'Carte',
+    autre: 'Autre',
+  }[mode] || mode || '—'
+}
+
+function formatPrice(value) {
+  return formatMoney(value)
+}
+
+function formatDate(value) {
+  if (!value) return '—'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '—'
+  return date.toLocaleDateString('fr-FR')
+}
+
 onMounted(() => {
   loadClients()
   loadTags()
@@ -401,3 +779,25 @@ watch(() => route.query.open, (id) => {
   openFromRoute(id)
 })
 </script>
+
+<style scoped>
+.quick-client-btn {
+  @apply rounded-2xl border border-xelltekk-100 bg-xelltekk-50 px-3 py-2 text-sm font-bold text-xelltekk-700 transition hover:-translate-y-0.5 hover:bg-white hover:shadow-sm;
+}
+
+.client360-card {
+  @apply rounded-2xl border border-slate-200 bg-white p-4 shadow-sm;
+}
+
+.client360-label {
+  @apply text-xs font-semibold uppercase tracking-wide text-slate-500;
+}
+
+.client360-value {
+  @apply mt-2 font-mono text-2xl font-black;
+}
+
+.client360-help {
+  @apply mt-1 text-xs text-slate-500;
+}
+</style>
