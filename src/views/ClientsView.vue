@@ -86,22 +86,21 @@
           <thead class="bg-gray-50 border-b border-gray-200">
             <tr>
               <SortableTh column="code" :active="sort.key === 'code'" :icon="sortIcon('code')" @sort="toggleSort">Client</SortableTh>
-              <SortableTh column="type" :active="sort.key === 'type'" :icon="sortIcon('type')" @sort="toggleSort">Profil</SortableTh>
               <SortableTh column="contact" :active="sort.key === 'contact'" :icon="sortIcon('contact')" @sort="toggleSort">Contact</SortableTh>
               <SortableTh column="ca" :active="sort.key === 'ca'" :icon="sortIcon('ca')" align="right" @sort="toggleSort">CA</SortableTh>
               <SortableTh column="reste" :active="sort.key === 'reste'" :icon="sortIcon('reste')" align="right" @sort="toggleSort">Impayés</SortableTh>
-              <SortableTh column="last_activity" :active="sort.key === 'last_activity'" :icon="sortIcon('last_activity')" @sort="toggleSort">Dernière activité</SortableTh>
               <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Actions rapides</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-100">
             <tr v-for="client in sortedClients" :key="client.id" class="hover:bg-gray-50/80">
-              <td class="px-4 py-3">
-                <button type="button" class="text-left" @click="openClient360(client)">
-                  <div class="font-mono text-xs font-semibold text-xelltekk-600">{{ client.code }}</div>
-                  <div class="font-semibold text-gray-900 hover:text-xelltekk-700">{{ client.nom }}</div>
+              <td class="px-4 py-2.5">
+                <button type="button" class="flex min-w-[260px] items-center gap-3 text-left" @click="openClient360(client)">
+                  <span class="font-mono text-xs font-semibold text-xelltekk-600">{{ client.code }}</span>
+                  <span class="max-w-[300px] truncate font-semibold text-gray-900 hover:text-xelltekk-700">{{ client.nom }}</span>
                 </button>
-                <div class="mt-1 flex flex-wrap items-center gap-1">
+                <div class="mt-1 flex flex-wrap items-center gap-1.5">
+                  <span class="badge text-[10px]" :class="typeBadgeClass(client.type)">{{ typeLabel(client.type) }}</span>
                   <span class="badge text-[10px]" :class="statutBadgeClass(client.statut)">
                     {{ client.statut }}
                   </span>
@@ -110,33 +109,25 @@
                   </span>
                 </div>
               </td>
-              <td class="px-4 py-3">
-                <div class="flex flex-wrap gap-1">
-                  <span class="badge" :class="typeBadgeClass(client.type)">{{ typeLabel(client.type) }}</span>
-                  <span
-                    v-for="t in client.tags || []"
-                    :key="t.id"
-                    class="text-[10px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap"
-                    :style="{ backgroundColor: t.couleur, color: contrastTextColor(t.couleur) }"
-                    :title="t.description"
+              <td class="px-4 py-2.5 text-sm">
+                <div class="flex flex-col gap-0.5">
+                  <a
+                    v-if="client.email"
+                    :href="emailHref(client.email)"
+                    class="max-w-[240px] truncate font-medium text-xelltekk-700 hover:text-xelltekk-900 hover:underline"
+                    @click.stop
                   >
-                    {{ t.emoji }} {{ t.libelle }}
-                  </span>
+                    {{ client.email }}
+                  </a>
+                  <span v-if="client.telephone || client.mobile" class="text-xs text-gray-500">{{ client.telephone || client.mobile }}</span>
+                  <span v-if="!client.email && !client.telephone && !client.mobile" class="text-xs text-gray-400">–</span>
                 </div>
-                <div v-if="client.secteur_activite" class="mt-1 text-xs text-gray-500">{{ client.secteur_activite }}</div>
-                <div class="text-xs text-blue-600">Commercial : {{ client.commercial?.name || 'Non affecté' }}</div>
               </td>
-              <td class="px-4 py-3 text-sm">
-                <div v-if="client.email" class="text-gray-700 truncate max-w-[180px]">{{ client.email }}</div>
-                <div v-if="client.telephone || client.mobile" class="text-xs text-gray-500">{{ client.telephone || client.mobile }}</div>
-                <div v-if="client.ville" class="text-xs text-gray-400">{{ client.ville }}</div>
-                <div v-if="!client.email && !client.telephone" class="text-xs text-gray-400">–</div>
-              </td>
-              <td class="px-4 py-3 text-right">
+              <td class="px-4 py-2.5 text-right">
                 <div class="font-mono text-sm font-bold text-emerald-700">{{ formatPrice(summary(client).ca_total) }}</div>
                 <div class="text-[11px] text-gray-400">{{ summary(client).factures_count || 0 }} facture(s)</div>
               </td>
-              <td class="px-4 py-3 text-right">
+              <td class="px-4 py-2.5 text-right">
                 <div class="font-mono text-sm font-bold" :class="Number(summary(client).reste_a_payer || 0) > 0 ? 'text-amber-700' : 'text-slate-400'">
                   {{ formatPrice(summary(client).reste_a_payer) }}
                 </div>
@@ -145,33 +136,23 @@
                 </div>
                 <div v-else class="text-[11px] text-gray-400">RAS</div>
               </td>
-              <td class="px-4 py-3 text-sm">
-                <div v-if="summary(client).dernier_document" class="text-gray-700">
-                  <span class="capitalize">{{ summary(client).dernier_document.type }}</span>
-                  <span class="font-mono text-xs text-gray-500">{{ summary(client).dernier_document.reference }}</span>
-                </div>
-                <div class="text-xs text-gray-500">{{ formatDate(summary(client).dernier_document?.date) }}</div>
-                <div v-if="summary(client).interventions_ouvertes_count" class="text-[11px] font-semibold text-blue-600">
-                  {{ summary(client).interventions_ouvertes_count }} intervention(s) ouverte(s)
-                </div>
-              </td>
-              <td class="px-4 py-3 text-right whitespace-nowrap">
-                <button @click="openClient360(client)" class="text-slate-700 hover:text-xelltekk-700 text-sm font-semibold mr-3">
+              <td class="px-4 py-2.5 text-right whitespace-nowrap">
+                <button @click="openClient360(client)" class="text-slate-700 hover:text-xelltekk-700 text-sm font-semibold mr-2">
                   Vue 360°
                 </button>
-                <button v-if="canSellTo(client)" @click="creerDevis(client)" class="text-emerald-600 hover:text-emerald-800 text-sm font-medium mr-3">
+                <button v-if="canSellTo(client)" @click="creerDevis(client)" class="text-emerald-600 hover:text-emerald-800 text-sm font-medium mr-2">
                   + Devis
                 </button>
-                <button v-if="canSellTo(client)" @click="creerFacture(client)" class="text-blue-600 hover:text-blue-800 text-sm font-medium mr-3">
+                <button v-if="canSellTo(client)" @click="creerFacture(client)" class="text-blue-600 hover:text-blue-800 text-sm font-medium mr-2">
                   + Facture
                 </button>
-                <button v-if="isAdmin" @click="openAssignClient(client)" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium mr-3">
-                  Affecter
-                </button>
-                <button v-if="Number(summary(client).reste_a_payer || 0) > 0" @click="relancerClient(client)" class="text-amber-700 hover:text-amber-900 text-sm font-medium mr-3">
+                <button v-if="Number(summary(client).reste_a_payer || 0) > 0" @click="relancerClient(client)" class="text-amber-700 hover:text-amber-900 text-sm font-medium mr-2">
                   Relancer
                 </button>
-                <button @click="openEdit(client)" class="text-xelltekk-600 hover:text-xelltekk-800 text-sm font-medium mr-3">
+                <button v-if="isAdmin" @click="openAssignClient(client)" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium mr-2">
+                  Affecter
+                </button>
+                <button @click="openEdit(client)" class="text-xelltekk-600 hover:text-xelltekk-800 text-sm font-medium mr-2">
                   ✏️ Modifier
                 </button>
                 <button @click="confirmDelete(client)" class="text-red-600 hover:text-red-800 text-sm font-medium">
@@ -180,7 +161,7 @@
               </td>
             </tr>
             <tr v-if="clients.length === 0">
-              <td colspan="8" class="px-4 py-12 text-center text-gray-400 text-sm">
+              <td colspan="5" class="px-4 py-12 text-center text-gray-400 text-sm">
                 Aucun client trouvé
               </td>
             </tr>
@@ -423,7 +404,6 @@ import AssignCommercialModal from '@/components/AssignCommercialModal.vue'
 import SortableTh from '@/components/SortableTh.vue'
 import { useToast } from '@/composables/useToast'
 import { telechargerCSV } from '@/services/exports'
-import { contrastTextColor } from '@/utils/color'
 import { useTableSort } from '@/composables/useTableSort'
 import { useAuthStore } from '@/stores/auth'
 import { useCurrency } from '@/composables/useCurrency'
@@ -466,7 +446,6 @@ const sortedClients = computed(() => sortedRows(clients.value, {
   statut: 'statut',
   ca: (client) => Number(summary(client).ca_total || 0),
   reste: (client) => Number(summary(client).reste_a_payer || 0),
-  last_activity: (client) => summary(client).dernier_document?.date || '',
 }))
 
 const clientsSummary = computed(() => clients.value.reduce((acc, client) => {
@@ -626,31 +605,88 @@ function goToLeasing(item) {
   })
 }
 
-async function relancerClient(client) {
+function emailHref(email) {
+  return `mailto:${email}`
+}
+
+async function loadClientForRelance(client) {
+  if (client?.alertes && client?.historique) {
+    return client
+  }
+
+  try {
+    const { data } = await api.get(`/clients/${client.id}`)
+    return data
+  } catch (e) {
+    return client
+  }
+}
+
+function uniqueInvoicesForRelance(client) {
+  const invoices = [
+    ...(client.alertes?.factures_en_retard || []),
+    ...(client.historique?.factures || []).filter((facture) => Number(facture.reste_a_payer || 0) > 0),
+  ]
+
+  return Array.from(new Map(invoices.map((invoice) => [invoice.id || invoice.numero, invoice])).values())
+}
+
+function buildRelanceEmail(client) {
   const resume = summary(client)
-  const montant = formatPrice(resume.reste_a_payer || 0)
-  const subject = encodeURIComponent(`Relance paiement - ${client.nom}`)
-  const body = encodeURIComponent([
-    `Bonjour ${client.nom},`,
+  const invoices = uniqueInvoicesForRelance(client)
+  const totalDue = formatPrice(resume.reste_a_payer || 0)
+  const totalOverdue = formatPrice(resume.retard_total || 0)
+  const currencyNote = amountNoteText.value || 'Montants exprimés en Francs CFA BCEAO'
+  const today = new Date().toLocaleDateString('fr-FR')
+  const invoiceLines = invoices.length
+    ? invoices.map((invoice) => {
+        const echeance = invoice.date_echeance || invoice.date_validite
+        const amount = invoice.reste_a_payer ?? invoice.total_ttc ?? 0
+        return `- ${invoice.numero || invoice.reference} · échéance ${formatDate(echeance)} · reste à payer : ${formatPrice(amount)}`
+      })
+    : ['- Détail des factures disponible dans votre compte client.']
+
+  const subject = `Relance règlement - ${client.code || ''} ${client.nom}`.trim()
+  const body = [
+    `Bonjour,`,
     '',
-    `Sauf erreur de notre part, votre compte présente un solde à régulariser de ${montant}.`,
-    'Merci de nous confirmer la situation ou de procéder au règlement.',
+    `Nous vous contactons au sujet de votre compte client ${client.code || ''} - ${client.nom}.`,
+    '',
+    `Situation arrêtée au ${today} :`,
+    `- Solde total à régulariser : ${totalDue}`,
+    `- Montant en retard : ${totalOverdue}`,
+    `- Factures impayées : ${resume.factures_impayees_count || 0}`,
+    `- Factures en retard : ${resume.factures_retard_count || 0}`,
+    '',
+    'Détail des éléments concernés :',
+    ...invoiceLines,
+    '',
+    currencyNote + '.',
+    '',
+    'Merci de bien vouloir procéder au règlement ou nous transmettre une confirmation de paiement.',
+    'Si le règlement a déjà été effectué, merci de nous envoyer le justificatif afin que nous mettions votre compte à jour.',
     '',
     'Cordialement,',
     'XELLTEKK',
-  ].join('\n'))
+  ].join('\n')
 
-  if (client.email) {
-    window.location.href = `mailto:${client.email}?subject=${subject}&body=${body}`
+  return { subject, body }
+}
+
+async function relancerClient(client) {
+  const fullClient = await loadClientForRelance(client)
+  const { subject, body } = buildRelanceEmail(fullClient)
+
+  if (fullClient.email) {
+    window.location.href = `mailto:${fullClient.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
     return
   }
 
-  const message = `Relance ${client.nom} : solde à régulariser ${montant}.`
   try {
-    await navigator.clipboard?.writeText(message)
-    toast.success('Message de relance copié')
+    await navigator.clipboard?.writeText(`${subject}\n\n${body}`)
+    toast.success('Email de relance copié, aucun email client renseigné')
   } catch (e) {
-    toast.info(message)
+    toast.info('Aucun email renseigné pour ce client')
   }
 }
 
