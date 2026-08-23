@@ -28,15 +28,17 @@
 import { onMounted, reactive, ref } from 'vue'
 import api from '@/services/api'
 import { useToast } from '@/composables/useToast'
+import { useConfirm } from '@/composables/useConfirm'
 defineProps({ employes: { type: Array, default: () => [] }, departements: { type: Array, default: () => [] } })
 const toast = useToast(), horaires = ref([]), jours = [{ id: 1, label: 'Lun' }, { id: 2, label: 'Mar' }, { id: 3, label: 'Mer' }, { id: 4, label: 'Jeu' }, { id: 5, label: 'Ven' }, { id: 6, label: 'Sam' }, { id: 7, label: 'Dim' }]
+const { confirm: askConfirm } = useConfirm()
 const empty = () => ({ id: null, libelle: '', portee: 'general', departement_id: null, employe_id: null, heure_arrivee: '09:00', heure_depart: '17:00', tolerance_retard_minutes: 0, jours_travailles: [1, 2, 3, 4, 5], is_active: true }), form = reactive(empty())
 function nom(e) { return `${e.prenom || ''} ${e.nom || ''}`.trim() } function clearTarget() { form.departement_id = null; form.employe_id = null } function reset() { Object.assign(form, empty()) }
 function portee(h) { return h.employe ? `Employé : ${nom(h.employe)}` : h.departement ? `Service : ${h.departement?.libelle || '-'}` : 'Tous les employés' } function joursLabel(ids) { return jours.filter(j => ids.includes(j.id)).map(j => j.label).join(', ') }
 async function load() { horaires.value = (await api.get('/rh/horaires')).data }
 async function save() { try { const payload = { ...form }; delete payload.id; delete payload.portee; form.id ? await api.put(`/rh/horaires/${form.id}`, payload) : await api.post('/rh/horaires', payload); toast.success('Horaire enregistré.'); reset(); await load() } catch (e) { const validation = Object.values(e.response.data.errors || {})[0]?.[0]; toast.error(validation || (e.response.status === 500 ? 'Impossible d’enregistrer l’horaire : vérifiez que la migration des horaires RH a été exécutée sur le serveur.' : e.response.data.message) || 'Enregistrement impossible.') } }
 function edit(h) { Object.assign(form, { ...h, heure_arrivee: h.heure_arrivee.slice(0, 5), heure_depart: h.heure_depart.slice(0, 5) || '', portee: h.employe_id ? 'employe' : h.departement_id ? 'departement' : 'general' }) }
-async function remove(h) { if (!confirm(`Supprimer l’horaire « ${h.libelle} » `)) return; try { await api.delete(`/rh/horaires/${h.id}`); toast.success('Horaire supprimé.'); await load() } catch { toast.error('Suppression impossible.') } }
+async function remove(h) { if (!await askConfirm({ message: `Supprimer l’horaire « ${h.libelle} » ?`, tone: 'danger', confirmLabel: 'Supprimer' })) return; try { await api.delete(`/rh/horaires/${h.id}`); toast.success('Horaire supprimé.'); await load() } catch { toast.error('Suppression impossible.') } }
 onMounted(load)
 </script>
 <style scoped>.label{@apply block space-y-1 text-sm font-medium text-slate-700}th{@apply whitespace-nowrap bg-slate-50 px-3 py-3 text-left text-xs uppercase text-slate-500}td{@apply whitespace-nowrap border-t border-slate-100 px-3 py-3 text-sm text-slate-700}</style>

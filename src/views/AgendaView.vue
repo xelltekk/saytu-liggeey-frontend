@@ -224,9 +224,11 @@ import AppModal from '@/components/AppModal.vue'
 import api from '@/services/api'
 import { formatMoney } from '@/composables/useCurrency'
 import { useToast } from '@/composables/useToast'
+import { useConfirm } from '@/composables/useConfirm'
 
 const router = useRouter()
 const toast = useToast()
+const { confirm: askConfirm } = useConfirm()
 const data = ref(null)
 const loading = ref(false)
 const error = ref('')
@@ -347,7 +349,7 @@ async function saveRdv() {
 
 async function deleteSelectedRdv() {
   if (!selectedEvent.value?.source_id) return
-  if (!confirm('Supprimer ce rendez-vous de l’agenda ?')) return
+  if (!await askConfirm({ message: 'Supprimer ce rendez-vous de l’agenda ?', tone: 'danger', confirmLabel: 'Supprimer' })) return
 
   savingRdv.value = true
   try {

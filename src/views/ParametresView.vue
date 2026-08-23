@@ -315,8 +315,10 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import api from '@/services/api'
 import { useToast } from '@/composables/useToast'
 import { useTheme } from '@/composables/useTheme'
+import { useConfirm } from '@/composables/useConfirm'
 
 const toast = useToast()
+const { confirm: askConfirm } = useConfirm()
 
 const loading = ref(true)
 const saving = ref(false)
@@ -430,7 +432,7 @@ async function onFileSelected(event) {
 }
 
 async function supprimerLogo() {
-  if (! confirm('Supprimer le logo ')) return
+  if (!await askConfirm({ message: 'Supprimer le logo ?', tone: 'danger', confirmLabel: 'Supprimer' })) return
   uploadingLogo.value = true
   try {
     const { data } = await api.delete('/parametres/societe/logo')
@@ -444,8 +446,8 @@ async function supprimerLogo() {
   }
 }
 
-function recharger() {
-  if (confirm('Annuler les modifications non enregistrées ')) {
+async function recharger() {
+  if (await askConfirm({ message: 'Annuler les modifications non enregistrées ?', tone: 'primary' })) {
     charger()
   }
 }

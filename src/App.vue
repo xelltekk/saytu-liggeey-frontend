@@ -1,7 +1,8 @@
 <template>
   <router-view />
+  <ConfirmDialogHost />
 </template>
 
 <script setup>
-// Rien à faire ici, le router gère tout
+import ConfirmDialogHost from '@/components/ConfirmDialogHost.vue'
 </script>

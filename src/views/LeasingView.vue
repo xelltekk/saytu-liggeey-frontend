@@ -557,10 +557,12 @@ import api from '@/services/api'
 import { ouvrirPDF } from '@/services/pdf'
 import AppModal from '@/components/AppModal.vue'
 import { useToast } from '@/composables/useToast'
+import { useConfirm } from '@/composables/useConfirm'
 import { useAuthStore } from '@/stores/auth'
 
 const toast = useToast()
 const auth = useAuthStore()
+const { confirm: askConfirm } = useConfirm()
 const route = useRoute()
 const activeTab = ref(tabFromRoute(route.query) || 'contrats')
 const loading = ref(false)
@@ -924,7 +926,7 @@ async function saveIntervention() {
 
 async function changerStatutIntervention(intervention, statut) {
   const label = statutLabel(statut).toLowerCase()
-  if (!window.confirm(`Passer l'intervention ${intervention.reference} en ${label} ?`)) return
+  if (!await askConfirm({ message: `Passer l'intervention ${intervention.reference} en ${label} ?`, tone: 'primary' })) return
   try {
     const payload = normalizePayload({
       ...interventionToForm(intervention),
@@ -940,7 +942,7 @@ async function changerStatutIntervention(intervention, statut) {
 }
 
 async function deleteIntervention(intervention) {
-  if (!window.confirm(`Supprimer l'intervention ${intervention.reference} ?`)) return
+  if (!await askConfirm({ message: `Supprimer l'intervention ${intervention.reference} ?`, tone: 'danger', confirmLabel: 'Supprimer' })) return
   try {
     await api.delete(`/leasing/interventions/${intervention.id}`)
     toast.success('Intervention supprimée.')
@@ -950,7 +952,7 @@ async function deleteIntervention(intervention) {
   }
 }
 async function activerContrat(contrat) {
-  if (!window.confirm(`Activer le contrat ${contrat.numero} ?`)) return
+  if (!await askConfirm({ message: `Activer le contrat ${contrat.numero} ?`, tone: 'primary' })) return
   try {
     await api.post(`/leasing/contrats/${contrat.id}/activer`)
     toast.success('Contrat activé.')
@@ -961,7 +963,7 @@ async function activerContrat(contrat) {
 }
 
 async function cloturerContrat(contrat) {
-  if (!window.confirm(`Clôturer le contrat ${contrat.numero} ?`)) return
+  if (!await askConfirm({ message: `Clôturer le contrat ${contrat.numero} ?`, tone: 'primary', confirmLabel: 'Clôturer' })) return
   try {
     await api.post(`/leasing/contrats/${contrat.id}/cloturer`, { statut: 'termine', date_fin: today() })
     toast.success('Contrat clôturé.')
@@ -975,7 +977,12 @@ async function facturerReleve(releve) {
   if (!releve?.id) return
   const contrat = releve.contrat?.numero || 'ce contrat'
   const periode = releve.periode || dateLabel(releve.date_releve)
-  if (!window.confirm(`Générer une facture brouillon pour le relevé ${periode} du contrat ${contrat} ?\nSupplément HT affiché : ${money(releve.montant_supp_ht)}.`)) return
+  if (!await askConfirm({
+    message: `Générer une facture brouillon pour le relevé ${periode} du contrat ${contrat} ?`,
+    hint: `Supplément HT affiché : ${money(releve.montant_supp_ht)}.`,
+    tone: 'primary',
+    confirmLabel: 'Générer',
+  })) return
 
   factureLoadingId.value = releve.id
   try {

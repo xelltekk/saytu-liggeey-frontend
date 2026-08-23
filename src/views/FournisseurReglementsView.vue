@@ -342,6 +342,7 @@ import { useRoute } from 'vue-router'
 import api from '@/services/api'
 import AppModal from '@/components/AppModal.vue'
 import { useToast } from '@/composables/useToast'
+import { useConfirm } from '@/composables/useConfirm'
 import { telechargerCSV } from '@/services/exports'
 
 const PaginationBar = defineComponent({
@@ -363,6 +364,7 @@ const PaginationBar = defineComponent({
 
 const toast = useToast()
 const route = useRoute()
+const { confirm: askConfirm } = useConfirm()
 const activeTab = ref('factures')
 const activeFactureStatut = ref('')
 const activeCardClass = 'border-blue-500 bg-blue-50 ring-2 ring-blue-100 dark:bg-blue-950/30 dark:ring-blue-900/60'
@@ -575,7 +577,7 @@ async function saveFacture() {
 }
 
 async function deleteFacture(facture) {
-  if (!confirm(`Supprimer la facture fournisseur ${facture.numero} `)) return
+  if (!await askConfirm({ message: `Supprimer la facture fournisseur ${facture.numero} ?`, tone: 'danger', confirmLabel: 'Supprimer' })) return
   try {
     await api.delete(`/fournisseurs-reglements/factures/${facture.id}`)
     toast.success('Facture fournisseur supprimée.')
@@ -681,7 +683,7 @@ async function saveReglement() {
 }
 
 async function deleteReglement(reglement) {
-  if (!confirm(`Supprimer le règlement ${reglement.reference} `)) return
+  if (!await askConfirm({ message: `Supprimer le règlement ${reglement.reference} ?`, tone: 'danger', confirmLabel: 'Supprimer' })) return
   try {
     await api.delete(`/fournisseurs-reglements/reglements/${reglement.id}`)
     toast.success('Règlement fournisseur supprimé.')

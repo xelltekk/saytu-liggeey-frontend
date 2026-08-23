@@ -92,6 +92,7 @@
 import { ref, reactive, computed } from 'vue'
 import api from '@/services/api'
 import { useToast } from '@/composables/useToast'
+import { useConfirm } from '@/composables/useConfirm'
 
 const props = defineProps({
   entrepot: { type: Object, required: true },
@@ -99,6 +100,7 @@ const props = defineProps({
 })
 const emit = defineEmits(['refresh'])
 const toast = useToast()
+const { confirm: askConfirm } = useConfirm()
 
 const showZoneForm = ref(false)
 const newZone = reactive({ code: '', libelle: '', type: 'stockage' })
@@ -132,7 +134,7 @@ async function createZone() {
 }
 
 async function deleteZone(zone) {
-  if (!confirm(`Supprimer la zone "${zone.libelle}" ?`)) return
+  if (!await askConfirm({ message: `Supprimer la zone "${zone.libelle}" ?`, tone: 'danger', confirmLabel: 'Supprimer' })) return
   try {
     await api.delete(`/zones/${zone.id}`)
     toast.success('Zone supprimee')
@@ -167,7 +169,7 @@ async function createEmplacement(zoneId) {
 }
 
 async function deleteEmplacement(emp) {
-  if (!confirm(`Supprimer l'emplacement "${emp.code}" ?`)) return
+  if (!await askConfirm({ message: `Supprimer l'emplacement "${emp.code}" ?`, tone: 'danger', confirmLabel: 'Supprimer' })) return
   try {
     await api.delete(`/emplacements/${emp.id}`)
     toast.success('Emplacement supprime')

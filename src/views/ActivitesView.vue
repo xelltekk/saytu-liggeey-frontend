@@ -355,9 +355,11 @@ import SortableTh from '@/components/SortableTh.vue'
 import { useToast } from '@/composables/useToast'
 import { useTableSort } from '@/composables/useTableSort'
 import { useAuthStore } from '@/stores/auth'
+import { useConfirm } from '@/composables/useConfirm'
 
 const toast = useToast()
 const auth = useAuthStore()
+const { confirm: askConfirm } = useConfirm()
 const loading = ref(false)
 const activites = ref([])
 const logFile = ref('')
@@ -509,7 +511,7 @@ async function loadCorbeille() {
 }
 
 async function restoreTrashItem(item) {
-  if (!window.confirm(`Restaurer ${item.type_label} ${item.reference || item.label} ?`)) return
+  if (!await askConfirm({ message: `Restaurer ${item.type_label} ${item.reference || item.label} ?`, tone: 'primary', confirmLabel: 'Restaurer' })) return
 
   trashLoading.value = true
   try {

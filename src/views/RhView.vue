@@ -382,10 +382,12 @@ import RhAuditPanel from '@/components/rh/RhAuditPanel.vue'
 import { BriefcaseBusiness, Clock3, LayoutDashboard, Settings2, UsersRound } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
+import { useConfirm } from '@/composables/useConfirm'
 
 const auth = useAuthStore()
 const route = useRoute()
 const toast = useToast()
+const { confirm: askConfirm } = useConfirm()
 const canManage = computed(() => ['admin', 'gerant'].includes(auth.user?.role))
 const pageSubtitle = computed(() => canManage.value ? 'Pilotage RH et gestion du personnel' : 'Votre espace employe')
 const groups = [
@@ -589,7 +591,12 @@ async function saveEmploye() {
 async function deleteEmploye(e) {
   const name = nomEmploye(e)
   const detail = e.user ? ' Le compte utilisateur Saytu sera conserve.' : ''
-  if (!window.confirm(`Supprimer la fiche employe de ${name} ?${detail}`)) return
+  if (!await askConfirm({
+    message: `Supprimer la fiche employe de ${name} ?`,
+    hint: detail.trim(),
+    tone: 'danger',
+    confirmLabel: 'Supprimer',
+  })) return
 
   try {
     const { data } = await api.delete(`/rh/employes/${e.id}`)
