@@ -482,6 +482,31 @@
     box-shadow: 0 0 0 4px rgb(2 132 199 / 0.12);
     outline: none;
   }
+  html[data-theme] .btn-secondary {
+    background-color: color-mix(in srgb, var(--saytu-surface, #ffffff) 88%, var(--saytu-primary, #2563eb) 12%) !important;
+    border-color: color-mix(in srgb, var(--saytu-border, #e2e8f0) 72%, var(--saytu-primary, #2563eb) 28%) !important;
+    color: color-mix(in srgb, var(--saytu-primary, #2563eb) 58%, var(--saytu-shell-text, #334155)) !important;
+  }
+  html[data-theme] .btn-secondary:hover {
+    background-color: color-mix(in srgb, var(--saytu-surface, #ffffff) 78%, var(--saytu-primary, #2563eb) 22%) !important;
+    border-color: color-mix(in srgb, var(--saytu-primary, #2563eb) 48%, var(--saytu-border, #e2e8f0)) !important;
+  }
+  html[data-theme] .input {
+    background-color: color-mix(in srgb, var(--saytu-surface, #ffffff) 92%, var(--saytu-primary, #2563eb) 8%) !important;
+    border-color: color-mix(in srgb, var(--saytu-border, #e2e8f0) 78%, var(--saytu-primary, #2563eb) 22%) !important;
+    color: var(--saytu-topbar-title, #0f172a) !important;
+  }
+  html[data-theme] .input::placeholder {
+    color: color-mix(in srgb, var(--saytu-topbar-subtitle, #64748b) 82%, var(--saytu-primary, #2563eb)) !important;
+  }
+  html[data-theme] .input:hover {
+    border-color: color-mix(in srgb, var(--saytu-primary, #2563eb) 42%, var(--saytu-border, #e2e8f0)) !important;
+  }
+  html[data-theme] select.input,
+  html[data-theme] select.input option {
+    background-color: color-mix(in srgb, var(--saytu-surface, #ffffff) 92%, var(--saytu-primary, #2563eb) 8%) !important;
+    color: var(--saytu-topbar-title, #0f172a) !important;
+  }
   .document-line-card {
     border: 1px solid color-mix(in srgb, var(--saytu-primary, #2563eb) 16%, var(--saytu-border, #e2e8f0));
     background: color-mix(in srgb, var(--saytu-surface, #ffffff) 94%, var(--saytu-primary, #2563eb) 6%);
@@ -657,6 +682,109 @@
 
   tbody tr {
     transition: background-color 160ms ease;
+  }
+
+  html[data-theme] .app-surface {
+    --saytu-surface-tinted: color-mix(in srgb, var(--saytu-surface, #ffffff) 92%, var(--saytu-primary, #2563eb) 8%);
+    --saytu-surface-soft: color-mix(in srgb, var(--saytu-surface, #ffffff) 84%, var(--saytu-primary, #2563eb) 16%);
+    --saytu-surface-muted: color-mix(in srgb, var(--saytu-surface, #ffffff) 74%, var(--saytu-primary, #2563eb) 26%);
+    --saytu-border-themed: color-mix(in srgb, var(--saytu-border, #e2e8f0) 72%, var(--saytu-primary, #2563eb) 28%);
+    --saytu-text-themed: var(--saytu-topbar-title, #0f172a);
+    --saytu-muted-themed: color-mix(in srgb, var(--saytu-topbar-subtitle, #64748b) 84%, var(--saytu-primary, #2563eb));
+  }
+
+  html[data-theme] .auth-card {
+    --saytu-surface-tinted: color-mix(in srgb, var(--saytu-surface, #ffffff) 92%, var(--saytu-primary, #2563eb) 8%);
+    --saytu-surface-soft: color-mix(in srgb, var(--saytu-surface, #ffffff) 84%, var(--saytu-primary, #2563eb) 16%);
+    --saytu-surface-muted: color-mix(in srgb, var(--saytu-surface, #ffffff) 74%, var(--saytu-primary, #2563eb) 26%);
+    --saytu-border-themed: color-mix(in srgb, var(--saytu-border, #e2e8f0) 72%, var(--saytu-primary, #2563eb) 28%);
+    --saytu-text-themed: var(--saytu-topbar-title, #0f172a);
+    --saytu-muted-themed: color-mix(in srgb, var(--saytu-topbar-subtitle, #64748b) 84%, var(--saytu-primary, #2563eb));
+    background:
+      radial-gradient(circle at top right, color-mix(in srgb, var(--saytu-brand-to, #22d3ee) 10%, transparent), transparent 30%),
+      var(--saytu-surface-tinted) !important;
+    border-color: var(--saytu-border-themed) !important;
+    color: var(--saytu-text-themed) !important;
+  }
+
+  html[data-theme] .app-surface :where(.bg-white, .bg-white\/80, .bg-white\/90, .bg-white\/95) {
+    background-color: var(--saytu-surface-tinted) !important;
+  }
+
+  html[data-theme] .auth-card :where(.bg-white, .bg-white\/80, .bg-white\/90, .bg-white\/95) {
+    background-color: var(--saytu-surface-tinted) !important;
+  }
+
+  html[data-theme] .app-surface :where(.bg-gray-50, .bg-slate-50, .bg-gray-100, .bg-slate-100) {
+    background-color: var(--saytu-surface-soft) !important;
+  }
+
+  html[data-theme] .auth-card :where(.bg-gray-50, .bg-slate-50, .bg-gray-100, .bg-slate-100) {
+    background-color: var(--saytu-surface-soft) !important;
+  }
+
+  html[data-theme] .app-surface :where(.border-gray-100, .border-gray-200, .border-gray-300, .border-slate-100, .border-slate-200, .border-slate-300, .border-xelltekk-100) {
+    border-color: var(--saytu-border-themed) !important;
+  }
+
+  html[data-theme] .auth-card :where(.border-gray-100, .border-gray-200, .border-gray-300, .border-slate-100, .border-slate-200, .border-slate-300, .border-xelltekk-100) {
+    border-color: var(--saytu-border-themed) !important;
+  }
+
+  html[data-theme] .app-surface :where(.divide-gray-100, .divide-slate-100) > :not([hidden]) ~ :not([hidden]) {
+    border-color: var(--saytu-border-themed) !important;
+  }
+
+  html[data-theme] .auth-card :where(.divide-gray-100, .divide-slate-100) > :not([hidden]) ~ :not([hidden]) {
+    border-color: var(--saytu-border-themed) !important;
+  }
+
+  html[data-theme] .app-surface thead {
+    background-color: var(--saytu-surface-muted) !important;
+  }
+
+  html[data-theme] .app-surface tbody tr:hover {
+    background-color: color-mix(in srgb, var(--saytu-surface, #ffffff) 72%, var(--saytu-primary, #2563eb) 28%) !important;
+  }
+
+  html[data-theme] .app-surface :where(.text-gray-400, .text-gray-500, .text-gray-600, .text-slate-400, .text-slate-500, .text-slate-600) {
+    color: var(--saytu-muted-themed) !important;
+  }
+
+  html[data-theme] .auth-card :where(.text-gray-400, .text-gray-500, .text-gray-600, .text-slate-400, .text-slate-500, .text-slate-600) {
+    color: var(--saytu-muted-themed) !important;
+  }
+
+  html[data-theme] .app-surface :where(.text-gray-700, .text-gray-800, .text-gray-900, .text-slate-700, .text-slate-800, .text-slate-900) {
+    color: var(--saytu-text-themed) !important;
+  }
+
+  html[data-theme] .auth-card :where(.text-gray-700, .text-gray-800, .text-gray-900, .text-slate-700, .text-slate-800, .text-slate-900) {
+    color: var(--saytu-text-themed) !important;
+  }
+
+  html[data-theme] .app-surface :where(.text-xelltekk-600, .text-xelltekk-700, .text-xelltekk-800) {
+    color: var(--saytu-primary) !important;
+  }
+
+  html[data-theme] .auth-card :where(.text-xelltekk-600, .text-xelltekk-700, .text-xelltekk-800) {
+    color: var(--saytu-primary) !important;
+  }
+
+  html[data-theme] .app-surface :where(.border-xelltekk-200, .border-xelltekk-300, .border-xelltekk-500, .hover\:border-xelltekk-300:hover) {
+    border-color: color-mix(in srgb, var(--saytu-primary, #2563eb) 48%, var(--saytu-border, #e2e8f0)) !important;
+  }
+
+  html[data-theme] .app-surface :where(.ring-xelltekk-100) {
+    --tw-ring-color: color-mix(in srgb, var(--saytu-primary, #2563eb) 22%, transparent) !important;
+  }
+
+  html[data-theme] .app-surface :where(.bg-xelltekk-50, .bg-blue-50, .bg-cyan-50) {
+    background-color: color-mix(in srgb, var(--saytu-surface, #ffffff) 82%, var(--saytu-primary, #2563eb) 18%) !important;
+  }
+
+  html[data-theme] .app-surface :where(.bg-xelltekk-100, .bg-blue-100, .bg-cyan-100) {
+    background-color: color-mix(in srgb, var(--saytu-surface, #ffffff) 68%, var(--saytu-primary, #2563eb) 32%) !important;
   }
 
   .dark .bg-white,

@@ -1,7 +1,7 @@
 <template>
-  <div>
+  <div class="client-page">
     <!-- Header avec filtres et bouton -->
-    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-4">
+    <div class="client-theme-panel rounded-lg p-4 mb-4">
       <div class="flex flex-col md:flex-row gap-3">
         <input
           v-model="filters.search"
@@ -43,35 +43,35 @@
     </div>
 
     <div class="grid grid-cols-1 gap-3 mb-4 sm:grid-cols-2 xl:grid-cols-4">
-      <div class="rounded-2xl border border-xelltekk-100 bg-gradient-to-br from-white to-xelltekk-50 p-4 shadow-sm">
-        <div class="text-xs font-semibold uppercase tracking-wide text-xelltekk-600">Clients affichés</div>
-        <div class="mt-2 text-2xl font-black text-slate-900">{{ meta.total }}</div>
-        <div class="text-xs text-slate-500">Base filtrée en cours</div>
+      <div class="client-theme-kpi client-theme-tone-1">
+        <div class="client-theme-kpi-label">Clients affichés</div>
+        <div class="client-theme-kpi-value">{{ meta.total }}</div>
+        <div class="client-theme-kpi-help">Base filtrée en cours</div>
       </div>
-      <div class="rounded-2xl border border-emerald-100 bg-gradient-to-br from-white to-emerald-50 p-4 shadow-sm">
-        <div class="text-xs font-semibold uppercase tracking-wide text-emerald-600">CA cumulé</div>
-        <div class="mt-2 text-2xl font-black text-emerald-700">{{ formatPrice(clientsSummary.ca) }}</div>
-        <div class="text-xs text-slate-500">{{ amountNoteText }}</div>
+      <div class="client-theme-kpi client-theme-tone-2">
+        <div class="client-theme-kpi-label">CA cumulé</div>
+        <div class="client-theme-kpi-value">{{ formatPrice(clientsSummary.ca) }}</div>
+        <div class="client-theme-kpi-help">{{ amountNoteText }}</div>
       </div>
-      <div class="rounded-2xl border border-amber-100 bg-gradient-to-br from-white to-amber-50 p-4 shadow-sm">
-        <div class="text-xs font-semibold uppercase tracking-wide text-amber-600">À encaisser</div>
-        <div class="mt-2 text-2xl font-black text-amber-700">{{ formatPrice(clientsSummary.reste) }}</div>
-        <div class="text-xs text-slate-500">{{ clientsSummary.impayes }} facture(s) impayée(s)</div>
+      <div class="client-theme-kpi client-theme-tone-3">
+        <div class="client-theme-kpi-label">À encaisser</div>
+        <div class="client-theme-kpi-value">{{ formatPrice(clientsSummary.reste) }}</div>
+        <div class="client-theme-kpi-help">{{ clientsSummary.impayes }} facture(s) impayée(s)</div>
       </div>
-      <div class="rounded-2xl border border-rose-100 bg-gradient-to-br from-white to-rose-50 p-4 shadow-sm">
-        <div class="text-xs font-semibold uppercase tracking-wide text-rose-600">À relancer</div>
-        <div class="mt-2 text-2xl font-black text-rose-700">{{ clientsSummary.retards }}</div>
-        <div class="text-xs text-slate-500">Client(s) avec retard</div>
+      <div class="client-theme-kpi client-theme-tone-1">
+        <div class="client-theme-kpi-label">À relancer</div>
+        <div class="client-theme-kpi-value">{{ clientsSummary.retards }}</div>
+        <div class="client-theme-kpi-help">Client(s) avec retard</div>
       </div>
     </div>
 
     <!-- Loader -->
-    <div v-if="loading" class="bg-white rounded-lg p-12 text-center text-gray-500">
+    <div v-if="loading" class="client-theme-panel rounded-lg p-12 text-center text-gray-500">
       Chargement...
     </div>
 
     <!-- Tableau -->
-    <div v-else class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+    <div v-else class="client-theme-panel rounded-lg overflow-hidden">
       <div class="border-b border-slate-100 px-4 py-3">
         <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -817,23 +817,105 @@ watch(() => route.query.open, (id) => {
 </script>
 
 <style scoped>
+.client-theme-panel {
+  border: 1px solid color-mix(in srgb, var(--saytu-border, #e2e8f0) 72%, var(--saytu-primary, #2563eb) 28%);
+  background:
+    radial-gradient(circle at top right, color-mix(in srgb, var(--saytu-brand-to, #22d3ee) 10%, transparent), transparent 30%),
+    color-mix(in srgb, var(--saytu-surface, #ffffff) 92%, var(--saytu-primary, #2563eb) 8%);
+  box-shadow: 0 14px 34px color-mix(in srgb, var(--saytu-primary, #2563eb) 8%, transparent);
+}
+
+.client-theme-kpi {
+  --client-kpi-color: var(--saytu-primary, #2563eb);
+  border: 1px solid color-mix(in srgb, var(--client-kpi-color) 34%, var(--saytu-border, #e2e8f0));
+  border-radius: 1rem;
+  background:
+    radial-gradient(circle at top right, color-mix(in srgb, var(--client-kpi-color) 20%, transparent), transparent 34%),
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--saytu-surface, #ffffff) 88%, var(--client-kpi-color) 12%),
+      color-mix(in srgb, var(--saytu-surface, #ffffff) 96%, var(--client-kpi-color) 4%)
+    );
+  padding: 1rem;
+  box-shadow: 0 12px 28px color-mix(in srgb, var(--client-kpi-color) 8%, transparent);
+}
+
+.client-theme-tone-1 {
+  --client-kpi-color: var(--saytu-brand-from, #3b82f6);
+}
+
+.client-theme-tone-2 {
+  --client-kpi-color: var(--saytu-brand-to, #22d3ee);
+}
+
+.client-theme-tone-3 {
+  --client-kpi-color: var(--saytu-sidebar-via, #1e293b);
+}
+
+.client-theme-kpi-label {
+  color: color-mix(in srgb, var(--client-kpi-color) 74%, var(--saytu-shell-text, #334155));
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.client-theme-kpi-value {
+  margin-top: 0.5rem;
+  color: var(--client-kpi-color);
+  font-size: 1.5rem;
+  font-weight: 950;
+  line-height: 2rem;
+}
+
+.client-theme-kpi-help {
+  color: color-mix(in srgb, var(--saytu-shell-text, #334155) 68%, var(--client-kpi-color));
+  font-size: 0.75rem;
+}
+
 .quick-client-btn {
-  @apply rounded-2xl border border-xelltekk-100 bg-xelltekk-50 px-3 py-2 text-sm font-bold text-xelltekk-700 transition hover:-translate-y-0.5 hover:bg-white hover:shadow-sm;
+  border: 1px solid color-mix(in srgb, var(--saytu-primary, #2563eb) 28%, var(--saytu-border, #e2e8f0));
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--saytu-surface, #ffffff) 84%, var(--saytu-primary, #2563eb) 16%);
+  color: var(--saytu-primary, #2563eb);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 800;
+  transition: 160ms ease;
+}
+
+.quick-client-btn:hover {
+  background: color-mix(in srgb, var(--saytu-surface, #ffffff) 74%, var(--saytu-primary, #2563eb) 26%);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--saytu-primary, #2563eb) 12%, transparent);
+  transform: translateY(-1px);
 }
 
 .client360-card {
-  @apply rounded-2xl border border-slate-200 bg-white p-4 shadow-sm;
+  border: 1px solid color-mix(in srgb, var(--saytu-border, #e2e8f0) 72%, var(--saytu-primary, #2563eb) 28%);
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--saytu-surface, #ffffff) 90%, var(--saytu-primary, #2563eb) 10%);
+  padding: 1rem;
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--saytu-primary, #2563eb) 8%, transparent);
 }
 
 .client360-label {
-  @apply text-xs font-semibold uppercase tracking-wide text-slate-500;
+  color: color-mix(in srgb, var(--saytu-topbar-subtitle, #64748b) 80%, var(--saytu-primary, #2563eb));
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .client360-value {
-  @apply mt-2 font-mono text-2xl font-black;
+  margin-top: 0.5rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 1.5rem;
+  font-weight: 950;
 }
 
 .client360-help {
-  @apply mt-1 text-xs text-slate-500;
+  margin-top: 0.25rem;
+  color: color-mix(in srgb, var(--saytu-topbar-subtitle, #64748b) 82%, var(--saytu-primary, #2563eb));
+  font-size: 0.75rem;
 }
 </style>
