@@ -1,33 +1,41 @@
 <template>
-  <div class="space-y-4">
-    <section class="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
-      <div>
-        <h2 class="text-xl font-bold text-slate-900">Achats fournisseurs</h2>
-        <p class="text-sm text-slate-500">Commandes, approbations et réceptions en stock</p>
+  <div class="achat-page space-y-4">
+    <section class="achat-toolbar">
+      <div class="min-w-0">
+        <p class="text-xs font-black uppercase tracking-[0.18em] text-[color:var(--saytu-primary,#2563eb)]">Achats fournisseurs</p>
+        <h2 class="truncate text-lg font-black text-[color:var(--saytu-shell-text,#0f172a)]">Pilotage des commandes</h2>
+        <p class="text-sm text-[color:var(--saytu-topbar-subtitle,#64748b)]">Demande → commande → réception → facture fournisseur.</p>
       </div>
-      <div class="flex flex-wrap gap-2">
-        <button class="btn-secondary" @click="toggleRequests">{{ showRequests ? 'Voir les commandes' : 'Demandes d’achat' }}</button>
-        <button v-if="!showRequests" class="btn-secondary" @click="togglePerformance">{{ showPerformance ? 'Masquer la performance' : 'Performance fournisseurs' }}</button>
-        <button class="btn-primary inline-flex items-center justify-center gap-2" @click="showRequests ? openDemandCreate() : openCreate()"><Plus :size="18" /> {{ showRequests ? 'Nouvelle demande' : 'Nouveau bon de commande' }}</button>
+      <div class="achat-toolbar-actions">
+        <div class="achat-mode-tabs">
+          <button type="button" class="achat-mode-tab" :class="!showRequests ? 'achat-mode-tab-active' : 'achat-mode-tab-idle'" @click="setAchatsMode('commandes')">
+            Commandes <small>{{ stats.total || 0 }}</small>
+          </button>
+          <button type="button" class="achat-mode-tab" :class="showRequests ? 'achat-mode-tab-active' : 'achat-mode-tab-idle'" @click="setAchatsMode('demandes')">
+            Demandes <small>{{ demandStats.total || 0 }}</small>
+          </button>
+        </div>
+        <button v-if="!showRequests" class="btn-secondary rounded-full px-4 py-2 text-sm" @click="togglePerformance">{{ showPerformance ? 'Masquer performance' : 'Performance' }}</button>
+        <button class="btn-primary inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm" @click="showRequests ? openDemandCreate() : openCreate()"><Plus :size="18" /> {{ showRequests ? 'Demande' : 'Bon de commande' }}</button>
       </div>
     </section>
 
-    <section v-if="!showRequests" class="grid grid-cols-2 gap-3 xl:grid-cols-5">
-      <button v-for="card in statCards" :key="card.key" type="button" class="rounded-lg border border-slate-200 bg-white p-3 text-left transition hover:border-blue-300 hover:shadow-sm" @click="applyStatFilter(card.key)">
-        <span class="text-xs font-medium uppercase text-slate-500">{{ card.label }}</span>
-        <strong class="mt-2 block text-xl" :class="card.color">{{ card.value }}</strong>
+    <section v-if="!showRequests" class="achat-strip">
+      <button v-for="card in statCards" :key="card.key" type="button" class="achat-stat-pill" :class="statPillClass(card)" @click="applyStatFilter(card.key)">
+        <span>{{ card.label }}</span>
+        <strong :class="card.color">{{ card.value }}</strong>
       </button>
     </section>
 
-    <section v-if="showPerformance && !showRequests" class="space-y-3 rounded-lg border border-slate-200 bg-white p-4">
+    <section v-if="showPerformance && !showRequests" class="achat-performance-panel">
       <div class="flex flex-wrap items-center justify-between gap-2">
-        <div><h3 class="font-bold text-slate-900">Performance fournisseurs</h3><p class="text-sm text-slate-500">Qualité, ponctualité, retours et volume d'achats</p></div>
-        <button class="btn-secondary" :disabled="loadingPerformance" @click="loadPerformance">Actualiser</button>
+        <div><h3 class="font-black text-[color:var(--saytu-shell-text,#0f172a)]">Performance fournisseurs</h3><p class="text-sm text-[color:var(--saytu-topbar-subtitle,#64748b)]">Qualité, délais, retours et volume d’achats.</p></div>
+        <button class="btn-secondary rounded-full px-4 py-2 text-sm" :disabled="loadingPerformance" @click="loadPerformance">Actualiser</button>
       </div>
-      <div class="grid gap-3 sm:grid-cols-3">
-        <div class="rounded-lg bg-slate-50 p-3"><span class="caption">Fournisseurs suivis</span><strong class="text-xl">{{ performanceSummary.count }}</strong></div>
-        <div class="rounded-lg bg-emerald-50 p-3"><span class="caption">Score moyen</span><strong class="text-xl text-emerald-700">{{ performanceSummary.averageScore !== null ? performanceSummary.averageScore + ' %' : '-' }}</strong></div>
-        <div class="rounded-lg bg-blue-50 p-3"><span class="caption">Meilleur fournisseur</span><strong class="text-blue-800">{{ performanceSummary.best || '-' }}</strong></div>
+      <div class="achat-performance-summary">
+        <div><span>Suivis</span><strong>{{ performanceSummary.count }}</strong></div>
+        <div><span>Score moyen</span><strong class="text-emerald-700">{{ performanceSummary.averageScore !== null ? performanceSummary.averageScore + ' %' : '-' }}</strong></div>
+        <div><span>Meilleur</span><strong class="text-[color:var(--saytu-primary,#2563eb)]">{{ performanceSummary.best || '-' }}</strong></div>
       </div>
       <div v-if="loadingPerformance" class="py-8 text-center text-sm text-slate-500">Chargement...</div>
       <div v-else class="overflow-x-auto rounded-lg border border-slate-200">
@@ -38,7 +46,7 @@
       </div>
     </section>
 
-    <section v-if="!showRequests" class="rounded-lg border border-slate-200 bg-white p-3">
+    <section v-if="!showRequests" class="rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-surface,#ffffff)] p-3">
       <div class="grid gap-2 lg:grid-cols-[1fr_220px_220px_150px_150px_auto]">
         <input v-model="filters.search" class="input" placeholder="Rechercher numéro, fournisseur, objet..." @keyup.enter="loadCommandes(1)" />
         <select v-model="filters.statut" class="input" @change="loadCommandes(1)">
@@ -55,7 +63,7 @@
       </div>
     </section>
 
-    <section v-if="!showRequests" class="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+    <section v-if="!showRequests" class="overflow-x-auto rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-surface,#ffffff)]">
       <table class="w-full min-w-[1120px]">
         <thead><tr><th>N°</th><th>Fournisseur</th><th>Date</th><th>Livraison prévue</th><th>Entrepôt</th><th class="text-right">Total TTC</th><th>Réception</th><th>Facture</th><th>Statut</th><th class="text-right">Actions</th></tr></thead>
         <tbody>
@@ -93,13 +101,15 @@
     </section>
 
     <template v-else>
-      <section class="grid grid-cols-2 gap-3 xl:grid-cols-5">
-        <div v-for="card in demandStatCards" :key="card.label" class="rounded-lg border border-slate-200 bg-white p-3"><span class="text-xs font-medium uppercase text-slate-500">{{ card.label }}</span><strong class="mt-2 block text-xl" :class="card.color">{{ card.value }}</strong></div>
+      <section class="achat-strip">
+        <button v-for="card in demandStatCards" :key="card.key" type="button" class="achat-stat-pill" :class="demandPillClass(card)" @click="applyDemandStatFilter(card.key)">
+          <span>{{ card.label }}</span><strong :class="card.color">{{ card.value }}</strong>
+        </button>
       </section>
-      <section class="rounded-lg border border-slate-200 bg-white p-3">
+      <section class="rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-surface,#ffffff)] p-3">
         <div class="grid gap-2 md:grid-cols-[1fr_200px_180px_auto]"><input v-model="demandFilters.search" class="input" placeholder="Rechercher numéro, objet, service..." @keyup.enter="loadDemands(1)" /><select v-model="demandFilters.statut" class="input" @change="loadDemands(1)"><option value="">Tous les statuts</option><option v-for="status in demandStatuses" :key="status" :value="status">{{ demandStatusLabel(status) }}</option></select><select v-model="demandFilters.priorite" class="input" @change="loadDemands(1)"><option value="">Toutes priorités</option><option value="basse">Basse</option><option value="normale">Normale</option><option value="haute">Haute</option><option value="urgente">Urgente</option></select><button class="btn-secondary" @click="loadDemands(1)">Actualiser</button></div>
       </section>
-      <section class="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+      <section class="overflow-x-auto rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-surface,#ffffff)]">
         <table class="w-full min-w-[1150px]"><thead><tr><th>N°</th><th>Demandeur</th><th>Besoin</th><th>Objet</th><th>Priorité</th><th class="text-right">Estimation</th><th>Statut</th><th>Commande</th><th class="text-right">Actions</th></tr></thead><tbody>
           <tr v-for="demand in demands" :key="demand.id"><td class="font-mono font-semibold">{{ demand.numero }}</td><td><strong>{{ demand.demandeur?.name || '-' }}</strong><p class="text-xs text-slate-500">{{ demand.service_demandeur || 'Service non précisé' }}</p></td><td>{{ formatDate(demand.date_besoin) }}</td><td><strong>{{ demand.objet }}</strong><p class="text-xs text-slate-500">{{ demand.lignes?.length || 0 }} ligne(s)</p></td><td><span class="badge" :class="priorityClass(demand.priorite)">{{ priorityLabel(demand.priorite) }}</span></td><td class="text-right font-semibold">{{ money(demand.montant_estime) }}</td><td><span class="badge" :class="demandStatusClass(demand.statut)">{{ demandStatusLabel(demand.statut) }}</span><p v-if="demand.motif_rejet" class="mt-1 max-w-48 truncate text-xs text-red-600" :title="demand.motif_rejet">{{ demand.motif_rejet }}</p></td><td><button v-if="demand.commande" class="font-mono text-blue-700 hover:underline" @click="openDetails(demand.commande)">{{ demand.commande.numero }}</button><span v-else>-</span></td><td><div class="flex justify-end gap-2"><button v-if="demand.statut === 'brouillon'" class="text-blue-700" @click="editDemand(demand)">Modifier</button><button v-if="demand.statut === 'brouillon'" class="text-indigo-700" @click="submitDemand(demand)">Soumettre</button><button v-if="demand.statut === 'soumise' && canApprove" class="text-green-700" @click="approveDemand(demand)">Approuver</button><button v-if="demand.statut === 'soumise' && canApprove" class="text-red-600" @click="openRejectDemand(demand)">Rejeter</button><button v-if="demand.statut === 'approuvee' && canApprove" class="text-violet-700" @click="openConvertDemand(demand)">Convertir</button><button v-if="demand.statut === 'brouillon'" class="text-red-600" @click="deleteDemand(demand)"><Trash2 :size="16" /></button></div></td></tr>
           <tr v-if="!demands.length"><td colspan="9" class="py-12 text-center text-slate-400">Aucune demande d’achat.</td></tr>
@@ -449,11 +459,11 @@ const statCards = computed(() => [
   { key: 'engagement', label: 'Engagement', value: money(stats.engagement_total), color: 'text-violet-700' },
 ])
 const demandStatCards = computed(() => [
-  { label: 'Demandes', value: demandStats.total, color: 'text-slate-900' },
-  { label: 'Brouillons', value: demandStats.brouillons, color: 'text-slate-700' },
-  { label: 'À approuver', value: demandStats.a_approuver, color: 'text-amber-700' },
-  { label: 'Approuvées', value: demandStats.approuvees, color: 'text-green-700' },
-  { label: 'Urgentes', value: demandStats.urgentes, color: 'text-red-700' },
+  { key: 'total', label: 'Demandes', value: demandStats.total, color: 'text-slate-900' },
+  { key: 'brouillon', label: 'Brouillons', value: demandStats.brouillons, color: 'text-slate-700' },
+  { key: 'soumise', label: 'À approuver', value: demandStats.a_approuver, color: 'text-amber-700' },
+  { key: 'approuvee', label: 'Approuvées', value: demandStats.approuvees, color: 'text-green-700' },
+  { key: 'urgente', label: 'Urgentes', value: demandStats.urgentes, color: 'text-red-700' },
 ])
 const orderTotals = computed(() => form.lignes.reduce((totals, line) => { const ht = Number(line.quantite || 0) * Number(line.prix_unitaire_ht || 0); const tva = ht * Number(line.taux_tva || 0) / 100; totals.ht += ht; totals.tva += tva; totals.ttc += ht + tva; return totals }, { ht: 0, tva: 0, ttc: 0 }))
 const receptionEmplacements = computed(() => { const warehouse = referentiels.entrepots.find(e => Number(e.id) === Number(receptionForm.entrepot_id)); return (warehouse?.zones || []).flatMap(z => (z.emplacements || []).map(e => ({ id: e.id, label: `${z.libelle} / ${e.code}${e.libelle ? ' - ' + e.libelle : ''}` }))) })
@@ -483,7 +493,27 @@ function selectDemandProduct(line) { const product = referentiels.produits.find(
 function addDemandLine() { demandForm.lignes.push(emptyDemandLine()) }
 function removeDemandLine(index) { if (demandForm.lignes.length === 1) return toast.error('La demande doit contenir au moins une ligne.'); demandForm.lignes.splice(index, 1) }
 function moveDemandLine(index, direction) { const target = index + direction; if (target < 0 || target >= demandForm.lignes.length) return; const [line] = demandForm.lignes.splice(index, 1); demandForm.lignes.splice(target, 0, line) }
+function statPillClass(card) {
+  const active = (card.key === 'total' && !filters.statut) || filters.statut === card.key
+  return active ? 'achat-stat-pill-active' : 'achat-stat-pill-idle'
+}
+
+function demandPillClass(card) {
+  const active = (card.key === 'total' && !demandFilters.statut && !demandFilters.priorite)
+    || demandFilters.statut === card.key
+    || (card.key === 'urgente' && demandFilters.priorite === 'urgente')
+  return active ? 'achat-stat-pill-active' : 'achat-stat-pill-idle'
+}
+
 function applyStatFilter(key) { filters.statut = key === 'total' || key === 'engagement' ? '' : key; loadCommandes(1) }
+
+function applyDemandStatFilter(key) {
+  demandFilters.statut = ''
+  demandFilters.priorite = ''
+  if (key === 'urgente') demandFilters.priorite = 'urgente'
+  else if (key !== 'total') demandFilters.statut = key
+  loadDemands(1)
+}
 
 function normalizeListPayload(payload) { return Array.isArray(payload?.data) ? payload.data : (Array.isArray(payload) ? payload : []) }
 function normalizeSupplier(item) { return { id: item.id, code: item.code || '', nom: item.nom || item.name || '', email: item.email || '', telephone: item.telephone || item.mobile || '', delai_paiement_jours: item.delai_paiement_jours ?? null } }
@@ -556,6 +586,17 @@ async function togglePerformance() { showPerformance.value = !showPerformance.va
 async function loadDemandStats() { Object.assign(demandStats, (await api.get('/achats/demandes/stats')).data) }
 async function loadDemands(page = 1) { try { const { data } = await api.get('/achats/demandes', { params: { page, per_page: 20, ...demandFilters } }); demands.value = data.data || []; Object.assign(demandMeta, data) } catch (e) { toast.error(e.response?.data?.message || 'Impossible de charger les demandes d’achat.') } }
 async function toggleRequests() { showRequests.value = !showRequests.value; if (showRequests.value) { showPerformance.value = false; await Promise.all([loadDemands(), loadDemandStats()]) } }
+async function setAchatsMode(mode) {
+  const demandes = mode === 'demandes'
+  if (showRequests.value === demandes) return
+  showRequests.value = demandes
+  if (demandes) {
+    showPerformance.value = false
+    await Promise.all([loadDemands(), loadDemandStats()])
+  } else {
+    await refresh(meta.current_page || 1)
+  }
+}
 async function refreshDemands() { await Promise.all([loadDemands(demandMeta.current_page || 1), loadDemandStats()]) }
 function openDemandCreate() { editingDemandId.value = null; Object.assign(demandForm, emptyDemandForm()); showDemandForm.value = true }
 async function editDemand(demand) { try { const { data } = await api.get('/achats/demandes/' + demand.id); editingDemandId.value = demand.id; Object.assign(demandForm, { date_demande: String(data.date_demande).slice(0, 10), date_besoin: data.date_besoin ? String(data.date_besoin).slice(0, 10) : '', service_demandeur: data.service_demandeur || '', objet: data.objet, priorite: data.priorite, justification: data.justification || '', lignes: data.lignes.map(line => ({ key: ++demandLineKey, produit_id: line.produit_id, quantite: Number(line.quantite), prix_estime_ht: Number(line.prix_estime_ht), notes: line.notes || '' })) }); showDemandForm.value = true } catch (e) { toast.error(e.response?.data?.message || 'Chargement impossible.') } }
@@ -756,7 +797,7 @@ watch(() => route.query.demandes, async value => {
 })
 
 onMounted(async () => {
-  await Promise.all([loadReferentiels(), loadStats(), loadCommandes()])
+  await Promise.all([loadReferentiels(), loadStats(), loadCommandes(), loadDemandStats()])
   if (route.query.demandes) {
     showRequests.value = true
     await Promise.all([loadDemands(), loadDemandStats()])
@@ -766,6 +807,182 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.achat-page {
+  color: var(--saytu-shell-text, #0f172a);
+}
+
+.achat-toolbar,
+.achat-strip,
+.achat-performance-panel {
+  border: 1px solid color-mix(in srgb, var(--saytu-primary, #2563eb) 14%, var(--saytu-border, #e2e8f0));
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--saytu-primary, #2563eb) 6%, transparent), transparent 48%),
+    var(--saytu-surface, #ffffff);
+  box-shadow: 0 10px 30px color-mix(in srgb, var(--saytu-primary, #2563eb) 7%, transparent);
+}
+
+.achat-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border-radius: 1.25rem;
+  padding: 0.85rem 1rem;
+}
+
+.achat-toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.achat-mode-tabs {
+  display: inline-flex;
+  gap: 0.3rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--saytu-primary, #2563eb) 12%, var(--saytu-border, #e2e8f0));
+  background: color-mix(in srgb, var(--saytu-primary, #2563eb) 7%, var(--saytu-surface, #ffffff));
+  padding: 0.25rem;
+}
+
+.achat-mode-tab,
+.achat-stat-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 999px;
+  font-weight: 850;
+  transition: all 0.15s ease;
+}
+
+.achat-mode-tab {
+  min-height: 2.25rem;
+  padding: 0.45rem 0.75rem;
+  font-size: 0.82rem;
+}
+
+.achat-mode-tab small {
+  border-radius: 999px;
+  background: rgb(255 255 255 / 78%);
+  padding: 0.08rem 0.45rem;
+  font-size: 0.68rem;
+  font-weight: 950;
+}
+
+.achat-mode-tab-active {
+  background: linear-gradient(135deg, var(--saytu-primary, #2563eb), var(--saytu-brand-to, #06b6d4));
+  color: white;
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--saytu-primary, #2563eb) 20%, transparent);
+}
+
+.achat-mode-tab-idle {
+  color: var(--saytu-topbar-subtitle, #64748b);
+}
+
+.achat-mode-tab-idle:hover {
+  background: color-mix(in srgb, var(--saytu-primary, #2563eb) 8%, var(--saytu-surface, #ffffff));
+  color: var(--saytu-shell-text, #0f172a);
+}
+
+.achat-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  border-radius: 1.15rem;
+  padding: 0.55rem;
+}
+
+.achat-stat-pill {
+  min-height: 2.35rem;
+  border: 1px solid color-mix(in srgb, var(--saytu-primary, #2563eb) 12%, var(--saytu-border, #e2e8f0));
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+}
+
+.achat-stat-pill span {
+  color: var(--saytu-topbar-subtitle, #64748b);
+  font-size: 0.68rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.achat-stat-pill strong {
+  font-size: 0.92rem;
+  font-weight: 950;
+}
+
+.achat-stat-pill-active {
+  background: color-mix(in srgb, var(--saytu-primary, #2563eb) 12%, var(--saytu-surface, #ffffff));
+  border-color: color-mix(in srgb, var(--saytu-primary, #2563eb) 38%, var(--saytu-border, #e2e8f0));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--saytu-primary, #2563eb) 18%, transparent);
+}
+
+.achat-stat-pill-idle {
+  background: color-mix(in srgb, var(--saytu-surface, #ffffff) 92%, var(--saytu-primary, #2563eb) 8%);
+}
+
+.achat-stat-pill-idle:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--saytu-primary, #2563eb) 30%, var(--saytu-border, #e2e8f0));
+}
+
+.achat-performance-panel {
+  border-radius: 1.25rem;
+  padding: 0.9rem;
+}
+
+.achat-performance-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.achat-performance-summary div {
+  display: inline-flex;
+  min-height: 2.4rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--saytu-primary, #2563eb) 12%, var(--saytu-border, #e2e8f0));
+  background: color-mix(in srgb, var(--saytu-surface, #ffffff) 90%, var(--saytu-primary, #2563eb) 10%);
+  padding: 0.45rem 0.75rem;
+}
+
+.achat-performance-summary span {
+  color: var(--saytu-topbar-subtitle, #64748b);
+  font-size: 0.7rem;
+  font-weight: 850;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.achat-performance-summary strong {
+  font-weight: 950;
+}
+
+@media (max-width: 768px) {
+  .achat-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .achat-toolbar-actions,
+  .achat-mode-tabs,
+  .achat-strip {
+    justify-content: stretch;
+  }
+
+  .achat-mode-tab,
+  .achat-stat-pill,
+  .achat-performance-summary div {
+    flex: 1 1 9rem;
+  }
+}
+
 th { @apply whitespace-nowrap bg-slate-50 px-3 py-2 text-left text-xs uppercase text-slate-500; }
 td { @apply whitespace-nowrap border-t border-slate-100 px-3 py-3 text-sm text-slate-700; }
 .field-label { @apply block text-sm font-medium text-slate-700; }
