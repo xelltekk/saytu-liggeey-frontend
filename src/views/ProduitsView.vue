@@ -1,66 +1,92 @@
 <template>
-  <div>
-    <!-- Header avec filtres -->
-    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-4">
-      <div class="flex flex-col md:flex-row gap-3">
+  <div class="produits-page space-y-4">
+    <section class="produits-toolbar">
+      <div class="produits-toolbar-main">
+        <div>
+          <p class="text-xs font-black uppercase tracking-[0.18em] text-[color:var(--saytu-primary,#2563eb)]">Produits</p>
+          <h2 class="truncate text-lg font-black text-[color:var(--saytu-shell-text,#0f172a)]">Catalogue produits & services</h2>
+          <p class="text-sm text-[color:var(--saytu-topbar-subtitle,#64748b)]">
+            Prix, photos, catégories et disponibilité en une vue légère.
+          </p>
+        </div>
+        <div class="produits-toolbar-actions">
+          <button @click="exporterCSV" :disabled="exportLoading" class="btn-secondary whitespace-nowrap">
+            {{ exportLoading ? 'Export...' : 'CSV' }}
+          </button>
+
+          <button @click="openCreate" class="btn-primary whitespace-nowrap">
+            + Produit
+          </button>
+        </div>
+      </div>
+
+      <div class="produits-filter-row">
         <input
           v-model="filters.search"
           @input="onSearchInput"
           type="search"
           placeholder="🔍 Référence, libellé, code-barres, marque, modèle..."
-          class="input flex-1"
+          class="input produits-search"
         />
 
-        <select v-model="filters.type" @change="onProduitTypeChange" class="input md:w-40">
+        <select v-model="filters.type" @change="onProduitTypeChange" class="input">
           <option value="">Tous types</option>
           <option value="produit">Produits</option>
           <option value="service">Services</option>
         </select>
 
-        <select v-model="filters.categorie_id" @change="loadProduits(1)" class="input md:w-48">
+        <select v-model="filters.categorie_id" @change="loadProduits(1)" class="input">
           <option value="">Toutes catégories</option>
           <option v-for="cat in categories" :key="cat.id" :value="cat.id">
             {{ cat.libelle }}
           </option>
         </select>
-
-        <button @click="exporterCSV" :disabled="exportLoading" class="btn-secondary whitespace-nowrap">
-          {{ exportLoading ? 'Export...' : 'Exporter CSV' }}
-        </button>
-
-        <button @click="openCreate" class="btn-primary whitespace-nowrap">
-          + Nouveau produit
-        </button>
       </div>
-    </div>
+    </section>
 
-    <!-- Cartes stats -->
-    <div class="stat-grid grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 mb-4">
-      <button type="button" @click="applyProduitFilter('', false)" class="text-left bg-white rounded-lg border p-3 transition hover:-translate-y-0.5 hover:border-xelltekk-300 hover:shadow-sm" :class="produitCardClass('', false)">
-        <div class="text-xs text-gray-500 uppercase">Total</div>
-        <div class="text-2xl font-bold text-gray-900">{{ stats.total }}</div>
+    <section class="produits-strip">
+      <button
+        v-for="card in produitStatCards"
+        :key="card.key"
+        type="button"
+        class="produits-stat-pill"
+        :class="produitPillClass(card)"
+        @click="applyProduitFilter(card.type, card.actifs)"
+      >
+        <span>{{ card.label }}</span>
+        <strong>{{ card.value }}</strong>
       </button>
-      <button type="button" @click="applyProduitFilter('', true)" class="text-left bg-white rounded-lg border p-3 transition hover:-translate-y-0.5 hover:border-xelltekk-300 hover:shadow-sm" :class="produitCardClass('', true)">
-        <div class="text-xs text-gray-500 uppercase">Actifs</div>
-        <div class="text-2xl font-bold text-green-600">{{ stats.actifs }}</div>
-      </button>
-      <button type="button" @click="applyProduitFilter('produit', false)" class="text-left bg-white rounded-lg border p-3 transition hover:-translate-y-0.5 hover:border-xelltekk-300 hover:shadow-sm" :class="produitCardClass('produit', false)">
-        <div class="text-xs text-gray-500 uppercase">Produits</div>
-        <div class="text-2xl font-bold text-xelltekk-600">{{ stats.produits }}</div>
-      </button>
-      <button type="button" @click="applyProduitFilter('service', false)" class="text-left bg-white rounded-lg border p-3 transition hover:-translate-y-0.5 hover:border-xelltekk-300 hover:shadow-sm" :class="produitCardClass('service', false)">
-        <div class="text-xs text-gray-500 uppercase">Services</div>
-        <div class="text-2xl font-bold text-purple-600">{{ stats.services }}</div>
-      </button>
-    </div>
+
+      <div class="produits-mini-signal">
+        <span>Photos manquantes</span>
+        <strong>{{ produitsInsights.photosManquantes }}</strong>
+      </div>
+      <div class="produits-mini-signal">
+        <span>Marge moy.</span>
+        <strong>{{ produitsInsights.margeMoyenne }}%</strong>
+      </div>
+    </section>
 
     <!-- Loader -->
-    <div v-if="loading" class="bg-white rounded-lg p-12 text-center text-gray-500">
+    <div v-if="loading" class="rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-surface,#ffffff)] p-12 text-center text-[color:var(--saytu-topbar-subtitle,#64748b)]">
       Chargement...
     </div>
 
     <!-- Tableau -->
-    <div v-else class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+    <section v-else class="overflow-hidden rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-surface,#ffffff)]">
+      <div class="border-b border-[color:var(--saytu-border,#e2e8f0)] px-4 py-3">
+        <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h3 class="text-base font-black text-[color:var(--saytu-shell-text,#0f172a)]">Catalogue</h3>
+            <p class="text-xs text-[color:var(--saytu-topbar-subtitle,#64748b)]">
+              {{ produitsInsights.actifsAffiches }} actif(s) sur {{ produits.length }} ligne(s) affichée(s).
+            </p>
+          </div>
+          <p class="text-xs font-semibold text-[color:var(--saytu-topbar-subtitle,#64748b)]">
+            Montants exprimés en Francs CFA BCEAO
+          </p>
+        </div>
+      </div>
       <div class="overflow-x-auto">
         <table class="w-full">
           <thead class="bg-gray-50 border-b border-gray-200">
@@ -150,7 +176,7 @@
           </button>
         </div>
       </div>
-    </div>
+    </section>
 
     <!-- Modal création/édition -->
     <AppModal v-model="showModal" :title="editingProduit ? `Modifier : ${editingProduit.libelle}` : 'Nouveau produit'" size="lg">
@@ -219,6 +245,32 @@ const sortedProduits = computed(() => sortedRows(produits.value, {
   actif: (produit) => (produit.is_active ? 1 : 0),
 }))
 
+const produitStatCards = computed(() => [
+  { key: 'total', label: 'Total', value: stats.total, type: '', actifs: false },
+  { key: 'actifs', label: 'Actifs', value: stats.actifs, type: '', actifs: true },
+  { key: 'produits', label: 'Produits', value: stats.produits, type: 'produit', actifs: false },
+  { key: 'services', label: 'Services', value: stats.services, type: 'service', actifs: false },
+])
+
+const produitsInsights = computed(() => {
+  const rows = produits.value || []
+  const actifsAffiches = rows.filter((produit) => produit.is_active).length
+  const photosManquantes = rows.filter((produit) => !imageUrl(produit.image)).length
+  const marges = rows
+    .map((produit) => {
+      const achat = Number(produit.prix_achat_ht || 0)
+      const vente = Number(produit.prix_vente_ht || 0)
+      return achat > 0 ? ((vente - achat) / achat) * 100 : null
+    })
+    .filter((marge) => marge !== null && Number.isFinite(marge))
+
+  const margeMoyenne = marges.length
+    ? Math.round(marges.reduce((sum, marge) => sum + marge, 0) / marges.length)
+    : 0
+
+  return { actifsAffiches, photosManquantes, margeMoyenne }
+})
+
 let searchTimeout = null
 function onSearchInput() {
   clearTimeout(searchTimeout)
@@ -240,6 +292,12 @@ function produitCardClass(type, actifsSeulement) {
   return filters.type === type && filters.actifs_seulement === actifsSeulement ?
      'border-xelltekk-500 bg-xelltekk-50 ring-2 ring-xelltekk-100'
     : 'border-gray-200'
+}
+
+function produitPillClass(card) {
+  return filters.type === card.type && filters.actifs_seulement === card.actifs
+    ? 'produits-stat-pill-active'
+    : 'produits-stat-pill-idle'
 }
 
 async function loadProduits(page = 1) {
@@ -382,3 +440,132 @@ watch(() => route.query.open, (id) => {
   openFromRoute(id)
 })
 </script>
+
+<style scoped>
+.produits-page {
+  color: var(--saytu-shell-text, #0f172a);
+}
+
+.produits-toolbar {
+  border: 1px solid color-mix(in srgb, var(--saytu-primary, #2563eb) 14%, var(--saytu-border, #e2e8f0));
+  border-radius: 1.25rem;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--saytu-primary, #2563eb) 7%, transparent), transparent 48%),
+    var(--saytu-surface, #ffffff);
+  box-shadow: 0 10px 30px color-mix(in srgb, var(--saytu-primary, #2563eb) 7%, transparent);
+  padding: 1rem;
+}
+
+.produits-toolbar-main {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.produits-toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: .5rem;
+}
+
+.produits-filter-row {
+  margin-top: .85rem;
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(150px, 190px) minmax(180px, 230px);
+  gap: .65rem;
+}
+
+.produits-search {
+  min-width: 0;
+}
+
+.produits-strip {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: .65rem;
+}
+
+.produits-stat-pill,
+.produits-mini-signal {
+  min-height: 4.25rem;
+  border-radius: 1rem;
+  border: 1px solid color-mix(in srgb, var(--saytu-primary, #2563eb) 14%, var(--saytu-border, #e2e8f0));
+  padding: .75rem .85rem;
+  text-align: left;
+  transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease, background .18s ease;
+}
+
+.produits-stat-pill span,
+.produits-mini-signal span {
+  display: block;
+  color: var(--saytu-topbar-subtitle, #64748b);
+  font-size: .72rem;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.produits-stat-pill strong,
+.produits-mini-signal strong {
+  margin-top: .25rem;
+  display: block;
+  color: var(--saytu-shell-text, #0f172a);
+  font-size: 1.45rem;
+  font-weight: 950;
+  line-height: 1.1;
+}
+
+.produits-stat-pill:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--saytu-primary, #2563eb) 32%, var(--saytu-border, #e2e8f0));
+  box-shadow: 0 10px 22px color-mix(in srgb, var(--saytu-primary, #2563eb) 10%, transparent);
+}
+
+.produits-stat-pill-active {
+  background: linear-gradient(135deg, var(--saytu-primary, #2563eb), var(--saytu-brand-to, #06b6d4));
+  border-color: transparent;
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--saytu-primary, #2563eb) 20%, transparent);
+}
+
+.produits-stat-pill-active span,
+.produits-stat-pill-active strong {
+  color: #ffffff;
+}
+
+.produits-stat-pill-idle,
+.produits-mini-signal {
+  background: color-mix(in srgb, var(--saytu-surface, #ffffff) 92%, var(--saytu-primary, #2563eb) 8%);
+}
+
+.produits-mini-signal {
+  border-style: dashed;
+}
+
+@media (max-width: 1024px) {
+  .produits-strip {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .produits-toolbar-main {
+    flex-direction: column;
+  }
+
+  .produits-toolbar-actions {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .produits-toolbar-actions > * {
+    flex: 1 1 auto;
+  }
+
+  .produits-filter-row,
+  .produits-strip {
+    grid-template-columns: 1fr;
+  }
+}
+</style>
