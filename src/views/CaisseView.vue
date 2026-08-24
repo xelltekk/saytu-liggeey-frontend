@@ -1,21 +1,15 @@
 <template>
-  <div class="space-y-5">
-    <div class="stat-grid grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
-      <div class="rounded-lg border border-slate-200 bg-white p-4">
-        <p class="text-xs uppercase text-slate-500">Caisses ouvertes</p>
-        <p class="mt-1 text-2xl font-bold text-slate-900">{{ stats.sessions_ouvertes || 0 }}</p>
+  <div class="caisse-page space-y-4">
+    <div class="caisse-summary">
+      <div class="min-w-0">
+        <p class="text-xs font-black uppercase tracking-[0.18em] text-[color:var(--saytu-primary,#2563eb)]">Caisse</p>
+        <h2 class="truncate text-lg font-black text-[color:var(--saytu-shell-text,#0f172a)]">Vue rapide du jour</h2>
       </div>
-      <div class="rounded-lg border border-emerald-100 bg-emerald-50 p-4">
-        <p class="text-xs uppercase text-emerald-700">Entrees du jour</p>
-        <p class="mt-1 text-xl font-bold text-emerald-800">{{ formatPrice(stats.entrees_jour) }}</p>
-      </div>
-      <div class="rounded-lg border border-red-100 bg-red-50 p-4">
-        <p class="text-xs uppercase text-red-700">Sorties du jour</p>
-        <p class="mt-1 text-xl font-bold text-red-800">{{ formatPrice(stats.sorties_jour) }}</p>
-      </div>
-      <div class="rounded-lg border border-cyan-100 bg-cyan-50 p-4">
-        <p class="text-xs uppercase text-cyan-700">Solde net jour</p>
-        <p class="mt-1 text-xl font-bold text-cyan-800">{{ formatPrice(stats.solde_net_jour) }}</p>
+      <div class="caisse-summary-items">
+        <div v-for="item in summaryItems" :key="item.key" class="caisse-summary-chip">
+          <span>{{ item.label }}</span>
+          <strong :class="item.class">{{ item.value }}</strong>
+        </div>
       </div>
     </div>
 
@@ -189,9 +183,14 @@
       </div>
     </div>
 
-    <div v-else-if="!session" class="rounded-lg border border-slate-200 bg-white p-4 sm:p-6">
-      <h3 class="text-xl font-bold text-slate-900 sm:text-2xl">Ouvrir une caisse</h3>
-      <p class="mt-1 text-sm text-slate-500 sm:text-base">Renseignez le fonds de caisse de depart pour commencer la journee.</p>
+    <div v-else-if="!session" class="rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-surface,#ffffff)] p-4">
+      <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h3 class="text-lg font-black text-[color:var(--saytu-shell-text,#0f172a)]">Ouvrir une caisse</h3>
+          <p class="text-sm text-[color:var(--saytu-topbar-subtitle,#64748b)]">Fond initial, note courte, puis vente directe.</p>
+        </div>
+        <button type="button" class="btn-secondary rounded-full px-4 py-2 text-sm" @click="loadCaisse">Actualiser</button>
+      </div>
 
       <form class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-[220px_1fr_auto]" @submit.prevent="ouvrirCaisse">
         <input v-model.number="openForm.solde_ouverture" type="number" min="0" step="0.01" class="input" :class="isTouchPos ? 'min-h-14 text-lg' : ''" placeholder="Solde ouverture" />
@@ -204,42 +203,40 @@
     </div>
 
     <div v-else class="space-y-5">
-      <section class="rounded-[2rem] border border-slate-100 bg-white/95 p-4 shadow-xl shadow-slate-200/70 sm:p-5">
-        <div class="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-          <div>
-            <p class="text-xs font-bold uppercase tracking-wide text-teal-700">GESTION DE CAISSE</p>
-            <h2 class="mt-1 text-xl font-black text-slate-950">Ouverture / fermeture de caisse</h2>
-            <p class="mt-1 text-sm text-slate-500">Ouvrez votre session avant de vendre, puis cl&ocirc;turez-la &agrave; la fin du service.</p>
-            <div class="mt-3 flex flex-wrap gap-2">
-              <span class="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700 ring-1 ring-emerald-200">Session ouverte</span>
-              <span class="rounded-full bg-cyan-50 px-3 py-1 text-xs font-semibold text-cyan-700 ring-1 ring-cyan-200">{{ formatDateTime(session.opened_at) }}</span>
-              <span class="rounded-full bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600 ring-1 ring-slate-200">Fond initial {{ formatPrice(session.solde_ouverture) }}</span>
-            </div>
+      <section class="caisse-session-bar">
+        <div class="min-w-0">
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="caisse-live-dot"></span>
+            <span class="text-sm font-black text-[color:var(--saytu-shell-text,#0f172a)]">Session ouverte</span>
+            <span class="rounded-full bg-[color:var(--saytu-soft,#eff6ff)] px-2.5 py-1 font-mono text-xs font-bold text-[color:var(--saytu-primary,#2563eb)]">{{ session.reference }}</span>
           </div>
-          <div class="flex flex-wrap gap-2">
-            <button type="button" class="btn-secondary rounded-full px-5" @click="loadCaisse">Actualiser</button>
-            <a href="#fermeture-caisse" class="inline-flex items-center justify-center rounded-full bg-teal-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-teal-200 transition hover:bg-teal-700">Cl&ocirc;turer ma caisse</a>
-          </div>
+          <p class="mt-1 truncate text-xs text-[color:var(--saytu-topbar-subtitle,#64748b)]">
+            Ouverte {{ formatDateTime(session.opened_at) }} · Fond initial {{ formatPrice(session.solde_ouverture) }} · Solde théorique {{ formatPrice(session.solde_fermeture_theorique) }}
+          </p>
         </div>
-
-        <div class="mt-4 flex flex-col gap-3 lg:flex-row lg:items-center">
-          <div class="flex-1 rounded-[1.5rem] border border-slate-100 bg-slate-50 px-5 py-4">
-            <p class="text-xs font-bold uppercase tracking-wide text-slate-500">Fond de caisse</p>
-            <p class="mt-1 text-2xl font-black text-slate-950">{{ formatPrice(session.solde_fermeture_theorique) }}</p>
-            <p class="mt-1 text-xs text-slate-500">D&eacute;tail complet disponible dans l'historique et les rapports.</p>
-          </div>
-          <a href="#fermeture-caisse" class="rounded-full bg-violet-50 px-5 py-3 text-sm font-semibold text-violet-700 ring-1 ring-violet-100 transition hover:bg-violet-100">Cl&ocirc;ture en fin de service</a>
+        <div class="flex flex-wrap gap-2">
+          <button type="button" class="btn-secondary rounded-full px-4 py-2 text-sm" @click="loadCaisse">Actualiser</button>
+          <button type="button" class="btn-primary rounded-full px-4 py-2 text-sm" @click="activeCaisseTab = 'cloture'">Clôturer</button>
         </div>
       </section>
 
-      <section class="rounded-[2rem] border border-slate-100 bg-white p-3 shadow-sm">
-        <div class="grid max-w-xl grid-cols-2 gap-2 rounded-full bg-slate-100 p-1">
-          <button type="button" class="rounded-full bg-violet-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm">Caisse</button>
-          <a href="#historique-caisse" class="rounded-full px-5 py-2.5 text-center text-sm font-semibold text-slate-500 hover:bg-white hover:text-slate-800">Historique</a>
+      <section class="caisse-tabs-wrap">
+        <div class="caisse-tabs">
+          <button
+            v-for="tab in caisseTabs"
+            :key="tab.key"
+            type="button"
+            class="caisse-tab"
+            :class="activeCaisseTab === tab.key ? 'caisse-tab-active' : 'caisse-tab-idle'"
+            @click="activeCaisseTab = tab.key"
+          >
+            <span>{{ tab.label }}</span>
+            <small v-if="tab.badge">{{ tab.badge }}</small>
+          </button>
         </div>
       </section>
 
-      <section class="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_360px] 2xl:grid-cols-[minmax(0,1fr)_400px]">
+      <section v-show="activeCaisseTab === 'vente'" class="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_340px] 2xl:grid-cols-[minmax(0,1fr)_380px]">
         <div class="space-y-4">
           <div>
             <div class="relative">
@@ -255,20 +252,20 @@
             <p class="mt-2 text-xs text-slate-500">Lecteur 2D compatible : scannez le code-barres ou la r&eacute;f&eacute;rence SKU pour ajouter directement au panier.</p>
           </div>
 
-          <div class="max-h-[68vh] overflow-y-auto pr-1">
-            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+          <div class="max-h-[62vh] overflow-y-auto pr-1">
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
               <button
                 v-for="p in produits"
                 :key="p.id"
                 type="button"
-                class="group overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-violet-200 hover:shadow-xl hover:shadow-violet-100/60 active:scale-[0.99]"
+                class="group overflow-hidden rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-surface,#ffffff)] p-2.5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[color:var(--saytu-primary,#2563eb)] hover:shadow-lg active:scale-[0.99]"
                 @click="ajouterAuPanier(p)"
               >
-                <div class="flex h-40 items-center justify-center overflow-hidden rounded-[1.25rem] bg-slate-50 ring-1 ring-slate-100">
+                <div class="flex h-28 items-center justify-center overflow-hidden rounded-xl bg-[color:var(--saytu-soft,#f8fafc)] ring-1 ring-[color:var(--saytu-border,#e2e8f0)] sm:h-32">
                   <img v-if="imageProduit(p)" :src="imageProduit(p)" :alt="p.libelle" class="h-full w-full object-contain p-2 transition duration-200 group-hover:scale-105" />
                   <div v-else class="flex h-full w-full items-center justify-center text-3xl text-slate-300">&#9633;</div>
                 </div>
-                <div class="mt-3 min-h-[92px]">
+                <div class="mt-2 min-h-[72px]">
                   <h3 class="line-clamp-2 text-sm font-black uppercase tracking-tight text-slate-950">{{ p.libelle }}</h3>
                   <p class="mt-1 font-mono text-sm font-black text-violet-600">{{ formatPrice(prixTtc(p)) }}</p>
                   <div class="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
@@ -285,14 +282,14 @@
           </div>
         </div>
 
-        <aside class="xl:sticky xl:top-4 xl:self-start">
-          <div class="rounded-[1.75rem] border border-slate-100 bg-white p-4 shadow-xl shadow-slate-200/70">
+        <aside class="xl:sticky xl:top-3 xl:self-start">
+          <div class="rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-surface,#ffffff)] p-3 shadow-lg shadow-slate-200/50">
             <div class="flex items-center justify-between">
-              <h3 class="text-lg font-black text-slate-950">Panier</h3>
+              <h3 class="text-base font-black text-slate-950">Panier</h3>
               <span class="rounded-full bg-violet-50 px-3 py-1 text-xs font-bold text-violet-700">{{ panier.length }} article(s)</span>
             </div>
 
-            <div class="mt-4 space-y-3">
+            <div class="mt-3 space-y-2">
               <input v-model="posForm.client_nom" class="input rounded-full" :placeholder="posForm.document_type === 'facture' ? 'Nom du client obligatoire' : 'Nom du client (optionnel)'" />
               <input
                 v-if="encaissements.length === 1 && encaissements[0].mode_paiement !== 'especes'"
@@ -328,7 +325,7 @@
               </button>
             </div>
 
-            <div class="mt-5 max-h-[32vh] space-y-2 overflow-y-auto pr-1">
+            <div class="mt-4 max-h-[30vh] space-y-2 overflow-y-auto pr-1">
               <div v-for="ligne in panier" :key="ligne.produit_id" class="rounded-2xl border border-slate-100 bg-slate-50 p-3">
                 <div class="flex items-start justify-between gap-3">
                   <div class="min-w-0">
@@ -351,10 +348,10 @@
               </div>
             </div>
 
-            <div class="mt-5 border-t border-slate-100 pt-4">
+            <div class="mt-4 border-t border-slate-100 pt-3">
               <label class="text-xs font-semibold uppercase tracking-wide text-slate-500">Remise %</label>
               <input v-if="panier.length" v-model.number="panier[0].remise_pourcent" type="number" min="0" max="100" step="0.01" class="input mt-1 rounded-full" placeholder="Remise globale" @input="appliquerRemiseGlobale" />
-              <div class="mt-3 rounded-2xl bg-slate-50 p-3 text-sm">
+              <div class="mt-2 rounded-2xl bg-slate-50 p-3 text-sm">
                 <div class="flex justify-between text-slate-500"><span>Sous-total HT</span><strong>{{ formatPrice(totauxPanier.ht) }}</strong></div>
                 <div class="mt-1 flex justify-between text-slate-500"><span>TVA</span><strong>{{ formatPrice(totauxPanier.tva) }}</strong></div>
                 <div class="mt-3 flex justify-between text-lg font-black text-slate-950"><span>Total</span><strong class="text-violet-600">{{ formatPrice(totauxPanier.ttc) }}</strong></div>
@@ -401,7 +398,7 @@
               <div v-if="monnaieARendre > 0" class="flex justify-between text-blue-700"><span>Monnaie &agrave; rendre</span><strong>{{ formatPrice(monnaieARendre) }}</strong></div>
             </div>
 
-            <button class="mt-4 w-full rounded-2xl bg-violet-600 px-5 py-4 text-base font-black text-white shadow-xl shadow-violet-200 transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:bg-violet-300" :disabled="saving || panier.length === 0 || Math.abs(ecartEncaissement) > 0.01" @click="encaisserVente">
+            <button class="mt-4 w-full rounded-2xl bg-violet-600 px-5 py-3 text-base font-black text-white shadow-xl shadow-violet-200 transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:bg-violet-300" :disabled="saving || panier.length === 0 || Math.abs(ecartEncaissement) > 0.01" @click="encaisserVente">
               <span v-if="saving">Encaissement...</span>
               <span v-else>Encaisser</span>
             </button>
@@ -410,8 +407,14 @@
         </aside>
       </section>
 
-      <details class="rounded-[1.5rem] border border-slate-200 bg-white p-4">
-        <summary class="cursor-pointer select-none text-lg font-bold text-slate-900">Nouveau mouvement manuel</summary>
+      <section v-show="activeCaisseTab === 'mouvements'" class="rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-surface,#ffffff)] p-4">
+        <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h3 class="text-lg font-black text-[color:var(--saytu-shell-text,#0f172a)]">Mouvement manuel</h3>
+            <p class="text-sm text-[color:var(--saytu-topbar-subtitle,#64748b)]">Entrée, sortie, correction ou retrait avec motif obligatoire.</p>
+          </div>
+          <button type="button" class="btn-secondary rounded-full px-4 py-2 text-sm" @click="loadCaisse">Actualiser</button>
+        </div>
         <form class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2" @submit.prevent="ajouterMouvement">
           <select v-model="movementForm.sens" class="input">
             <option value="entree">Entr&eacute;e</option>
@@ -447,15 +450,20 @@
             </button>
           </div>
         </form>
-      </details>
+      </section>
 
-      <details id="historique-caisse" class="overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white">
-        <summary class="cursor-pointer select-none px-4 py-3 font-bold text-slate-900">Historique et r&eacute;impression</summary>
+      <section v-show="activeCaisseTab === 'historique'" id="historique-caisse" class="overflow-hidden rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-surface,#ffffff)]">
         <div class="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-          <h3 class="font-bold text-slate-900">Mouvements de caisse</h3>
-          <button class="btn-secondary px-3 py-1.5 text-sm" :disabled="exportLoading" @click="exporterMouvementsCSV(session.id)">
-            {{ exportLoading ? 'Export...' : 'Exporter' }}
-          </button>
+          <div>
+            <h3 class="font-black text-[color:var(--saytu-shell-text,#0f172a)]">Historique et réimpression</h3>
+            <p class="text-xs text-[color:var(--saytu-topbar-subtitle,#64748b)]">{{ mouvements.length }} mouvement(s) sur cette session.</p>
+          </div>
+          <div class="flex gap-2">
+            <button class="btn-secondary px-3 py-1.5 text-sm" :disabled="exportLoading" @click="exporterMouvementsCSV(session.id)">
+              {{ exportLoading ? 'Export...' : 'Exporter' }}
+            </button>
+            <button type="button" class="btn-secondary px-3 py-1.5 text-sm" @click="loadMouvements">Actualiser</button>
+          </div>
         </div>
         <div class="overflow-x-auto">
           <table class="w-full">
@@ -496,9 +504,9 @@
             </tbody>
           </table>
         </div>
-      </details>
+      </section>
 
-      <section id="fermeture-caisse" class="rounded-[1.5rem] border border-slate-200 bg-white p-4">
+      <section v-show="activeCaisseTab === 'cloture'" id="fermeture-caisse" class="rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-surface,#ffffff)] p-4">
         <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <h3 class="text-lg font-bold text-slate-900">Fermer la caisse</h3>
@@ -625,6 +633,7 @@ const productSearch = ref('')
 const showTicketPreview = ref(false)
 const ticketPreview = ref(null)
 const stats = reactive({ sessions_ouvertes: 0, entrees_jour: 0, sorties_jour: 0, solde_net_jour: 0 })
+const activeCaisseTab = ref('vente')
 
 const openForm = reactive({ solde_ouverture: 0, notes_ouverture: '' })
 const closeForm = reactive({ solde_fermeture_reel: 0, notes_fermeture: '' })
@@ -650,6 +659,18 @@ const encaissements = ref([creerEncaissement()])
 const isAdmin = computed(() => ['admin', 'gerant'].includes(auth.user?.role))
 const isTouchPos = computed(() => auth.user?.role === 'caissier')
 const sessionsActivesCount = computed(() => sessionsOuvertes.value.filter(s => s.statut === 'ouverte').length)
+const summaryItems = computed(() => [
+  { key: 'sessions', label: 'Ouvertes', value: stats.sessions_ouvertes || 0, class: 'text-[color:var(--saytu-primary,#2563eb)]' },
+  { key: 'entrees', label: 'Entrées', value: formatPrice(stats.entrees_jour), class: 'text-emerald-700' },
+  { key: 'sorties', label: 'Sorties', value: formatPrice(stats.sorties_jour), class: 'text-red-700' },
+  { key: 'net', label: 'Net jour', value: formatPrice(stats.solde_net_jour), class: Number(stats.solde_net_jour || 0) < 0 ? 'text-red-700' : 'text-[color:var(--saytu-primary,#2563eb)]' },
+])
+const caisseTabs = computed(() => [
+  { key: 'vente', label: 'Vente rapide', badge: panier.value.length ? `${panier.value.length}` : '' },
+  { key: 'mouvements', label: 'Mouvements', badge: '' },
+  { key: 'historique', label: 'Historique', badge: mouvements.value.length ? `${mouvements.value.length}` : '' },
+  { key: 'cloture', label: 'Clôture', badge: '' },
+])
 const modesPaiementTactiles = [
   { value: 'especes', label: 'Especes' },
   { value: 'wave', label: 'Wave' },
@@ -988,7 +1009,7 @@ async function encaisserVente() {
     reinitialiserEncaissements()
     await loadCaisse()
   } catch (e) {
-    toast.error(e.response.data.errors.stock?.[0] || e.response.data.errors.caisse?.[0] || e.response.data.message || 'Vente impossible')
+    toast.error(e.response?.data?.errors?.stock?.[0] || e.response?.data?.errors?.caisse?.[0] || e.response?.data?.message || 'Vente impossible')
   } finally {
     saving.value = false
   }
@@ -1127,7 +1148,7 @@ async function reimprimerTicket(mouvement) {
     const { data } = await api.get(`/caisse/factures/${mouvement.facture?.id}/ticket`)
     afficherTicket(data)
   } catch (e) {
-    toast.error(e.response.data.message || 'Réimpression impossible')
+    toast.error(e.response?.data?.message || 'Réimpression impossible')
   }
 }
 
@@ -1144,9 +1165,10 @@ async function ouvrirCaisse() {
     toast.success('Caisse ouverte')
     openForm.solde_ouverture = 0
     openForm.notes_ouverture = ''
+    activeCaisseTab.value = 'vente'
     await loadCaisse()
   } catch (e) {
-    toast.error(e.response.data.message || e.response.data.errors.caisse?.[0] || 'Ouverture impossible')
+    toast.error(e.response?.data?.message || e.response?.data?.errors?.caisse?.[0] || 'Ouverture impossible')
   } finally {
     saving.value = false
   }
@@ -1160,7 +1182,7 @@ async function ajouterMouvement() {
     Object.assign(movementForm, { sens: 'entree', type: 'vente', libelle: '', montant: null, mode_paiement: 'especes', reference: '', description: '' })
     await loadCaisse()
   } catch (e) {
-    toast.error(e.response.data.message || e.response.data.errors.caisse?.[0] || 'Enregistrement impossible')
+    toast.error(e.response?.data?.message || e.response?.data?.errors?.caisse?.[0] || 'Enregistrement impossible')
   } finally {
     saving.value = false
   }
@@ -1173,11 +1195,12 @@ async function fermerCaisse() {
     toast.success('Caisse fermee')
     session.value = null
     mouvements.value = []
+    activeCaisseTab.value = 'vente'
     closeForm.solde_fermeture_reel = 0
     closeForm.notes_fermeture = ''
     await loadCaisse()
   } catch (e) {
-    toast.error(e.response.data.message || e.response.data.errors.caisse?.[0] || 'Fermeture impossible')
+    toast.error(e.response?.data?.message || e.response?.data?.errors?.caisse?.[0] || 'Fermeture impossible')
   } finally {
     saving.value = false
   }
@@ -1221,6 +1244,144 @@ onMounted(loadCaisse)
 </script>
 
 <style scoped>
+.caisse-page {
+  color: var(--saytu-shell-text, #0f172a);
+}
+
+.caisse-summary,
+.caisse-session-bar,
+.caisse-tabs-wrap {
+  border: 1px solid color-mix(in srgb, var(--saytu-primary, #2563eb) 14%, var(--saytu-border, #e2e8f0));
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--saytu-primary, #2563eb) 6%, transparent), transparent 48%),
+    var(--saytu-surface, #ffffff);
+  box-shadow: 0 10px 30px color-mix(in srgb, var(--saytu-primary, #2563eb) 7%, transparent);
+}
+
+.caisse-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border-radius: 1.25rem;
+  padding: 0.75rem 1rem;
+}
+
+.caisse-summary-items {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.caisse-summary-chip {
+  display: inline-flex;
+  min-width: 8.2rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--saytu-primary, #2563eb) 12%, var(--saytu-border, #e2e8f0));
+  background: color-mix(in srgb, var(--saytu-surface, #ffffff) 88%, var(--saytu-primary, #2563eb) 12%);
+  padding: 0.45rem 0.75rem;
+}
+
+.caisse-summary-chip span {
+  color: var(--saytu-topbar-subtitle, #64748b);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.caisse-summary-chip strong {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.9rem;
+  font-weight: 950;
+}
+
+.caisse-session-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border-radius: 1.25rem;
+  padding: 0.85rem 1rem;
+}
+
+.caisse-live-dot {
+  height: 0.65rem;
+  width: 0.65rem;
+  border-radius: 999px;
+  background: #10b981;
+  box-shadow: 0 0 0 5px rgb(16 185 129 / 12%);
+}
+
+.caisse-tabs-wrap {
+  border-radius: 1.2rem;
+  padding: 0.35rem;
+}
+
+.caisse-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.caisse-tab {
+  display: inline-flex;
+  min-height: 2.45rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 999px;
+  padding: 0.55rem 0.9rem;
+  font-size: 0.82rem;
+  font-weight: 850;
+  transition: all 0.15s ease;
+}
+
+.caisse-tab small {
+  border-radius: 999px;
+  background: rgb(255 255 255 / 78%);
+  padding: 0.1rem 0.45rem;
+  font-size: 0.68rem;
+  font-weight: 950;
+}
+
+.caisse-tab-active {
+  background: linear-gradient(135deg, var(--saytu-primary, #2563eb), var(--saytu-brand-to, #06b6d4));
+  color: white;
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--saytu-primary, #2563eb) 22%, transparent);
+}
+
+.caisse-tab-idle {
+  color: var(--saytu-topbar-subtitle, #64748b);
+}
+
+.caisse-tab-idle:hover {
+  background: color-mix(in srgb, var(--saytu-primary, #2563eb) 8%, var(--saytu-surface, #ffffff));
+  color: var(--saytu-shell-text, #0f172a);
+}
+
+@media (max-width: 768px) {
+  .caisse-summary,
+  .caisse-session-bar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .caisse-summary-items,
+  .caisse-tabs {
+    justify-content: stretch;
+  }
+
+  .caisse-summary-chip,
+  .caisse-tab {
+    flex: 1 1 9rem;
+  }
+}
+
 .touch-pos-surface {
   touch-action: manipulation;
 }
