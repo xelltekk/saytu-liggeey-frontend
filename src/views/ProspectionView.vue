@@ -48,106 +48,6 @@
       </button>
     </div>
 
-    <div class="grid grid-cols-1 gap-4 xl:grid-cols-[1.35fr_1fr_1fr]">
-      <section class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-        <div class="mb-3 flex items-start justify-between gap-3">
-          <div>
-            <h4 class="font-bold text-gray-900">Pipeline commercial</h4>
-            <p class="text-xs text-gray-500">Vue rapide des prospects par étape.</p>
-          </div>
-          <span class="rounded-full bg-xelltekk-50 px-3 py-1 text-xs font-semibold text-xelltekk-700">
-            {{ pipelineTotal }} prospect(s)
-          </span>
-        </div>
-        <div class="grid grid-cols-1 gap-2 md:grid-cols-2 2xl:grid-cols-3">
-          <button
-            v-for="stage in pipelineStages"
-            :key="stage.key"
-            type="button"
-            class="rounded-2xl border border-gray-200 bg-gray-50 p-3 text-left transition hover:-translate-y-0.5 hover:border-xelltekk-300 hover:bg-white hover:shadow-sm"
-            @click="openStage(stage)"
-          >
-            <div class="flex items-center justify-between gap-3">
-              <div>
-                <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">{{ stage.label }}</div>
-                <div class="text-xl font-black text-gray-900">{{ stage.count || 0 }}</div>
-              </div>
-              <span class="rounded-full px-2.5 py-1 text-xs font-bold" :class="stageBadgeClass(stage.key)">
-                {{ stagePercent(stage) }}%
-              </span>
-            </div>
-            <div class="mt-2 h-2 overflow-hidden rounded-full bg-white/80">
-              <div class="h-full rounded-full transition-all" :class="stageBarClass(stage.key)" :style="{ width: `${stagePercent(stage)}%` }"></div>
-            </div>
-            <div class="mt-2 flex items-center justify-between gap-2 text-xs text-gray-500">
-              <span class="truncate">{{ stage.description }}</span>
-              <span v-if="stage.potentiel" class="font-semibold text-xelltekk-700">{{ formatPrice(stage.potentiel) }}</span>
-            </div>
-          </button>
-        </div>
-      </section>
-
-      <section class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-        <div class="mb-3 flex items-start justify-between gap-3">
-          <div>
-            <h4 class="font-bold text-gray-900">Relances prioritaires</h4>
-            <p class="text-xs text-gray-500">À traiter avant qu’elles refroidissent.</p>
-          </div>
-          <span class="rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-700">{{ relancesPrioritaires.length }}</span>
-        </div>
-        <div v-if="relancesPrioritaires.length" class="space-y-2">
-          <article v-for="item in relancesPrioritaires" :key="`relance-${item.id}`" class="rounded-2xl border border-gray-100 bg-gray-50 p-3">
-            <div class="flex items-start justify-between gap-3">
-              <div class="min-w-0">
-                <div class="truncate text-sm font-semibold text-gray-900">{{ item.client?.nom || 'Prospect' }}</div>
-                <div class="text-xs text-gray-500">{{ typeActionLabel(item.type_action) }} · {{ formatDateTime(item.date_relance) }}</div>
-              </div>
-              <span class="rounded-full px-2 py-0.5 text-xs font-semibold" :class="priorityClass(item.priorite)">
-                {{ priorityLabel(item.priorite) }}
-              </span>
-            </div>
-            <div class="mt-2 flex flex-wrap gap-2">
-              <a v-if="item.client?.email" :href="relanceEmailHref(item.client, item)" class="text-xs font-semibold text-xelltekk-700 hover:underline">Email</a>
-              <a v-if="phoneHref(item.client)" :href="phoneHref(item.client)" class="text-xs font-semibold text-xelltekk-700 hover:underline">Appeler</a>
-              <button type="button" @click="openActionFromResume(item)" class="text-xs font-semibold text-xelltekk-700 hover:underline">Action</button>
-            </div>
-          </article>
-        </div>
-        <div v-else class="rounded-2xl border border-dashed border-gray-200 p-5 text-center text-sm text-gray-400">
-          Aucune relance urgente.
-        </div>
-      </section>
-
-      <section class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-        <div class="mb-3 flex items-start justify-between gap-3">
-          <div>
-            <h4 class="font-bold text-gray-900">Prospects chauds</h4>
-            <p class="text-xs text-gray-500">Potentiel ou intérêt détecté.</p>
-          </div>
-          <span class="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">{{ prospectsChauds.length }}</span>
-        </div>
-        <div v-if="prospectsChauds.length" class="space-y-2">
-          <article v-for="item in prospectsChauds" :key="`hot-${item.id}`" class="rounded-2xl border border-gray-100 bg-gray-50 p-3">
-            <div class="flex items-start justify-between gap-3">
-              <div class="min-w-0">
-                <div class="truncate text-sm font-semibold text-gray-900">{{ item.client?.nom || 'Prospect' }}</div>
-                <div class="truncate text-xs text-gray-500">{{ item.objet || item.prochaine_etape || 'Opportunité commerciale' }}</div>
-              </div>
-              <div class="text-right text-xs font-bold text-xelltekk-700">{{ formatPrice(item.montant_potentiel) }}</div>
-            </div>
-            <div class="mt-2 flex flex-wrap gap-2">
-              <button type="button" @click="creerDevis(item.client)" class="text-xs font-semibold text-xelltekk-700 hover:underline">+ Devis</button>
-              <a v-if="item.client?.email" :href="relanceEmailHref(item.client, item)" class="text-xs font-semibold text-xelltekk-700 hover:underline">Relancer</a>
-              <button type="button" @click="openActionFromResume(item)" class="text-xs font-semibold text-xelltekk-700 hover:underline">Action</button>
-            </div>
-          </article>
-        </div>
-        <div v-else class="rounded-2xl border border-dashed border-gray-200 p-5 text-center text-sm text-gray-400">
-          Aucun prospect chaud détecté.
-        </div>
-      </section>
-    </div>
-
     <div class="bg-white rounded-lg border border-gray-200 shadow-sm">
       <div class="flex overflow-x-auto border-b border-gray-200">
         <button v-for="tab in tabs" :key="tab.id" type="button" class="px-5 py-3 text-sm font-medium"
@@ -552,7 +452,6 @@ const exportLoading = ref(false)
 const pdfLoading = ref(false)
 const activeTab = ref('prospects')
 const stats = ref({})
-const dashboardExtras = reactive({ pipeline: [], relances_prioritaires: [], prospects_chauds: [] })
 const prospects = ref([])
 const actions = ref([])
 const objectifs = ref([])
@@ -724,11 +623,6 @@ const visibleActions = computed(() => {
   return sortedActions.value
 })
 
-const pipelineStages = computed(() => dashboardExtras.pipeline || [])
-const relancesPrioritaires = computed(() => dashboardExtras.relances_prioritaires || [])
-const prospectsChauds = computed(() => dashboardExtras.prospects_chauds || [])
-const pipelineTotal = computed(() => pipelineStages.value.reduce((sum, stage) => sum + Number(stage.count || 0), 0))
-
 const paginatedObjectifs = computed(() => {
   const start = (objectifPage.value - 1) * objectifPerPage
   return objectifs.value.slice(start, start + objectifPerPage)
@@ -833,9 +727,6 @@ async function reload() {
 async function loadDashboard() {
   const { data } = await api.get('/prospection/dashboard', { params: filters })
   stats.value = data.stats || {}
-  dashboardExtras.pipeline = data.pipeline || []
-  dashboardExtras.relances_prioritaires = data.relances_prioritaires || []
-  dashboardExtras.prospects_chauds = data.prospects_chauds || []
 }
 
 async function loadProspects(page = 1) {
@@ -940,28 +831,6 @@ async function applyKpiFilter(kpi) {
   }
 }
 
-async function openStage(stage) {
-  activeKpi.value = stage.key
-
-  if (stage.key === 'a_relancer') {
-    activeTab.value = 'actions'
-    actionFilters.search = ''
-    actionFilters.statut = ''
-    await loadActions(1)
-    return
-  }
-
-  if (stage.key === 'devis') {
-    activeTab.value = 'actions'
-    actionFilters.search = ''
-    actionFilters.statut = ''
-    await loadActionsByType('devis')
-    return
-  }
-
-  activeTab.value = 'prospects'
-}
-
 function clearKpiFilter() {
   activeKpi.value = ''
   actionFilters.statut = ''
@@ -1020,23 +889,6 @@ function openAction(prospect = null) {
     prochaine_etape: '',
   })
   showActionModal.value = true
-}
-
-function openActionFromResume(item) {
-  const prospect = item?.client ? {
-    id: item.client.id || item.client_id,
-    nom: item.client.nom,
-    code: item.client.code,
-    email: item.client.email,
-    telephone: item.client.telephone,
-    mobile: item.client.mobile,
-    commercial_id: item.commercial?.id || null,
-  } : null
-  openAction(prospect)
-  actionForm.type_action = 'relance'
-  actionForm.objet = item?.objet ? `Suite ${item.objet}` : `Relance ${prospect?.nom || ''}`.trim()
-  actionForm.montant_potentiel = Number(item?.montant_potentiel || item?.potentiel || 0)
-  actionForm.prochaine_etape = item?.prochaine_etape || ''
 }
 
 function openEditAction(action) {
@@ -1214,36 +1066,6 @@ function prospectPriority(prospect) {
   if (action.resultat === 'devis_a_faire' || action.type_action === 'devis') return 'devis'
   if (action.resultat === 'interesse' || Number(action.montant_potentiel || 0) > 0) return 'chaud'
   return 'suivi'
-}
-
-function stagePercent(stage) {
-  const total = pipelineTotal.value || 0
-  if (!total) return 0
-  return Math.round((Number(stage.count || 0) / total) * 100)
-}
-
-function stageBadgeClass(stage) {
-  return {
-    nouveau: 'bg-slate-100 text-slate-700',
-    a_relancer: 'bg-red-100 text-red-700',
-    chaud: 'bg-amber-100 text-amber-700',
-    devis: 'bg-purple-100 text-purple-700',
-    converti: 'bg-green-100 text-green-700',
-    perdu: 'bg-gray-200 text-gray-700',
-    suivi: 'bg-blue-100 text-blue-700',
-  }[stage] || 'bg-gray-100 text-gray-700'
-}
-
-function stageBarClass(stage) {
-  return {
-    nouveau: 'bg-slate-500',
-    a_relancer: 'bg-red-500',
-    chaud: 'bg-amber-500',
-    devis: 'bg-purple-500',
-    converti: 'bg-green-600',
-    perdu: 'bg-gray-500',
-    suivi: 'bg-blue-500',
-  }[stage] || 'bg-xelltekk-600'
 }
 
 function priorityLabel(priority) {
