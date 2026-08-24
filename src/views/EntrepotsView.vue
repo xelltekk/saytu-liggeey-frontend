@@ -1,71 +1,99 @@
 <template>
-  <div>
-    <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <p class="text-sm text-gray-600">Gerez vos entrepots, zones et emplacements de stockage</p>
-      <button v-if="canManage" @click="openCreate" class="btn-primary">+ Nouvel entrepot</button>
-    </div>
+  <div class="entrepots-page space-y-4">
+    <section class="entrepots-toolbar">
+      <div class="entrepots-toolbar-main">
+        <div>
+          <p class="text-xs font-black uppercase tracking-[0.18em] text-[color:var(--saytu-primary,#2563eb)]">Entrepôts</p>
+          <h2 class="truncate text-lg font-black text-[color:var(--saytu-shell-text,#0f172a)]">Sites, zones & emplacements</h2>
+          <p class="text-sm text-[color:var(--saytu-topbar-subtitle,#64748b)]">
+            Pilotez vos lieux de stockage, responsables et zones en une vue compacte.
+          </p>
+        </div>
+        <button v-if="canManage" @click="openCreate" class="btn-primary whitespace-nowrap">+ Entrepôt</button>
+      </div>
 
-    <div class="mb-4 flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4 sm:flex-row sm:items-center">
-      <input
-        v-model="filters.search"
-        @input="onSearchInput"
-        type="search"
-        class="input flex-1"
-        placeholder="Rechercher code, libelle, ville ou pays..."
-      />
-      <label class="inline-flex items-center gap-2 text-sm text-gray-600">
-        <input v-model="filters.actifs_seulement" @change="loadEntrepots(1)" type="checkbox" class="h-4 w-4" />
-        Actifs seulement
-      </label>
-    </div>
+      <div class="entrepots-filter-row">
+        <input
+          v-model="filters.search"
+          @input="onSearchInput"
+          type="search"
+          class="input entrepots-search"
+          placeholder="🔍 Code, libellé, ville, pays, responsable..."
+        />
+        <label class="entrepots-toggle" :class="{ 'entrepots-toggle-active': filters.actifs_seulement }">
+          <input v-model="filters.actifs_seulement" @change="loadEntrepots(1)" type="checkbox" class="sr-only" />
+          <span>Actifs seulement</span>
+        </label>
+      </div>
+    </section>
 
-    <div v-if="loading" class="rounded-lg bg-white p-12 text-center text-gray-500">
+    <section class="entrepots-strip">
+      <div class="entrepots-stat-pill">
+        <span>Entrepôts</span>
+        <strong>{{ entrepotsSummary.total }}</strong>
+      </div>
+      <div class="entrepots-stat-pill">
+        <span>Actifs affichés</span>
+        <strong>{{ entrepotsSummary.actifs }}</strong>
+      </div>
+      <div class="entrepots-stat-pill">
+        <span>Zones</span>
+        <strong>{{ entrepotsSummary.zones }}</strong>
+      </div>
+      <div class="entrepots-stat-pill">
+        <span>Villes</span>
+        <strong>{{ entrepotsSummary.villes }}</strong>
+      </div>
+    </section>
+
+    <div v-if="loading" class="rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-surface,#ffffff)] p-12 text-center text-[color:var(--saytu-topbar-subtitle,#64748b)]">
       Chargement...
     </div>
 
-    <div v-else class="grid grid-cols-1 gap-4 md:grid-cols-2">
+    <section v-else class="entrepots-list">
       <div
         v-for="entrepot in entrepots"
         :key="entrepot.id"
-        class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md"
+        class="entrepots-row"
       >
-        <div class="mb-3 flex items-start justify-between gap-3">
-          <div class="min-w-0">
-            <div class="flex flex-wrap items-center gap-2">
-              <h3 class="truncate text-lg font-semibold text-gray-900">{{ entrepot.libelle }}</h3>
-              <span v-if="!entrepot.is_active" class="badge bg-red-100 text-xs text-red-700">Inactif</span>
-            </div>
-            <p class="text-xs font-mono text-gray-500">{{ entrepot.code }}</p>
+        <div class="min-w-0">
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="font-mono text-xs font-black text-[color:var(--saytu-primary,#2563eb)]">{{ entrepot.code }}</span>
+            <h3 class="truncate text-base font-black text-[color:var(--saytu-shell-text,#0f172a)]">{{ entrepot.libelle }}</h3>
+            <span
+              class="rounded-full px-2 py-0.5 text-[10px] font-black uppercase"
+              :class="entrepot.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'"
+            >
+              {{ entrepot.is_active ? 'Actif' : 'Inactif' }}
+            </span>
           </div>
 
-          <div class="flex shrink-0 gap-1">
-            <button v-if="canManage" @click="openEdit(entrepot)" class="text-sm text-xelltekk-600 hover:text-xelltekk-800" title="Modifier">Modifier</button>
-            <button @click="openDetails(entrepot)" class="text-sm text-xelltekk-600 hover:text-xelltekk-800" title="Details">Details</button>
-            <button v-if="canManage" @click="confirmDelete(entrepot)" class="text-sm text-red-600 hover:text-red-800" title="Supprimer">Supprimer</button>
+          <div class="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[color:var(--saytu-topbar-subtitle,#64748b)]">
+            <span>{{ locationLabel(entrepot) }}</span>
+            <span>Responsable : {{ entrepot.responsable?.name || 'Non affecté' }}</span>
+            <span><strong class="text-[color:var(--saytu-shell-text,#0f172a)]">{{ entrepot.zones_count || 0 }}</strong> zone(s)</span>
           </div>
         </div>
 
-        <div class="space-y-1 text-sm text-gray-600">
-          <div v-if="entrepot.ville">{{ entrepot.ville }}<span v-if="entrepot.pays">, {{ entrepot.pays }}</span></div>
-          <div v-if="entrepot.responsable">Responsable : {{ entrepot.responsable?.name || 'Utilisateur' }}</div>
-          <div class="mt-2 flex items-center gap-4 border-t border-gray-100 pt-2 text-xs text-gray-500">
-            <span><strong>{{ entrepot.zones_count || 0 }}</strong> zone(s)</span>
-          </div>
+        <div class="entrepots-row-actions">
+          <button @click="openDetails(entrepot)" class="entrepots-action-primary" title="Détails">Détails</button>
+          <button v-if="canManage" @click="openEdit(entrepot)" class="entrepots-action" title="Modifier">Modifier</button>
+          <button v-if="canManage" @click="confirmDelete(entrepot)" class="entrepots-action-danger" title="Supprimer">Supprimer</button>
         </div>
       </div>
 
-      <div v-if="entrepots.length === 0" class="rounded-lg bg-white p-12 text-center text-gray-400 md:col-span-2">
-        Aucun entrepot trouve.
+      <div v-if="entrepots.length === 0" class="p-12 text-center text-sm text-[color:var(--saytu-topbar-subtitle,#64748b)]">
+        Aucun entrepôt trouvé.
       </div>
-    </div>
+    </section>
 
-    <AppPagination v-if="meta.total > 0" :meta="meta" label="entrepots" @page="loadEntrepots" />
+    <AppPagination v-if="meta.total > 0" :meta="meta" label="entrepôts" @page="loadEntrepots" />
 
-    <AppModal v-model="showModal" :title="editingEntrepot ? `Modifier ${editingEntrepot.libelle}` : 'Nouvel entrepot'" size="md">
+    <AppModal v-model="showModal" :title="editingEntrepot ? `Modifier ${editingEntrepot.libelle}` : 'Nouvel entrepôt'" size="md">
       <EntrepotForm :entrepot="editingEntrepot" @saved="onSaved" @cancel="showModal = false" />
     </AppModal>
 
-    <AppModal v-model="showDetailsModal" :title="detailsEntrepot ? `Details : ${detailsEntrepot.libelle}` : ''" size="lg">
+    <AppModal v-model="showDetailsModal" :title="detailsEntrepot ? `Détails : ${detailsEntrepot.libelle}` : ''" size="lg">
       <EntrepotDetails
         v-if="detailsEntrepot"
         :entrepot="detailsEntrepot"
@@ -74,9 +102,9 @@
       />
     </AppModal>
 
-    <AppModal v-model="showDeleteModal" title="Supprimer l'entrepot" size="sm">
-      <p class="text-gray-700">Supprimer l'entrepot <strong>{{ entrepotToDelete.libelle }}</strong> </p>
-      <p class="mt-2 text-xs text-gray-500">Impossible si un stock positif existe encore dans cet entrepot.</p>
+    <AppModal v-model="showDeleteModal" title="Supprimer l'entrepôt" size="sm">
+      <p class="text-gray-700">Supprimer l'entrepôt <strong>{{ entrepotToDelete?.libelle }}</strong> ?</p>
+      <p class="mt-2 text-xs text-gray-500">Impossible si un stock positif existe encore dans cet entrepôt.</p>
       <template #footer>
         <button @click="showDeleteModal = false" class="btn-secondary">Annuler</button>
         <button @click="handleDelete" :disabled="deleting" class="btn-danger">
@@ -88,7 +116,7 @@
 </template>
 
 <script setup>
-import { reactive, ref, onMounted } from 'vue'
+import { computed, reactive, ref, onMounted } from 'vue'
 import api from '@/services/api'
 import AppModal from '@/components/AppModal.vue'
 import AppPagination from '@/components/AppPagination.vue'
@@ -114,6 +142,18 @@ const showDeleteModal = ref(false)
 const entrepotToDelete = ref(null)
 const deleting = ref(false)
 let searchTimeout = null
+
+const entrepotsSummary = computed(() => {
+  const rows = entrepots.value || []
+  const villes = new Set(rows.map((entrepot) => entrepot.ville).filter(Boolean))
+
+  return {
+    total: meta.total || rows.length,
+    actifs: rows.filter((entrepot) => entrepot.is_active).length,
+    zones: rows.reduce((sum, entrepot) => sum + Number(entrepot.zones_count || 0), 0),
+    villes: villes.size,
+  }
+})
 
 async function loadEntrepots(page = 1) {
   loading.value = true
@@ -153,6 +193,11 @@ function onSearchInput() {
   searchTimeout = setTimeout(() => loadEntrepots(1), 300)
 }
 
+function locationLabel(entrepot) {
+  const location = [entrepot.ville, entrepot.pays].filter(Boolean).join(', ')
+  return location || 'Localisation non renseignée'
+}
+
 function openCreate() {
   editingEntrepot.value = null
   showModal.value = true
@@ -190,7 +235,7 @@ async function handleDelete() {
   deleting.value = true
   try {
     await api.delete(`/entrepots/${entrepotToDelete.value.id}`)
-    toast.success('Entrepot supprime')
+    toast.success('Entrepôt supprimé')
     showDeleteModal.value = false
     loadEntrepots(meta.current_page)
   } catch (err) {
@@ -202,3 +247,178 @@ async function handleDelete() {
 
 onMounted(loadEntrepots)
 </script>
+
+<style scoped>
+.entrepots-page {
+  color: var(--saytu-shell-text, #0f172a);
+}
+
+.entrepots-toolbar {
+  border: 1px solid color-mix(in srgb, var(--saytu-primary, #2563eb) 14%, var(--saytu-border, #e2e8f0));
+  border-radius: 1.25rem;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--saytu-primary, #2563eb) 7%, transparent), transparent 48%),
+    var(--saytu-surface, #ffffff);
+  box-shadow: 0 10px 30px color-mix(in srgb, var(--saytu-primary, #2563eb) 7%, transparent);
+  padding: 1rem;
+}
+
+.entrepots-toolbar-main {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.entrepots-filter-row {
+  margin-top: .85rem;
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto;
+  gap: .65rem;
+  align-items: center;
+}
+
+.entrepots-search {
+  min-width: 0;
+}
+
+.entrepots-toggle {
+  display: inline-flex;
+  min-height: 2.65rem;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  border-radius: .9rem;
+  border: 1px solid color-mix(in srgb, var(--saytu-primary, #2563eb) 14%, var(--saytu-border, #e2e8f0));
+  background: color-mix(in srgb, var(--saytu-surface, #ffffff) 92%, var(--saytu-primary, #2563eb) 8%);
+  padding: .55rem .95rem;
+  color: var(--saytu-topbar-subtitle, #64748b);
+  font-size: .82rem;
+  font-weight: 800;
+  transition: border-color .18s ease, background .18s ease, color .18s ease, box-shadow .18s ease;
+}
+
+.entrepots-toggle-active {
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--saytu-primary, #2563eb), var(--saytu-brand-to, #06b6d4));
+  color: #ffffff;
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--saytu-primary, #2563eb) 18%, transparent);
+}
+
+.entrepots-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: .65rem;
+}
+
+.entrepots-stat-pill {
+  min-height: 4.15rem;
+  border-radius: 1rem;
+  border: 1px solid color-mix(in srgb, var(--saytu-primary, #2563eb) 14%, var(--saytu-border, #e2e8f0));
+  background: color-mix(in srgb, var(--saytu-surface, #ffffff) 92%, var(--saytu-primary, #2563eb) 8%);
+  padding: .75rem .85rem;
+}
+
+.entrepots-stat-pill span {
+  display: block;
+  color: var(--saytu-topbar-subtitle, #64748b);
+  font-size: .72rem;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.entrepots-stat-pill strong {
+  margin-top: .25rem;
+  display: block;
+  color: var(--saytu-shell-text, #0f172a);
+  font-size: 1.45rem;
+  font-weight: 950;
+  line-height: 1.1;
+}
+
+.entrepots-list {
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--saytu-primary, #2563eb) 12%, var(--saytu-border, #e2e8f0));
+  border-radius: 1.25rem;
+  background: var(--saytu-surface, #ffffff);
+}
+
+.entrepots-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: .85rem;
+  align-items: center;
+  border-bottom: 1px solid color-mix(in srgb, var(--saytu-border, #e2e8f0) 88%, transparent);
+  padding: .9rem 1rem;
+  transition: background .18s ease;
+}
+
+.entrepots-row:hover {
+  background: color-mix(in srgb, var(--saytu-primary, #2563eb) 5%, transparent);
+}
+
+.entrepots-row:last-child {
+  border-bottom: 0;
+}
+
+.entrepots-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: .45rem;
+}
+
+.entrepots-action,
+.entrepots-action-primary,
+.entrepots-action-danger {
+  border-radius: 999px;
+  padding: .42rem .75rem;
+  font-size: .78rem;
+  font-weight: 850;
+  transition: background .18s ease, color .18s ease, border-color .18s ease;
+}
+
+.entrepots-action-primary {
+  background: color-mix(in srgb, var(--saytu-primary, #2563eb) 12%, var(--saytu-surface, #ffffff));
+  color: var(--saytu-primary, #2563eb);
+}
+
+.entrepots-action {
+  color: var(--saytu-topbar-subtitle, #64748b);
+}
+
+.entrepots-action-danger {
+  color: #dc2626;
+}
+
+.entrepots-action:hover,
+.entrepots-action-primary:hover {
+  background: color-mix(in srgb, var(--saytu-primary, #2563eb) 16%, var(--saytu-surface, #ffffff));
+  color: var(--saytu-primary, #2563eb);
+}
+
+.entrepots-action-danger:hover {
+  background: #fee2e2;
+}
+
+@media (max-width: 768px) {
+  .entrepots-toolbar-main,
+  .entrepots-row {
+    grid-template-columns: 1fr;
+  }
+
+  .entrepots-toolbar-main {
+    flex-direction: column;
+  }
+
+  .entrepots-filter-row,
+  .entrepots-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .entrepots-row-actions {
+    justify-content: flex-start;
+  }
+}
+</style>
