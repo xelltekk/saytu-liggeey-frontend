@@ -1,17 +1,17 @@
 <template>
-  <div>
+  <div class="app-surface space-y-4">
     <!-- Header -->
-    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-4">
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
       <div class="flex flex-col md:flex-row gap-3">
         <input
           v-model="filters.search"
           @input="onSearchInput"
           type="search"
-          placeholder="🔍 Numéro, objet, nom du client..."
+          placeholder="🔍 Numéro, objet, client, email, téléphone..."
           class="input flex-1"
         />
 
-        <select v-model="filters.statut" @change="loadDevis(1)" class="input md:w-44">
+        <select v-model="filters.statut" @change="onStatutSelectChange" class="input md:w-44">
           <option value="">Tous statuts</option>
           <option value="brouillon">Brouillon</option>
           <option value="envoye">Envoyé</option>
@@ -19,6 +19,14 @@
           <option value="refuse">Refusé</option>
           <option value="expire">Expiré</option>
           <option value="facture">Facturé</option>
+        </select>
+
+        <select v-model="filters.suivi" @change="onSuiviSelectChange" class="input md:w-48">
+          <option value="">Tous suivis</option>
+          <option value="a_relancer">À relancer</option>
+          <option value="acceptes_a_facturer">Acceptés à facturer</option>
+          <option value="expires">Expirés</option>
+          <option value="gros">Gros devis</option>
         </select>
 
         <button @click="exporterCSV" :disabled="exportLoading" class="btn-secondary whitespace-nowrap">
@@ -32,7 +40,7 @@
     </div>
 
     <!-- Stats -->
-    <div class="stat-grid grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 mb-4">
+    <div class="stat-grid grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6">
       <button type="button" @click="applyStatutFilter('')" class="text-left bg-white rounded-lg border p-3 transition hover:-translate-y-0.5 hover:border-xelltekk-300 hover:shadow-sm" :class="statCardClass('')">
         <div class="text-xs text-gray-500 uppercase">Total</div>
         <div class="text-2xl font-bold text-gray-900">{{ stats.total || 0 }}</div>
@@ -45,6 +53,10 @@
         <div class="text-xs text-gray-500 uppercase">Envoyés</div>
         <div class="text-2xl font-bold text-blue-600">{{ stats.envoyes || 0 }}</div>
       </button>
+      <button type="button" @click="applySuiviFilter('a_relancer')" class="text-left bg-white rounded-lg border p-3 transition hover:-translate-y-0.5 hover:border-xelltekk-300 hover:shadow-sm" :class="suiviCardClass('a_relancer')">
+        <div class="text-xs text-gray-500 uppercase">À relancer</div>
+        <div class="text-2xl font-bold text-orange-600">{{ stats.a_relancer || 0 }}</div>
+      </button>
       <button type="button" @click="applyStatutFilter('accepte')" class="text-left bg-white rounded-lg border p-3 transition hover:-translate-y-0.5 hover:border-xelltekk-300 hover:shadow-sm" :class="statCardClass('accepte')">
         <div class="text-xs text-gray-500 uppercase">Acceptés</div>
         <div class="text-2xl font-bold text-green-600">{{ stats.acceptes || 0 }}</div>
@@ -53,6 +65,107 @@
         <div class="text-xs text-gray-500 uppercase">Montant accepté</div>
         <div class="text-base font-bold text-xelltekk-700">{{ formatPrice(stats.montant_total_acceptes) }}</div>
       </button>
+    </div>
+
+    <div class="grid grid-cols-1 gap-4 xl:grid-cols-[1.25fr_1fr_1fr]">
+      <section class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+        <div class="mb-3 flex items-start justify-between gap-3">
+          <div>
+            <h3 class="font-bold text-gray-900">Pipeline devis</h3>
+            <p class="text-xs text-gray-500">Suivi rapide des brouillons, relances, acceptations et facturations.</p>
+          </div>
+          <span class="rounded-full bg-xelltekk-50 px-3 py-1 text-xs font-semibold text-xelltekk-700">
+            {{ pipelineTotal }} devis
+          </span>
+        </div>
+        <div class="grid grid-cols-1 gap-2 sm:grid-cols-2 2xl:grid-cols-3">
+          <button
+            v-for="stage in pipelineStages"
+            :key="stage.key"
+            type="button"
+            class="rounded-2xl border border-gray-200 bg-gray-50 p-3 text-left transition hover:-translate-y-0.5 hover:border-xelltekk-300 hover:bg-white hover:shadow-sm"
+            :class="stageActiveClass(stage.key)"
+            @click="openPipelineStage(stage)"
+          >
+            <div class="flex items-center justify-between gap-3">
+              <div>
+                <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">{{ stage.label }}</div>
+                <div class="text-xl font-black text-gray-900">{{ stage.count || 0 }}</div>
+              </div>
+              <span class="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-xelltekk-700">
+                {{ stagePercent(stage) }}%
+              </span>
+            </div>
+            <div class="mt-2 h-2 overflow-hidden rounded-full bg-white/80">
+              <div class="h-full rounded-full bg-xelltekk-600 transition-all" :style="{ width: `${stagePercent(stage)}%` }"></div>
+            </div>
+            <div class="mt-2 flex items-center justify-between gap-2 text-xs text-gray-500">
+              <span class="truncate">{{ stage.description }}</span>
+              <span v-if="stage.amount" class="font-semibold text-xelltekk-700">{{ formatPrice(stage.amount) }}</span>
+            </div>
+          </button>
+        </div>
+      </section>
+
+      <section class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+        <div class="mb-3 flex items-start justify-between gap-3">
+          <div>
+            <h3 class="font-bold text-gray-900">Relances prioritaires</h3>
+            <p class="text-xs text-gray-500">Devis envoyés proches de l’expiration.</p>
+          </div>
+          <button type="button" @click="applySuiviFilter('a_relancer')" class="text-xs font-semibold text-xelltekk-700 hover:underline">Voir tout</button>
+        </div>
+        <div v-if="relancesPrioritaires.length" class="space-y-2">
+          <article v-for="item in relancesPrioritaires" :key="`relance-${item.id}`" class="rounded-2xl border border-gray-100 bg-gray-50 p-3">
+            <div class="flex items-start justify-between gap-3">
+              <div class="min-w-0">
+                <div class="truncate text-sm font-semibold text-gray-900">{{ item.numero }} · {{ item.client?.nom || 'Client' }}</div>
+                <div class="text-xs text-gray-500">{{ relanceDeadlineLabel(item) }} · {{ formatPrice(item.total_ttc) }}</div>
+              </div>
+              <span class="rounded-full px-2 py-0.5 text-xs font-semibold" :class="followUpBadgeClass(item)">
+                {{ followUpLabel(item) }}
+              </span>
+            </div>
+            <div class="mt-2 flex flex-wrap gap-2">
+              <a v-if="item.client?.email" :href="relanceEmailHref(item)" class="text-xs font-semibold text-xelltekk-700 hover:underline">Email</a>
+              <a v-if="phoneHref(item.client)" :href="phoneHref(item.client)" class="text-xs font-semibold text-xelltekk-700 hover:underline">Appeler</a>
+              <button type="button" @click="openEdit(item)" class="text-xs font-semibold text-xelltekk-700 hover:underline">Ouvrir</button>
+            </div>
+          </article>
+        </div>
+        <div v-else class="rounded-2xl border border-dashed border-gray-200 p-5 text-center text-sm text-gray-400">
+          Aucune relance urgente.
+        </div>
+      </section>
+
+      <section class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+        <div class="mb-3 flex items-start justify-between gap-3">
+          <div>
+            <h3 class="font-bold text-gray-900">Gros devis à suivre</h3>
+            <p class="text-xs text-gray-500">Opportunités à fort montant.</p>
+          </div>
+          <button type="button" @click="applySuiviFilter('gros')" class="text-xs font-semibold text-xelltekk-700 hover:underline">Voir tout</button>
+        </div>
+        <div v-if="grosDevis.length" class="space-y-2">
+          <article v-for="item in grosDevis" :key="`gros-${item.id}`" class="rounded-2xl border border-gray-100 bg-gray-50 p-3">
+            <div class="flex items-start justify-between gap-3">
+              <div class="min-w-0">
+                <div class="truncate text-sm font-semibold text-gray-900">{{ item.client?.nom || 'Client' }}</div>
+                <div class="truncate text-xs text-gray-500">{{ item.numero }} · {{ item.objet || 'Sans objet' }}</div>
+              </div>
+              <div class="text-right text-sm font-black text-xelltekk-700">{{ formatPrice(item.total_ttc) }}</div>
+            </div>
+            <div class="mt-2 flex flex-wrap gap-2">
+              <a v-if="item.client?.email" :href="relanceEmailHref(item)" class="text-xs font-semibold text-xelltekk-700 hover:underline">Relancer</a>
+              <button v-if="item.statut !== 'facture' && item.statut !== 'refuse'" type="button" @click="confirmConvertir(item)" class="text-xs font-semibold text-green-700 hover:underline">+ Facture</button>
+              <button type="button" @click="openEdit(item)" class="text-xs font-semibold text-xelltekk-700 hover:underline">Ouvrir</button>
+            </div>
+          </article>
+        </div>
+        <div v-else class="rounded-2xl border border-dashed border-gray-200 p-5 text-center text-sm text-gray-400">
+          Aucun gros devis à suivre.
+        </div>
+      </section>
     </div>
 
     <!-- Loader -->
@@ -71,6 +184,7 @@
               <SortableTh column="objet" :active="sort.key === 'objet'" :icon="sortIcon('objet')" @sort="toggleSort">Objet</SortableTh>
               <SortableTh column="date" :active="sort.key === 'date'" :icon="sortIcon('date')" align="center" @sort="toggleSort">Date</SortableTh>
               <SortableTh column="validite" :active="sort.key === 'validite'" :icon="sortIcon('validite')" align="center" @sort="toggleSort">Validité</SortableTh>
+              <SortableTh column="suivi" :active="sort.key === 'suivi'" :icon="sortIcon('suivi')" align="center" @sort="toggleSort">Suivi</SortableTh>
               <SortableTh column="total" :active="sort.key === 'total'" :icon="sortIcon('total')" align="right" @sort="toggleSort">Total TTC</SortableTh>
               <SortableTh column="statut" :active="sort.key === 'statut'" :icon="sortIcon('statut')" align="center" @sort="toggleSort">Statut</SortableTh>
               <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Actions</th>
@@ -82,18 +196,54 @@
               <td class="px-4 py-3">
                 <div class="font-medium text-gray-900">{{ devi.client?.nom || 'Client non renseigné' }}</div>
                 <div class="text-xs text-gray-500">{{ devi.client?.code || '–' }}</div>
+                <a v-if="devi.client?.email" :href="relanceEmailHref(devi)" class="block truncate text-xs text-xelltekk-700 hover:underline">
+                  {{ devi.client.email }}
+                </a>
                 <div class="text-xs text-blue-600">Commercial : {{ devi.commercial?.name || 'Non affecté' }}</div>
               </td>
               <td class="px-4 py-3 text-sm text-gray-700">{{ devi.objet || '–' }}</td>
               <td class="px-4 py-3 text-sm text-center text-gray-600">{{ formatDate(devi.date_devis) }}</td>
-              <td class="px-4 py-3 text-sm text-center text-gray-600">{{ formatDate(devi.date_validite) }}</td>
+              <td class="px-4 py-3 text-sm text-center" :class="validiteClass(devi)">
+                {{ formatDate(devi.date_validite) }}
+              </td>
+              <td class="px-4 py-3 text-center">
+                <span class="badge text-[10px]" :class="followUpBadgeClass(devi)">{{ followUpLabel(devi) }}</span>
+                <div class="mt-1 text-[11px] text-gray-500">{{ followUpHint(devi) }}</div>
+              </td>
               <td class="px-4 py-3 text-right font-mono font-semibold text-gray-900">
                 {{ formatPrice(devi.total_ttc) }}
               </td>
               <td class="px-4 py-3 text-center">
-                <span class="badge" :class="statutBadge(devi.statut)">{{ devi.statut }}</span>
+                <span class="badge" :class="statutBadge(devi.statut)">{{ statutLabel(devi.statut) }}</span>
               </td>
-              <td class="px-4 py-3 text-right whitespace-nowrap">
+              <td class="px-4 py-3 text-right">
+                <div class="flex flex-wrap justify-end gap-2">
+                  <a
+                    v-if="devi.client?.email"
+                    :href="relanceEmailHref(devi)"
+                    class="rounded-full border border-gray-200 px-2 py-1 text-xs font-semibold text-xelltekk-700 hover:border-xelltekk-300 hover:bg-xelltekk-50"
+                    title="Préparer un email de relance"
+                  >
+                    Relancer
+                  </a>
+                  <button
+                    v-if="canAccepter(devi)"
+                    @click="changeStatutDevis(devi, 'accepter')"
+                    :disabled="statusChangingId === `accepter-${devi.id}`"
+                    class="rounded-full border border-green-200 px-2 py-1 text-xs font-semibold text-green-700 hover:bg-green-50 disabled:opacity-50"
+                    title="Marquer le devis comme accepté"
+                  >
+                    Accepter
+                  </button>
+                  <button
+                    v-if="canRefuser(devi)"
+                    @click="changeStatutDevis(devi, 'refuser')"
+                    :disabled="statusChangingId === `refuser-${devi.id}`"
+                    class="rounded-full border border-red-200 px-2 py-1 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
+                    title="Marquer le devis comme refusé"
+                  >
+                    Refuser
+                  </button>
                 <button @click="ouvrirPdf(devi)" class="text-xelltekk-600 hover:text-xelltekk-800 text-sm font-medium mr-2" title="Voir PDF">
                   📄
                 </button>
@@ -122,10 +272,11 @@
                 <button @click="confirmDelete(devi)" class="text-red-600 hover:text-red-800 text-sm font-medium" title="Supprimer">
                   🗑️
                 </button>
+                </div>
               </td>
             </tr>
             <tr v-if="devis.length === 0">
-              <td colspan="8" class="px-4 py-12 text-center text-gray-400 text-sm">
+              <td colspan="9" class="px-4 py-12 text-center text-gray-400 text-sm">
                 Aucun devis. Cliquez sur "Nouveau devis" pour commencer.
               </td>
             </tr>
@@ -242,9 +393,25 @@ const devis = ref([])
 const { sort, toggleSort, sortIcon, sortedRows } = useTableSort('numero', 'desc')
 const loading = ref(false)
 const exportLoading = ref(false)
-const stats = reactive({ total: 0, brouillons: 0, envoyes: 0, acceptes: 0, refuses: 0, montant_total_acceptes: 0 })
+const stats = reactive({
+  total: 0,
+  brouillons: 0,
+  envoyes: 0,
+  acceptes: 0,
+  refuses: 0,
+  factures: 0,
+  expires: 0,
+  a_relancer: 0,
+  acceptes_a_facturer: 0,
+  montant_total_acceptes: 0,
+  montant_total_en_attente: 0,
+  montant_a_relancer: 0,
+  pipeline: [],
+  relances_prioritaires: [],
+  gros_devis: [],
+})
 const meta = reactive({ current_page: 1, last_page: 1, total: 0, from: 0, to: 0 })
-const filters = reactive({ search: '', statut: '' })
+const filters = reactive({ search: '', statut: '', suivi: '' })
 
 const showModal = ref(false)
 const editingDevis = ref(null)
@@ -260,9 +427,15 @@ const showConvertModal = ref(false)
 const devisToConvert = ref(null)
 const converting = ref(false)
 const cloningId = ref(null)
+const statusChangingId = ref(null)
 const showAssignModal = ref(false)
 const assignTarget = ref(null)
 const assignEndpoint = computed(() => assignTarget.value ? `/devis/${assignTarget.value.id}/assign-commercial` : '/devis/0/assign-commercial')
+
+const pipelineStages = computed(() => Array.isArray(stats.pipeline) ? stats.pipeline : [])
+const pipelineTotal = computed(() => pipelineStages.value.reduce((sum, stage) => sum + Number(stage.count || 0), 0))
+const relancesPrioritaires = computed(() => Array.isArray(stats.relances_prioritaires) ? stats.relances_prioritaires : [])
+const grosDevis = computed(() => Array.isArray(stats.gros_devis) ? stats.gros_devis : [])
 
 const sortedDevis = computed(() => sortedRows(devis.value, {
   numero: 'numero',
@@ -270,6 +443,7 @@ const sortedDevis = computed(() => sortedRows(devis.value, {
   objet: 'objet',
   date: 'date_devis',
   validite: 'date_validite',
+  suivi: (devi) => daysUntil(devi.date_validite) ?? 9999,
   total: (devi) => parseFloat(devi.total_ttc || 0),
   statut: 'statut',
 }))
@@ -283,17 +457,69 @@ function onSearchInput() {
 function syncFiltersFromRoute() {
   filters.search = typeof route.query.search === 'string' ? route.query.search : ''
   filters.statut = typeof route.query.statut === 'string' ? route.query.statut : ''
+  filters.suivi = typeof route.query.suivi === 'string' ? route.query.suivi : ''
 }
 
 function applyStatutFilter(statut) {
   filters.statut = statut
+  filters.suivi = ''
+  loadDevis(1)
+}
+
+function applySuiviFilter(suivi) {
+  filters.suivi = suivi
+  filters.statut = ''
+  loadDevis(1)
+}
+
+function onStatutSelectChange() {
+  if (filters.statut) filters.suivi = ''
+  loadDevis(1)
+}
+
+function onSuiviSelectChange() {
+  if (filters.suivi) filters.statut = ''
   loadDevis(1)
 }
 
 function statCardClass(statut) {
-  return filters.statut === statut ?
+  return !filters.suivi && filters.statut === statut ?
      'border-xelltekk-500 bg-xelltekk-50 ring-2 ring-xelltekk-100'
     : 'border-gray-200'
+}
+
+function suiviCardClass(suivi) {
+  return filters.suivi === suivi ?
+     'border-xelltekk-500 bg-xelltekk-50 ring-2 ring-xelltekk-100'
+    : 'border-gray-200'
+}
+
+function stageActiveClass(key) {
+  const suiviMap = {
+    a_relancer: 'a_relancer',
+    expire: 'expires',
+    accepte: 'acceptes_a_facturer',
+  }
+  const expectedSuivi = suiviMap[key]
+  if (expectedSuivi && filters.suivi === expectedSuivi) {
+    return 'border-xelltekk-500 bg-xelltekk-50 ring-2 ring-xelltekk-100'
+  }
+  if (!expectedSuivi && !filters.suivi && filters.statut === key) {
+    return 'border-xelltekk-500 bg-xelltekk-50 ring-2 ring-xelltekk-100'
+  }
+  return ''
+}
+
+function openPipelineStage(stage) {
+  if (stage.key === 'a_relancer') return applySuiviFilter('a_relancer')
+  if (stage.key === 'expire') return applySuiviFilter('expires')
+  if (stage.key === 'accepte') return applySuiviFilter('acceptes_a_facturer')
+  return applyStatutFilter(stage.key || '')
+}
+
+function stagePercent(stage) {
+  if (!pipelineTotal.value) return 0
+  return Math.round((Number(stage.count || 0) / pipelineTotal.value) * 100)
 }
 
 async function loadDevis(page = 1) {
@@ -305,6 +531,7 @@ async function loadDevis(page = 1) {
         per_page: 20,
         search: filters.search || undefined,
         statut: filters.statut || undefined,
+        suivi: filters.suivi || undefined,
       },
     })
     devis.value = data.data
@@ -335,6 +562,7 @@ async function exporterCSV() {
     await telechargerCSV('/exports/devis', {
       search: filters.search || undefined,
       statut: filters.statut || undefined,
+      suivi: filters.suivi || undefined,
     }, 'devis_saytu.csv')
     toast.success('Export des devis téléchargé.')
   } catch (e) {
@@ -407,7 +635,7 @@ async function handleDelete() {
     loadDevis(meta.current_page)
     loadStats()
   } catch (err) {
-    toast.error(err.response.data.message || 'Erreur de suppression')
+    toast.error(err.response?.data?.message || 'Erreur de suppression')
   } finally {
     deleting.value = false
   }
@@ -427,10 +655,32 @@ async function handleConvertir() {
     devisToConvert.value = null
     setTimeout(() => router.push('/factures'), 800)
   } catch (err) {
-    toast.error(err.response.data.message || 'Erreur de conversion')
+    toast.error(err.response?.data?.message || 'Erreur de conversion')
   } finally {
     converting.value = false
   }
+}
+
+async function changeStatutDevis(devi, action) {
+  statusChangingId.value = `${action}-${devi.id}`
+  try {
+    await api.post(`/devis/${devi.id}/${action}`)
+    toast.success(action === 'accepter' ? `Devis ${devi.numero} accepté` : `Devis ${devi.numero} refusé`)
+    await loadDevis(meta.current_page)
+    loadStats()
+  } catch (err) {
+    toast.error(err.response?.data?.message || 'Impossible de modifier le statut du devis')
+  } finally {
+    statusChangingId.value = null
+  }
+}
+
+function canAccepter(devi) {
+  return !['accepte', 'facture', 'refuse'].includes(devi.statut)
+}
+
+function canRefuser(devi) {
+  return !['refuse', 'facture', 'accepte'].includes(devi.statut)
 }
 
 async function handleCloner(devi) {
@@ -445,7 +695,7 @@ async function handleCloner(devi) {
     await loadDevis(meta.current_page)
     loadStats()
   } catch (err) {
-    toast.error(err.response.data.message || 'Erreur lors du clonage du devis')
+    toast.error(err.response?.data?.message || 'Erreur lors du clonage du devis')
   } finally {
     cloningId.value = null
   }
@@ -468,6 +718,80 @@ function formatDate(d) {
   return new Date(d).toLocaleDateString('fr-FR')
 }
 
+function daysUntil(date) {
+  if (!date) return null
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const target = new Date(date)
+  target.setHours(0, 0, 0, 0)
+  if (Number.isNaN(target.getTime())) return null
+  return Math.ceil((target.getTime() - today.getTime()) / 86400000)
+}
+
+function validiteClass(devi) {
+  const days = daysUntil(devi.date_validite)
+  if (['accepte', 'facture', 'refuse'].includes(devi.statut)) return 'text-gray-600'
+  if (days !== null && days < 0) return 'text-red-700 font-semibold'
+  if (days !== null && days <= 7) return 'text-orange-700 font-semibold'
+  return 'text-gray-600'
+}
+
+function followUpLabel(devi) {
+  if (devi.statut === 'facture') return 'Facturé'
+  if (devi.statut === 'refuse') return 'Refusé'
+  if (devi.statut === 'accepte') return 'À facturer'
+  if (devi.statut === 'brouillon') return 'À finaliser'
+
+  const days = Number.isFinite(devi.jours_restant) ? devi.jours_restant : daysUntil(devi.date_validite)
+  if (days !== null && days < 0) return 'Expiré'
+  if (days !== null && days <= 7) return 'Relancer'
+  return 'Suivi normal'
+}
+
+function followUpHint(devi) {
+  const days = Number.isFinite(devi.jours_restant) ? devi.jours_restant : daysUntil(devi.date_validite)
+  if (devi.statut === 'accepte') return 'Prêt à facturer'
+  if (devi.statut === 'facture') return 'Déjà converti'
+  if (devi.statut === 'refuse') return 'Clôturé'
+  if (devi.statut === 'brouillon') return 'Non envoyé'
+  if (days === null) return 'À suivre'
+  if (days < 0) return `${Math.abs(days)} j de retard`
+  if (days === 0) return 'Expire aujourd’hui'
+  return `${days} j restants`
+}
+
+function followUpBadgeClass(devi) {
+  const label = followUpLabel(devi)
+  return {
+    'À facturer': 'bg-green-100 text-green-800',
+    Relancer: 'bg-orange-100 text-orange-800',
+    Expiré: 'bg-red-100 text-red-800',
+    'À finaliser': 'bg-gray-100 text-gray-700',
+    Facturé: 'bg-purple-100 text-purple-800',
+    Refusé: 'bg-red-100 text-red-800',
+    'Suivi normal': 'bg-blue-100 text-blue-800',
+  }[label] || 'bg-gray-100 text-gray-700'
+}
+
+function relanceDeadlineLabel(devi) {
+  const days = Number.isFinite(devi.jours_restant) ? devi.jours_restant : daysUntil(devi.date_validite)
+  if (days === null) return `Validité ${formatDate(devi.date_validite)}`
+  if (days < 0) return `Expiré depuis ${Math.abs(days)} jour(s)`
+  if (days === 0) return 'Expire aujourd’hui'
+  return `Expire dans ${days} jour(s)`
+}
+
+function statutLabel(statut) {
+  return {
+    brouillon: 'Brouillon',
+    envoye: 'Envoyé',
+    accepte: 'Accepté',
+    refuse: 'Refusé',
+    expire: 'Expiré',
+    facture: 'Facturé',
+  }[statut] || statut || '–'
+}
+
 function statutBadge(statut) {
   return {
     brouillon: 'bg-gray-100 text-gray-700',
@@ -477,6 +801,32 @@ function statutBadge(statut) {
     expire: 'bg-yellow-100 text-yellow-800',
     facture: 'bg-purple-100 text-purple-800',
   }[statut] || 'bg-gray-100'
+}
+
+function phoneHref(client) {
+  const phone = client?.mobile || client?.telephone
+  if (!phone) return ''
+  const digits = String(phone).replace(/\D/g, '')
+  return digits ? `tel:${digits.startsWith('221') ? '+' : ''}${digits}` : ''
+}
+
+function relanceEmailHref(devi) {
+  const client = devi.client || {}
+  if (!client.email) return '#'
+  const subject = `Relance devis ${devi.numero || ''} - ${client.nom || ''}`.trim()
+  const bodyLines = [
+    `Bonjour${client.nom ? ` ${client.nom}` : ''},`,
+    '',
+    `Je me permets de revenir vers vous concernant le devis ${devi.numero || ''}${devi.objet ? ` relatif à : ${devi.objet}` : ''}.`,
+    `Montant du devis : ${formatPrice(devi.total_ttc)}.`,
+    devi.date_validite ? `Validité : ${formatDate(devi.date_validite)}.` : '',
+    '',
+    'Pouvez-vous nous confirmer votre retour ou nous indiquer si vous souhaitez un ajustement ?',
+    '',
+    'Cordialement,',
+    auth.user?.name || 'XELLTEKK',
+  ].filter(Boolean)
+  return `mailto:${client.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyLines.join('\n'))}`
 }
 
 async function openFromRoute(id) {
@@ -520,7 +870,7 @@ watch(() => route.query.create_client, (id) => {
 })
 
 watch(
-  () => [route.query.statut, route.query.search],
+  () => [route.query.statut, route.query.search, route.query.suivi],
   async () => {
     syncFiltersFromRoute()
     await loadDevis(1)
