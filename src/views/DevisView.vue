@@ -67,107 +67,6 @@
       </button>
     </div>
 
-    <div class="grid grid-cols-1 gap-4 xl:grid-cols-[1.25fr_1fr_1fr]">
-      <section class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-        <div class="mb-3 flex items-start justify-between gap-3">
-          <div>
-            <h3 class="font-bold text-gray-900">Pipeline devis</h3>
-            <p class="text-xs text-gray-500">Suivi rapide des brouillons, relances, acceptations et facturations.</p>
-          </div>
-          <span class="rounded-full bg-xelltekk-50 px-3 py-1 text-xs font-semibold text-xelltekk-700">
-            {{ pipelineTotal }} devis
-          </span>
-        </div>
-        <div class="grid grid-cols-1 gap-2 sm:grid-cols-2 2xl:grid-cols-3">
-          <button
-            v-for="stage in pipelineStages"
-            :key="stage.key"
-            type="button"
-            class="rounded-2xl border border-gray-200 bg-gray-50 p-3 text-left transition hover:-translate-y-0.5 hover:border-xelltekk-300 hover:bg-white hover:shadow-sm"
-            :class="stageActiveClass(stage.key)"
-            @click="openPipelineStage(stage)"
-          >
-            <div class="flex items-center justify-between gap-3">
-              <div>
-                <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">{{ stage.label }}</div>
-                <div class="text-xl font-black text-gray-900">{{ stage.count || 0 }}</div>
-              </div>
-              <span class="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-xelltekk-700">
-                {{ stagePercent(stage) }}%
-              </span>
-            </div>
-            <div class="mt-2 h-2 overflow-hidden rounded-full bg-white/80">
-              <div class="h-full rounded-full bg-xelltekk-600 transition-all" :style="{ width: `${stagePercent(stage)}%` }"></div>
-            </div>
-            <div class="mt-2 flex items-center justify-between gap-2 text-xs text-gray-500">
-              <span class="truncate">{{ stage.description }}</span>
-              <span v-if="stage.amount" class="font-semibold text-xelltekk-700">{{ formatPrice(stage.amount) }}</span>
-            </div>
-          </button>
-        </div>
-      </section>
-
-      <section class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-        <div class="mb-3 flex items-start justify-between gap-3">
-          <div>
-            <h3 class="font-bold text-gray-900">Relances prioritaires</h3>
-            <p class="text-xs text-gray-500">Devis envoyés proches de l’expiration.</p>
-          </div>
-          <button type="button" @click="applySuiviFilter('a_relancer')" class="text-xs font-semibold text-xelltekk-700 hover:underline">Voir tout</button>
-        </div>
-        <div v-if="relancesPrioritaires.length" class="space-y-2">
-          <article v-for="item in relancesPrioritaires" :key="`relance-${item.id}`" class="rounded-2xl border border-gray-100 bg-gray-50 p-3">
-            <div class="flex items-start justify-between gap-3">
-              <div class="min-w-0">
-                <div class="truncate text-sm font-semibold text-gray-900">{{ item.numero }} · {{ item.client?.nom || 'Client' }}</div>
-                <div class="text-xs text-gray-500">{{ relanceDeadlineLabel(item) }} · {{ formatPrice(item.total_ttc) }}</div>
-              </div>
-              <span class="rounded-full px-2 py-0.5 text-xs font-semibold" :class="followUpBadgeClass(item)">
-                {{ followUpLabel(item) }}
-              </span>
-            </div>
-            <div class="mt-2 flex flex-wrap gap-2">
-              <a v-if="item.client?.email" :href="relanceEmailHref(item)" class="text-xs font-semibold text-xelltekk-700 hover:underline">Email</a>
-              <a v-if="phoneHref(item.client)" :href="phoneHref(item.client)" class="text-xs font-semibold text-xelltekk-700 hover:underline">Appeler</a>
-              <button type="button" @click="openEdit(item)" class="text-xs font-semibold text-xelltekk-700 hover:underline">Ouvrir</button>
-            </div>
-          </article>
-        </div>
-        <div v-else class="rounded-2xl border border-dashed border-gray-200 p-5 text-center text-sm text-gray-400">
-          Aucune relance urgente.
-        </div>
-      </section>
-
-      <section class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-        <div class="mb-3 flex items-start justify-between gap-3">
-          <div>
-            <h3 class="font-bold text-gray-900">Gros devis à suivre</h3>
-            <p class="text-xs text-gray-500">Opportunités à fort montant.</p>
-          </div>
-          <button type="button" @click="applySuiviFilter('gros')" class="text-xs font-semibold text-xelltekk-700 hover:underline">Voir tout</button>
-        </div>
-        <div v-if="grosDevis.length" class="space-y-2">
-          <article v-for="item in grosDevis" :key="`gros-${item.id}`" class="rounded-2xl border border-gray-100 bg-gray-50 p-3">
-            <div class="flex items-start justify-between gap-3">
-              <div class="min-w-0">
-                <div class="truncate text-sm font-semibold text-gray-900">{{ item.client?.nom || 'Client' }}</div>
-                <div class="truncate text-xs text-gray-500">{{ item.numero }} · {{ item.objet || 'Sans objet' }}</div>
-              </div>
-              <div class="text-right text-sm font-black text-xelltekk-700">{{ formatPrice(item.total_ttc) }}</div>
-            </div>
-            <div class="mt-2 flex flex-wrap gap-2">
-              <a v-if="item.client?.email" :href="relanceEmailHref(item)" class="text-xs font-semibold text-xelltekk-700 hover:underline">Relancer</a>
-              <button v-if="item.statut !== 'facture' && item.statut !== 'refuse'" type="button" @click="confirmConvertir(item)" class="text-xs font-semibold text-green-700 hover:underline">+ Facture</button>
-              <button type="button" @click="openEdit(item)" class="text-xs font-semibold text-xelltekk-700 hover:underline">Ouvrir</button>
-            </div>
-          </article>
-        </div>
-        <div v-else class="rounded-2xl border border-dashed border-gray-200 p-5 text-center text-sm text-gray-400">
-          Aucun gros devis à suivre.
-        </div>
-      </section>
-    </div>
-
     <!-- Loader -->
     <div v-if="loading" class="bg-white rounded-lg p-12 text-center text-gray-500">
       Chargement...
@@ -432,11 +331,6 @@ const showAssignModal = ref(false)
 const assignTarget = ref(null)
 const assignEndpoint = computed(() => assignTarget.value ? `/devis/${assignTarget.value.id}/assign-commercial` : '/devis/0/assign-commercial')
 
-const pipelineStages = computed(() => Array.isArray(stats.pipeline) ? stats.pipeline : [])
-const pipelineTotal = computed(() => pipelineStages.value.reduce((sum, stage) => sum + Number(stage.count || 0), 0))
-const relancesPrioritaires = computed(() => Array.isArray(stats.relances_prioritaires) ? stats.relances_prioritaires : [])
-const grosDevis = computed(() => Array.isArray(stats.gros_devis) ? stats.gros_devis : [])
-
 const sortedDevis = computed(() => sortedRows(devis.value, {
   numero: 'numero',
   client: (devi) => devi.client?.nom || '',
@@ -492,34 +386,6 @@ function suiviCardClass(suivi) {
   return filters.suivi === suivi ?
      'border-xelltekk-500 bg-xelltekk-50 ring-2 ring-xelltekk-100'
     : 'border-gray-200'
-}
-
-function stageActiveClass(key) {
-  const suiviMap = {
-    a_relancer: 'a_relancer',
-    expire: 'expires',
-    accepte: 'acceptes_a_facturer',
-  }
-  const expectedSuivi = suiviMap[key]
-  if (expectedSuivi && filters.suivi === expectedSuivi) {
-    return 'border-xelltekk-500 bg-xelltekk-50 ring-2 ring-xelltekk-100'
-  }
-  if (!expectedSuivi && !filters.suivi && filters.statut === key) {
-    return 'border-xelltekk-500 bg-xelltekk-50 ring-2 ring-xelltekk-100'
-  }
-  return ''
-}
-
-function openPipelineStage(stage) {
-  if (stage.key === 'a_relancer') return applySuiviFilter('a_relancer')
-  if (stage.key === 'expire') return applySuiviFilter('expires')
-  if (stage.key === 'accepte') return applySuiviFilter('acceptes_a_facturer')
-  return applyStatutFilter(stage.key || '')
-}
-
-function stagePercent(stage) {
-  if (!pipelineTotal.value) return 0
-  return Math.round((Number(stage.count || 0) / pipelineTotal.value) * 100)
 }
 
 async function loadDevis(page = 1) {
@@ -773,14 +639,6 @@ function followUpBadgeClass(devi) {
   }[label] || 'bg-gray-100 text-gray-700'
 }
 
-function relanceDeadlineLabel(devi) {
-  const days = Number.isFinite(devi.jours_restant) ? devi.jours_restant : daysUntil(devi.date_validite)
-  if (days === null) return `Validité ${formatDate(devi.date_validite)}`
-  if (days < 0) return `Expiré depuis ${Math.abs(days)} jour(s)`
-  if (days === 0) return 'Expire aujourd’hui'
-  return `Expire dans ${days} jour(s)`
-}
-
 function statutLabel(statut) {
   return {
     brouillon: 'Brouillon',
@@ -801,13 +659,6 @@ function statutBadge(statut) {
     expire: 'bg-yellow-100 text-yellow-800',
     facture: 'bg-purple-100 text-purple-800',
   }[statut] || 'bg-gray-100'
-}
-
-function phoneHref(client) {
-  const phone = client?.mobile || client?.telephone
-  if (!phone) return ''
-  const digits = String(phone).replace(/\D/g, '')
-  return digits ? `tel:${digits.startsWith('221') ? '+' : ''}${digits}` : ''
 }
 
 function relanceEmailHref(devi) {
