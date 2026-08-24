@@ -1,9 +1,9 @@
 <template>
-  <div>
+  <div class="app-surface space-y-4">
     <!-- Filtres -->
-    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-4">
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
       <div class="flex flex-col md:flex-row gap-3">
-        <input v-model="filters.search" @input="onSearchInput" type="search" placeholder="🔍 Numéro, objet, client..." class="input flex-1" />
+        <input v-model="filters.search" @input="onSearchInput" type="search" placeholder="🔍 Numéro, objet, client, email, téléphone..." class="input flex-1" />
         <select v-model="filters.statut" @change="onFactureFilterChange" class="input md:w-44">
           <option value="">Tous statuts</option>
           <option value="brouillon">Brouillon</option>
@@ -28,28 +28,30 @@
       </div>
     </div>
 
-    <!-- Stats -->
-    <div class="stat-grid grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 mb-4">
-      <button type="button" @click="applyQuickFilter('standard')" class="text-left bg-white rounded-lg border p-3 transition hover:-translate-y-0.5 hover:border-xelltekk-300 hover:shadow-sm" :class="quickCardClass('standard')">
-        <div class="text-xs text-gray-500 uppercase">Total</div>
-        <div class="text-2xl font-bold text-gray-900">{{ stats.total || 0 }}</div>
-      </button>
-      <button v-if="!isCommercial" type="button" @click="applyQuickFilter('impayees')" class="text-left bg-white rounded-lg border p-3 transition hover:-translate-y-0.5 hover:border-xelltekk-300 hover:shadow-sm" :class="quickCardClass('impayees')">
-        <div class="text-xs text-gray-500 uppercase">Impayées</div>
-        <div class="text-2xl font-bold text-orange-600">{{ stats.impayees || 0 }}</div>
-      </button>
-      <button v-if="!isCommercial" type="button" @click="applyQuickFilter('en_retard')" class="text-left bg-white rounded-lg border p-3 transition hover:-translate-y-0.5 hover:border-xelltekk-300 hover:shadow-sm" :class="quickCardClass('en_retard')">
-        <div class="text-xs text-gray-500 uppercase">En retard</div>
-        <div class="text-2xl font-bold text-red-600">{{ stats.en_retard || 0 }}</div>
-      </button>
-      <button v-if="!isCommercial" type="button" @click="applyQuickFilter('ca_annee')" class="text-left bg-white rounded-lg border p-3 transition hover:-translate-y-0.5 hover:border-xelltekk-300 hover:shadow-sm" :class="quickCardClass('ca_annee')">
-        <div class="text-xs text-gray-500 uppercase">CA Année</div>
-        <div class="text-base font-bold text-green-600">{{ formatPrice(stats.ca_annee) }}</div>
-      </button>
-      <button v-if="!isCommercial" type="button" @click="applyQuickFilter('encours')" class="text-left bg-white rounded-lg border p-3 transition hover:-translate-y-0.5 hover:border-xelltekk-300 hover:shadow-sm" :class="quickCardClass('encours')">
-        <div class="text-xs text-gray-500 uppercase">Encours</div>
-        <div class="text-base font-bold text-xelltekk-700">{{ formatPrice(stats.encours_total) }}</div>
-      </button>
+    <!-- Mini filtres -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-3">
+      <div class="flex flex-wrap items-center gap-2">
+        <button
+          v-for="chip in filterChips"
+          :key="`${chip.kind}-${chip.key}`"
+          type="button"
+          class="inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold transition hover:-translate-y-0.5 hover:shadow-sm"
+          :class="filterChipClass(chip)"
+          @click="applyFilterChip(chip)"
+        >
+          <span>{{ chip.label }}</span>
+          <span v-if="chip.count !== null" class="rounded-full bg-white/80 px-2 py-0.5 font-black">{{ chip.count || 0 }}</span>
+          <span v-if="chip.amount !== null" class="font-black">{{ formatPrice(chip.amount) }}</span>
+        </button>
+        <button
+          v-if="hasActiveFilters"
+          type="button"
+          @click="clearFactureFilters"
+          class="ml-auto rounded-full border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-50"
+        >
+          Réinitialiser
+        </button>
+      </div>
     </div>
 
     <div v-if="loading" class="bg-white rounded-lg p-12 text-center text-gray-500">Chargement...</div>
@@ -78,6 +80,9 @@
               <td class="px-3 py-3">
                 <div class="text-sm font-medium text-gray-900 truncate max-w-[180px]">{{ f.client?.nom || 'Client non renseigné' }}</div>
                 <div class="text-xs text-gray-500">{{ f.client?.code || '–' }}</div>
+                <a v-if="f.client?.email" :href="relanceFactureEmailHref(f)" class="block max-w-[180px] truncate text-xs text-xelltekk-700 hover:underline">
+                  {{ f.client.email }}
+                </a>
                 <div class="text-xs text-blue-600">Commercial : {{ f.commercial?.name || 'Non affecté' }}</div>
               </td>
               <td class="px-3 py-3 text-xs text-center text-gray-600">{{ formatDate(f.date_facture) }}</td>
@@ -91,7 +96,16 @@
               <td class="px-3 py-3 text-center">
                 <span class="badge text-[10px]" :class="statutBadge(f.statut)">{{ statutLabel(f.statut) }}</span>
               </td>
-              <td class="px-3 py-3 text-right whitespace-nowrap">
+              <td class="px-3 py-3 text-right">
+                <div class="flex flex-wrap justify-end gap-2">
+                <a
+                  v-if="canRelancer(f)"
+                  :href="relanceFactureEmailHref(f)"
+                  class="rounded-full border border-orange-200 px-2 py-1 text-xs font-semibold text-orange-700 hover:bg-orange-50"
+                  title="Préparer un email de relance"
+                >
+                  Relancer
+                </a>
                 <button @click="ouvrirPdf(f)" class="text-xelltekk-600 hover:text-xelltekk-800 mr-2" title="PDF">📄</button>
                 <button
                   v-if="canManagePayments && f.type !== 'avoir' && !['payee','annulee'].includes(f.statut)"
@@ -128,6 +142,7 @@
                 <button @click="openEdit(f)" class="text-xelltekk-600 hover:text-xelltekk-800 mr-2" title="Modifier">✏️</button>
                 <button v-if="isAdmin" @click="openAssignFacture(f)" class="text-indigo-600 hover:text-indigo-800 mr-2 text-sm font-medium" title="Affecter">Affecter</button>
                 <button @click="confirmDelete(f)" class="text-red-600 hover:text-red-800" title="Supprimer">🗑️</button>
+                </div>
               </td>
             </tr>
             <tr v-if="factures.length === 0">
@@ -371,7 +386,20 @@ const factures = ref([])
 const { sort, toggleSort, sortIcon, sortedRows } = useTableSort('numero', 'desc')
 const loading = ref(false)
 const exportLoading = ref(false)
-const stats = reactive({ total: 0, impayees: 0, en_retard: 0, ca_annee: 0, encours_total: 0 })
+const stats = reactive({
+  total: 0,
+  brouillons: 0,
+  validees: 0,
+  envoyees: 0,
+  partiellement_payees: 0,
+  payees: 0,
+  annulees: 0,
+  impayees: 0,
+  en_retard: 0,
+  ca_mois: 0,
+  ca_annee: 0,
+  encours_total: 0,
+})
 const meta = reactive({ current_page: 1, last_page: 1, total: 0, from: 0, to: 0 })
 const filters = reactive({ search: '', statut: '', type: '', quick: '' })
 
@@ -407,6 +435,29 @@ const sortedFactures = computed(() => sortedRows(factures.value, {
   reste: (facture) => parseFloat(facture.reste_a_payer || 0),
   statut: 'statut',
 }))
+
+const filterChips = computed(() => {
+  const chips = [
+    { kind: 'quick', key: 'standard', label: 'Toutes', count: stats.total, amount: null, tone: 'blue' },
+    { kind: 'statut', key: 'brouillon', label: 'Brouillons', count: stats.brouillons, amount: null, tone: 'gray' },
+    { kind: 'statut', key: 'payee', label: 'Payées', count: stats.payees, amount: null, tone: 'green' },
+  ]
+
+  if (!isCommercial.value) {
+    chips.splice(1, 0,
+      { kind: 'quick', key: 'impayees', label: 'À traiter', count: stats.impayees, amount: stats.encours_total, tone: 'orange' },
+      { kind: 'quick', key: 'en_retard', label: 'En retard', count: stats.en_retard, amount: null, tone: 'red' },
+    )
+    chips.push(
+      { kind: 'quick', key: 'ca_mois', label: 'CA mois', count: null, amount: stats.ca_mois, tone: 'blue' },
+      { kind: 'quick', key: 'ca_annee', label: 'CA année', count: null, amount: stats.ca_annee, tone: 'green' },
+    )
+  }
+
+  return chips
+})
+
+const hasActiveFilters = computed(() => Boolean(filters.quick || filters.statut || filters.type || filters.search))
 
 // Marquer payée
 const showMarquerPayeeModal = ref(false)
@@ -463,10 +514,34 @@ function applyQuickFilter(quick) {
   loadFactures(1)
 }
 
-function quickCardClass(quick) {
-  return filters.quick === quick ?
-     'border-xelltekk-500 bg-xelltekk-50 ring-2 ring-xelltekk-100'
-    : 'border-gray-200'
+function applyFilterChip(chip) {
+  if (chip.kind === 'quick') return applyQuickFilter(chip.key)
+
+  filters.quick = ''
+  filters.statut = chip.key
+  filters.type = ''
+  loadFactures(1)
+}
+
+function filterChipClass(chip) {
+  const active = chip.kind === 'quick' ? filters.quick === chip.key : filters.statut === chip.key
+  if (active) return 'border-xelltekk-500 bg-xelltekk-50 text-xelltekk-800 ring-2 ring-xelltekk-100'
+
+  return {
+    red: 'border-red-200 bg-red-50 text-red-700 hover:border-red-300',
+    orange: 'border-orange-200 bg-orange-50 text-orange-700 hover:border-orange-300',
+    green: 'border-green-200 bg-green-50 text-green-700 hover:border-green-300',
+    gray: 'border-gray-200 bg-gray-50 text-gray-700 hover:border-gray-300',
+    blue: 'border-blue-200 bg-blue-50 text-blue-700 hover:border-blue-300',
+  }[chip.tone] || 'border-gray-200 bg-gray-50 text-gray-700'
+}
+
+function clearFactureFilters() {
+  filters.search = ''
+  filters.statut = ''
+  filters.type = ''
+  filters.quick = 'standard'
+  loadFactures(1)
 }
 
 async function loadFactures(page = 1) {
@@ -505,6 +580,7 @@ async function exporterCSV() {
   exportLoading.value = true
   try {
     await telechargerCSV('/exports/factures', {
+      search: filters.search || undefined,
       statut: filters.quick ? undefined : filters.statut || undefined,
       type: filters.quick ? undefined : filters.type || undefined,
       quick: filters.quick || undefined,
@@ -573,7 +649,7 @@ async function handleCloner(f) {
     await loadFactures(meta.current_page)
     loadStats()
   } catch (err) {
-    toast.error(err.response.data.message || 'Erreur lors du clonage de la facture')
+    toast.error(err.response?.data?.message || 'Erreur lors du clonage de la facture')
   } finally {
     cloningId.value = null
   }
@@ -588,7 +664,7 @@ async function handleDelete() {
     loadFactures(meta.current_page)
     loadStats()
   } catch (err) {
-    toast.error(err.response.data.message || 'Erreur')
+    toast.error(err.response?.data?.message || 'Erreur')
   } finally {
     deleting.value = false
   }
@@ -658,7 +734,7 @@ async function handleCreerAvoir() {
     loadFactures(meta.current_page)
     loadStats()
   } catch (err) {
-    errorMessage.value = err.response.data.message || 'Erreur lors de la création'
+    errorMessage.value = err.response?.data?.message || 'Erreur lors de la création'
   } finally {
     creatingAvoir.value = false
   }
@@ -682,7 +758,7 @@ async function handleMarquerPayee() {
     loadFactures(meta.current_page)
     loadStats()
   } catch (err) {
-    toast.error(err.response.data.message || 'Erreur')
+    toast.error(err.response?.data?.message || 'Erreur')
   } finally {
     marquantPayee.value = false
   }
@@ -706,7 +782,7 @@ async function handleAnnuler() {
     loadFactures(meta.current_page)
     loadStats()
   } catch (err) {
-    annulError.value = err.response.data.message || 'Erreur'
+    annulError.value = err.response?.data?.message || 'Erreur'
   } finally {
     annulant.value = false
   }
@@ -728,6 +804,37 @@ function statutBadge(s) {
     envoyee: 'bg-indigo-100 text-indigo-800', partiellement_payee: 'bg-yellow-100 text-yellow-800',
     payee: 'bg-green-100 text-green-800', impayee: 'bg-orange-100 text-orange-800',
     annulee: 'bg-red-100 text-red-800' }[s] || 'bg-gray-100'
+}
+
+function canRelancer(f) {
+  return Boolean(f.client?.email)
+    && f.type !== 'avoir'
+    && !['payee', 'annulee', 'brouillon'].includes(f.statut)
+    && parseFloat(f.reste_a_payer || 0) > 0
+}
+
+function relanceFactureEmailHref(f) {
+  const client = f.client || {}
+  if (!client.email) return '#'
+
+  const subject = `Relance facture ${f.numero || ''} - ${client.nom || ''}`.trim()
+  const reste = parseFloat(f.reste_a_payer || 0)
+  const bodyLines = [
+    `Bonjour${client.nom ? ` ${client.nom}` : ''},`,
+    '',
+    `Nous revenons vers vous concernant la facture ${f.numero || ''}${f.objet ? ` (${f.objet})` : ''}.`,
+    `Date facture : ${formatDate(f.date_facture)}.`,
+    `Échéance : ${formatDate(f.date_echeance)}.`,
+    `Montant total : ${formatPrice(f.total_ttc)}.`,
+    reste > 0 ? `Reste à payer : ${formatPrice(reste)}.` : '',
+    '',
+    'Pouvez-vous nous confirmer la date de règlement prévue ?',
+    '',
+    'Cordialement,',
+    auth.user?.name || 'XELLTEKK',
+  ].filter(Boolean)
+
+  return `mailto:${client.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyLines.join('\n'))}`
 }
 
 async function openFromRoute(id) {
