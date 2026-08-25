@@ -4,21 +4,41 @@
       Chargement du tableau de bord...
     </div>
 
-    <div v-else class="dashboard-page space-y-4">
+    <div v-else class="dashboard-page dashboard-sortable-root space-y-4">
       <div class="dashboard-hero rounded-lg px-4 py-3 text-white shadow-sm sm:px-5">
         <div class="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h2 class="text-lg font-bold">Bonjour {{ userName }}</h2>
             <p class="mt-0.5 text-xs text-xelltekk-100">{{ dashboardIntro }}</p>
           </div>
-          <div class="text-right text-xs sm:text-sm">
+          <div class="flex flex-col items-end gap-2 text-right text-xs sm:text-sm">
             <div class="font-mono">{{ today }}</div>
             <div class="mt-0.5 text-[11px] text-xelltekk-200">Saytu Liggéey 2.0</div>
+            <div class="flex flex-wrap justify-end gap-2">
+              <button type="button" class="dashboard-customize-button" @click="isCustomizingDashboard = !isCustomizingDashboard">
+                {{ isCustomizingDashboard ? 'Terminer' : 'Personnaliser' }}
+              </button>
+              <button v-if="isCustomizingDashboard" type="button" class="dashboard-customize-button dashboard-customize-button-soft" @click="resetDashboardLayout">
+                Réinitialiser
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
-      <section v-if="annonces.length" class="rounded-lg border border-blue-100 bg-blue-50 p-4 shadow-sm dark:border-blue-500/30 dark:bg-blue-950/30 sm:p-5">
+      <div v-if="isCustomizingDashboard" class="dashboard-layout-hint">
+        Glissez un bloc ou utilisez Monter / Descendre pour personnaliser votre tableau de bord. L’ordre est sauvegardé sur ce navigateur.
+      </div>
+
+      <section v-if="annonces.length" class="dashboard-block rounded-lg border border-blue-100 bg-blue-50 p-4 shadow-sm dark:border-blue-500/30 dark:bg-blue-950/30 sm:p-5" v-bind="dashboardBlockAttrs('annonces')">
+        <DashboardBlockControls
+          v-if="isCustomizingDashboard"
+          block-id="annonces"
+          label="Annonces"
+          :can-up="canMoveDashboardBlock('annonces', 'up')"
+          :can-down="canMoveDashboardBlock('annonces', 'down')"
+          @move="moveDashboardBlock"
+        />
         <div class="mb-3 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h3 class="font-semibold text-blue-950 dark:text-blue-100">Annonces internes</h3>
@@ -35,7 +55,15 @@
         </div>
       </section>
 
-      <div v-if="hasKpiCards" class="stat-grid grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
+      <div v-if="hasKpiCards" class="dashboard-block stat-grid grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4" v-bind="dashboardBlockAttrs('kpis')">
+        <DashboardBlockControls
+          v-if="isCustomizingDashboard"
+          block-id="kpis"
+          label="Indicateurs"
+          :can-up="canMoveDashboardBlock('kpis', 'up')"
+          :can-down="canMoveDashboardBlock('kpis', 'down')"
+          @move="moveDashboardBlock"
+        />
         <KpiCard v-if="isBusinessDashboard" :to="{ path: '/factures', query: { quick: 'ca_mois' } }" label="CA du mois" :value="formatPrice(kpi.ca_mois)" icon="CA" icon-image="/images/dashboard/ca-mois.png" :icon-component="TrendingUp" color="green" />
         <KpiCard v-if="isBusinessDashboard" :to="{ path: '/factures', query: { quick: 'ca_annee' } }" label="CA de l'année" :value="formatPrice(kpi.ca_annee)" icon="An" icon-image="/images/dashboard/ca-annee.png" :icon-component="CalendarDays" color="blue" />
         <KpiCard v-if="isBusinessDashboard" :to="{ path: '/factures', query: { quick: 'encours' } }" label="Encours total" :value="formatPrice(kpi.encours_total)" icon="EC" icon-image="/images/dashboard/encours.png" :icon-component="FileClock" color="orange" />
@@ -50,14 +78,30 @@
         <KpiCard v-if="isStockManager" to="/stock" label="Valeur stock" :value="formatPrice(kpi.valeur_stock)" icon="VS" :icon-component="Wallet" color="blue" />
       </div>
 
-      <section v-else class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+      <section v-else class="dashboard-block rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900" v-bind="dashboardBlockAttrs('empty')">
+        <DashboardBlockControls
+          v-if="isCustomizingDashboard"
+          block-id="empty"
+          label="Tableau de bord"
+          :can-up="canMoveDashboardBlock('empty', 'up')"
+          :can-down="canMoveDashboardBlock('empty', 'down')"
+          @move="moveDashboardBlock"
+        />
         <h3 class="font-semibold text-gray-900 dark:text-white">Tableau de bord</h3>
         <p class="mt-1 text-sm text-gray-500 dark:text-slate-400">
           Votre profil est bien connecte. Aucun indicateur specifique n'est encore configure pour ce role.
         </p>
       </section>
 
-      <div v-if="isStockManager" class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <div v-if="isStockManager" class="dashboard-block grid grid-cols-1 gap-6 lg:grid-cols-2" v-bind="dashboardBlockAttrs('stock')">
+        <DashboardBlockControls
+          v-if="isCustomizingDashboard"
+          block-id="stock"
+          label="Stock"
+          :can-up="canMoveDashboardBlock('stock', 'up')"
+          :can-down="canMoveDashboardBlock('stock', 'down')"
+          @move="moveDashboardBlock"
+        />
         <section class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
           <div class="mb-4 flex items-center justify-between">
             <h3 class="font-semibold text-gray-900 dark:text-white">Produits en alerte</h3>
@@ -120,7 +164,15 @@
         </section>
       </div>
 
-      <section v-if="isBusinessDashboard" class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+      <section v-if="isBusinessDashboard" class="dashboard-block rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900" v-bind="dashboardBlockAttrs('tresorerie')">
+        <DashboardBlockControls
+          v-if="isCustomizingDashboard"
+          block-id="tresorerie"
+          label="Trésorerie"
+          :can-up="canMoveDashboardBlock('tresorerie', 'up')"
+          :can-down="canMoveDashboardBlock('tresorerie', 'down')"
+          @move="moveDashboardBlock"
+        />
         <div class="mb-4 flex items-center justify-between">
           <h3 class="font-semibold text-gray-900 dark:text-white">Soldes de trésorerie</h3>
           <span class="text-xs text-gray-500 dark:text-slate-400">Temps réel</span>
@@ -154,7 +206,15 @@
         </div>
       </section>
 
-      <div v-if="isBusinessDashboard" class="grid grid-cols-1 gap-6">
+      <div v-if="isBusinessDashboard" class="dashboard-block grid grid-cols-1 gap-6" v-bind="dashboardBlockAttrs('ca')">
+        <DashboardBlockControls
+          v-if="isCustomizingDashboard"
+          block-id="ca"
+          label="Chiffre d’affaires"
+          :can-up="canMoveDashboardBlock('ca', 'up')"
+          :can-down="canMoveDashboardBlock('ca', 'down')"
+          @move="moveDashboardBlock"
+        />
         <section class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
           <div class="mb-4 flex items-center justify-between">
             <h3 class="font-semibold text-gray-900 dark:text-white">Chiffre d'affaires mensuel</h3>
@@ -166,7 +226,15 @@
         </section>
       </div>
 
-      <div v-if="isBusinessDashboard" class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <div v-if="isBusinessDashboard" class="dashboard-block grid grid-cols-1 gap-6 lg:grid-cols-2" v-bind="dashboardBlockAttrs('tops')">
+        <DashboardBlockControls
+          v-if="isCustomizingDashboard"
+          block-id="tops"
+          label="Top clients / produits"
+          :can-up="canMoveDashboardBlock('tops', 'up')"
+          :can-down="canMoveDashboardBlock('tops', 'down')"
+          @move="moveDashboardBlock"
+        />
         <section class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
           <div class="mb-4 flex items-center justify-between">
             <h3 class="font-semibold text-gray-900 dark:text-white">Top 10 clients</h3>
@@ -228,7 +296,15 @@
         </section>
       </div>
 
-      <section v-if="isBusinessDashboard" class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+      <section v-if="isBusinessDashboard" class="dashboard-block rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900" v-bind="dashboardBlockAttrs('factures')">
+        <DashboardBlockControls
+          v-if="isCustomizingDashboard"
+          block-id="factures"
+          label="Factures en retard"
+          :can-up="canMoveDashboardBlock('factures', 'up')"
+          :can-down="canMoveDashboardBlock('factures', 'down')"
+          @move="moveDashboardBlock"
+        />
         <div class="mb-4 flex items-center justify-between">
           <h3 class="font-semibold text-gray-900 dark:text-white">Factures en retard</h3>
           <router-link :to="{ path: '/factures', query: { quick: 'en_retard' } }" class="text-xs text-xelltekk-600 hover:underline dark:text-cyan-300">Voir tout</router-link>
@@ -260,7 +336,15 @@
           Aucune facture en retard.
         </div>
       </section>
-      <div v-if="!isStockManager" class="grid grid-cols-1 gap-6" :class="isBusinessDashboard ? 'lg:grid-cols-2' : ''">
+      <div v-if="!isStockManager" class="dashboard-block grid grid-cols-1 gap-6" :class="isBusinessDashboard ? 'lg:grid-cols-2' : ''" v-bind="dashboardBlockAttrs('suivis')">
+        <DashboardBlockControls
+          v-if="isCustomizingDashboard"
+          block-id="suivis"
+          label="Paiements / devis"
+          :can-up="canMoveDashboardBlock('suivis', 'up')"
+          :can-down="canMoveDashboardBlock('suivis', 'down')"
+          @move="moveDashboardBlock"
+        />
         <section v-if="isBusinessDashboard" class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
           <div class="mb-4 flex items-center justify-between">
             <h3 class="font-semibold text-gray-900 dark:text-white">Derniers paiements</h3>
@@ -322,7 +406,15 @@
           </div>
         </section>
       </div>
-      <section v-if="isManagerDashboard" class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:p-5">
+      <section v-if="isManagerDashboard" class="dashboard-block rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:p-5" v-bind="dashboardBlockAttrs('commerciaux')">
+        <DashboardBlockControls
+          v-if="isCustomizingDashboard"
+          block-id="commerciaux"
+          label="Commerciaux"
+          :can-up="canMoveDashboardBlock('commerciaux', 'up')"
+          :can-down="canMoveDashboardBlock('commerciaux', 'down')"
+          @move="moveDashboardBlock"
+        />
         <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h3 class="font-semibold text-gray-900 dark:text-white">Avancement des commerciaux</h3>
@@ -423,6 +515,23 @@ const stockAlertes = ref([])
 const derniersMouvementsStock = ref([])
 const avancementCommerciaux = ref([])
 const commercialPdfLoading = ref(false)
+const isCustomizingDashboard = ref(false)
+const dashboardLayoutOrder = ref([])
+const draggedDashboardBlock = ref('')
+
+const DASHBOARD_LAYOUT_STORAGE_PREFIX = 'saytu.dashboard.layout'
+const dashboardDefaultOrder = [
+  'annonces',
+  'kpis',
+  'empty',
+  'stock',
+  'tresorerie',
+  'ca',
+  'tops',
+  'factures',
+  'suivis',
+  'commerciaux',
+]
 
 const userName = computed(() => auth.user?.name?.split(' ')[0] || 'Utilisateur')
 const userRole = computed(() => String(auth.user?.role || '').toLowerCase())
@@ -431,6 +540,19 @@ const isStockManager = computed(() => dashboardScope.value === 'stock' || userRo
 const isManagerDashboard = computed(() => ['admin', 'gerant'].includes(userRole.value))
 const isBusinessDashboard = computed(() => dashboardScope.value === 'business' && !isCommercial.value && !isStockManager.value)
 const hasKpiCards = computed(() => isBusinessDashboard.value || isCommercial.value || isStockManager.value)
+const dashboardLayoutStorageKey = computed(() => `${DASHBOARD_LAYOUT_STORAGE_PREFIX}.${userRole.value || 'user'}.${dashboardScope.value || 'default'}`)
+const visibleDashboardBlockIds = computed(() => {
+  return dashboardDefaultOrder.filter((id) => {
+    if (id === 'annonces') return annonces.value.length > 0
+    if (id === 'kpis') return hasKpiCards.value
+    if (id === 'empty') return !hasKpiCards.value
+    if (id === 'stock') return isStockManager.value
+    if (['tresorerie', 'ca', 'tops', 'factures'].includes(id)) return isBusinessDashboard.value
+    if (id === 'suivis') return !isStockManager.value
+    if (id === 'commerciaux') return isManagerDashboard.value
+    return false
+  })
+})
 const dashboardIntro = computed(() => {
   if (isStockManager.value) return 'Voici les informations de stock qui vous concernent.'
   if (isCommercial.value) return 'Voici votre activit commerciale.'
@@ -468,6 +590,41 @@ const soldesTresorerieTotal = computed(() => {
     ? total
     : soldesTresorerieComptes.value.reduce((sum, compte) => sum + Number(compte.solde_actuel || 0), 0)
 })
+
+const DashboardBlockControls = {
+  props: {
+    blockId: { type: String, required: true },
+    label: { type: String, required: true },
+    canUp: { type: Boolean, default: false },
+    canDown: { type: Boolean, default: false },
+  },
+  emits: ['move'],
+  setup(props, { emit }) {
+    const move = (direction) => emit('move', props.blockId, direction)
+
+    return () => h('div', { class: 'dashboard-block-controls' }, [
+      h('span', { class: 'dashboard-block-corner dashboard-block-corner-tl' }, '✣'),
+      h('span', { class: 'dashboard-block-corner dashboard-block-corner-tr' }, '✣'),
+      h('span', { class: 'dashboard-block-corner dashboard-block-corner-bl' }, '✣'),
+      h('span', { class: 'dashboard-block-corner dashboard-block-corner-br' }, '✣'),
+      h('div', { class: 'dashboard-block-control-panel' }, [
+        h('span', { class: 'dashboard-block-control-title' }, props.label),
+        h('button', {
+          type: 'button',
+          class: 'dashboard-block-control-button',
+          disabled: !props.canUp,
+          onClick: () => move('up'),
+        }, '↑ Monter'),
+        h('button', {
+          type: 'button',
+          class: 'dashboard-block-control-button',
+          disabled: !props.canDown,
+          onClick: () => move('down'),
+        }, '↓ Descendre'),
+      ]),
+    ])
+  },
+}
 
 const KpiCard = {
   props: ['label', 'value', 'suffix', 'icon', 'iconImage', 'iconComponent', 'color', 'sub', 'to'],
@@ -526,6 +683,136 @@ const CommercialProgress = {
       ])
     }
   },
+}
+
+function normalizeDashboardLayout(order = []) {
+  const saved = Array.isArray(order) ? order.filter((id) => dashboardDefaultOrder.includes(id)) : []
+  return [...saved, ...dashboardDefaultOrder.filter((id) => !saved.includes(id))]
+}
+
+function loadDashboardLayout() {
+  if (typeof window === 'undefined') {
+    dashboardLayoutOrder.value = [...dashboardDefaultOrder]
+    return
+  }
+
+  try {
+    const raw = window.localStorage.getItem(dashboardLayoutStorageKey.value)
+    dashboardLayoutOrder.value = normalizeDashboardLayout(raw ? JSON.parse(raw) : [])
+  } catch (error) {
+    dashboardLayoutOrder.value = [...dashboardDefaultOrder]
+  }
+}
+
+function saveDashboardLayout() {
+  if (typeof window === 'undefined') return
+
+  try {
+    window.localStorage.setItem(dashboardLayoutStorageKey.value, JSON.stringify(normalizeDashboardLayout(dashboardLayoutOrder.value)))
+  } catch (error) {
+    // Le tableau de bord reste utilisable même si le stockage navigateur est indisponible.
+  }
+}
+
+function orderedVisibleDashboardBlockIds() {
+  const visible = new Set(visibleDashboardBlockIds.value)
+  const ordered = normalizeDashboardLayout(dashboardLayoutOrder.value).filter((id) => visible.has(id))
+  const missing = visibleDashboardBlockIds.value.filter((id) => !ordered.includes(id))
+  return [...ordered, ...missing]
+}
+
+function dashboardBlockStyle(blockId) {
+  const ordered = normalizeDashboardLayout(dashboardLayoutOrder.value)
+  const index = ordered.indexOf(blockId)
+  return { order: index >= 0 ? index + 10 : 999 }
+}
+
+function dashboardBlockAttrs(blockId) {
+  return {
+    class: {
+      'dashboard-block-customizing': isCustomizingDashboard.value,
+      'dashboard-block-dragging': draggedDashboardBlock.value === blockId,
+    },
+    style: dashboardBlockStyle(blockId),
+    draggable: isCustomizingDashboard.value,
+    onDragstart: (event) => onDashboardDragStart(event, blockId),
+    onDragover: (event) => onDashboardDragOver(event),
+    onDrop: (event) => onDashboardDrop(event, blockId),
+    onDragend: () => {
+      draggedDashboardBlock.value = ''
+    },
+  }
+}
+
+function canMoveDashboardBlock(blockId, direction) {
+  const ordered = orderedVisibleDashboardBlockIds()
+  const index = ordered.indexOf(blockId)
+  if (index < 0) return false
+  return direction === 'up' ? index > 0 : index < ordered.length - 1
+}
+
+function setVisibleDashboardOrder(nextVisibleOrder) {
+  const visible = new Set(visibleDashboardBlockIds.value)
+  const hidden = normalizeDashboardLayout(dashboardLayoutOrder.value).filter((id) => !visible.has(id))
+  dashboardLayoutOrder.value = normalizeDashboardLayout([...nextVisibleOrder, ...hidden])
+  saveDashboardLayout()
+}
+
+function moveDashboardBlock(blockId, direction) {
+  const ordered = orderedVisibleDashboardBlockIds()
+  const index = ordered.indexOf(blockId)
+  if (index < 0) return
+
+  const targetIndex = direction === 'up' ? index - 1 : index + 1
+  if (targetIndex < 0 || targetIndex >= ordered.length) return
+
+  const next = [...ordered]
+  const [item] = next.splice(index, 1)
+  next.splice(targetIndex, 0, item)
+  setVisibleDashboardOrder(next)
+}
+
+function resetDashboardLayout() {
+  dashboardLayoutOrder.value = [...dashboardDefaultOrder]
+  if (typeof window !== 'undefined') {
+    window.localStorage.removeItem(dashboardLayoutStorageKey.value)
+  }
+}
+
+function onDashboardDragStart(event, blockId) {
+  if (!isCustomizingDashboard.value) {
+    event.preventDefault()
+    return
+  }
+
+  draggedDashboardBlock.value = blockId
+  event.dataTransfer.effectAllowed = 'move'
+  event.dataTransfer.setData('text/plain', blockId)
+}
+
+function onDashboardDragOver(event) {
+  if (!isCustomizingDashboard.value || !draggedDashboardBlock.value) return
+  event.preventDefault()
+  event.dataTransfer.dropEffect = 'move'
+}
+
+function onDashboardDrop(event, targetBlockId) {
+  if (!isCustomizingDashboard.value) return
+  event.preventDefault()
+
+  const sourceBlockId = draggedDashboardBlock.value || event.dataTransfer.getData('text/plain')
+  draggedDashboardBlock.value = ''
+  if (!sourceBlockId || sourceBlockId === targetBlockId) return
+
+  const ordered = orderedVisibleDashboardBlockIds()
+  const from = ordered.indexOf(sourceBlockId)
+  const to = ordered.indexOf(targetBlockId)
+  if (from < 0 || to < 0) return
+
+  const next = [...ordered]
+  const [item] = next.splice(from, 1)
+  next.splice(to, 0, item)
+  setVisibleDashboardOrder(next)
 }
 
 const caChartOptions = {
@@ -804,7 +1091,170 @@ function progressColor(percent) {
   return { bar: 'dashboard-progress-tone-3', text: 'dashboard-text-tone-3' }
 }
 
+watch(dashboardLayoutStorageKey, () => loadDashboardLayout(), { immediate: true })
 watch(themeId, () => refreshChartTheme())
 
 onMounted(() => loadDashboard())
 </script>
+
+<style>
+.dashboard-sortable-root {
+  display: flex;
+  flex-direction: column;
+}
+
+.dashboard-customize-button {
+  border: 1px solid rgba(255, 255, 255, .32);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .16);
+  color: #ffffff;
+  padding: .35rem .7rem;
+  font-size: .72rem;
+  font-weight: 800;
+  line-height: 1;
+  backdrop-filter: blur(10px);
+  transition: background .18s ease, transform .18s ease;
+}
+
+.dashboard-customize-button:hover {
+  background: rgba(255, 255, 255, .25);
+  transform: translateY(-1px);
+}
+
+.dashboard-customize-button-soft {
+  background: rgba(15, 23, 42, .2);
+}
+
+.dashboard-layout-hint {
+  order: 1;
+  border: 1px dashed color-mix(in srgb, var(--saytu-primary, #2563eb) 38%, var(--saytu-border, #bfdbfe));
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--saytu-primary, #2563eb) 8%, var(--saytu-surface, #ffffff));
+  color: var(--saytu-topbar-title, #0f172a);
+  padding: .75rem 1rem;
+  font-size: .82rem;
+  font-weight: 700;
+}
+
+.dashboard-block {
+  position: relative;
+  transition: transform .18s ease, outline-color .18s ease, box-shadow .18s ease, opacity .18s ease;
+}
+
+.dashboard-block-customizing {
+  outline: 2px dashed color-mix(in srgb, var(--saytu-primary, #2563eb) 44%, transparent);
+  outline-offset: 5px;
+  cursor: grab;
+}
+
+.dashboard-block-customizing:hover {
+  box-shadow: 0 14px 32px color-mix(in srgb, var(--saytu-primary, #2563eb) 13%, transparent);
+}
+
+.dashboard-block-dragging {
+  opacity: .58;
+  transform: scale(.995);
+}
+
+.dashboard-block-controls {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+}
+
+.dashboard-block-corner {
+  position: absolute;
+  display: inline-flex;
+  height: 1.35rem;
+  width: 1.35rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--saytu-primary, #2563eb), var(--saytu-brand-to, #06b6d4));
+  color: #ffffff;
+  font-size: .72rem;
+  font-weight: 950;
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--saytu-primary, #2563eb) 24%, transparent);
+}
+
+.dashboard-block-corner-tl {
+  left: -.7rem;
+  top: -.7rem;
+}
+
+.dashboard-block-corner-tr {
+  right: -.7rem;
+  top: -.7rem;
+}
+
+.dashboard-block-corner-bl {
+  bottom: -.7rem;
+  left: -.7rem;
+}
+
+.dashboard-block-corner-br {
+  bottom: -.7rem;
+  right: -.7rem;
+}
+
+.dashboard-block-control-panel {
+  pointer-events: auto;
+  position: absolute;
+  right: .75rem;
+  top: .75rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: .35rem;
+  border: 1px solid color-mix(in srgb, var(--saytu-primary, #2563eb) 18%, var(--saytu-border, #e2e8f0));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--saytu-surface, #ffffff) 92%, var(--saytu-primary, #2563eb) 8%);
+  padding: .35rem;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, .12);
+}
+
+.dashboard-block-control-title {
+  color: var(--saytu-topbar-subtitle, #64748b);
+  padding: 0 .45rem;
+  font-size: .68rem;
+  font-weight: 900;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.dashboard-block-control-button {
+  border-radius: 999px;
+  background: var(--saytu-primary, #2563eb);
+  color: #ffffff;
+  padding: .36rem .58rem;
+  font-size: .68rem;
+  font-weight: 900;
+  line-height: 1;
+  transition: opacity .18s ease, transform .18s ease;
+}
+
+.dashboard-block-control-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.dashboard-block-control-button:disabled {
+  cursor: not-allowed;
+  opacity: .38;
+}
+
+@media (max-width: 768px) {
+  .dashboard-block-control-panel {
+    left: .65rem;
+    right: .65rem;
+    justify-content: center;
+    border-radius: 1rem;
+  }
+
+  .dashboard-block-control-title {
+    width: 100%;
+    text-align: center;
+  }
+}
+</style>
