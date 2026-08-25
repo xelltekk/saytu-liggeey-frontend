@@ -51,15 +51,15 @@
           :key="item.to"
           :to="item.to"
           @click="mobileSidebarOpen = false"
-          class="group relative flex items-center rounded-2xl px-4 py-3 transition-all duration-300 hover:bg-white/10 hover:translate-x-1"
+          class="app-sidebar-link group relative flex items-center rounded-2xl px-4 py-3 transition-all duration-300 hover:bg-white/10 hover:translate-x-1"
           :class="isActive(item.to)
-            ? 'bg-white/10 backdrop-blur-lg border border-white/10 shadow-lg'
-            : ''"
+            ? 'app-sidebar-link-active bg-white/10 backdrop-blur-lg border border-white/10 shadow-lg'
+            : 'app-sidebar-link-idle'"
         >
           <!-- Active bar -->
           <div
             v-if="isActive(item.to)"
-            class="absolute left-0 top-2 bottom-2 w-1 rounded-full bg-cyan-400"
+            class="app-sidebar-active-bar absolute left-0 top-2 bottom-2 w-1 rounded-full"
           ></div>
 
           <!-- Icon -->
@@ -92,14 +92,14 @@
           v-if="sidebarOpen && dashboardMenuItem"
           :to="dashboardMenuItem.to"
           @click="mobileSidebarOpen = false"
-          class="group relative flex items-center rounded-2xl px-4 py-3 transition-all duration-300 hover:bg-white/10 hover:translate-x-1"
+          class="app-sidebar-link group relative flex items-center rounded-2xl px-4 py-3 transition-all duration-300 hover:bg-white/10 hover:translate-x-1"
           :class="isActive(dashboardMenuItem.to)
-            ? 'bg-white/10 backdrop-blur-lg border border-white/10 shadow-lg'
-            : ''"
+            ? 'app-sidebar-link-active bg-white/10 backdrop-blur-lg border border-white/10 shadow-lg'
+            : 'app-sidebar-link-idle'"
         >
           <div
             v-if="isActive(dashboardMenuItem.to)"
-            class="absolute left-0 top-2 bottom-2 w-1 rounded-full bg-cyan-400"
+            class="app-sidebar-active-bar absolute left-0 top-2 bottom-2 w-1 rounded-full"
           ></div>
           <component :is="dashboardMenuItem.icon" class="h-5 w-5 shrink-0" />
           <span class="ml-4 flex-1 text-sm font-semibold">{{ dashboardMenuItem.label }}</span>
@@ -109,8 +109,8 @@
           <button
             type="button"
             @click="toggleMenuGroup(group.key)"
-            class="flex w-full items-center rounded-2xl px-4 py-3 text-left transition-all duration-300 hover:bg-white/10"
-            :class="isGroupActive(group) ? 'bg-white/10 border border-white/10' : ''"
+            class="app-sidebar-group-button flex w-full items-center rounded-2xl px-4 py-3 text-left transition-all duration-300 hover:bg-white/10"
+            :class="isGroupActive(group) ? 'app-sidebar-group-active bg-white/10 border border-white/10' : ''"
           >
             <component :is="group.icon" class="h-5 w-5 shrink-0" />
             <span class="ml-4 flex-1 text-sm font-semibold">{{ group.label }}</span>
@@ -133,12 +133,12 @@
               :key="item.to"
               :to="item.to"
               @click="mobileSidebarOpen = false"
-              class="group relative flex items-center rounded-xl px-3 py-2.5 transition-all duration-300 hover:bg-white/10"
-              :class="isActive(item.to) ? 'bg-white/10 text-cyan-100' : 'text-slate-200'"
+              class="app-sidebar-link app-sidebar-sub-link group relative flex items-center rounded-xl px-3 py-2.5 transition-all duration-300 hover:bg-white/10"
+              :class="isActive(item.to) ? 'app-sidebar-link-active bg-white/10' : 'app-sidebar-link-idle text-slate-200'"
             >
               <div
                 v-if="isActive(item.to)"
-                class="absolute left-0 top-2 bottom-2 w-1 rounded-full bg-cyan-400"
+                class="app-sidebar-active-bar absolute left-0 top-2 bottom-2 w-1 rounded-full"
               ></div>
               <component :is="item.icon" class="h-4 w-4 shrink-0" />
               <span class="ml-3 flex-1 text-sm font-medium">{{ item.label }}</span>
