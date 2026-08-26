@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import api from '@/services/api'
+import api, { clearSessionToken, setSessionToken } from '@/services/api'
 
 localStorage.removeItem('xelltekk_token')
 
@@ -28,6 +28,7 @@ export const useAuthStore = defineStore('auth', {
       this.sessionChecked = true
 
       localStorage.removeItem('xelltekk_token')
+      setSessionToken(data.token)
       localStorage.setItem('xelltekk_user', JSON.stringify(data.user))
 
       return data
@@ -61,6 +62,7 @@ export const useAuthStore = defineStore('auth', {
       this.user = null
       localStorage.removeItem('xelltekk_token')
       localStorage.removeItem('xelltekk_user')
+      clearSessionToken()
     },
   },
 })

@@ -1,5 +1,7 @@
 import axios from 'axios'
 
+const sessionTokenKey = 'xelltekk_session_token'
+
 const api = axios.create({
   baseURL: '/api',
   withCredentials: true,
@@ -9,9 +11,31 @@ const api = axios.create({
   },
 })
 
-// Intercepteur : les requêtes authentifiées utilisent le cookie HttpOnly.
+export function setSessionToken(token) {
+  if (token) {
+    sessionStorage.setItem(sessionTokenKey, token)
+  }
+}
+
+export function clearSessionToken() {
+  sessionStorage.removeItem(sessionTokenKey)
+}
+
+function getSessionToken() {
+  return sessionStorage.getItem(sessionTokenKey)
+}
+
+// Intercepteur : le cookie HttpOnly reste prioritaire côté backend.
+// Un token de session sert de secours si le navigateur/proxy ne renvoie pas encore le cookie.
 api.interceptors.request.use((config) => {
-  delete config.headers.Authorization
+  const token = getSessionToken()
+
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  } else {
+    delete config.headers.Authorization
+  }
+
   return config
 })
 
@@ -22,6 +46,7 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       localStorage.removeItem('xelltekk_token')
       localStorage.removeItem('xelltekk_user')
+      clearSessionToken()
       if (window.location.pathname !== '/login') {
         window.location.href = '/login'
       }
