@@ -228,7 +228,7 @@
                 <span v-else class="text-slate-400">-</span>
               </td>
               <td class="px-4 py-3 text-right text-sm">
-                <a v-if="releve.fichier_releve_path" :href="`/${releve.fichier_releve_path}`" target="_blank" class="font-semibold text-xelltekk-700 hover:text-xelltekk-900">Ouvrir</a>
+                <button v-if="releve.fichier_releve_path" type="button" class="font-semibold text-xelltekk-700 hover:text-xelltekk-900" @click="downloadReleveFile(releve)">Ouvrir</button>
                 <span v-else class="text-slate-400">-</span>
               </td>
             </tr>
@@ -555,6 +555,7 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import api from '@/services/api'
 import { ouvrirPDF } from '@/services/pdf'
+import { telechargerFichierPrive } from '@/services/files'
 import AppModal from '@/components/AppModal.vue'
 import { useToast } from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
@@ -1001,6 +1002,14 @@ async function downloadContratPdf(contrat) {
     await ouvrirPDF(`/leasing/contrats/${contrat.id}/pdf`, `${contrat.numero}.pdf`)
   } catch (error) {
     toast.error('Impossible de générer le contrat PDF.')
+  }
+}
+
+async function downloadReleveFile(releve) {
+  try {
+    await telechargerFichierPrive(`/leasing/releves/${releve.id}/fichier`, `releve-${releve.periode || releve.id}`)
+  } catch (error) {
+    toast.error('Téléchargement du relevé impossible.')
   }
 }
 

@@ -1,14 +1,16 @@
 import { defineStore } from 'pinia'
 import api from '@/services/api'
 
+localStorage.removeItem('xelltekk_token')
+
 export const useAuthStore = defineStore('auth', {
   state: () => ({
     user: JSON.parse(localStorage.getItem('xelltekk_user') || 'null'),
-    token: localStorage.getItem('xelltekk_token') || null,
+    sessionChecked: false,
   }),
 
   getters: {
-    isAuthenticated: (state) => !!state.token,
+    isAuthenticated: (state) => !!state.user,
     isAdmin: (state) => state.user?.role === 'admin',
     isManager: (state) => ['admin', 'gerant'].includes(state.user?.role),
     userRole: (state) => state.user?.role || null,
@@ -23,9 +25,9 @@ export const useAuthStore = defineStore('auth', {
       })
 
       this.user = data.user
-      this.token = data.token
+      this.sessionChecked = true
 
-      localStorage.setItem('xelltekk_token', data.token)
+      localStorage.removeItem('xelltekk_token')
       localStorage.setItem('xelltekk_user', JSON.stringify(data.user))
 
       return data
@@ -37,17 +39,28 @@ export const useAuthStore = defineStore('auth', {
       } catch (e) {
         // Même si l'API échoue, on déconnecte localement
       }
-      this.user = null
-      this.token = null
-      localStorage.removeItem('xelltekk_token')
-      localStorage.removeItem('xelltekk_user')
+      this.clearLocalSession()
+      this.sessionChecked = true
     },
 
     async fetchMe() {
-      const { data } = await api.get('/auth/me')
-      this.user = data
-      localStorage.setItem('xelltekk_user', JSON.stringify(data))
-      return data
+      try {
+        const { data } = await api.get('/auth/me')
+        this.user = data
+        this.sessionChecked = true
+        localStorage.setItem('xelltekk_user', JSON.stringify(data))
+        return data
+      } catch (error) {
+        this.clearLocalSession()
+        this.sessionChecked = true
+        throw error
+      }
+    },
+
+    clearLocalSession() {
+      this.user = null
+      localStorage.removeItem('xelltekk_token')
+      localStorage.removeItem('xelltekk_user')
     },
   },
 })

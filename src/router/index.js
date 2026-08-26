@@ -236,7 +236,7 @@ function hasPermission(user, permission) {
   return Array.isArray(user?.permissions?.flat) && user.permissions.flat.includes(permission)
 }
 
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
   const auth = useAuthStore()
 
   // 1) Route invité (login) → toujours libre
@@ -248,9 +248,21 @@ router.beforeEach((to, from, next) => {
     return next()
   }
 
+  if (to.meta.requiresAuth && ! auth.sessionChecked) {
+    try {
+      await auth.fetchMe()
+    } catch (error) {
+      return next({ name: 'login' })
+    }
+  }
+
   // 2) Route protégée + non connecté → vers login
   if (to.meta.requiresAuth && ! auth.isAuthenticated) {
-    return next({ name: 'login' })
+    try {
+      await auth.fetchMe()
+    } catch (error) {
+      return next({ name: 'login' })
+    }
   }
 
   // 3) Vérification du rôle pour cette route

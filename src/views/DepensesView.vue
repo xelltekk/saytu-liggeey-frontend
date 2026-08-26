@@ -82,7 +82,7 @@
               </td>
               <td class="px-4 py-3 text-right">
                 <div class="flex justify-end gap-2">
-                  <a v-if="d.justificatif_path" :href="`/${d.justificatif_path}`" target="_blank" class="text-sm text-blue-600 hover:text-blue-800">Pièce</a>
+                  <button v-if="d.justificatif_path" type="button" class="text-sm text-blue-600 hover:text-blue-800" @click="downloadJustificatif(d)">Pièce</button>
                   <button v-if="canValidate && d.statut === 'en_attente'" @click="validerDepense(d)" class="text-sm text-green-700 hover:text-green-900">Valider</button>
                   <button v-if="canValidate && d.statut === 'en_attente'" @click="rejeterDepense(d)" class="text-sm text-orange-700 hover:text-orange-900">Rejeter</button>
                   <button v-if="d.statut === 'en_attente'" @click="confirmDelete(d)" class="text-sm text-red-600 hover:text-red-800">Supprimer</button>
@@ -214,6 +214,7 @@ import AppModal from '@/components/AppModal.vue'
 import SortableTh from '@/components/SortableTh.vue'
 import { useToast } from '@/composables/useToast'
 import { telechargerCSV } from '@/services/exports'
+import { telechargerFichierPrive } from '@/services/files'
 import { useAuthStore } from '@/stores/auth'
 import { useNotificationsStore } from '@/stores/notifications'
 import { useTableSort } from '@/composables/useTableSort'
@@ -444,6 +445,14 @@ async function exporterCSV() {
     toast.error('Erreur lors de l’export')
   } finally {
     exportLoading.value = false
+  }
+}
+
+async function downloadJustificatif(depense) {
+  try {
+    await telechargerFichierPrive(`/depenses/${depense.id}/justificatif`, `justificatif-${depense.reference || depense.id}`)
+  } catch (e) {
+    toast.error('Téléchargement de la pièce impossible')
   }
 }
 
