@@ -156,6 +156,85 @@
         </div>
       </div>
 
+      <div
+        v-if="showStockInitialOption"
+        class="mt-4 rounded-2xl border border-blue-100 bg-blue-50/60 p-4"
+      >
+        <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <label class="flex cursor-pointer items-start gap-3 text-sm font-semibold text-blue-950">
+            <input
+              v-model="stockInitial.enabled"
+              type="checkbox"
+              class="mt-1 h-4 w-4"
+              :disabled="!form.gere_stock"
+            />
+            <span>
+              Créer aussi une entrée de stock initiale
+              <small class="mt-0.5 block font-normal text-blue-700">
+                Un vrai mouvement “entrée” sera créé dans l’historique du stock.
+              </small>
+            </span>
+          </label>
+          <span class="rounded-full bg-white px-3 py-1 text-xs font-bold text-blue-700">
+            Recommandé
+          </span>
+        </div>
+
+        <div v-if="stockInitial.enabled" class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+              Quantité initiale <span class="text-red-500">*</span>
+            </label>
+            <input v-model.number="stockInitial.quantite" type="number" class="input" step="0.001" min="0.001" required />
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+              Entrepôt <span class="text-red-500">*</span>
+            </label>
+            <select v-model.number="stockInitial.entrepot_id" class="input" required>
+              <option :value="null">— Sélectionnez —</option>
+              <option v-for="entrepot in entrepots" :key="entrepot.id" :value="entrepot.id">
+                {{ entrepot.libelle }}
+              </option>
+            </select>
+            <p v-if="!entrepots.length" class="mt-1 text-xs text-orange-700">
+              Aucun entrepôt actif disponible. Créez d’abord un entrepôt.
+            </p>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Emplacement</label>
+            <select
+              v-model.number="stockInitial.emplacement_id"
+              class="input"
+              :required="hasStockInitialEmplacements"
+              :disabled="loadingEmplacements || !hasStockInitialEmplacements"
+            >
+              <option :value="null">
+                {{ loadingEmplacements ? 'Chargement...' : hasStockInitialEmplacements ? '— Sélectionnez un emplacement —' : 'Aucun emplacement configuré' }}
+              </option>
+              <option v-for="emplacement in emplacements" :key="emplacement.id" :value="emplacement.id">
+                {{ emplacementLabel(emplacement) }}
+              </option>
+            </select>
+            <p class="mt-1 text-xs" :class="hasStockInitialEmplacements ? 'text-blue-700' : 'text-gray-500'">
+              {{ hasStockInitialEmplacements ? 'Obligatoire pour cet entrepôt.' : 'Facultatif si aucun rayon n’est configuré.' }}
+            </p>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Prix unitaire d’entrée</label>
+            <input v-model.number="stockInitial.prix_unitaire" type="number" class="input" step="0.01" min="0" placeholder="Prix achat si vide" />
+          </div>
+
+          <div class="md:col-span-2">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Motif</label>
+            <input v-model="stockInitial.motif" type="text" class="input" placeholder="Stock initial" />
+          </div>
+        </div>
+      </div>
+
       <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
         <div class="flex items-center">
           <input v-model="form.est_serialise" type="checkbox" id="est_serialise" class="mr-2 h-4 w-4" />
@@ -226,13 +305,26 @@ const defaultForm = () => ({
   image: '',
 })
 
+const defaultStockInitial = () => ({
+  enabled: false,
+  entrepot_id: null,
+  emplacement_id: null,
+  quantite: null,
+  prix_unitaire: null,
+  motif: 'Stock initial',
+})
+
 const form = reactive(defaultForm())
+const stockInitial = reactive(defaultStockInitial())
 const saving = ref(false)
 const errors = ref({})
 const imageInput = ref(null)
 const selectedImage = ref(null)
 const selectedImagePreview = ref('')
 const removeImage = ref(false)
+const entrepots = ref([])
+const emplacements = ref([])
+const loadingEmplacements = ref(false)
 const errorLabels = {
   reference: 'Référence',
   code_barre: 'Code-barres',
@@ -247,8 +339,17 @@ const errorLabels = {
   unite: 'Unité',
   garantie_mois: 'Garantie',
   image: 'Photo produit',
+  'stock_initial.enabled': 'Stock initial',
+  'stock_initial.entrepot_id': 'Entrepôt du stock initial',
+  'stock_initial.emplacement_id': 'Emplacement du stock initial',
+  'stock_initial.quantite': 'Quantité initiale',
+  'stock_initial.prix_unitaire': 'Prix unitaire du stock initial',
+  'stock_initial.motif': 'Motif du stock initial',
 }
 const categories = ref([])
+
+const showStockInitialOption = computed(() => !props.produit?.id && form.type === 'produit')
+const hasStockInitialEmplacements = computed(() => emplacements.value.length > 0)
 
 const prixTtc = computed(() => {
   return Math.round(form.prix_vente_ht * (1 + form.taux_tva / 100))
@@ -286,10 +387,33 @@ watch(() => props.produit, (val) => {
     Object.assign(form, defaultForm(), val)
   } else {
     Object.assign(form, defaultForm())
+    resetStockInitial()
   }
   resetImageSelection()
   errors.value = {}
 }, { immediate: true })
+
+watch(() => form.type, (type) => {
+  if (type !== 'produit') {
+    stockInitial.enabled = false
+    form.gere_stock = false
+  }
+})
+
+watch(() => form.gere_stock, (gereStock) => {
+  if (!gereStock) stockInitial.enabled = false
+})
+
+watch(() => stockInitial.enabled, (enabled) => {
+  if (enabled && !stockInitial.entrepot_id && entrepots.value.length === 1) {
+    stockInitial.entrepot_id = entrepots.value[0].id
+  }
+})
+
+watch(() => stockInitial.entrepot_id, () => {
+  stockInitial.emplacement_id = null
+  loadStockInitialEmplacements()
+})
 
 onBeforeUnmount(() => {
   if (selectedImagePreview.value) URL.revokeObjectURL(selectedImagePreview.value)
@@ -311,7 +435,14 @@ onMounted(async () => {
   } catch (e) {
     console.error('Erreur chargement catégories', e)
   }
+
+  loadEntrepots()
 })
+
+function resetStockInitial() {
+  Object.assign(stockInitial, defaultStockInitial())
+  emplacements.value = []
+}
 
 function resetImageSelection() {
   selectedImage.value = null
@@ -378,6 +509,47 @@ async function syncImage(produitId, produitData) {
   return nextProduit
 }
 
+async function loadEntrepots() {
+  try {
+    const { data } = await api.get('/entrepots', { params: { actifs_seulement: 1 } })
+    entrepots.value = Array.isArray(data) ? data : data.data || []
+
+    if (!stockInitial.entrepot_id && entrepots.value.length === 1) {
+      stockInitial.entrepot_id = entrepots.value[0].id
+    }
+  } catch (e) {
+    console.error('Erreur chargement entrepôts', e)
+  }
+}
+
+async function loadStockInitialEmplacements() {
+  emplacements.value = []
+  if (!stockInitial.entrepot_id) return
+
+  loadingEmplacements.value = true
+  try {
+    const { data } = await api.get(`/entrepots/${stockInitial.entrepot_id}`)
+    emplacements.value = (data.entrepot?.zones || []).filter(zone => zone.is_active !== false).flatMap(zone =>
+      (zone.emplacements || []).filter(emp => emp.is_active !== false).map(emp => ({ ...emp, zone }))
+    )
+  } catch (e) {
+    console.error('Erreur chargement emplacements', e)
+  } finally {
+    loadingEmplacements.value = false
+  }
+}
+
+function emplacementLabel(emp) {
+  const zone = emp.zone?.libelle || emp.zone?.code || 'Zone'
+  const details = [
+    emp.allee && `Rayon ${emp.allee}`,
+    emp.rangee && `Rangée ${emp.rangee}`,
+    emp.niveau && `Niveau ${emp.niveau}`,
+  ].filter(Boolean).join(' / ')
+
+  return details ? `${zone} - ${details} - ${emp.code}` : `${zone} - ${emp.code}`
+}
+
 async function handleSubmit() {
   saving.value = true
   errors.value = {}
@@ -388,6 +560,18 @@ async function handleSubmit() {
     Object.keys(payload).forEach(k => {
       if (payload[k] === '') payload[k] = null
     })
+
+    if (!props.produit?.id && stockInitial.enabled) {
+      payload.gere_stock = true
+      payload.stock_initial = {
+        enabled: true,
+        entrepot_id: stockInitial.entrepot_id,
+        emplacement_id: stockInitial.emplacement_id,
+        quantite: stockInitial.quantite,
+        prix_unitaire: stockInitial.prix_unitaire,
+        motif: stockInitial.motif || 'Stock initial',
+      }
+    }
 
     let response
     let produitEnregistre
