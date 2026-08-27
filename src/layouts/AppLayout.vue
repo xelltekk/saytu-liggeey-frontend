@@ -394,6 +394,7 @@ import {
   Users,
   Target,
   Package,
+  FolderTree,
   Warehouse,
   Boxes,
   FileText,
@@ -548,6 +549,14 @@ const tousLesMenus = [
     to: '/produits',
     label: 'Produits',
     icon: Package,
+    permission: 'produits.view',
+    roles: ['admin', 'gerant', 'commercial', 'magasinier', 'comptable']
+  },
+
+  {
+    to: '/categories-produits',
+    label: 'Catégories',
+    icon: FolderTree,
     permission: 'produits.view',
     roles: ['admin', 'gerant', 'commercial', 'magasinier', 'comptable']
   },
@@ -797,7 +806,7 @@ const menuGroupDefinitions = [
     key: 'stock',
     label: 'Stock',
     icon: Boxes,
-    items: ['/produits', '/entrepots', '/stock']
+    items: ['/produits', '/categories-produits', '/entrepots', '/stock']
   },
   {
     key: 'analyse',

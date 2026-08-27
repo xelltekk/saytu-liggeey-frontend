@@ -48,6 +48,11 @@ const routes = [
         component: () => import('@/views/ProduitsView.vue'),
       },
       {
+        path: 'categories-produits',
+        name: 'categories-produits',
+        component: () => import('@/views/CategoriesProduitsView.vue'),
+      },
+      {
         path: 'devis',
         name: 'devis',
         component: () => import('@/views/DevisView.vue'),
@@ -184,6 +189,7 @@ const routeRoles = {
   '/agenda': ['admin', 'gerant', 'commercial', 'magasinier', 'comptable', 'caissier'],
   '/prospection': ['admin', 'gerant', 'commercial'],
   '/produits': ['admin', 'gerant', 'commercial', 'magasinier', 'comptable'],
+  '/categories-produits': ['admin', 'gerant', 'commercial', 'magasinier', 'comptable'],
   '/entrepots': ['admin', 'gerant', 'magasinier', 'comptable'],
   '/stock': ['admin', 'gerant', 'magasinier', 'comptable'],
   '/devis': ['admin', 'gerant', 'commercial', 'comptable'],
@@ -210,6 +216,7 @@ const routePermissions = {
   '/agenda': 'agenda.view',
   '/prospection': 'prospection.view',
   '/produits': 'produits.view',
+  '/categories-produits': 'produits.view',
   '/entrepots': 'stock.view',
   '/stock': 'stock.view',
   '/devis': 'devis.view',
