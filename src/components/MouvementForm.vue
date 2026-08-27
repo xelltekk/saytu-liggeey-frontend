@@ -77,7 +77,7 @@
 </template>
 
 <script setup>
-import { reactive, ref, computed, onMounted, watch } from 'vue'
+import { reactive, ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import api from '@/services/api'
 import { useToast } from '@/composables/useToast'
 import FormErrorSummary from '@/components/FormErrorSummary.vue'
@@ -117,6 +117,7 @@ const hasEmplacements = computed(() => emplacements.value.length > 0)
 const saving = ref(false)
 const errorMessages = ref([])
 let produitSearchTimeout = null
+let produitRequestId = 0
 const errorLabels = {
   produit_id: 'Produit',
   entrepot_id: 'Entrepôt',
@@ -152,21 +153,33 @@ onMounted(() => {
   loadEmplacements()
 })
 
+onUnmounted(() => {
+  clearTimeout(produitSearchTimeout)
+})
+
 async function loadProduits() {
+  const requestId = ++produitRequestId
   loadingProduits.value = true
   try {
     const { data } = await api.get('/produits', {
       params: {
         per_page: 50,
         actifs_seulement: 1,
+        type: 'produit',
+        gere_stock: 1,
+        sort_by: 'libelle',
         search: produitSearch.value.trim() || undefined,
       },
     })
-    produits.value = data.data.filter(p => p.gere_stock)
+    if (requestId !== produitRequestId) return
+    produits.value = data.data || []
   } catch (e) {
+    if (requestId !== produitRequestId) return
     errorMessages.value = ['Impossible de charger les produits']
   } finally {
-    loadingProduits.value = false
+    if (requestId === produitRequestId) {
+      loadingProduits.value = false
+    }
   }
 }
 

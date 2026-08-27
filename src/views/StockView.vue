@@ -217,7 +217,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed, h } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, computed, h, watch } from 'vue'
 import api from '@/services/api'
 import AppModal from '@/components/AppModal.vue'
 import MouvementForm from '@/components/MouvementForm.vue'
@@ -324,36 +324,44 @@ const Pagination = {
 }
 
 let searchTimeout = null
+let reloadRequestId = 0
 function onSearchInput() {
   clearTimeout(searchTimeout)
   searchTimeout = setTimeout(() => reload(1), 350)
 }
 
 async function reload(page = 1) {
+  const requestId = ++reloadRequestId
+  const tab = onglet.value
   loading.value = true
   try {
-    if (onglet.value === 'stock') {
+    if (tab === 'stock') {
       const { data } = await api.get('/stocks', { params: { page, per_page: 25, search: filters.search || undefined, entrepot_id: filters.entrepot_id || undefined } })
+      if (requestId !== reloadRequestId || tab !== onglet.value) return
       stocks.value = data.data
       Object.assign(meta, { current_page: data.current_page, last_page: data.last_page, total: data.total, from: data.from || 0, to: data.to || 0 })
-    } else if (onglet.value === 'mouvements') {
+    } else if (tab === 'mouvements') {
       const { data } = await api.get('/stocks/mouvements', { params: { page, per_page: 25, search: filters.search || undefined, entrepot_id: filters.entrepot_id || undefined, type: filters.type || undefined } })
+      if (requestId !== reloadRequestId || tab !== onglet.value) return
       mouvements.value = data.data
       Object.assign(meta, { current_page: data.current_page, last_page: data.last_page, total: data.total, from: data.from || 0, to: data.to || 0 })
-    } else if (onglet.value === 'alertes') {
+    } else if (tab === 'alertes') {
       const { data } = await api.get('/stocks/alerts', { params: { search: filters.search || undefined } })
+      if (requestId !== reloadRequestId || tab !== onglet.value) return
       alertes.value = data
     }
   } catch (e) {
     toast.error('Erreur de chargement')
   } finally {
-    loading.value = false
+    if (requestId === reloadRequestId) {
+      loading.value = false
+    }
   }
 }
 
 async function loadEntrepots() {
   const { data } = await api.get('/entrepots', { params: { actifs_seulement: 1 } })
-  entrepots.value = data
+  entrepots.value = Array.isArray(data) ? data : data.data || []
 }
 
 async function exporterCSV() {
@@ -449,8 +457,11 @@ function typeBadge(t) {
   }[t] || 'bg-gray-100'
 }
 
-import { watch } from 'vue'
 watch(onglet, () => reload(1))
+
+onUnmounted(() => {
+  clearTimeout(searchTimeout)
+})
 
 onMounted(async () => {
   await loadEntrepots()
