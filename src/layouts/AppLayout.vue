@@ -306,7 +306,11 @@
         <div
           class="app-surface min-w-0 bg-white rounded-2xl lg:rounded-3xl border border-slate-100 shadow-sm p-3 transition-colors dark:border-slate-800 dark:bg-slate-900 sm:p-4 lg:p-6"
         >
-          <router-view />
+          <router-view v-slot="{ Component, route: viewRoute }">
+            <KeepAlive :max="18">
+              <component :is="Component" :key="viewRoute.name || viewRoute.path" />
+            </KeepAlive>
+          </router-view>
         </div>
       </main>
     </div>
@@ -315,6 +319,58 @@
 
     <!-- Command Palette (Ctrl+K) -->
     <CommandPalette v-model="showCommandPalette" />
+
+    <div
+      v-if="minimizedWindows.length"
+      class="fixed bottom-4 right-4 z-[100] w-[min(24rem,calc(100vw-2rem))] rounded-3xl border border-[var(--theme-border,#bfdbfe)] bg-white/95 p-3 shadow-2xl backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/95"
+    >
+      <div class="mb-2 flex items-center justify-between gap-2 px-1">
+        <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-[var(--theme-primary,#2563eb)]">
+          <Minus class="h-4 w-4" />
+          Fenêtres réduites
+        </div>
+        <span class="rounded-full bg-[var(--theme-soft,#eef6ff)] px-2 py-0.5 text-[11px] font-bold text-[var(--theme-primary,#2563eb)]">
+          {{ minimizedWindows.length }}
+        </span>
+      </div>
+
+      <div class="space-y-2">
+        <div
+          v-for="windowItem in minimizedWindows"
+          :key="windowItem.id"
+          class="flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm shadow-sm transition hover:border-[var(--theme-primary,#2563eb)] hover:bg-white dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-slate-800/80"
+        >
+          <button
+            type="button"
+            class="min-w-0 flex-1 text-left"
+            @click="restoreMinimizedWindow(windowItem)"
+          >
+            <span class="block truncate font-semibold text-slate-800 dark:text-slate-100">{{ windowItem.title }}</span>
+            <span class="block truncate text-xs text-slate-500 dark:text-slate-400">Cliquez pour reprendre la saisie</span>
+          </button>
+
+          <button
+            type="button"
+            class="inline-flex h-8 w-8 items-center justify-center rounded-xl text-[var(--theme-primary,#2563eb)] transition hover:bg-[var(--theme-soft,#eef6ff)]"
+            title="Reprendre"
+            aria-label="Reprendre la fenêtre"
+            @click="restoreMinimizedWindow(windowItem)"
+          >
+            <RotateCcw class="h-4 w-4" />
+          </button>
+
+          <button
+            type="button"
+            class="inline-flex h-8 w-8 items-center justify-center rounded-xl text-slate-400 transition hover:bg-red-50 hover:text-red-600"
+            title="Fermer"
+            aria-label="Fermer la fenêtre réduite"
+            @click="closeMinimizedWindow(windowItem)"
+          >
+            <X class="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -326,6 +382,7 @@ import { useNotificationsStore } from '@/stores/notifications'
 import { useTheme } from '@/composables/useTheme'
 import { setCurrency, syncAmountTableNotes } from '@/composables/useCurrency'
 import { useViewport } from '@/composables/useViewport'
+import { useWindowDock } from '@/composables/useWindowDock'
 import api from '@/services/api'
 
 import ToastContainer from '@/components/ToastContainer.vue'
@@ -360,10 +417,13 @@ import {
   PanelLeftOpen,
   PanelLeftClose,
   ChevronDown,
+  Minus,
   Maximize,
   LogOut,
+  RotateCcw,
   Moon,
-  Sun
+  Sun,
+  X
 } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -371,6 +431,7 @@ const router = useRouter()
 
 const auth = useAuthStore()
 const notif = useNotificationsStore()
+const dock = useWindowDock()
 
 const sidebarOpen = ref(true)
 const mobileSidebarOpen = ref(false)
@@ -407,6 +468,8 @@ const isMac = computed(() => {
   if (typeof navigator === 'undefined') return false
   return /Mac|iPhone|iPad/.test(navigator.platform)
 })
+
+const minimizedWindows = computed(() => dock.windows.value)
 
 const tousLesMenus = [
   {
@@ -993,6 +1056,26 @@ watch(
 
 function handleCurrencyChanged() {
   syncAmountTableNotes(document)
+}
+
+async function restoreMinimizedWindow(windowItem) {
+  if (windowItem.route && route.fullPath !== windowItem.route) {
+    await router.push(windowItem.route)
+    await nextTick()
+  }
+
+  window.dispatchEvent(new CustomEvent('app-modal:restore', {
+    detail: { id: windowItem.id },
+  }))
+}
+
+async function closeMinimizedWindow(windowItem) {
+  await restoreMinimizedWindow(windowItem)
+  await nextTick()
+
+  window.dispatchEvent(new CustomEvent('app-modal:close', {
+    detail: { id: windowItem.id },
+  }))
 }
 
 function startAmountTableObserver() {

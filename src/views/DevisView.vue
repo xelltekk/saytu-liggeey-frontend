@@ -203,6 +203,7 @@
       :title="editingDevis ? `Modifier ${editingDevis.numero}` : 'Nouveau devis'"
       size="xl"
       :before-close="requestCloseSaisie"
+      @minimized-change="saisieModalMinimized = $event"
     >
       <DevisForm
         :devis="editingDevis"
@@ -316,6 +317,7 @@ const showModal = ref(false)
 const editingDevis = ref(null)
 const creatingClient = ref(null)
 const formDirty = ref(false)
+const saisieModalMinimized = ref(false)
 const showLeaveConfirm = ref(false)
 const pendingLeaveRoute = ref(null)
 const showDeleteModal = ref(false)
@@ -442,6 +444,7 @@ function openCreate(client = null) {
   editingDevis.value = null
   creatingClient.value = client
   formDirty.value = false
+  saisieModalMinimized.value = false
   showModal.value = true
 }
 
@@ -450,6 +453,7 @@ async function openEdit(devi) {
   creatingClient.value = null
   editingDevis.value = data
   formDirty.value = false
+  saisieModalMinimized.value = false
   showModal.value = true
 }
 
@@ -465,6 +469,7 @@ function onAssigned() {
 
 function onSaved() {
   formDirty.value = false
+  saisieModalMinimized.value = false
   showModal.value = false
   loadDevis(meta.current_page)
   loadStats()
@@ -481,6 +486,7 @@ function closeSaisie() {
 function discardDevisForm() {
   showLeaveConfirm.value = false
   formDirty.value = false
+  saisieModalMinimized.value = false
   showModal.value = false
   const nextRoute = pendingLeaveRoute.value
   pendingLeaveRoute.value = null
@@ -729,12 +735,12 @@ watch(
 )
 
 onBeforeRouteLeave((to) => {
-  if (showModal.value && formDirty.value) {
+  if (showModal.value && formDirty.value && !saisieModalMinimized.value) {
     pendingLeaveRoute.value = to.fullPath
     showLeaveConfirm.value = true
     return false
   }
-  formDirty.value = false
+  if (!saisieModalMinimized.value) formDirty.value = false
   return true
 })
 </script>

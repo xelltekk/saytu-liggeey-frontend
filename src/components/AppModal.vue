@@ -3,6 +3,7 @@
     <transition name="modal">
       <div
         v-if="modelValue"
+        v-show="!isMinimized"
         :class="overlayClass"
         @click.self="requestClose('backdrop')"
       >
@@ -15,15 +16,27 @@
         >
           <div class="flex items-center justify-between gap-3 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-white px-4 py-3 sm:px-6 sm:py-4 dark:border-slate-700 dark:from-slate-900 dark:to-slate-900">
             <h3 :id="titleId" class="min-w-0 truncate text-base font-semibold text-slate-900 sm:text-lg dark:text-white">{{ title }}</h3>
-            <button
-              ref="closeButton"
-              type="button"
-              @click="requestClose('button')"
-              class="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 text-xl dark:hover:bg-slate-800 dark:hover:text-white"
-              aria-label="Fermer la fenêtre"
-            >
-              ×
-            </button>
+            <div class="flex shrink-0 items-center gap-1">
+              <button
+                v-if="canMinimize"
+                type="button"
+                @click="minimize"
+                class="flex h-9 w-9 items-center justify-center rounded-2xl text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-white"
+                title="Réduire la fenêtre"
+                aria-label="Réduire la fenêtre"
+              >
+                <Minus class="h-4 w-4" />
+              </button>
+              <button
+                ref="closeButton"
+                type="button"
+                @click="requestClose('button')"
+                class="flex h-9 w-9 items-center justify-center rounded-2xl text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 text-xl dark:hover:bg-slate-800 dark:hover:text-white"
+                aria-label="Fermer la fenêtre"
+              >
+                ×
+              </button>
+            </div>
           </div>
 
           <div class="flex-1 overflow-y-auto bg-slate-50/50 p-4 sm:p-6 dark:bg-slate-950">
@@ -41,6 +54,9 @@
 
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
+import { Minus } from 'lucide-vue-next'
+import { useWindowDock } from '@/composables/useWindowDock'
 
 const props = defineProps({
   modelValue: Boolean,
@@ -49,12 +65,19 @@ const props = defineProps({
   centered: { type: Boolean, default: false },
   beforeClose: { type: Function, default: null },
   stack: { type: String, default: 'default' }, // default, confirm
+  minimizable: { type: Boolean, default: true },
 })
 
-const emit = defineEmits(['update:modelValue'])
+const emit = defineEmits(['update:modelValue', 'minimize', 'restore', 'minimized-change'])
 const closeButton = ref(null)
 const titleId = `modal-title-${Math.random().toString(36).slice(2, 9)}`
+const modalId = `modal-${Math.random().toString(36).slice(2, 10)}`
+const isMinimized = ref(false)
+const route = useRoute()
+const dock = useWindowDock()
 let previousActiveElement = null
+
+const canMinimize = computed(() => props.minimizable && props.stack !== 'confirm' && props.size !== 'sm')
 
 const sizeClass = computed(() => ({
   sm: 'max-w-md',
@@ -81,25 +104,81 @@ async function requestClose(reason = 'programmatic') {
     const canClose = await props.beforeClose(reason)
     if (canClose === false) return
   }
+  unregisterMinimized()
   emit('update:modelValue', false)
 }
 
+function minimize() {
+  if (!canMinimize.value || !props.modelValue) return
+
+  isMinimized.value = true
+  dock.register({
+    id: modalId,
+    title: props.title || 'Fenêtre en cours',
+    route: route.fullPath,
+  })
+  emit('minimize')
+  emit('minimized-change', true)
+}
+
+function restore() {
+  if (!isMinimized.value) return
+
+  isMinimized.value = false
+  unregisterMinimized()
+  emit('restore')
+  emit('minimized-change', false)
+
+  nextTick(() => {
+    closeButton.value?.focus?.()
+  })
+}
+
+function unregisterMinimized() {
+  dock.unregister(modalId)
+  isMinimized.value = false
+  emit('minimized-change', false)
+}
+
+function handleDockRestore(event) {
+  if (event.detail?.id === modalId) restore()
+}
+
+function handleDockClose(event) {
+  if (event.detail?.id === modalId) requestClose('dock')
+}
+
 function onKeydown(event) {
-  if (props.modelValue && event.key === 'Escape') requestClose('escape')
+  if (props.modelValue && !isMinimized.value && event.key === 'Escape') requestClose('escape')
 }
 
 watch(() => props.modelValue, async (isOpen) => {
   if (isOpen) {
     previousActiveElement = document.activeElement
     await nextTick()
-    closeButton.value.focus()
+    if (!isMinimized.value) closeButton.value?.focus?.()
   } else {
+    unregisterMinimized()
     previousActiveElement?.focus?.()
   }
 })
 
-onMounted(() => document.addEventListener('keydown', onKeydown))
-onUnmounted(() => document.removeEventListener('keydown', onKeydown))
+watch(() => props.title, (title) => {
+  dock.update(modalId, { title: title || 'Fenêtre en cours' })
+})
+
+onMounted(() => {
+  document.addEventListener('keydown', onKeydown)
+  window.addEventListener('app-modal:restore', handleDockRestore)
+  window.addEventListener('app-modal:close', handleDockClose)
+})
+
+onUnmounted(() => {
+  unregisterMinimized()
+  document.removeEventListener('keydown', onKeydown)
+  window.removeEventListener('app-modal:restore', handleDockRestore)
+  window.removeEventListener('app-modal:close', handleDockClose)
+})
 </script>
 
 <style scoped>

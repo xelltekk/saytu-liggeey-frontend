@@ -169,6 +169,7 @@
       :title="editingFacture ? `Modifier ${editingFacture.numero}` : 'Nouvelle facture'"
       size="xl"
       :before-close="requestCloseSaisie"
+      @minimized-change="saisieModalMinimized = $event"
     >
       <FactureForm
         :facture="editingFacture"
@@ -407,6 +408,7 @@ const showModal = ref(false)
 const editingFacture = ref(null)
 const creatingClient = ref(null)
 const formDirty = ref(false)
+const saisieModalMinimized = ref(false)
 const showLeaveConfirm = ref(false)
 const pendingLeaveRoute = ref(null)
 const showDeleteModal = ref(false)
@@ -597,6 +599,7 @@ function openCreate(client = null) {
   editingFacture.value = null
   creatingClient.value = client
   formDirty.value = false
+  saisieModalMinimized.value = false
   showModal.value = true
 }
 
@@ -605,6 +608,7 @@ async function openEdit(f) {
   creatingClient.value = null
   editingFacture.value = data
   formDirty.value = false
+  saisieModalMinimized.value = false
   showModal.value = true
 }
 
@@ -618,7 +622,7 @@ function onAssigned() {
   loadStats()
 }
 
-function onSaved() { formDirty.value = false; showModal.value = false; loadFactures(meta.current_page); loadStats() }
+function onSaved() { formDirty.value = false; saisieModalMinimized.value = false; showModal.value = false; loadFactures(meta.current_page); loadStats() }
 function requestCloseSaisie() {
   if (!formDirty.value) return true
   showLeaveConfirm.value = true
@@ -630,6 +634,7 @@ function closeSaisie() {
 function discardInvoiceForm() {
   showLeaveConfirm.value = false
   formDirty.value = false
+  saisieModalMinimized.value = false
   showModal.value = false
   const nextRoute = pendingLeaveRoute.value
   pendingLeaveRoute.value = null
@@ -886,12 +891,12 @@ watch(
 )
 
 onBeforeRouteLeave((to) => {
-  if (showModal.value && formDirty.value) {
+  if (showModal.value && formDirty.value && !saisieModalMinimized.value) {
     pendingLeaveRoute.value = to.fullPath
     showLeaveConfirm.value = true
     return false
   }
-  formDirty.value = false
+  if (!saisieModalMinimized.value) formDirty.value = false
   return true
 })
 </script>
