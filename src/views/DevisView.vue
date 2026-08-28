@@ -93,14 +93,18 @@
             <tr v-for="devi in sortedDevis" :key="devi.id" class="hover:bg-gray-50">
               <td class="px-4 py-3 text-sm font-mono text-gray-600">{{ devi.numero }}</td>
               <td class="px-4 py-3">
-                <div class="font-medium text-gray-900">{{ devi.client?.nom || 'Client non renseigné' }}</div>
-                <div class="text-xs text-gray-500">{{ devi.client?.code || '–' }}</div>
-                <a v-if="devi.client?.email" :href="relanceEmailHref(devi)" class="block truncate text-xs text-xelltekk-700 hover:underline">
-                  {{ devi.client.email }}
-                </a>
-                <div class="text-xs text-blue-600">Commercial : {{ devi.commercial?.name || 'Non affecté' }}</div>
+                <div class="compact-row-primary text-gray-900" :title="devi.client?.nom || 'Client non renseigné'">
+                  {{ devi.client?.nom || 'Client non renseigné' }}
+                </div>
+                <div class="compact-row-meta">
+                  <span>{{ devi.client?.code || '–' }}</span>
+                  <a v-if="devi.client?.email" :href="relanceEmailHref(devi)" class="text-xelltekk-700 hover:underline">
+                    {{ devi.client.email }}
+                  </a>
+                  <span class="text-blue-600">Commercial : {{ devi.commercial?.name || 'Non affecté' }}</span>
+                </div>
               </td>
-              <td class="px-4 py-3 text-sm text-gray-700">{{ devi.objet || '–' }}</td>
+              <td class="px-4 py-3 max-w-[220px] truncate text-sm text-gray-700" :title="devi.objet || ''">{{ devi.objet || '–' }}</td>
               <td class="px-4 py-3 text-sm text-center text-gray-600">{{ formatDate(devi.date_devis) }}</td>
               <td class="px-4 py-3 text-sm text-center" :class="validiteClass(devi)">
                 {{ formatDate(devi.date_validite) }}

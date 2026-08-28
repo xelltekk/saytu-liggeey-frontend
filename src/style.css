@@ -989,6 +989,74 @@
     min-width: 760px;
   }
 
+  .app-surface .overflow-x-auto > table th {
+    padding-top: 0.5rem !important;
+    padding-bottom: 0.5rem !important;
+    white-space: nowrap;
+  }
+
+  .app-surface .overflow-x-auto > table td {
+    padding-top: 0.42rem !important;
+    padding-bottom: 0.42rem !important;
+    vertical-align: middle;
+    line-height: 1.2;
+  }
+
+  .app-surface .overflow-x-auto > table tbody tr {
+    min-height: 3rem;
+  }
+
+  .app-surface .overflow-x-auto > table td .text-xs,
+  .app-surface .overflow-x-auto > table td .text-\[10px\],
+  .app-surface .overflow-x-auto > table td .text-\[11px\] {
+    line-height: 0.95rem;
+  }
+
+  .app-surface .overflow-x-auto > table td .badge {
+    padding: 0.08rem 0.45rem;
+    font-size: 0.68rem;
+    line-height: 0.95rem;
+  }
+
+  .app-surface .overflow-x-auto > table td:last-child > .flex.flex-wrap {
+    flex-wrap: nowrap;
+    gap: 0.35rem;
+  }
+
+  .app-surface .overflow-x-auto > table td:last-child :where(a, button) {
+    white-space: nowrap;
+  }
+
+  .compact-row-primary {
+    display: block;
+    max-width: 14rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.86rem;
+    font-weight: 700;
+    line-height: 1.05rem;
+  }
+
+  .compact-row-meta {
+    margin-top: 0.08rem;
+    display: flex;
+    max-width: 24rem;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.05rem 0.55rem;
+    color: var(--saytu-muted-themed, #64748b);
+    font-size: 0.72rem;
+    line-height: 0.95rem;
+  }
+
+  .compact-row-meta > * {
+    max-width: 12rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   .auth-shell {
     position: relative;
     overflow: hidden;

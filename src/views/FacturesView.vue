@@ -78,12 +78,16 @@
                 <span v-if="f.type === 'avoir'" class="ml-1 text-red-600 text-[10px]">AVOIR</span>
               </td>
               <td class="px-3 py-3">
-                <div class="text-sm font-medium text-gray-900 truncate max-w-[180px]">{{ f.client?.nom || 'Client non renseigné' }}</div>
-                <div class="text-xs text-gray-500">{{ f.client?.code || '–' }}</div>
-                <a v-if="f.client?.email" :href="relanceFactureEmailHref(f)" class="block max-w-[180px] truncate text-xs text-xelltekk-700 hover:underline">
-                  {{ f.client.email }}
-                </a>
-                <div class="text-xs text-blue-600">Commercial : {{ f.commercial?.name || 'Non affecté' }}</div>
+                <div class="compact-row-primary text-gray-900" :title="f.client?.nom || 'Client non renseigné'">
+                  {{ f.client?.nom || 'Client non renseigné' }}
+                </div>
+                <div class="compact-row-meta">
+                  <span>{{ f.client?.code || '–' }}</span>
+                  <a v-if="f.client?.email" :href="relanceFactureEmailHref(f)" class="text-xelltekk-700 hover:underline">
+                    {{ f.client.email }}
+                  </a>
+                  <span class="text-blue-600">Commercial : {{ f.commercial?.name || 'Non affecté' }}</span>
+                </div>
               </td>
               <td class="px-3 py-3 text-xs text-center text-gray-600">{{ formatDate(f.date_facture) }}</td>
               <td class="px-3 py-3 text-xs text-center" :class="isEnRetard(f) ? 'text-red-600 font-semibold' : 'text-gray-600'">
