@@ -40,6 +40,7 @@
           <option value="">Tous types</option>
           <option value="entree">Entrées</option>
           <option value="sortie">Sorties</option>
+          <option value="transfert">Transferts</option>
           <option value="ajustement">Ajustements</option>
         </select>
       </div>
@@ -91,7 +92,10 @@
                 {{ formatPrice(s.quantite * s.pmp) }}
               </td>
               <td class="px-4 py-3 text-right">
-                <button class="btn-secondary px-3 py-1.5 text-xs" @click="openDeplacement(s)">Déplacer</button>
+                <div class="flex flex-wrap justify-end gap-2">
+                  <button class="btn-secondary px-3 py-1.5 text-xs" @click="openDeplacement(s)">Déplacer</button>
+                  <button class="btn-primary px-3 py-1.5 text-xs" @click="openTransfert(s)">Transférer</button>
+                </div>
               </td>
             </tr>
             <tr v-if="stocks.length === 0">
@@ -129,10 +133,9 @@
               <div class="font-medium">{{ m.produit?.libelle || 'Produit' }}</div>
               <div class="text-xs font-mono text-gray-500">{{ m.produit?.reference || '-' }}</div>
             </td>
-            <td class="px-4 py-3 text-sm text-gray-600">{{ m.entrepot?.libelle || 'Entrepôt' }}</td>
+            <td class="px-4 py-3 text-sm text-gray-600">{{ mouvementEntrepotLabel(m) }}</td>
             <td class="px-4 py-3 text-xs text-gray-600">
-              <span v-if="m.emplacement">{{ emplacementLabel(m.emplacement) }}</span>
-              <span v-else class="text-gray-400">Sans emplacement</span>
+              <span>{{ mouvementEmplacementLabel(m) }}</span>
             </td>
             <td class="px-4 py-3 text-sm text-right font-mono font-semibold"
                 :class="m.type === 'transfert' ? 'text-blue-700' : ['entree', 'ajustement'].includes(m.type) && parseFloat(m.quantite) >= 0 ? 'text-green-600' : 'text-red-600'">
@@ -213,6 +216,71 @@
         </div>
       </form>
     </AppModal>
+
+    <AppModal v-model="showTransfertModal" title="Transférer vers un autre entrepôt" size="md">
+      <form class="space-y-4" @submit.prevent="transfererStock">
+        <div class="rounded-lg bg-blue-50 p-3 text-sm text-blue-800">
+          <strong>{{ stockATransferer?.produit?.reference || '' }} — {{ stockATransferer?.produit?.libelle || 'Produit' }}</strong>
+          <p class="mt-1">Source : {{ stockATransferer?.entrepot?.libelle || '-' }} · {{ emplacementLabel(stockATransferer?.emplacement) }}</p>
+          <p>Disponible : {{ formatQte(transfertDisponible) }} {{ stockATransferer?.produit?.unite || '' }}</p>
+        </div>
+
+        <div>
+          <label class="mb-1 block text-sm font-medium text-gray-700">Entrepôt destination <span class="text-red-500">*</span></label>
+          <select v-model.number="transfertForm.destination_entrepot_id" class="input" required @change="loadEmplacementsTransfert">
+            <option :value="null">— Sélectionnez —</option>
+            <option v-for="entrepot in entrepotsDestination" :key="entrepot.id" :value="entrepot.id">
+              {{ entrepot.libelle }}
+            </option>
+          </select>
+        </div>
+
+        <div>
+          <label class="mb-1 block text-sm font-medium text-gray-700">Emplacement destination</label>
+          <select
+            v-model.number="transfertForm.destination_emplacement_id"
+            class="input"
+            :required="hasTransfertEmplacements"
+            :disabled="transfertLoadingEmplacements || !hasTransfertEmplacements"
+          >
+            <option :value="null">
+              {{ transfertLoadingEmplacements ? 'Chargement...' : hasTransfertEmplacements ? '— Sélectionnez un emplacement —' : 'Aucun emplacement configuré' }}
+            </option>
+            <option v-for="emp in emplacementsTransfert" :key="emp.id" :value="emp.id">
+              {{ emplacementLabel(emp) }}
+            </option>
+          </select>
+          <p class="mt-1 text-xs" :class="hasTransfertEmplacements ? 'text-blue-700' : 'text-gray-500'">
+            {{ hasTransfertEmplacements ? 'Obligatoire : l’entrepôt destination possède des rayons.' : 'Le stock sera transféré sans emplacement précis.' }}
+          </p>
+        </div>
+
+        <div>
+          <label class="mb-1 block text-sm font-medium text-gray-700">Quantité à transférer <span class="text-red-500">*</span></label>
+          <input
+            v-model.number="transfertForm.quantite"
+            type="number"
+            step="0.001"
+            min="0.001"
+            :max="transfertDisponible || undefined"
+            class="input"
+            required
+          />
+        </div>
+
+        <div>
+          <label class="mb-1 block text-sm font-medium text-gray-700">Motif</label>
+          <input v-model="transfertForm.motif" class="input" placeholder="Réapprovisionnement, transfert boutique, SAV..." />
+        </div>
+
+        <div class="flex justify-end gap-2 border-t border-gray-200 pt-3">
+          <button type="button" class="btn-secondary" @click="showTransfertModal = false">Annuler</button>
+          <button class="btn-primary" :disabled="transfertSaving || !transfertForm.destination_entrepot_id">
+            {{ transfertSaving ? 'Transfert...' : 'Valider le transfert' }}
+          </button>
+        </div>
+      </form>
+    </AppModal>
   </div>
 </template>
 
@@ -262,6 +330,17 @@ const stockADeplacer = ref(null)
 const emplacementsDeplacement = ref([])
 const deplacementSaving = ref(false)
 const deplacementForm = reactive({ emplacement_id: null, motif: '' })
+const showTransfertModal = ref(false)
+const stockATransferer = ref(null)
+const emplacementsTransfert = ref([])
+const transfertSaving = ref(false)
+const transfertLoadingEmplacements = ref(false)
+const transfertForm = reactive({
+  destination_entrepot_id: null,
+  destination_emplacement_id: null,
+  quantite: 1,
+  motif: '',
+})
 
 const mouvementTitle = computed(() => ({
   entree: '📥 Entrée en stock',
@@ -284,8 +363,8 @@ const sortedMouvements = computed(() => sortedMouvementRows(mouvements.value, {
   date: 'date_mouvement',
   type: 'type',
   produit: (mouvement) => mouvement.produit?.libelle || '',
-  entrepot: (mouvement) => mouvement.entrepot?.libelle || '',
-  emplacement: (mouvement) => emplacementLabel(mouvement.emplacement),
+  entrepot: (mouvement) => mouvementEntrepotLabel(mouvement),
+  emplacement: (mouvement) => mouvementEmplacementLabel(mouvement),
   quantite: (mouvement) => parseFloat(mouvement.quantite || 0),
   motif: 'motif',
   user: (mouvement) => mouvement.user?.name || '',
@@ -298,6 +377,19 @@ const sortedAlertes = computed(() => sortedAlerteRows(alertes.value, {
   seuil: (alerte) => parseFloat(alerte.stock_alerte || 0),
   statut: (alerte) => (parseFloat(alerte.stock_total || 0) === 0 ? 'rupture' : 'alerte'),
 }))
+
+const entrepotsDestination = computed(() => {
+  const sourceId = Number(stockATransferer.value?.entrepot_id || 0)
+  return entrepots.value.filter((entrepot) => Number(entrepot.id) !== sourceId)
+})
+
+const transfertDisponible = computed(() => {
+  const stock = stockATransferer.value
+  if (!stock) return 0
+  return Math.max(0, parseFloat(stock.quantite || 0) - parseFloat(stock.quantite_reservee || 0))
+})
+
+const hasTransfertEmplacements = computed(() => emplacementsTransfert.value.length > 0)
 
 // Composant Pagination inline
 const Pagination = {
@@ -413,6 +505,30 @@ function emplacementLabel(emp) {
   ].filter(Boolean).join(' / ')
 }
 
+function destinationEntrepot(mouvement) {
+  return mouvement?.destination_entrepot || mouvement?.destinationEntrepot || null
+}
+
+function destinationEmplacement(mouvement) {
+  return mouvement?.destination_emplacement || mouvement?.destinationEmplacement || null
+}
+
+function mouvementEntrepotLabel(mouvement) {
+  if (mouvement?.type === 'transfert' && destinationEntrepot(mouvement)) {
+    return `${mouvement.entrepot?.libelle || 'Source'} → ${destinationEntrepot(mouvement)?.libelle || 'Destination'}`
+  }
+
+  return mouvement?.entrepot?.libelle || 'Entrepôt'
+}
+
+function mouvementEmplacementLabel(mouvement) {
+  if (mouvement?.type === 'transfert' && destinationEntrepot(mouvement)) {
+    return `${emplacementLabel(mouvement.emplacement)} → ${emplacementLabel(destinationEmplacement(mouvement))}`
+  }
+
+  return mouvement?.emplacement ? emplacementLabel(mouvement.emplacement) : 'Sans emplacement'
+}
+
 async function openDeplacement(stock) {
   stockADeplacer.value = stock
   deplacementForm.emplacement_id = null
@@ -441,9 +557,75 @@ async function deplacerStock() {
     showDeplacementModal.value = false
     await reload(meta.current_page)
   } catch (e) {
-    toast.error(e.response.data.errors.emplacement_id?.[0] || e.response.data.message || 'Déplacement impossible.')
+    toast.error(e.response?.data?.errors?.emplacement_id?.[0] || e.response?.data?.message || 'Déplacement impossible.')
   } finally {
     deplacementSaving.value = false
+  }
+}
+
+async function openTransfert(stock) {
+  stockATransferer.value = stock
+  emplacementsTransfert.value = []
+  transfertForm.destination_emplacement_id = null
+  transfertForm.quantite = transfertDisponible.value >= 1 ? 1 : transfertDisponible.value
+  transfertForm.motif = 'Transfert inter-entrepôts'
+
+  if (transfertDisponible.value <= 0) {
+    toast.error('Aucune quantité disponible à transférer sur cette ligne.')
+    return
+  }
+
+  const destination = entrepotsDestination.value[0]
+  transfertForm.destination_entrepot_id = destination?.id || null
+
+  if (!destination) {
+    toast.error('Ajoutez au moins un autre entrepôt actif avant de transférer.')
+    return
+  }
+
+  await loadEmplacementsTransfert()
+  showTransfertModal.value = true
+}
+
+async function loadEmplacementsTransfert() {
+  emplacementsTransfert.value = []
+  transfertForm.destination_emplacement_id = null
+
+  if (!transfertForm.destination_entrepot_id) return
+
+  transfertLoadingEmplacements.value = true
+  try {
+    const { data } = await api.get(`/entrepots/${transfertForm.destination_entrepot_id}`)
+    emplacementsTransfert.value = (data.entrepot?.zones || []).filter(zone => zone.is_active !== false).flatMap(zone =>
+      (zone.emplacements || []).filter(emp => emp.is_active !== false).map(emp => ({ ...emp, zone }))
+    )
+  } catch (e) {
+    toast.error('Impossible de charger les emplacements destination.')
+  } finally {
+    transfertLoadingEmplacements.value = false
+  }
+}
+
+async function transfererStock() {
+  if (!stockATransferer.value) return
+
+  transfertSaving.value = true
+  try {
+    await api.post(`/stocks/${stockATransferer.value.id}/transferer`, transfertForm)
+    toast.success('Transfert inter-entrepôts enregistré.')
+    showTransfertModal.value = false
+    await reload(meta.current_page)
+  } catch (e) {
+    const errors = e.response?.data?.errors || {}
+    toast.error(
+      errors.quantite?.[0]
+        || errors.destination_entrepot_id?.[0]
+        || errors.destination_emplacement_id?.[0]
+        || e.response?.data?.message
+        || 'Transfert impossible.'
+    )
+  } finally {
+    transfertSaving.value = false
   }
 }
 
