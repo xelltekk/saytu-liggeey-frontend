@@ -64,8 +64,8 @@
           :can-down="canMoveDashboardBlock('kpis', 'down')"
           @move="moveDashboardBlock"
         />
-        <KpiCard v-if="isBusinessDashboard" :to="{ path: '/factures', query: { quick: 'ca_mois' } }" label="CA du mois" :value="formatPrice(kpi.ca_mois)" icon="CA" icon-image="/images/dashboard/ca-mois.png" :icon-component="TrendingUp" color="green" />
-        <KpiCard v-if="isBusinessDashboard" :to="{ path: '/factures', query: { quick: 'ca_annee' } }" label="CA de l'année" :value="formatPrice(kpi.ca_annee)" icon="An" icon-image="/images/dashboard/ca-annee.png" :icon-component="CalendarDays" color="blue" />
+        <KpiCard v-if="isBusinessDashboard" :to="{ path: '/caisse', query: { tab: 'factures-comptoir' } }" label="CA boutique" :value="formatPrice(kpi.ca_boutique_mois ?? 0)" icon="CB" :icon-component="Wallet" color="green" :sub="`Année : ${formatPrice(kpi.ca_boutique_annee ?? 0)}`" />
+        <KpiCard v-if="isBusinessDashboard" :to="{ path: '/factures', query: { quick: 'ca_mois', source: 'facturation' } }" label="CA facturation" :value="formatPrice(kpi.ca_facturation_mois ?? kpi.ca_mois)" icon="CF" :icon-component="TrendingUp" color="blue" :sub="`Année : ${formatPrice(kpi.ca_facturation_annee ?? kpi.ca_annee)}`" />
         <KpiCard v-if="isBusinessDashboard" :to="{ path: '/factures', query: { quick: 'encours' } }" label="Encours total" :value="formatPrice(kpi.encours_total)" icon="EC" icon-image="/images/dashboard/encours.png" :icon-component="FileClock" color="orange" />
         <KpiCard v-if="isBusinessDashboard" :to="{ path: '/factures', query: { quick: 'impayees' } }" label="Factures impayees" :value="kpi.factures_impayees || 0" icon="FI" icon-image="/images/dashboard/factures-impayees.png" :icon-component="FileWarning" color="purple" :sub="`dont ${kpi.factures_en_retard || 0} en retard`" />
 
@@ -471,7 +471,6 @@ import { Line } from 'vue-chartjs'
 import {
   ArrowRightLeft,
   Banknote,
-  CalendarDays,
   CreditCard,
   FileClock,
   FileText,
@@ -819,10 +818,10 @@ const caChartOptions = {
   responsive: true,
   maintainAspectRatio: false,
   plugins: {
-    legend: { display: false },
+    legend: { display: true, labels: { usePointStyle: true, boxWidth: 8 } },
     tooltip: {
       callbacks: {
-        label: (ctx) => 'CA : ' + new Intl.NumberFormat('fr-FR').format(ctx.parsed.y) ,
+        label: (ctx) => `${ctx.dataset.label || 'CA'} : ${new Intl.NumberFormat('fr-FR').format(ctx.parsed.y)}` ,
       },
     },
   },
@@ -850,19 +849,48 @@ async function loadDashboard() {
     annonces.value = Array.isArray(data.annonces) ? data.annonces : []
 
     if (data.ca_mensuel) {
+      const datasets = [{
+        label: 'CA total',
+        data: data.ca_mensuel.data,
+        borderColor: dashboardThemeColor('--saytu-brand-from', '#2563eb'),
+        backgroundColor: dashboardThemeAlpha('--saytu-brand-from', 0.12, '#2563eb'),
+        fill: true,
+        tension: 0.3,
+        pointBackgroundColor: dashboardThemeColor('--saytu-brand-to', '#22d3ee'),
+        pointRadius: 4,
+        pointHoverRadius: 6,
+      }]
+
+      if (Array.isArray(data.ca_mensuel.boutique)) {
+        datasets.push({
+          label: 'CA boutique',
+          data: data.ca_mensuel.boutique,
+          borderColor: dashboardThemeColor('--saytu-brand-to', '#06b6d4'),
+          backgroundColor: 'transparent',
+          fill: false,
+          tension: 0.3,
+          pointRadius: 3,
+          pointHoverRadius: 5,
+        })
+      }
+
+      if (Array.isArray(data.ca_mensuel.facturation)) {
+        datasets.push({
+          label: 'CA facturation',
+          data: data.ca_mensuel.facturation,
+          borderColor: dashboardThemeColor('--saytu-primary', '#2563eb'),
+          backgroundColor: 'transparent',
+          fill: false,
+          tension: 0.3,
+          borderDash: [5, 4],
+          pointRadius: 3,
+          pointHoverRadius: 5,
+        })
+      }
+
       caChartData.value = {
         labels: data.ca_mensuel.labels,
-        datasets: [{
-          label: 'CA',
-          data: data.ca_mensuel.data,
-          borderColor: dashboardThemeColor('--saytu-brand-from', '#2563eb'),
-          backgroundColor: dashboardThemeAlpha('--saytu-brand-from', 0.12, '#2563eb'),
-          fill: true,
-          tension: 0.3,
-          pointBackgroundColor: dashboardThemeColor('--saytu-brand-to', '#22d3ee'),
-          pointRadius: 4,
-          pointHoverRadius: 6,
-        }],
+        datasets,
       }
     }
 

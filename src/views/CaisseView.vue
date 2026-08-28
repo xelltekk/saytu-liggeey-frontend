@@ -17,7 +17,31 @@
       Chargement...
     </div>
 
-    <div v-else-if="isAdmin && !session" class="grid grid-cols-1 gap-5 xl:grid-cols-[420px_1fr]">
+    <div v-else-if="isAdmin && !session" class="space-y-5">
+      <section class="caisse-tabs-wrap">
+        <div class="caisse-tabs">
+          <button
+            type="button"
+            class="caisse-tab"
+            :class="activeCaisseTab !== 'factures-comptoir' ? 'caisse-tab-active' : 'caisse-tab-idle'"
+            @click="activeCaisseTab = 'vente'"
+          >
+            <span>Suivi caisse</span>
+            <small v-if="sessionsOuvertes.length">{{ sessionsOuvertes.length }}</small>
+          </button>
+          <button
+            type="button"
+            class="caisse-tab"
+            :class="activeCaisseTab === 'factures-comptoir' ? 'caisse-tab-active' : 'caisse-tab-idle'"
+            @click="activeCaisseTab = 'factures-comptoir'"
+          >
+            <span>Factures comptoir</span>
+            <small v-if="facturesComptoirTotal">{{ facturesComptoirTotal }}</small>
+          </button>
+        </div>
+      </section>
+
+      <div v-show="activeCaisseTab !== 'factures-comptoir'" class="grid grid-cols-1 gap-5 xl:grid-cols-[420px_1fr]">
       <div class="rounded-lg border border-slate-200 bg-white">
         <div class="flex items-center justify-between border-b border-slate-200 px-4 py-3">
           <div>
@@ -180,6 +204,7 @@
             </tbody>
           </table>
         </div>
+      </div>
       </div>
     </div>
 
@@ -533,6 +558,102 @@
       </section>
     </div>
 
+    <section
+      v-if="showFacturesComptoirPanel"
+      class="overflow-hidden rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-surface,#ffffff)] shadow-sm"
+    >
+      <div class="flex flex-col gap-3 border-b border-[color:var(--saytu-border,#e2e8f0)] px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <h3 class="font-black text-[color:var(--saytu-shell-text,#0f172a)]">Factures comptoir</h3>
+          <p class="text-xs text-[color:var(--saytu-topbar-subtitle,#64748b)]">
+            Ventes encaissées depuis la caisse, séparées de la facturation classique.
+          </p>
+        </div>
+        <div class="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(220px,1fr)_auto_auto_auto]">
+          <input
+            v-model="facturesComptoirFilters.search"
+            type="search"
+            class="input rounded-full"
+            placeholder="Rechercher facture, client..."
+          />
+          <input v-model="facturesComptoirFilters.date_from" type="date" class="input rounded-full" />
+          <input v-model="facturesComptoirFilters.date_to" type="date" class="input rounded-full" />
+          <button type="button" class="btn-secondary rounded-full px-4 py-2 text-sm" :disabled="facturesComptoirLoading" @click="loadFacturesComptoir(1)">
+            {{ facturesComptoirLoading ? 'Chargement...' : 'Actualiser' }}
+          </button>
+        </div>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full">
+          <thead class="bg-[color:var(--saytu-soft,#f8fafc)] text-xs uppercase text-[color:var(--saytu-topbar-subtitle,#64748b)]">
+            <tr>
+              <th class="px-4 py-3 text-left">N°</th>
+              <th class="px-4 py-3 text-left">Date</th>
+              <th class="px-4 py-3 text-left">Client</th>
+              <th class="px-4 py-3 text-left">Caisse</th>
+              <th class="px-4 py-3 text-left">Paiement</th>
+              <th class="px-4 py-3 text-right">Total</th>
+              <th class="px-4 py-3 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-[color:var(--saytu-border,#e2e8f0)]">
+            <tr v-for="facture in facturesComptoir" :key="facture.id" class="text-sm">
+              <td class="px-4 py-3 font-mono font-bold text-[color:var(--saytu-primary,#2563eb)]">{{ facture.numero }}</td>
+              <td class="px-4 py-3 text-[color:var(--saytu-topbar-subtitle,#64748b)]">{{ formatDate(facture.date_facture) }}</td>
+              <td class="px-4 py-3">
+                <p class="font-semibold text-[color:var(--saytu-shell-text,#0f172a)]">{{ facture.client?.nom || 'Client comptoir' }}</p>
+                <p class="text-xs text-[color:var(--saytu-topbar-subtitle,#64748b)]">{{ facture.client?.code || '-' }}</p>
+              </td>
+              <td class="px-4 py-3 text-[color:var(--saytu-topbar-subtitle,#64748b)]">
+                <p>{{ caissierFactureComptoir(facture) }}</p>
+                <p class="text-xs">{{ sessionFactureComptoir(facture) }}</p>
+              </td>
+              <td class="px-4 py-3 text-[color:var(--saytu-topbar-subtitle,#64748b)]">{{ modesFactureComptoir(facture) }}</td>
+              <td class="px-4 py-3 text-right font-mono font-black text-[color:var(--saytu-shell-text,#0f172a)]">{{ formatPrice(facture.total_ttc) }}</td>
+              <td class="px-4 py-3">
+                <div class="flex justify-end gap-2">
+                  <button type="button" class="btn-secondary px-3 py-1.5 text-xs" @click="reimprimerFactureComptoir(facture)">
+                    Ticket
+                  </button>
+                  <button type="button" class="btn-secondary px-3 py-1.5 text-xs" @click="ouvrirPdfFactureComptoir(facture)">
+                    PDF
+                  </button>
+                </div>
+              </td>
+            </tr>
+            <tr v-if="facturesComptoirLoading">
+              <td colspan="7" class="px-4 py-10 text-center text-sm text-[color:var(--saytu-topbar-subtitle,#64748b)]">
+                Chargement des factures comptoir...
+              </td>
+            </tr>
+            <tr v-else-if="facturesComptoir.length === 0">
+              <td colspan="7" class="px-4 py-10 text-center text-sm text-[color:var(--saytu-topbar-subtitle,#64748b)]">
+                Aucune facture comptoir trouvée.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div v-if="facturesComptoirMeta.last_page > 1" class="flex flex-wrap items-center justify-between gap-3 border-t border-[color:var(--saytu-border,#e2e8f0)] px-4 py-3 text-sm">
+        <span class="text-[color:var(--saytu-topbar-subtitle,#64748b)]">
+          {{ facturesComptoirMeta.from || 0 }}-{{ facturesComptoirMeta.to || 0 }} sur {{ facturesComptoirMeta.total || 0 }}
+        </span>
+        <div class="flex items-center gap-2">
+          <button type="button" class="btn-secondary px-3 py-1.5 text-sm" :disabled="facturesComptoirMeta.current_page <= 1 || facturesComptoirLoading" @click="loadFacturesComptoir(facturesComptoirMeta.current_page - 1)">
+            ←
+          </button>
+          <span class="font-semibold text-[color:var(--saytu-shell-text,#0f172a)]">
+            Page {{ facturesComptoirMeta.current_page }} / {{ facturesComptoirMeta.last_page }}
+          </span>
+          <button type="button" class="btn-secondary px-3 py-1.5 text-sm" :disabled="facturesComptoirMeta.current_page >= facturesComptoirMeta.last_page || facturesComptoirLoading" @click="loadFacturesComptoir(facturesComptoirMeta.current_page + 1)">
+            →
+          </button>
+        </div>
+      </div>
+    </section>
+
     <AppModal v-model="showTicketPreview" :title="ticketModalTitle" size="sm" centered>
       <div v-if="ticketPreview" class="ticket-preview-shell">
         <div class="ticket-paper">
@@ -614,9 +735,11 @@ import { useToast } from '@/composables/useToast'
 import { useAuthStore } from '@/stores/auth'
 import { ouvrirPDF } from '@/services/pdf'
 import { telechargerCSV } from '@/services/exports'
+import { useRoute } from 'vue-router'
 
 const toast = useToast()
 const auth = useAuthStore()
+const route = useRoute()
 const loading = ref(false)
 const saving = ref(false)
 const exportLoading = ref(false)
@@ -634,6 +757,10 @@ const showTicketPreview = ref(false)
 const ticketPreview = ref(null)
 const stats = reactive({ sessions_ouvertes: 0, entrees_jour: 0, sorties_jour: 0, solde_net_jour: 0 })
 const activeCaisseTab = ref('vente')
+const facturesComptoir = ref([])
+const facturesComptoirLoading = ref(false)
+const facturesComptoirFilters = reactive({ search: '', date_from: '', date_to: '' })
+const facturesComptoirMeta = reactive({ current_page: 1, last_page: 1, total: 0, from: 0, to: 0 })
 
 const openForm = reactive({ solde_ouverture: 0, notes_ouverture: '' })
 const closeForm = reactive({ solde_fermeture_reel: 0, notes_fermeture: '' })
@@ -659,6 +786,8 @@ const encaissements = ref([creerEncaissement()])
 const isAdmin = computed(() => ['admin', 'gerant'].includes(auth.user?.role))
 const isTouchPos = computed(() => auth.user?.role === 'caissier')
 const sessionsActivesCount = computed(() => sessionsOuvertes.value.filter(s => s.statut === 'ouverte').length)
+const facturesComptoirTotal = computed(() => Number(facturesComptoirMeta.total || facturesComptoir.value.length || 0))
+const showFacturesComptoirPanel = computed(() => activeCaisseTab.value === 'factures-comptoir' && (Boolean(session.value) || isAdmin.value))
 const summaryItems = computed(() => [
   { key: 'sessions', label: 'Ouvertes', value: stats.sessions_ouvertes || 0, class: 'text-[color:var(--saytu-primary,#2563eb)]' },
   { key: 'entrees', label: 'Entrées', value: formatPrice(stats.entrees_jour), class: 'text-emerald-700' },
@@ -669,6 +798,7 @@ const caisseTabs = computed(() => [
   { key: 'vente', label: 'Vente rapide', badge: panier.value.length ? `${panier.value.length}` : '' },
   { key: 'mouvements', label: 'Mouvements', badge: '' },
   { key: 'historique', label: 'Historique', badge: mouvements.value.length ? `${mouvements.value.length}` : '' },
+  { key: 'factures-comptoir', label: 'Factures comptoir', badge: facturesComptoirTotal.value ? `${facturesComptoirTotal.value}` : '' },
   { key: 'cloture', label: 'Clôture', badge: '' },
 ])
 const modesPaiementTactiles = [
@@ -743,6 +873,21 @@ watch(() => totauxPanier.value.ttc, (nouveauTotal, ancienTotal) => {
   }
 })
 
+function syncCaisseTabFromRoute() {
+  const tab = typeof route.query.tab === 'string' ? route.query.tab : ''
+  if (['vente', 'mouvements', 'historique', 'factures-comptoir', 'cloture'].includes(tab)) {
+    activeCaisseTab.value = tab
+  }
+}
+
+watch(() => route.query.tab, () => syncCaisseTabFromRoute(), { immediate: true })
+
+watch(activeCaisseTab, (tab) => {
+  if (tab === 'factures-comptoir') {
+    loadFacturesComptoir(1).catch(() => toast.error('Erreur de chargement des factures comptoir'))
+  }
+})
+
 async function loadCaisse() {
   loading.value = true
   try {
@@ -767,6 +912,10 @@ async function loadCaisse() {
   if (session.value) {
     loadMouvements().catch(() => toast.error('Erreur de chargement des mouvements de caisse'))
     loadProduits().catch(() => toast.error('Erreur de chargement des produits caisse'))
+  }
+
+  if (showFacturesComptoirPanel.value) {
+    loadFacturesComptoir().catch(() => toast.error('Erreur de chargement des factures comptoir'))
   }
 }
 
@@ -848,6 +997,13 @@ let productTimer = null
 watch(productSearch, () => {
   clearTimeout(productTimer)
   productTimer = setTimeout(loadProduits, 250)
+})
+
+let facturesComptoirTimer = null
+watch(() => facturesComptoirFilters.search, () => {
+  if (!showFacturesComptoirPanel.value) return
+  clearTimeout(facturesComptoirTimer)
+  facturesComptoirTimer = setTimeout(() => loadFacturesComptoir(1), 300)
 })
 
 async function loadProduits() {
@@ -1158,6 +1314,71 @@ async function loadMouvements() {
   mouvements.value = data.data || []
 }
 
+async function loadFacturesComptoir(page = facturesComptoirMeta.current_page || 1) {
+  facturesComptoirLoading.value = true
+  try {
+    const { data } = await api.get('/caisse/factures-comptoir', {
+      params: {
+        page,
+        per_page: 20,
+        search: facturesComptoirFilters.search || undefined,
+        date_from: facturesComptoirFilters.date_from || undefined,
+        date_to: facturesComptoirFilters.date_to || undefined,
+      },
+    })
+    facturesComptoir.value = data.data || []
+    Object.assign(facturesComptoirMeta, {
+      current_page: data.current_page || 1,
+      last_page: data.last_page || 1,
+      total: data.total || 0,
+      from: data.from || 0,
+      to: data.to || 0,
+    })
+  } finally {
+    facturesComptoirLoading.value = false
+  }
+}
+
+function mouvementsFactureComptoir(facture) {
+  return Array.isArray(facture?.caisse_mouvements) ? facture.caisse_mouvements : []
+}
+
+function caissierFactureComptoir(facture) {
+  const mouvementVente = mouvementsFactureComptoir(facture).find(m => m.type === 'vente')
+  return mouvementVente?.user?.name || facture?.commercial?.name || '-'
+}
+
+function modesFactureComptoir(facture) {
+  const modes = mouvementsFactureComptoir(facture)
+    .map(m => modePaiementLabel(m.mode_paiement))
+    .filter(Boolean)
+
+  return [...new Set(modes)].join(' + ') || '-'
+}
+
+function sessionFactureComptoir(facture) {
+  const mouvementVente = mouvementsFactureComptoir(facture).find(m => m.type === 'vente')
+  return mouvementVente?.session?.reference || '-'
+}
+
+async function ouvrirPdfFactureComptoir(facture) {
+  try {
+    await ouvrirPDF(`/caisse/factures/${facture.id}/pdf`, `${facture.numero}.pdf`)
+  } catch (e) {
+    toast.error('PDF impossible pour cette facture comptoir')
+  }
+}
+
+async function reimprimerFactureComptoir(facture) {
+  if (!facture?.id) return
+  try {
+    const { data } = await api.get(`/caisse/factures/${facture.id}/ticket`)
+    afficherTicket(data)
+  } catch (e) {
+    toast.error(e.response?.data?.message || 'Réimpression impossible')
+  }
+}
+
 async function ouvrirCaisse() {
   saving.value = true
   try {
@@ -1212,6 +1433,13 @@ function formatPrice(n) {
 
 function formatDateTime(value) {
   return value ? new Date(value).toLocaleString('fr-FR') : '-'
+}
+
+function formatDate(value) {
+  if (!value) return '-'
+  const match = String(value).match(/^(\d{4})-(\d{2})-(\d{2})/)
+  if (match) return `${match[3]}/${match[2]}/${match[1]}`
+  return new Date(value).toLocaleDateString('fr-FR')
 }
 
 function formatTime(value) {

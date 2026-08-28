@@ -455,8 +455,8 @@ const filterChips = computed(() => {
       { kind: 'quick', key: 'en_retard', label: 'En retard', count: stats.en_retard, amount: null, tone: 'red' },
     )
     chips.push(
-      { kind: 'quick', key: 'ca_mois', label: 'CA mois', count: null, amount: stats.ca_mois, tone: 'blue' },
-      { kind: 'quick', key: 'ca_annee', label: 'CA année', count: null, amount: stats.ca_annee, tone: 'green' },
+      { kind: 'quick', key: 'ca_mois', label: 'CA facturation mois', count: null, amount: stats.ca_mois, tone: 'blue' },
+      { kind: 'quick', key: 'ca_annee', label: 'CA facturation année', count: null, amount: stats.ca_annee, tone: 'green' },
     )
   }
 
@@ -561,6 +561,7 @@ async function loadFactures(page = 1) {
         statut: filters.quick ? undefined : filters.statut || undefined,
         type: filters.quick ? undefined : filters.type || undefined,
         quick: filters.quick || undefined,
+        source: 'facturation',
       },
     })
     factures.value = data.data
@@ -577,7 +578,7 @@ async function loadFactures(page = 1) {
 
 async function loadStats() {
   try {
-    const { data } = await api.get('/factures/stats')
+    const { data } = await api.get('/factures/stats', { params: { source: 'facturation' } })
     Object.assign(stats, data)
   } catch (e) {}
 }
@@ -590,6 +591,7 @@ async function exporterCSV() {
       statut: filters.quick ? undefined : filters.statut || undefined,
       type: filters.quick ? undefined : filters.type || undefined,
       quick: filters.quick || undefined,
+      source: 'facturation',
     }, 'factures_xelltekk.csv')
     toast.success('Export téléchargé')
   } catch (e) {
