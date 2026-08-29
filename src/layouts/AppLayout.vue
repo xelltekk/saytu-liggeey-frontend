@@ -618,6 +618,14 @@ const tousLesMenus = [
   },
 
   {
+    to: '/recouvrement',
+    label: 'Recouvrement clients',
+    icon: Receipt,
+    permission: 'recouvrement.view',
+    roles: ['admin', 'gerant', 'commercial', 'comptable']
+  },
+
+  {
     to: '/fournisseurs-reglements',
     label: 'Règlements fournisseurs',
     icon: Truck,
@@ -818,7 +826,7 @@ const menuGroupDefinitions = [
     key: 'comptabilite',
     label: 'Comptabilité',
     icon: BookOpen,
-    items: ['/paiements', '/fournisseurs-reglements', '/compta/ecritures', '/depenses']
+    items: ['/paiements', '/recouvrement', '/fournisseurs-reglements', '/compta/ecritures', '/depenses']
   },
   {
     key: 'rh',

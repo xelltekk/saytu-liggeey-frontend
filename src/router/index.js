@@ -68,6 +68,11 @@ const routes = [
         component: () => import('@/views/PaiementsView.vue'),
       },
       {
+        path: 'recouvrement',
+        name: 'recouvrement',
+        component: () => import('@/views/RecouvrementView.vue'),
+      },
+      {
         path: 'achats',
         name: 'achats',
         component: () => import('@/views/AchatsView.vue'),
@@ -195,6 +200,7 @@ const routeRoles = {
   '/devis': ['admin', 'gerant', 'commercial', 'comptable'],
   '/factures': ['admin', 'gerant', 'commercial', 'comptable'],
   '/paiements': ['admin', 'gerant', 'comptable', 'caissier'],
+  '/recouvrement': ['admin', 'gerant', 'commercial', 'comptable'],
   '/achats': ['admin', 'gerant', 'magasinier', 'comptable'],
   '/leasing': ['admin', 'gerant', 'commercial', 'magasinier', 'comptable'],
   '/fournisseurs-reglements': ['admin', 'gerant', 'comptable'],
@@ -222,6 +228,7 @@ const routePermissions = {
   '/devis': 'devis.view',
   '/factures': 'factures.view',
   '/paiements': 'paiements.view',
+  '/recouvrement': 'recouvrement.view',
   '/achats': 'achats.view',
   '/leasing': 'leasing.view',
   '/fournisseurs-reglements': 'fournisseurs_reglements.view',
