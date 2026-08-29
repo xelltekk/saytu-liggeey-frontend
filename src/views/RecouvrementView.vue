@@ -114,7 +114,7 @@
                 </button>
                 <div class="mt-1 font-bold text-slate-950 dark:text-white">{{ facture.client?.nom || 'Client non renseigné' }}</div>
                 <div class="mt-0.5 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500 dark:text-slate-300">
-                  <a v-if="facture.client?.email" :href="`mailto:${facture.client.email}`" class="hover:underline">{{ facture.client.email }}</a>
+                  <a v-if="facture.client?.email" :href="buildMailtoUrl({ to: facture.client.email })" target="_blank" rel="noopener noreferrer" class="hover:underline">{{ facture.client.email }}</a>
                   <span v-if="facture.client?.telephone">{{ facture.client.telephone }}</span>
                   <span v-if="facture.commercial?.name">Com. {{ facture.commercial.name }}</span>
                 </div>
@@ -324,6 +324,7 @@ import api from '@/services/api'
 import AppModal from '@/components/AppModal.vue'
 import { useCurrency } from '@/composables/useCurrency'
 import { useToast } from '@/composables/useToast'
+import { buildMailtoUrl, closeReservedEmailComposerWindow, openEmailComposer, reserveEmailComposerWindow } from '@/utils/emailComposer'
 
 const router = useRouter()
 const toast = useToast()
@@ -627,7 +628,11 @@ async function saveSuivi() {
 function mailtoHref(facture) {
   const relance = facture?.email_relance || {}
   if (!relance.to) return ''
-  return `mailto:${encodeURIComponent(relance.to)}?subject=${encodeURIComponent(relance.subject || 'Relance facture')}&body=${encodeURIComponent(relance.body || '')}`
+  return buildMailtoUrl({
+    to: relance.to,
+    subject: relance.subject || 'Relance facture',
+    body: relance.body || '',
+  })
 }
 
 async function prepareRelance(facture) {
@@ -643,6 +648,7 @@ async function prepareRelance(facture) {
   }
 
   relanceLoading.value = facture.id
+  const emailWindow = reserveEmailComposerWindow()
   try {
     await api.post(`/recouvrement/factures/${facture.id}/suivis`, {
       statut: 'relance',
@@ -652,8 +658,13 @@ async function prepareRelance(facture) {
     })
     await reloadAll()
     const href = mailtoHref(facture)
-    if (href) window.location.href = href
+    if (href) {
+      openEmailComposer(href, emailWindow)
+    } else {
+      closeReservedEmailComposerWindow(emailWindow)
+    }
   } catch (error) {
+    closeReservedEmailComposerWindow(emailWindow)
     toast.error(error.response?.data?.message || 'Relance impossible.')
   } finally {
     relanceLoading.value = null

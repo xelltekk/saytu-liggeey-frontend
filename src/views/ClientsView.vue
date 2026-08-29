@@ -114,6 +114,8 @@
                   <a
                     v-if="client.email"
                     :href="emailHref(client.email)"
+                    target="_blank"
+                    rel="noopener noreferrer"
                     class="max-w-[240px] truncate font-medium text-xelltekk-700 hover:text-xelltekk-900 hover:underline"
                     @click.stop
                   >
@@ -407,6 +409,7 @@ import { telechargerCSV } from '@/services/exports'
 import { useTableSort } from '@/composables/useTableSort'
 import { useAuthStore } from '@/stores/auth'
 import { useCurrency } from '@/composables/useCurrency'
+import { buildMailtoUrl, closeReservedEmailComposerWindow, openEmailComposer, reserveEmailComposerWindow } from '@/utils/emailComposer'
 
 const toast = useToast()
 const route = useRoute()
@@ -606,7 +609,7 @@ function goToLeasing(item) {
 }
 
 function emailHref(email) {
-  return `mailto:${email}`
+  return buildMailtoUrl({ to: email })
 }
 
 async function loadClientForRelance(client) {
@@ -674,14 +677,16 @@ function buildRelanceEmail(client) {
 }
 
 async function relancerClient(client) {
+  const emailWindow = reserveEmailComposerWindow()
   const fullClient = await loadClientForRelance(client)
   const { subject, body } = buildRelanceEmail(fullClient)
 
   if (fullClient.email) {
-    window.location.href = `mailto:${fullClient.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
+    openEmailComposer(buildMailtoUrl({ to: fullClient.email, subject, body }), emailWindow)
     return
   }
 
+  closeReservedEmailComposerWindow(emailWindow)
   try {
     await navigator.clipboard?.writeText(`${subject}\n\n${body}`)
     toast.success('Email de relance copié, aucun email client renseigné')

@@ -112,7 +112,7 @@
               <td class="px-4 py-3 text-center"><span class="badge" :class="p.statut === 'actif' ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-700'">{{ p.statut }}</span></td>
               <td class="px-4 py-3 text-right">
                 <div class="flex flex-wrap justify-end gap-2">
-                  <a v-if="p.email" :href="relanceEmailHref(p, latestAction(p))" class="text-sm font-medium text-xelltekk-600 hover:text-xelltekk-800">Email</a>
+                  <a v-if="p.email" :href="relanceEmailHref(p, latestAction(p))" target="_blank" rel="noopener noreferrer" class="text-sm font-medium text-xelltekk-600 hover:text-xelltekk-800">Email</a>
                   <button type="button" @click="creerDevis(p)" class="text-sm font-medium text-xelltekk-600 hover:text-xelltekk-800">+ Devis</button>
                   <button @click="openAction(p)" class="text-sm font-medium text-xelltekk-600 hover:text-xelltekk-800">+ Action</button>
                   <button v-if="isAdmin" @click="openAssignProspect(p)" class="text-sm font-medium text-indigo-600 hover:text-indigo-800">Affecter</button>
