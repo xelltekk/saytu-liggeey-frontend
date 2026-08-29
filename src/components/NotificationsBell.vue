@@ -70,7 +70,7 @@
           <div v-if="store.details.demandes_validation.length" class="p-3">
             <div class="flex items-center justify-between mb-2">
               <h4 class="text-xs font-semibold text-blue-700 uppercase">📝 Demandes à valider</h4>
-              <router-link to="/depensesstatut=en_attente" @click="closePanel" class="text-xs text-xelltekk-600 hover:underline">Voir tout →</router-link>
+              <router-link :to="{ path: '/depenses', query: { statut: 'en_attente' } }" @click="closePanel" class="text-xs text-xelltekk-600 hover:underline">Voir tout →</router-link>
             </div>
             <div class="space-y-1">
               <button

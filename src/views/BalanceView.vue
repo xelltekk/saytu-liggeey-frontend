@@ -64,6 +64,9 @@
               {{ parseFloat(c.solde_credit) > 0 ? formatPrice(c.solde_credit) : '–' }}
             </td>
           </tr>
+          <tr v-if="sortedComptes.length === 0">
+            <td colspan="7" class="px-3 py-8 text-center text-gray-400 text-sm">Aucun mouvement comptable pour cette période</td>
+          </tr>
         </tbody>
         <tfoot class="bg-gray-100 font-bold text-gray-900">
           <tr>
@@ -117,7 +120,7 @@ const estEquilibree = computed(() => {
   return Math.abs(parseFloat(data.value.totaux.total_debit) - parseFloat(data.value.totaux.total_credit)) < 0.01
 })
 
-const sortedComptes = computed(() => sortedRows(data.value.comptes || [], {
+const sortedComptes = computed(() => sortedRows(data.value?.comptes || [], {
   numero: 'numero',
   libelle: 'libelle',
   classe: (compte) => Number(compte.classe || 0),
@@ -168,6 +171,8 @@ async function exporterCSV() {
     await telechargerCSV('/exports/balance-comptable', {
       date_from: filters.date_from,
       date_to: filters.date_to,
+      classe: filters.classe || undefined,
+      inclure_vides: filters.inclure_vides ? 1 : 0,
     }, 'balance_comptable.csv')
     toast.success('Export téléchargé')
   } catch (e) {

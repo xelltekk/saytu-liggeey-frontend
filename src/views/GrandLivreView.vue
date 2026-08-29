@@ -154,7 +154,7 @@ const comptesGroupes = computed(() => {
   return Object.keys(groupes).sort().map(k => ({ classe: k, comptes: groupes[k] }))
 })
 
-const sortedLignes = computed(() => sortedRows(data.value.lignes || [], {
+const sortedLignes = computed(() => sortedRows(data.value?.lignes || [], {
   date: 'date_ecriture',
   journal: 'journal_code',
   numero: 'numero',
@@ -182,7 +182,7 @@ const pageMeta = computed(() => {
 
 async function loadComptes() {
   const { data: list } = await api.get('/compta/comptes')
-  comptes.value = list
+  comptes.value = Array.isArray(list) ? list : (list?.data || [])
 }
 
 async function charger() {

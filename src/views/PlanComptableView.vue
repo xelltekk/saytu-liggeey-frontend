@@ -66,7 +66,7 @@
               <span v-else class="text-gray-300">–</span>
             </td>
             <td class="px-4 py-3 text-right">
-              <router-link :to="`/compta/grand-livrecompte_id=${c.id}`" class="text-xelltekk-600 hover:text-xelltekk-800 text-xs font-medium">
+              <router-link :to="{ path: '/compta/grand-livre', query: { compte_id: c.id } }" class="text-xelltekk-600 hover:text-xelltekk-800 text-xs font-medium">
                 Grand livre →
               </router-link>
             </td>
