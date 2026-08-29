@@ -61,7 +61,7 @@
               <SortableTh column="mode" :active="sort.key === 'mode'" :icon="sortIcon('mode')" align="center" @sort="toggleSort">Mode</SortableTh>
               <SortableTh column="statut" :active="sort.key === 'statut'" :icon="sortIcon('statut')" align="center" @sort="toggleSort">Statut</SortableTh>
               <SortableTh column="factures" :active="sort.key === 'factures'" :icon="sortIcon('factures')" @sort="toggleSort">Factures</SortableTh>
-              <th v-if="!isCaissier" class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Actions</th>
+              <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Actions</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-100">
@@ -92,12 +92,22 @@
                 </div>
                 <span v-else class="text-gray-400">–</span>
               </td>
-              <td v-if="!isCaissier" class="px-4 py-3 text-right">
-                <button @click="confirmDelete(p)" class="text-red-600 hover:text-red-800" title="Supprimer">🗑️</button>
+              <td class="px-4 py-3 text-right">
+                <div class="flex items-center justify-end gap-2">
+                  <button
+                    @click="downloadReceipt(p)"
+                    :disabled="receiptLoading === p.id"
+                    class="text-xs font-semibold text-blue-700 hover:text-blue-900 disabled:opacity-50"
+                    title="Télécharger le reçu de paiement"
+                  >
+                    {{ receiptLoading === p.id ? '...' : '🧾 Reçu' }}
+                  </button>
+                  <button v-if="!isCaissier" @click="confirmDelete(p)" class="text-red-600 hover:text-red-800" title="Supprimer">🗑️</button>
+                </div>
               </td>
             </tr>
             <tr v-if="paiements.length === 0">
-              <td :colspan="isCaissier ? 9 : 10" class="px-4 py-12 text-center text-gray-400 text-sm">Aucun paiement</td>
+              <td colspan="10" class="px-4 py-12 text-center text-gray-400 text-sm">Aucun paiement</td>
             </tr>
           </tbody>
         </table>
@@ -139,6 +149,7 @@ import PaiementForm from '@/components/PaiementForm.vue'
 import SortableTh from '@/components/SortableTh.vue'
 import { useToast } from '@/composables/useToast'
 import { telechargerCSV } from '@/services/exports'
+import { ouvrirPDF } from '@/services/pdf'
 import { useAuthStore } from '@/stores/auth'
 import { useTableSort } from '@/composables/useTableSort'
 
@@ -159,6 +170,7 @@ const showModal = ref(false)
 const showDeleteModal = ref(false)
 const paiementToDelete = ref(null)
 const deleting = ref(false)
+const receiptLoading = ref(null)
 
 const sortedPaiements = computed(() => sortedRows(paiements.value, {
   reference: 'reference',
@@ -249,6 +261,18 @@ async function exporterCSV() {
 function openCreate() { showModal.value = true }
 function onSaved() { showModal.value = false; loadPaiements(meta.current_page); loadStats() }
 function confirmDelete(p) { paiementToDelete.value = p; showDeleteModal.value = true }
+
+async function downloadReceipt(p) {
+  receiptLoading.value = p.id
+  try {
+    await ouvrirPDF(`/paiements/${p.id}/recu`, `${p.reference}.pdf`)
+    toast.success('Reçu téléchargé')
+  } catch (err) {
+    toast.error('Impossible de télécharger le reçu')
+  } finally {
+    receiptLoading.value = null
+  }
+}
 
 async function handleDelete() {
   deleting.value = true
