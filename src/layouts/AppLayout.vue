@@ -682,6 +682,14 @@ const tousLesMenus = [
   },
 
   {
+    to: '/securite',
+    label: 'Sécurité & sauvegarde',
+    icon: ShieldCheck,
+    permission: 'access_control.view',
+    roles: ['admin']
+  },
+
+  {
     to: '/parametres',
     label: 'Paramètres',
     icon: Settings,
@@ -838,7 +846,7 @@ const menuGroupDefinitions = [
     key: 'administration',
     label: 'Administration',
     icon: Settings,
-    items: ['/leasing', '/utilisateurs', '/roles-permissions', '/parametres', '/activites']
+    items: ['/leasing', '/utilisateurs', '/roles-permissions', '/securite', '/parametres', '/activites']
   },
 ]
 

@@ -152,6 +152,11 @@ const routes = [
         component: () => import('@/views/RolesPermissionsView.vue'),
       },
       {
+        path: 'securite',
+        name: 'securite',
+        component: () => import('@/views/SecuriteView.vue'),
+      },
+      {
         path: 'activites',
         name: 'activites',
         component: () => import('@/views/ActivitesView.vue'),
@@ -210,6 +215,7 @@ const routeRoles = {
   '/compta': ['admin', 'gerant', 'comptable'],
   '/utilisateurs': ['admin'],
   '/roles-permissions': ['admin'],
+  '/securite': ['admin'],
   '/activites': ['admin', 'gerant'],
   '/notifications': ['admin', 'gerant', 'commercial', 'magasinier', 'comptable', 'caissier'],
   '/rh': ['admin', 'gerant', 'commercial', 'magasinier', 'comptable'],
@@ -238,6 +244,7 @@ const routePermissions = {
   '/compta': 'comptabilite.view',
   '/utilisateurs': 'utilisateurs.view',
   '/roles-permissions': 'access_control.view',
+  '/securite': 'access_control.view',
   '/activites': 'activites.view',
   '/notifications': 'notifications.view',
   '/rh': 'rh.view',

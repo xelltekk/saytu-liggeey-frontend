@@ -10,6 +10,7 @@ export const useNotificationsStore = defineStore('notifications', {
       demandes_validation: 0,
       rh_alertes: 0,
       achats: 0,
+      alertes_intelligentes: 0,
     },
     details: null,
     loading: false,
@@ -53,6 +54,7 @@ export const useNotificationsStore = defineStore('notifications', {
       state.badges.stock_alerte +
       state.badges.demandes_validation +
       state.badges.rh_alertes +
-      state.badges.achats,
+      state.badges.achats +
+      state.badges.alertes_intelligentes,
   },
 })

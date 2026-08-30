@@ -130,6 +130,35 @@
             </div>
           </div>
 
+          <!-- Alertes intelligentes -->
+          <div v-if="store.details.alertes_intelligentes?.length" class="p-3">
+            <div class="flex items-center justify-between mb-2">
+              <h4 class="text-xs font-semibold text-cyan-700 uppercase">Alertes intelligentes</h4>
+              <router-link :to="{ path: '/notifications', query: { module: 'alertes' } }" @click="closePanel" class="text-xs text-xelltekk-600 hover:underline">Centre →</router-link>
+            </div>
+            <div class="space-y-1">
+              <button
+                v-for="alerte in store.details.alertes_intelligentes"
+                :key="alerte.key"
+                type="button"
+                @click="ouvrirNotificationGenerique(alerte)"
+                class="block w-full text-left p-2 rounded hover:bg-cyan-50 transition-colors cursor-pointer"
+              >
+                <div class="flex items-start justify-between gap-2">
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2">
+                      <span class="text-xs font-semibold text-cyan-700">{{ alerte.label }}</span>
+                      <span class="text-[10px] uppercase font-bold text-gray-400">{{ alerte.level || 'info' }}</span>
+                    </div>
+                    <div class="text-sm font-medium text-gray-900 truncate">{{ alerte.title }}</div>
+                    <div class="text-xs text-gray-500 truncate">{{ alerte.message }}</div>
+                  </div>
+                  <span class="text-[10px] text-gray-500">{{ formatDateTime(alerte.date) }}</span>
+                </div>
+              </button>
+            </div>
+          </div>
+
           <!-- Factures en retard -->
           <div v-if="store.details.factures_retard.length" class="p-3">
             <div class="flex items-center justify-between mb-2">
@@ -299,6 +328,16 @@ async function ouvrirAchatNotification(alerte) {
   }
   closePanel()
   await router.push(destination)
+  await store.markRead(key)
+}
+
+async function ouvrirNotificationGenerique(alerte) {
+  const key = alerte.key
+  closePanel()
+  await router.push({
+    path: alerte.route || '/notifications',
+    query: alerte.query || {},
+  })
   await store.markRead(key)
 }
 

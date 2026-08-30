@@ -257,6 +257,7 @@
               <button type="button" class="quick-client-btn" @click="creerRdv(client360)">+ Rendez-vous</button>
               <button type="button" class="quick-client-btn" @click="creerIntervention(client360)">+ Intervention</button>
               <button type="button" class="quick-client-btn" @click="relancerClient(client360)">Relancer</button>
+              <button type="button" class="quick-client-btn" @click="ouvrirSituationClientPdf(client360)">Situation PDF</button>
             </div>
           </div>
         </section>
@@ -281,6 +282,52 @@
             <div class="client360-label">Crédit disponible</div>
             <div class="client360-value text-blue-700">{{ formatPrice(summary(client360).credit_disponible) }}</div>
             <div class="client360-help">Plafond : {{ formatPrice(summary(client360).plafond_credit) }}</div>
+          </div>
+        </section>
+
+        <section class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h3 class="font-bold text-slate-900">Situation client</h3>
+              <p class="text-xs text-slate-500">Résumé prêt à transmettre au client avec les factures ouvertes et les derniers règlements.</p>
+            </div>
+            <button type="button" class="btn-secondary px-3 py-1.5 text-sm" @click="ouvrirSituationClientPdf(client360)">
+              Télécharger la situation PDF
+            </button>
+          </div>
+          <div class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-4">
+            <div class="client360-mini-stat">
+              <span>Total facturé</span>
+              <strong>{{ formatPrice(situation(client360).total_facture) }}</strong>
+            </div>
+            <div class="client360-mini-stat">
+              <span>Total payé</span>
+              <strong class="text-emerald-700">{{ formatPrice(situation(client360).total_paye) }}</strong>
+            </div>
+            <div class="client360-mini-stat">
+              <span>Reste dû</span>
+              <strong class="text-amber-700">{{ formatPrice(situation(client360).reste_du) }}</strong>
+            </div>
+            <div class="client360-mini-stat">
+              <span>Partielles</span>
+              <strong class="text-blue-700">{{ situation(client360).factures_partielles_count || 0 }}</strong>
+            </div>
+          </div>
+          <div v-if="situation(client360).factures_partiellement_payees?.length" class="mt-4 overflow-hidden rounded-xl border border-slate-100">
+            <div class="bg-slate-50 px-3 py-2 text-xs font-bold uppercase text-slate-500">Factures partiellement payées</div>
+            <div class="divide-y divide-slate-100">
+              <button
+                v-for="facture in situation(client360).factures_partiellement_payees"
+                :key="facture.id"
+                type="button"
+                class="grid w-full grid-cols-1 gap-1 px-3 py-2 text-left text-sm hover:bg-slate-50 sm:grid-cols-[1fr_auto_auto]"
+                @click="goToDocument('/factures', facture.id)"
+              >
+                <span class="font-mono font-bold text-xelltekk-700">{{ facture.numero }}</span>
+                <span class="text-slate-500">Payé {{ formatPrice(facture.montant_paye) }}</span>
+                <span class="font-semibold text-amber-700">Reste {{ formatPrice(facture.reste_a_payer) }}</span>
+              </button>
+            </div>
           </div>
         </section>
 
@@ -409,6 +456,7 @@ import { telechargerCSV } from '@/services/exports'
 import { useTableSort } from '@/composables/useTableSort'
 import { useAuthStore } from '@/stores/auth'
 import { useCurrency } from '@/composables/useCurrency'
+import { ouvrirPDF } from '@/services/pdf'
 import { buildMailtoUrl, closeReservedEmailComposerWindow, openEmailComposer, reserveEmailComposerWindow } from '@/utils/emailComposer'
 
 const toast = useToast()
@@ -558,6 +606,10 @@ function summary(client) {
   return client?.resume_commercial || {}
 }
 
+function situation(client) {
+  return client?.situation_financiere || {}
+}
+
 function creerDevis(client) {
   router.push({ path: '/devis', query: { create_client: client.id } })
 }
@@ -606,6 +658,15 @@ function goToLeasing(item) {
       ? { tab: 'interventions', search: item.reference }
       : { tab: 'contrats', search: item.reference },
   })
+}
+
+async function ouvrirSituationClientPdf(client) {
+  if (!client?.id) return
+  try {
+    await ouvrirPDF(`/clients/${client.id}/situation-pdf`, `situation-client-${client.code || client.id}.pdf`)
+  } catch (e) {
+    toast.error('Situation client PDF indisponible pour le moment.')
+  }
 }
 
 function emailHref(email) {
@@ -922,5 +983,30 @@ watch(() => route.query.open, (id) => {
   margin-top: 0.25rem;
   color: color-mix(in srgb, var(--saytu-topbar-subtitle, #64748b) 82%, var(--saytu-primary, #2563eb));
   font-size: 0.75rem;
+}
+
+.client360-mini-stat {
+  border: 1px solid color-mix(in srgb, var(--saytu-border, #e2e8f0) 78%, var(--saytu-primary, #2563eb) 22%);
+  border-radius: 0.875rem;
+  background: color-mix(in srgb, var(--saytu-surface, #ffffff) 94%, var(--saytu-primary, #2563eb) 6%);
+  padding: 0.75rem;
+}
+
+.client360-mini-stat span {
+  display: block;
+  color: color-mix(in srgb, var(--saytu-topbar-subtitle, #64748b) 84%, var(--saytu-primary, #2563eb));
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.client360-mini-stat strong {
+  display: block;
+  margin-top: 0.35rem;
+  color: var(--saytu-shell-text, #0f172a);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 1.1rem;
+  font-weight: 950;
 }
 </style>

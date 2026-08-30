@@ -108,6 +108,7 @@
               </td>
               <td class="px-4 py-3 text-right">
                 <div class="flex justify-end gap-2">
+                  <button v-if="compte.is_active" @click="openRapprochement(compte)" class="text-sm text-cyan-700 hover:text-cyan-900">Rapprocher</button>
                   <button @click="openEdit(compte)" class="text-sm text-blue-700 hover:text-blue-900">Modifier</button>
                   <button v-if="!compte.is_default && compte.is_active" @click="setDefault(compte)" class="text-sm text-green-700 hover:text-green-900">Défaut</button>
                   <button v-if="compte.is_active" @click="desactiver(compte)" class="text-sm text-red-600 hover:text-red-800">Désactiver</button>
@@ -122,6 +123,64 @@
       </div>
       <AppPagination v-if="meta.total > 0" :meta="meta" label="comptes" @page="loadComptes" />
     </div>
+
+    <section class="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <div class="flex flex-col gap-2 border-b border-gray-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 class="font-black text-slate-900 dark:text-white">Rapprochements récents</h2>
+          <p class="text-xs text-slate-500 dark:text-slate-400">Solde théorique, solde réel, écart et validation par la direction.</p>
+        </div>
+        <button type="button" class="btn-secondary px-3 py-1.5 text-sm" @click="loadRapprochements">Actualiser</button>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full">
+          <thead class="bg-gray-50 text-xs uppercase text-gray-500">
+            <tr>
+              <th class="px-4 py-3 text-left">Date</th>
+              <th class="px-4 py-3 text-left">Compte</th>
+              <th class="px-4 py-3 text-right">Théorique</th>
+              <th class="px-4 py-3 text-right">Réel</th>
+              <th class="px-4 py-3 text-right">Écart</th>
+              <th class="px-4 py-3 text-left">Justification</th>
+              <th class="px-4 py-3 text-center">Statut</th>
+              <th class="px-4 py-3 text-right">Action</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-100">
+            <tr v-for="item in rapprochements" :key="item.id" class="text-sm hover:bg-gray-50">
+              <td class="px-4 py-3 text-slate-600">{{ formatDate(item.date_rapprochement) }}</td>
+              <td class="px-4 py-3">
+                <div class="font-semibold text-slate-900">{{ item.compte?.libelle || '-' }}</div>
+                <div class="font-mono text-xs text-slate-500">{{ item.compte?.code || '-' }}</div>
+              </td>
+              <td class="px-4 py-3 text-right font-mono">{{ formatPrice(item.solde_theorique) }}</td>
+              <td class="px-4 py-3 text-right font-mono">{{ formatPrice(item.solde_reel) }}</td>
+              <td class="px-4 py-3 text-right font-mono font-bold" :class="Number(item.ecart || 0) === 0 ? 'text-slate-600' : Number(item.ecart || 0) > 0 ? 'text-emerald-700' : 'text-red-700'">
+                {{ formatPrice(item.ecart) }}
+              </td>
+              <td class="max-w-[260px] truncate px-4 py-3 text-slate-500">{{ item.justification || 'RAS' }}</td>
+              <td class="px-4 py-3 text-center">
+                <span class="badge text-xs" :class="item.statut === 'valide' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'">
+                  {{ item.statut === 'valide' ? 'Validé' : 'À valider' }}
+                </span>
+              </td>
+              <td class="px-4 py-3 text-right">
+                <button v-if="item.statut !== 'valide'" type="button" class="text-sm font-semibold text-emerald-700 hover:text-emerald-900" @click="validerRapprochement(item)">
+                  Valider
+                </button>
+                <span v-else class="text-xs text-slate-400">{{ item.validator?.name || 'Validé' }}</span>
+              </td>
+            </tr>
+            <tr v-if="!rapprochementsLoading && rapprochements.length === 0">
+              <td colspan="8" class="px-4 py-10 text-center text-sm text-gray-400">Aucun rapprochement pour le moment.</td>
+            </tr>
+            <tr v-if="rapprochementsLoading">
+              <td colspan="8" class="px-4 py-10 text-center text-sm text-gray-400">Chargement des rapprochements...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
 
     <AppModal v-model="showModal" :title="editing ? 'Modifier compte de trésorerie' : 'Nouveau compte de trésorerie'" size="lg">
       <form class="space-y-4" @submit.prevent="saveCompte">
@@ -206,6 +265,44 @@
         </div>
       </form>
     </AppModal>
+
+    <AppModal v-model="showRapprochementModal" :title="rapprochementCompte ? `Rapprocher : ${rapprochementCompte.libelle}` : 'Rapprochement'" size="md">
+      <form class="space-y-4" @submit.prevent="saveRapprochement">
+        <div class="rounded-2xl border border-cyan-100 bg-cyan-50 p-3 text-sm text-cyan-900">
+          <div class="flex justify-between gap-3">
+            <span>Solde théorique</span>
+            <strong class="font-mono">{{ formatPrice(rapprochementCompte?.solde_actuel) }}</strong>
+          </div>
+          <div class="mt-2 flex justify-between gap-3">
+            <span>Écart prévu</span>
+            <strong class="font-mono" :class="rapprochementEcart === 0 ? 'text-slate-700' : rapprochementEcart > 0 ? 'text-emerald-700' : 'text-red-700'">
+              {{ formatPrice(rapprochementEcart) }}
+            </strong>
+          </div>
+        </div>
+
+        <div class="grid gap-4 md:grid-cols-2">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Date de contrôle</label>
+            <input v-model="rapprochementForm.date_rapprochement" type="date" class="input" required />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Solde réel compté</label>
+            <input v-model.number="rapprochementForm.solde_reel" type="number" step="0.01" class="input" required />
+          </div>
+          <div class="md:col-span-2">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Justification de l’écart</label>
+            <textarea v-model="rapprochementForm.justification" class="input min-h-24" placeholder="Obligatoire s’il y a un écart."></textarea>
+            <p v-if="errors.justification" class="mt-1 text-xs text-red-600">{{ errors.justification }}</p>
+          </div>
+        </div>
+
+        <div class="flex justify-end gap-2 border-t pt-4">
+          <button type="button" class="btn-secondary" @click="showRapprochementModal = false">Annuler</button>
+          <button type="submit" class="btn-primary" :disabled="rapprochementSaving">{{ rapprochementSaving ? 'Enregistrement...' : 'Enregistrer le contrôle' }}</button>
+        </div>
+      </form>
+    </AppModal>
   </div>
 </template>
 
@@ -227,9 +324,15 @@ const meta = reactive({ current_page: 1, last_page: 1, total: 0, from: 0, to: 0 
 const errors = reactive({})
 const loading = ref(false)
 const saving = ref(false)
+const rapprochementsLoading = ref(false)
+const rapprochementSaving = ref(false)
 const showModal = ref(false)
+const showRapprochementModal = ref(false)
 const editing = ref(null)
+const rapprochementCompte = ref(null)
+const rapprochements = ref([])
 const form = reactive(defaultForm())
+const rapprochementForm = reactive(defaultRapprochementForm())
 const { sort, toggleSort, sortIcon, sortedRows } = useTableSort('created_at', 'desc')
 
 const overviewCards = computed(() => [
@@ -280,6 +383,10 @@ const sortedComptes = computed(() => sortedRows(comptes.value, {
   statut: (row) => row.is_active ? 1 : 0,
 }))
 
+const rapprochementEcart = computed(() => {
+  return Number(rapprochementForm.solde_reel || 0) - Number(rapprochementCompte.value?.solde_actuel || 0)
+})
+
 let searchTimeout = null
 function onSearchInput() {
   clearTimeout(searchTimeout)
@@ -303,6 +410,14 @@ function defaultForm() {
     is_default: false,
     is_active: true,
     notes: '',
+  }
+}
+
+function defaultRapprochementForm() {
+  return {
+    date_rapprochement: new Date().toISOString().slice(0, 10),
+    solde_reel: 0,
+    justification: '',
   }
 }
 
@@ -392,7 +507,7 @@ async function saveCompte() {
       toast.success('Compte créé')
     }
     showModal.value = false
-    loadComptes(meta.current_page)
+    await loadComptes(meta.current_page)
     loadStats()
   } catch (err) {
     const data = err.response.data
@@ -402,6 +517,59 @@ async function saveCompte() {
     toast.error(data.message || "Erreur lors de l'enregistrement")
   } finally {
     saving.value = false
+  }
+}
+
+function openRapprochement(compte) {
+  Object.keys(errors).forEach((key) => delete errors[key])
+  rapprochementCompte.value = compte
+  Object.assign(rapprochementForm, defaultRapprochementForm(), {
+    solde_reel: Number(compte.solde_actuel || compte.solde_initial || 0),
+  })
+  showRapprochementModal.value = true
+}
+
+async function loadRapprochements() {
+  rapprochementsLoading.value = true
+  try {
+    const { data } = await api.get('/tresorerie-comptes/rapprochements', {
+      params: { per_page: 12 },
+    })
+    rapprochements.value = data.data || []
+  } catch (e) {
+    toast.error('Erreur de chargement des rapprochements')
+  } finally {
+    rapprochementsLoading.value = false
+  }
+}
+
+async function saveRapprochement() {
+  if (!rapprochementCompte.value) return
+  rapprochementSaving.value = true
+  Object.keys(errors).forEach((key) => delete errors[key])
+  try {
+    await api.post(`/tresorerie-comptes/${rapprochementCompte.value.id}/rapprochements`, { ...rapprochementForm })
+    toast.success('Rapprochement enregistré')
+    showRapprochementModal.value = false
+    await Promise.all([loadRapprochements(), loadComptes(meta.current_page), loadStats()])
+  } catch (err) {
+    const data = err.response?.data || {}
+    if (data.errors) {
+      Object.entries(data.errors).forEach(([key, value]) => { errors[key] = Array.isArray(value) ? value[0] : value })
+    }
+    toast.error(data.message || 'Rapprochement impossible')
+  } finally {
+    rapprochementSaving.value = false
+  }
+}
+
+async function validerRapprochement(item) {
+  try {
+    await api.post(`/tresorerie-comptes/rapprochements/${item.id}/valider`)
+    toast.success('Rapprochement validé')
+    await loadRapprochements()
+  } catch (e) {
+    toast.error('Validation impossible')
   }
 }
 
@@ -442,6 +610,12 @@ function syncModeFromType() {
 
 function typeLabel(type) { return types.value[type] || type || '-' }
 function formatPrice(n) { return new Intl.NumberFormat('fr-FR').format(Math.round(n || 0))  }
+function formatDate(value) {
+  if (!value) return '-'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '-'
+  return date.toLocaleDateString('fr-FR')
+}
 function typeBadge(type) {
   return {
     banque: 'bg-blue-100 text-blue-800',
@@ -458,6 +632,7 @@ onMounted(() => {
   loadTypes()
   loadComptes()
   loadStats()
+  loadRapprochements()
 })
 </script>
 

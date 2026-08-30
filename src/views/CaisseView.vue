@@ -17,7 +17,46 @@
       Chargement...
     </div>
 
-    <div v-else-if="isAdmin && !session" class="space-y-5">
+    <section
+      v-if="!loading && (statsVentesParMode.length || statsVentesParVendeur.length || Number(stats.remboursements_jour || 0) || Number(stats.tickets_annules_jour || 0))"
+      class="grid grid-cols-1 gap-3 lg:grid-cols-3"
+    >
+      <article class="rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-surface,#ffffff)] p-3 shadow-sm">
+        <h3 class="text-xs font-black uppercase tracking-wide text-[color:var(--saytu-primary,#2563eb)]">Ventes par paiement</h3>
+        <div class="mt-2 space-y-1">
+          <div v-for="item in statsVentesParMode" :key="item.mode" class="flex items-center justify-between text-sm">
+            <span class="text-[color:var(--saytu-topbar-subtitle,#64748b)]">{{ modePaiementLabel(item.mode) }}</span>
+            <strong class="font-mono text-[color:var(--saytu-shell-text,#0f172a)]">{{ formatPrice(item.total) }}</strong>
+          </div>
+          <p v-if="statsVentesParMode.length === 0" class="text-xs text-slate-400">Aucune vente aujourd’hui.</p>
+        </div>
+      </article>
+      <article class="rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-surface,#ffffff)] p-3 shadow-sm">
+        <h3 class="text-xs font-black uppercase tracking-wide text-[color:var(--saytu-primary,#2563eb)]">Ventes par vendeur</h3>
+        <div class="mt-2 space-y-1">
+          <div v-for="item in statsVentesParVendeur" :key="item.user_id || item.vendeur" class="flex items-center justify-between text-sm">
+            <span class="truncate text-[color:var(--saytu-topbar-subtitle,#64748b)]">{{ item.vendeur }}</span>
+            <strong class="font-mono text-[color:var(--saytu-shell-text,#0f172a)]">{{ formatPrice(item.total) }}</strong>
+          </div>
+          <p v-if="statsVentesParVendeur.length === 0" class="text-xs text-slate-400">Aucun vendeur actif.</p>
+        </div>
+      </article>
+      <article class="rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-surface,#ffffff)] p-3 shadow-sm">
+        <h3 class="text-xs font-black uppercase tracking-wide text-[color:var(--saytu-primary,#2563eb)]">Contrôles du jour</h3>
+        <div class="mt-2 grid grid-cols-2 gap-2 text-sm">
+          <div class="rounded-xl bg-[color:var(--saytu-soft,#f8fafc)] p-2">
+            <span class="block text-xs text-[color:var(--saytu-topbar-subtitle,#64748b)]">Remboursements</span>
+            <strong class="font-mono text-red-700">{{ formatPrice(stats.remboursements_jour) }}</strong>
+          </div>
+          <div class="rounded-xl bg-[color:var(--saytu-soft,#f8fafc)] p-2">
+            <span class="block text-xs text-[color:var(--saytu-topbar-subtitle,#64748b)]">Tickets annulés</span>
+            <strong class="font-mono text-amber-700">{{ stats.tickets_annules_jour || 0 }}</strong>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <div v-if="!loading && isAdmin && !session" class="space-y-5">
       <section class="caisse-tabs-wrap">
         <div class="caisse-tabs">
           <button
@@ -78,6 +117,14 @@
                 </span>
                 <p class="font-mono font-bold text-slate-900">{{ formatPrice(s.solde_fermeture_theorique) }}</p>
                 <p class="text-xs text-slate-500">{{ s.mouvements_count || 0 }} mouvement(s)</p>
+                <button
+                  v-if="s.statut === 'fermee'"
+                  type="button"
+                  class="mt-2 text-xs font-semibold text-[color:var(--saytu-primary,#2563eb)] hover:underline"
+                  @click.stop="ouvrirCloturePdf(s)"
+                >
+                  PDF clôture
+                </button>
               </div>
             </div>
           </button>
@@ -208,7 +255,7 @@
       </div>
     </div>
 
-    <div v-else-if="!session" class="rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-surface,#ffffff)] p-4">
+    <div v-else-if="!loading && !session" class="rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-surface,#ffffff)] p-4">
       <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h3 class="text-lg font-black text-[color:var(--saytu-shell-text,#0f172a)]">Ouvrir une caisse</h3>
@@ -487,6 +534,7 @@
             <button class="btn-secondary px-3 py-1.5 text-sm" :disabled="exportLoading" @click="exporterMouvementsCSV(session.id)">
               {{ exportLoading ? 'Export...' : 'Exporter' }}
             </button>
+            <button type="button" class="btn-secondary px-3 py-1.5 text-sm" @click="ouvrirCloturePdf(session)">PDF clôture</button>
             <button type="button" class="btn-secondary px-3 py-1.5 text-sm" @click="loadMouvements">Actualiser</button>
           </div>
         </div>
@@ -755,7 +803,16 @@ const panier = ref([])
 const productSearch = ref('')
 const showTicketPreview = ref(false)
 const ticketPreview = ref(null)
-const stats = reactive({ sessions_ouvertes: 0, entrees_jour: 0, sorties_jour: 0, solde_net_jour: 0 })
+const stats = reactive({
+  sessions_ouvertes: 0,
+  entrees_jour: 0,
+  sorties_jour: 0,
+  solde_net_jour: 0,
+  ventes_par_mode: [],
+  ventes_par_vendeur: [],
+  remboursements_jour: 0,
+  tickets_annules_jour: 0,
+})
 const activeCaisseTab = ref('vente')
 const facturesComptoir = ref([])
 const facturesComptoirLoading = ref(false)
@@ -788,6 +845,8 @@ const isTouchPos = computed(() => auth.user?.role === 'caissier')
 const sessionsActivesCount = computed(() => sessionsOuvertes.value.filter(s => s.statut === 'ouverte').length)
 const facturesComptoirTotal = computed(() => Number(facturesComptoirMeta.total || facturesComptoir.value.length || 0))
 const showFacturesComptoirPanel = computed(() => activeCaisseTab.value === 'factures-comptoir' && (Boolean(session.value) || isAdmin.value))
+const statsVentesParMode = computed(() => Array.isArray(stats.ventes_par_mode) ? stats.ventes_par_mode.slice(0, 6) : [])
+const statsVentesParVendeur = computed(() => Array.isArray(stats.ventes_par_vendeur) ? stats.ventes_par_vendeur.slice(0, 6) : [])
 const summaryItems = computed(() => [
   { key: 'sessions', label: 'Ouvertes', value: stats.sessions_ouvertes || 0, class: 'text-[color:var(--saytu-primary,#2563eb)]' },
   { key: 'entrees', label: 'Entrées', value: formatPrice(stats.entrees_jour), class: 'text-emerald-700' },
@@ -1366,6 +1425,17 @@ async function ouvrirPdfFactureComptoir(facture) {
     await ouvrirPDF(`/caisse/factures/${facture.id}/pdf`, `${facture.numero}.pdf`)
   } catch (e) {
     toast.error('PDF impossible pour cette facture comptoir')
+  }
+}
+
+async function ouvrirCloturePdf(caisseSession) {
+  if (!caisseSession?.id) return
+
+  try {
+    const reference = caisseSession.reference || `cloture-caisse-${caisseSession.id}`
+    await ouvrirPDF(`/caisse/sessions/${caisseSession.id}/cloture-pdf`, `${reference}.pdf`)
+  } catch (e) {
+    toast.error(e.response?.data?.message || 'PDF de clôture impossible')
   }
 }
 

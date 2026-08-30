@@ -111,7 +111,7 @@ async function openNotification(item) {
 
 function moduleLabel(value) { return modules.value.find(module => module.id === value)?.label || value || 'General' }
 function formatDate(value) { return value ? new Date(value.replace(' ', 'T')).toLocaleString('fr-FR') : '-' }
-function moduleClass(value) { return { achats: 'bg-violet-100 text-violet-800', rh: 'bg-emerald-100 text-emerald-800', stock: 'bg-orange-100 text-orange-800', ventes: 'bg-blue-100 text-blue-800', validation: 'bg-purple-100 text-purple-800' }[value] || 'bg-slate-100 text-slate-700' }
+function moduleClass(value) { return { achats: 'bg-violet-100 text-violet-800', alertes: 'bg-cyan-100 text-cyan-800', rh: 'bg-emerald-100 text-emerald-800', stock: 'bg-orange-100 text-orange-800', ventes: 'bg-blue-100 text-blue-800', validation: 'bg-purple-100 text-purple-800' }[value] || 'bg-slate-100 text-slate-700' }
 function levelClass(value) { return { danger: 'bg-red-100 text-red-800', warning: 'bg-orange-100 text-orange-800', info: 'bg-blue-100 text-blue-800' }[value] || 'bg-slate-100 text-slate-700' }
 function statCardClass(statut) { return filters.statut === statut ? 'border-blue-400 ring-2 ring-blue-100' : 'border-slate-200' }
 
