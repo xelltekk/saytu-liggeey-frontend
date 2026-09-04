@@ -152,6 +152,11 @@ const routes = [
         component: () => import('@/views/RolesPermissionsView.vue'),
       },
       {
+        path: 'licence',
+        name: 'licence',
+        component: () => import('@/views/LicenceView.vue'),
+      },
+      {
         path: 'securite',
         name: 'securite',
         component: () => import('@/views/SecuriteView.vue'),
@@ -215,6 +220,7 @@ const routeRoles = {
   '/compta': ['admin', 'gerant', 'comptable'],
   '/utilisateurs': ['admin'],
   '/roles-permissions': ['admin'],
+  '/licence': ['admin'],
   '/securite': ['admin'],
   '/activites': ['admin', 'gerant'],
   '/notifications': ['admin', 'gerant', 'commercial', 'magasinier', 'comptable', 'caissier'],
@@ -244,6 +250,7 @@ const routePermissions = {
   '/compta': 'comptabilite.view',
   '/utilisateurs': 'utilisateurs.view',
   '/roles-permissions': 'access_control.view',
+  '/licence': 'licence.view',
   '/securite': 'access_control.view',
   '/activites': 'activites.view',
   '/notifications': 'notifications.view',
@@ -255,6 +262,19 @@ function hasPermission(user, permission) {
   if (!permission) return false
   if (user?.role === 'admin') return true
   return Array.isArray(user?.permissions?.flat) && user.permissions.flat.includes(permission)
+}
+
+function licenceAllowsRoute(user, permission) {
+  if (!permission || permission === 'licence.view') return true
+
+  const licence = user?.licence
+  const modules = licence?.modules_autorises
+
+  if (!licence?.configured || !Array.isArray(modules) || modules.length === 0) {
+    return true
+  }
+
+  return modules.includes(permission.split('.')[0])
 }
 
 router.beforeEach(async (to, from, next) => {
@@ -300,6 +320,14 @@ router.beforeEach(async (to, from, next) => {
         if (to.name !== 'dashboard') {
           return next({ name: role === 'caissier' ? 'caisse' : 'dashboard' })
         }
+      }
+
+      if (auth.user?.licence?.configured && auth.user.licence.is_blocking && to.name !== 'licence') {
+        return next({ name: role === 'admin' ? 'licence' : 'dashboard' })
+      }
+
+      if (!licenceAllowsRoute(auth.user, routePermissions[prefix])) {
+        return next({ name: role === 'admin' ? 'licence' : 'dashboard' })
       }
     }
   }

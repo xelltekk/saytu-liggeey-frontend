@@ -43,6 +43,13 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    if (error.response?.status === 402 && error.response?.data?.licence) {
+      localStorage.setItem('xelltekk_licence_alert', JSON.stringify(error.response.data.licence))
+      window.dispatchEvent(new CustomEvent('xelltekk:licence-blocked', {
+        detail: error.response.data,
+      }))
+    }
+
     if (error.response?.status === 401) {
       localStorage.removeItem('xelltekk_token')
       localStorage.removeItem('xelltekk_user')

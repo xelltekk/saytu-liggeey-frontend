@@ -411,6 +411,7 @@ import {
   Settings,
   UserCog,
   ShieldCheck,
+  KeyRound,
   ClipboardList,
   Sparkles,
   CalendarDays,
@@ -690,6 +691,14 @@ const tousLesMenus = [
   },
 
   {
+    to: '/licence',
+    label: 'Licence & abonnement',
+    icon: KeyRound,
+    permission: 'licence.view',
+    roles: ['admin']
+  },
+
+  {
     to: '/parametres',
     label: 'Paramètres',
     icon: Settings,
@@ -716,11 +725,26 @@ const menuItems = computed(() => {
 function canAccessMenuItem(item) {
   const role = auth.user?.role
   if (!role) return false
+  if (!licenceAllowsMenuItem(item)) return false
   if (role === 'admin') return true
   if (item.roles.includes(role)) return true
   if (item.permission && userHasPermission(item.permission)) return true
 
   return false
+}
+
+function licenceAllowsMenuItem(item) {
+  if (item.to === '/licence') return true
+
+  const licence = auth.user?.licence
+  const modules = licence?.modules_autorises
+
+  if (!licence?.configured || !Array.isArray(modules) || modules.length === 0) {
+    return true
+  }
+
+  const module = item.permission?.split('.')?.[0]
+  return !module || modules.includes(module)
 }
 
 function userHasPermission(permission) {
@@ -846,7 +870,7 @@ const menuGroupDefinitions = [
     key: 'administration',
     label: 'Administration',
     icon: Settings,
-    items: ['/leasing', '/utilisateurs', '/roles-permissions', '/securite', '/parametres', '/activites']
+    items: ['/leasing', '/utilisateurs', '/roles-permissions', '/licence', '/securite', '/parametres', '/activites']
   },
 ]
 
