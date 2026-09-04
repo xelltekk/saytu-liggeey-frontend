@@ -15,7 +15,7 @@
             <RefreshCw class="h-4 w-4" />
             Actualiser
           </button>
-          <button type="button" class="btn-primary" :disabled="saving || !form" @click="saveLicence">
+          <button v-if="canManageLicence" type="button" class="btn-primary" :disabled="saving || !form" @click="saveLicence">
             <Save class="h-4 w-4" />
             {{ saving ? 'Enregistrement...' : 'Enregistrer' }}
           </button>
@@ -113,7 +113,7 @@
           </div>
 
           <div class="space-y-3 rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-shell-bg,#f8fafc)] p-3">
-            <button type="button" class="btn-primary w-full" :disabled="saving" @click="genererCle">
+            <button v-if="canManageLicence" type="button" class="btn-primary w-full" :disabled="saving" @click="genererCle">
               <KeyRound class="h-4 w-4" />
               Générer / régénérer la clé
             </button>
@@ -148,7 +148,7 @@
             </div>
           </div>
 
-          <div class="grid gap-3 p-4 md:grid-cols-2">
+          <div class="grid gap-3 p-4 md:grid-cols-2" :class="!canManageLicence ? 'pointer-events-none opacity-75' : ''">
             <label class="md:col-span-2">
               <span class="label">Client / société <span class="text-red-500">*</span></span>
               <input v-model="form.client_nom" class="input" placeholder="Nom du client" />
@@ -232,7 +232,7 @@
             <div class="text-xs text-[color:var(--saytu-muted,#64748b)]">
               Dernière vérification : {{ formatDateTime(form.last_checked_at) }}
             </div>
-            <div class="flex flex-wrap gap-2">
+            <div v-if="canManageLicence" class="flex flex-wrap gap-2">
               <button v-if="form.statut !== 'suspendue'" type="button" class="btn-secondary text-red-700" @click="suspendreLicence">
                 <PauseCircle class="h-4 w-4" />
                 Suspendre
@@ -257,7 +257,7 @@
             </button>
           </div>
 
-          <div class="space-y-3 p-4">
+          <div class="space-y-3 p-4" :class="!canManageLicence ? 'pointer-events-none opacity-75' : ''">
             <section v-for="group in groupedModules" :key="group.name" class="rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] p-3">
               <div class="mb-2 flex items-center justify-between">
                 <h3 class="text-xs font-black uppercase tracking-[0.14em] text-[color:var(--saytu-muted,#64748b)]">{{ group.name }}</h3>
@@ -290,7 +290,7 @@
         </article>
       </section>
 
-      <section class="licence-panel">
+      <section v-if="canManageLicence" class="licence-panel">
         <div class="licence-panel-header">
           <div>
             <h2 class="font-black text-[color:var(--saytu-shell-text,#0f172a)]">Paiements de licence</h2>
@@ -428,6 +428,10 @@ const paiements = computed(() => form.value?.paiements || [])
 const totalPaiements = computed(() => paiements.value.reduce((total, item) => total + Number(item.montant || 0), 0))
 const licenceMessage = computed(() => form.value?.message || '')
 const licenceIsSensitive = computed(() => ['expiree', 'essai_expire', 'suspendue'].includes(form.value?.etat) || form.value?.expires_soon || form.value?.depasse_limite_utilisateurs)
+const canManageLicence = computed(() => {
+  const email = String(auth.user?.email || '').toLowerCase()
+  return auth.user?.role === 'admin' && (email.endsWith('@xelltekk.com') || email.endsWith('@xelltekk.sn'))
+})
 const shortFingerprint = computed(() => {
   const fingerprint = String(form.value?.instance_fingerprint || '')
   return fingerprint ? `${fingerprint.slice(0, 12)}…${fingerprint.slice(-8)}` : '-'
@@ -544,6 +548,10 @@ function normalizeLicence(licence) {
 
 async function saveLicence() {
   if (!form.value) return
+  if (!canManageLicence.value) {
+    toast.error('Modification réservée à XELLTEKK Admin.')
+    return
+  }
 
   saving.value = true
   try {
@@ -559,6 +567,11 @@ async function saveLicence() {
 }
 
 async function genererCle() {
+  if (!canManageLicence.value) {
+    toast.error('Génération réservée à XELLTEKK Admin.')
+    return
+  }
+
   const ok = await askConfirm({
     title: 'Générer une nouvelle clé',
     message: 'Générer une nouvelle clé signée pour cette installation ? L’ancienne clé sera remplacée.',
@@ -640,6 +653,10 @@ function toggleModule(moduleKey) {
 
 async function suspendreLicence() {
   if (!form.value) return
+  if (!canManageLicence.value) {
+    toast.error('Suspension réservée à XELLTEKK Admin.')
+    return
+  }
   const ok = await askConfirm({
     title: 'Suspendre la licence',
     message: 'Suspendre cette licence ? Les modules métier seront bloqués jusqu’à réactivation.',
@@ -664,6 +681,11 @@ async function suspendreLicence() {
 }
 
 async function reactiverLicence() {
+  if (!canManageLicence.value) {
+    toast.error('Réactivation réservée à XELLTEKK Admin.')
+    return
+  }
+
   const ok = await askConfirm({
     title: 'Réactiver la licence',
     message: 'Réactiver cette licence maintenant ?',
@@ -685,6 +707,11 @@ async function reactiverLicence() {
 }
 
 async function enregistrerPaiement() {
+  if (!canManageLicence.value) {
+    toast.error('Paiement licence réservé à XELLTEKK Admin.')
+    return
+  }
+
   paiementSaving.value = true
   try {
     const { data } = await api.post('/admin/licence/paiements', {
@@ -708,6 +735,11 @@ async function enregistrerPaiement() {
 }
 
 async function supprimerPaiement(paiement) {
+  if (!canManageLicence.value) {
+    toast.error('Suppression réservée à XELLTEKK Admin.')
+    return
+  }
+
   const ok = await askConfirm({
     title: 'Supprimer le paiement',
     message: `Supprimer le paiement du ${formatDate(paiement.date_paiement)} ?`,
