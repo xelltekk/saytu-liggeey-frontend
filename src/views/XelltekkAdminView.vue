@@ -78,6 +78,10 @@
               <Save class="h-4 w-4" />
               {{ editingId ? 'Mettre à jour le pack' : 'Créer licence + pack' }}
             </button>
+            <button type="button" class="btn-secondary col-span-2 px-3 py-2 text-xs" :disabled="!activeLicence || sendingEmailId === activeLicence?.id" @click="sendOnboardingEmail(activeLicence)">
+              <Send class="h-4 w-4" />
+              {{ sendingEmailId === activeLicence?.id ? 'Envoi...' : 'Envoyer offre + PDF' }}
+            </button>
             <button type="button" class="btn-secondary px-3 py-2 text-xs" :disabled="!activeLicence" @click="openDocument(activeLicence, 'devis')">
               <FileText class="h-4 w-4" />
               Devis
@@ -298,6 +302,10 @@
               <button type="button" class="btn-secondary px-3 py-2 text-xs" @click="prepareOnboardingEmail(licence)">
                 Email
               </button>
+              <button type="button" class="btn-secondary px-3 py-2 text-xs" :disabled="sendingEmailId === licence.id" @click="sendOnboardingEmail(licence)">
+                <Send class="h-4 w-4" />
+                {{ sendingEmailId === licence.id ? '...' : 'Envoyer' }}
+              </button>
               <button type="button" class="btn-secondary px-3 py-2 text-xs" @click="renewLicence(licence)">
                 +12 mois
               </button>
@@ -333,6 +341,7 @@ import {
   RefreshCw,
   Save,
   Search,
+  Send,
   ShieldCheck,
   TrendingUp,
   Users,
@@ -347,6 +356,7 @@ const { confirm: askConfirm } = useConfirm()
 
 const loading = ref(false)
 const saving = ref(false)
+const sendingEmailId = ref(null)
 const search = ref('')
 const editingId = ref(null)
 const stats = reactive({
@@ -654,6 +664,39 @@ async function prepareOnboardingEmail(licence) {
   } catch (error) {
     closeReservedEmailComposerWindow(reservedWindow)
     toast.error(error.response?.data?.message || 'Impossible de préparer l’email.')
+  }
+}
+
+async function sendOnboardingEmail(licence) {
+  if (!licence?.id) return
+
+  if (!licence.client_email) {
+    toast.error('Aucun email client renseigné pour cette licence.')
+    return
+  }
+
+  const ok = await askConfirm({
+    title: 'Envoyer l’offre au client',
+    message: `Envoyer le devis et le contrat PDF à ${licence.client_email} ?`,
+    confirmLabel: 'Envoyer',
+  })
+  if (!ok) return
+
+  sendingEmailId.value = licence.id
+  try {
+    const endpoint = axiosApiUrl(licence.send_onboarding_email_url || `/admin/xelltekk/licences/${licence.id}/email-onboarding/envoyer`)
+    const { data } = await api.post(endpoint, {})
+    hydrate(data)
+    if (data.licence && editingId.value === licence.id) editLicence(data.licence)
+    toast.success(data.message || 'Offre envoyée avec les PDF en pièces jointes.')
+  } catch (error) {
+    const payload = error.response?.data?.email
+    if (payload?.body) {
+      await copyText(payload.body, 'Email copié en secours.')
+    }
+    toast.error(error.response?.data?.message || 'Impossible d’envoyer l’offre.')
+  } finally {
+    sendingEmailId.value = null
   }
 }
 
