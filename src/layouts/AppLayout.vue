@@ -699,6 +699,15 @@ const tousLesMenus = [
   },
 
   {
+    to: '/xelltekk-admin',
+    label: 'XELLTEKK Admin',
+    icon: ShieldCheck,
+    permission: 'xelltekk_admin.view',
+    roles: ['admin'],
+    xelltekkOnly: true
+  },
+
+  {
     to: '/parametres',
     label: 'Paramètres',
     icon: Settings,
@@ -725,6 +734,7 @@ const menuItems = computed(() => {
 function canAccessMenuItem(item) {
   const role = auth.user?.role
   if (!role) return false
+  if (item.xelltekkOnly && !isXelltekkAdmin()) return false
   if (!licenceAllowsMenuItem(item)) return false
   if (role === 'admin') return true
   if (item.roles.includes(role)) return true
@@ -735,6 +745,7 @@ function canAccessMenuItem(item) {
 
 function licenceAllowsMenuItem(item) {
   if (item.to === '/licence') return true
+  if (item.xelltekkOnly) return true
 
   const licence = auth.user?.licence
   const modules = licence?.modules_autorises
@@ -750,6 +761,11 @@ function licenceAllowsMenuItem(item) {
 function userHasPermission(permission) {
   const permissions = auth.user?.permissions?.flat
   return Array.isArray(permissions) && permissions.includes(permission)
+}
+
+function isXelltekkAdmin() {
+  const email = String(auth.user?.email || '').toLowerCase()
+  return auth.user?.role === 'admin' && (email.endsWith('@xelltekk.com') || email.endsWith('@xelltekk.sn'))
 }
 
 const companyLogoUrl = computed(() => {
@@ -870,7 +886,7 @@ const menuGroupDefinitions = [
     key: 'administration',
     label: 'Administration',
     icon: Settings,
-    items: ['/leasing', '/utilisateurs', '/roles-permissions', '/licence', '/securite', '/parametres', '/activites']
+    items: ['/leasing', '/utilisateurs', '/roles-permissions', '/licence', '/xelltekk-admin', '/securite', '/parametres', '/activites']
   },
 ]
 

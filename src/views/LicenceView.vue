@@ -58,6 +58,87 @@
         </article>
       </section>
 
+      <section class="licence-panel">
+        <div class="licence-panel-header">
+          <div>
+            <h2 class="font-black text-[color:var(--saytu-shell-text,#0f172a)]">Clé signée de l’installation</h2>
+            <p class="text-xs text-[color:var(--saytu-muted,#64748b)]">
+              Sert à verrouiller la formule, les modules, les dates et le nombre d’utilisateurs autorisés.
+            </p>
+          </div>
+          <span
+            class="rounded-full px-3 py-1 text-xs font-black"
+            :class="form.signature_valid === false ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'"
+          >
+            {{ form.signature_label || 'Clé non générée' }}
+          </span>
+        </div>
+
+        <div class="grid gap-4 p-4 xl:grid-cols-[1fr_0.85fr]">
+          <div class="grid gap-3 md:grid-cols-2">
+            <label>
+              <span class="label">N° licence</span>
+              <input :value="form.numero || '-'" readonly class="input bg-[color:var(--saytu-shell-bg,#f8fafc)]" />
+            </label>
+
+            <label>
+              <span class="label">Clé licence</span>
+              <div class="flex gap-2">
+                <input :value="form.licence_key || '-'" readonly class="input bg-[color:var(--saytu-shell-bg,#f8fafc)]" />
+                <button type="button" class="btn-secondary px-3" :disabled="!form.licence_key" @click="copyText(form.licence_key, 'Clé copiée.')">
+                  <Copy class="h-4 w-4" />
+                </button>
+              </div>
+            </label>
+
+            <label>
+              <span class="label">Empreinte installation</span>
+              <input :value="shortFingerprint" readonly class="input bg-[color:var(--saytu-shell-bg,#f8fafc)]" />
+            </label>
+
+            <label>
+              <span class="label">Dernière validation</span>
+              <input :value="formatDateTime(form.last_validation_at)" readonly class="input bg-[color:var(--saytu-shell-bg,#f8fafc)]" />
+            </label>
+
+            <label class="md:col-span-2">
+              <span class="label">Certificat signé</span>
+              <textarea
+                :value="form.licence_certificate || ''"
+                readonly
+                class="input min-h-24 font-mono text-xs"
+                placeholder="Aucun certificat généré"
+              ></textarea>
+            </label>
+          </div>
+
+          <div class="space-y-3 rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-shell-bg,#f8fafc)] p-3">
+            <button type="button" class="btn-primary w-full" :disabled="saving" @click="genererCle">
+              <KeyRound class="h-4 w-4" />
+              Générer / régénérer la clé
+            </button>
+            <button type="button" class="btn-secondary w-full" :disabled="!form.licence_certificate" @click="copyText(form.licence_certificate, 'Certificat copié.')">
+              <Copy class="h-4 w-4" />
+              Copier le certificat
+            </button>
+
+            <div class="border-t border-[color:var(--saytu-border,#e2e8f0)] pt-3">
+              <label>
+                <span class="label">Importer un certificat XELLTEKK</span>
+                <textarea
+                  v-model="certificateImport"
+                  class="input min-h-24 font-mono text-xs"
+                  placeholder="Collez ici le certificat SLC-..."
+                ></textarea>
+              </label>
+              <button type="button" class="btn-secondary mt-2 w-full" :disabled="saving || !certificateImport.trim()" @click="importerCle">
+                Importer et appliquer
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section class="grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
         <article class="licence-panel">
           <div class="licence-panel-header">
@@ -302,6 +383,7 @@ import {
   Boxes,
   CalendarDays,
   CheckCircle2,
+  Copy,
   CreditCard,
   KeyRound,
   PauseCircle,
@@ -324,6 +406,7 @@ const { confirm: askConfirm } = useConfirm()
 const loading = ref(false)
 const saving = ref(false)
 const paiementSaving = ref(false)
+const certificateImport = ref('')
 const form = ref(null)
 const reference = reactive({
   plans: {},
@@ -345,6 +428,10 @@ const paiements = computed(() => form.value?.paiements || [])
 const totalPaiements = computed(() => paiements.value.reduce((total, item) => total + Number(item.montant || 0), 0))
 const licenceMessage = computed(() => form.value?.message || '')
 const licenceIsSensitive = computed(() => ['expiree', 'essai_expire', 'suspendue'].includes(form.value?.etat) || form.value?.expires_soon || form.value?.depasse_limite_utilisateurs)
+const shortFingerprint = computed(() => {
+  const fingerprint = String(form.value?.instance_fingerprint || '')
+  return fingerprint ? `${fingerprint.slice(0, 12)}…${fingerprint.slice(-8)}` : '-'
+})
 
 const cards = computed(() => [
   {
@@ -432,6 +519,17 @@ function normalizeLicence(licence) {
     devise: 'XOF',
     notes: '',
     suspension_reason: '',
+    numero: '',
+    licence_key: '',
+    licence_certificate: '',
+    licence_signature: '',
+    signature_label: 'Clé non générée',
+    signature_valid: true,
+    instance_fingerprint: '',
+    issued_at: '',
+    activated_at: '',
+    last_validation_at: '',
+    last_validation_result: '',
     paiements: [],
     ...licence,
     modules_autorises: Array.isArray(licence.modules_autorises) ? [...licence.modules_autorises] : [],
@@ -455,6 +553,44 @@ async function saveLicence() {
     toast.success(data.message || 'Licence enregistrée.')
   } catch (error) {
     toast.error(error.response?.data?.message || 'Impossible d’enregistrer la licence.')
+  } finally {
+    saving.value = false
+  }
+}
+
+async function genererCle() {
+  const ok = await askConfirm({
+    title: 'Générer une nouvelle clé',
+    message: 'Générer une nouvelle clé signée pour cette installation ? L’ancienne clé sera remplacée.',
+    confirmLabel: 'Générer',
+  })
+  if (!ok) return
+
+  saving.value = true
+  try {
+    const { data } = await api.post('/admin/licence/generer-cle')
+    form.value = normalizeLicence(data.licence || {})
+    syncAuthLicence(form.value)
+    toast.success(data.message || 'Clé générée.')
+  } catch (error) {
+    toast.error(error.response?.data?.message || 'Impossible de générer la clé.')
+  } finally {
+    saving.value = false
+  }
+}
+
+async function importerCle() {
+  saving.value = true
+  try {
+    const { data } = await api.post('/admin/licence/importer-cle', {
+      certificate: certificateImport.value.trim(),
+    })
+    certificateImport.value = ''
+    form.value = normalizeLicence(data.licence || {})
+    syncAuthLicence(form.value)
+    toast.success(data.message || 'Certificat importé.')
+  } catch (error) {
+    toast.error(error.response?.data?.message || 'Certificat invalide ou impossible à importer.')
   } finally {
     saving.value = false
   }
@@ -586,6 +722,30 @@ async function supprimerPaiement(paiement) {
     toast.success(data.message || 'Paiement supprimé.')
   } catch (error) {
     toast.error(error.response?.data?.message || 'Impossible de supprimer le paiement.')
+  }
+}
+
+async function copyText(value, successMessage = 'Copié.') {
+  const text = String(value || '')
+  if (!text) return
+
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text)
+    } else {
+      const textarea = document.createElement('textarea')
+      textarea.value = text
+      textarea.setAttribute('readonly', '')
+      textarea.style.position = 'fixed'
+      textarea.style.opacity = '0'
+      document.body.appendChild(textarea)
+      textarea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textarea)
+    }
+    toast.success(successMessage)
+  } catch (error) {
+    toast.error('Impossible de copier automatiquement.')
   }
 }
 

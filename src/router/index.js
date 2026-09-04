@@ -157,6 +157,11 @@ const routes = [
         component: () => import('@/views/LicenceView.vue'),
       },
       {
+        path: 'xelltekk-admin',
+        name: 'xelltekk-admin',
+        component: () => import('@/views/XelltekkAdminView.vue'),
+      },
+      {
         path: 'securite',
         name: 'securite',
         component: () => import('@/views/SecuriteView.vue'),
@@ -221,6 +226,7 @@ const routeRoles = {
   '/utilisateurs': ['admin'],
   '/roles-permissions': ['admin'],
   '/licence': ['admin'],
+  '/xelltekk-admin': ['admin'],
   '/securite': ['admin'],
   '/activites': ['admin', 'gerant'],
   '/notifications': ['admin', 'gerant', 'commercial', 'magasinier', 'comptable', 'caissier'],
@@ -251,6 +257,7 @@ const routePermissions = {
   '/utilisateurs': 'utilisateurs.view',
   '/roles-permissions': 'access_control.view',
   '/licence': 'licence.view',
+  '/xelltekk-admin': 'xelltekk_admin.view',
   '/securite': 'access_control.view',
   '/activites': 'activites.view',
   '/notifications': 'notifications.view',
@@ -264,8 +271,13 @@ function hasPermission(user, permission) {
   return Array.isArray(user?.permissions?.flat) && user.permissions.flat.includes(permission)
 }
 
+function isXelltekkAdmin(user) {
+  const email = String(user?.email || '').toLowerCase()
+  return user?.role === 'admin' && (email.endsWith('@xelltekk.com') || email.endsWith('@xelltekk.sn'))
+}
+
 function licenceAllowsRoute(user, permission) {
-  if (!permission || permission === 'licence.view') return true
+  if (!permission || ['licence.view', 'xelltekk_admin.view'].includes(permission)) return true
 
   const licence = user?.licence
   const modules = licence?.modules_autorises
@@ -308,6 +320,10 @@ router.beforeEach(async (to, from, next) => {
 
   // 3) Vérification du rôle pour cette route
   const role = auth.user?.role
+  if (to.path.startsWith('/xelltekk-admin') && !isXelltekkAdmin(auth.user)) {
+    return next({ name: role === 'caissier' ? 'caisse' : 'dashboard' })
+  }
+
   if (role === 'caissier' && to.path === '/') {
     return next({ name: 'caisse' })
   }
