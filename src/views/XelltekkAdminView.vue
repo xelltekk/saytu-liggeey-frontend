@@ -35,6 +35,70 @@
       </article>
     </section>
 
+    <section class="xell-panel overflow-hidden">
+      <div class="xell-panel-header">
+        <div>
+          <h2 class="font-black text-[color:var(--saytu-shell-text,#0f172a)]">Assistant onboarding client</h2>
+          <p class="text-xs text-[color:var(--saytu-muted,#64748b)]">
+            Un parcours court : client, offre, documents commerciaux, puis licence d’activation.
+          </p>
+        </div>
+        <span class="rounded-full bg-[color:var(--saytu-primary-soft,#dbeafe)] px-3 py-1 text-xs font-black text-[color:var(--saytu-primary,#2563eb)]">
+          {{ editingId ? 'Pack prêt' : 'Nouveau client' }}
+        </span>
+      </div>
+
+      <div class="grid gap-4 p-4 xl:grid-cols-[1fr_360px]">
+        <div class="grid gap-3 md:grid-cols-4">
+          <article
+            v-for="step in onboardingSteps"
+            :key="step.label"
+            class="xell-step"
+            :class="step.done ? 'xell-step-done' : ''"
+          >
+            <div class="flex items-center gap-2">
+              <span class="xell-step-number">{{ step.index }}</span>
+              <h3 class="font-black">{{ step.label }}</h3>
+            </div>
+            <p class="mt-2 text-xs text-[color:var(--saytu-muted,#64748b)]">{{ step.hint }}</p>
+          </article>
+        </div>
+
+        <div class="rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-shell-bg,#f8fafc)] p-3">
+          <p class="text-xs font-black uppercase tracking-[0.14em] text-[color:var(--saytu-muted,#64748b)]">Pack commercial</p>
+          <p class="mt-2 font-black text-[color:var(--saytu-shell-text,#0f172a)]">
+            {{ form.client_nom || 'Client à renseigner' }}
+          </p>
+          <p class="text-xs text-[color:var(--saytu-muted,#64748b)]">
+            {{ planLabel(form.plan) }} · {{ money(form.montant_mensuel) }} {{ form.devise }}/mois · {{ form.modules_autorises.length }} module(s)
+          </p>
+
+          <div class="mt-3 grid grid-cols-2 gap-2">
+            <button type="button" class="btn-primary col-span-2" :disabled="saving" @click="saveLicence">
+              <Save class="h-4 w-4" />
+              {{ editingId ? 'Mettre à jour le pack' : 'Créer licence + pack' }}
+            </button>
+            <button type="button" class="btn-secondary px-3 py-2 text-xs" :disabled="!activeLicence" @click="openDocument(activeLicence, 'devis')">
+              <FileText class="h-4 w-4" />
+              Devis
+            </button>
+            <button type="button" class="btn-secondary px-3 py-2 text-xs" :disabled="!activeLicence" @click="openDocument(activeLicence, 'contrat')">
+              <FileSignature class="h-4 w-4" />
+              Contrat
+            </button>
+            <button type="button" class="btn-secondary px-3 py-2 text-xs" :disabled="!activeLicence" @click="prepareOnboardingEmail(activeLicence)">
+              <Mail class="h-4 w-4" />
+              Email
+            </button>
+            <button type="button" class="btn-secondary px-3 py-2 text-xs" :disabled="!activeLicence?.licence_certificate" @click="copyText(activeLicence?.licence_certificate, 'Certificat copié.')">
+              <Copy class="h-4 w-4" />
+              Certificat
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <section v-if="loading" class="rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-surface,#fff)] p-8 text-center text-[color:var(--saytu-muted,#64748b)]">
       Chargement de l’espace XELLTEKK Admin...
     </section>
@@ -170,7 +234,7 @@
             <button type="button" class="btn-secondary" @click="resetForm">Réinitialiser</button>
             <button type="submit" class="btn-primary" :disabled="saving">
               <Save class="h-4 w-4" />
-              {{ saving ? 'Enregistrement...' : editingId ? 'Enregistrer' : 'Créer la licence' }}
+              {{ saving ? 'Enregistrement...' : editingId ? 'Enregistrer' : 'Créer + générer le pack' }}
             </button>
           </div>
         </div>
@@ -225,6 +289,15 @@
                 <Copy class="h-4 w-4" />
                 Certificat
               </button>
+              <button type="button" class="btn-secondary px-3 py-2 text-xs" @click="openDocument(licence, 'devis')">
+                Devis
+              </button>
+              <button type="button" class="btn-secondary px-3 py-2 text-xs" @click="openDocument(licence, 'contrat')">
+                Contrat
+              </button>
+              <button type="button" class="btn-secondary px-3 py-2 text-xs" @click="prepareOnboardingEmail(licence)">
+                Email
+              </button>
               <button type="button" class="btn-secondary px-3 py-2 text-xs" @click="renewLicence(licence)">
                 +12 mois
               </button>
@@ -252,7 +325,10 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import {
   Copy,
+  FileSignature,
+  FileText,
   KeyRound,
+  Mail,
   Plus,
   RefreshCw,
   Save,
@@ -264,6 +340,7 @@ import {
 import api from '@/services/api'
 import { useConfirm } from '@/composables/useConfirm'
 import { useToast } from '@/composables/useToast'
+import { buildMailtoUrl, closeReservedEmailComposerWindow, openEmailComposer, reserveEmailComposerWindow } from '@/utils/emailComposer'
 
 const toast = useToast()
 const { confirm: askConfirm } = useConfirm()
@@ -282,12 +359,15 @@ const reference = reactive({
   plans: {},
   modules: {},
   statuts: {},
+  tarifs: {},
 })
 const licences = ref([])
 const form = reactive(emptyForm())
 
 const plans = computed(() => reference.plans || {})
 const statuts = computed(() => reference.statuts || {})
+const tarifs = computed(() => reference.tarifs || {})
+const activeLicence = computed(() => licences.value.find(licence => licence.id === editingId.value) || null)
 
 const statCards = computed(() => [
   {
@@ -343,6 +423,33 @@ const filteredLicences = computed(() => {
     ].join(' ').toLowerCase().includes(needle)
   })
 })
+
+const onboardingSteps = computed(() => [
+  {
+    index: 1,
+    label: 'Client',
+    hint: form.client_nom && form.client_email ? 'Identité et email prêts.' : 'Renseigner au minimum le nom et l’email.',
+    done: Boolean(form.client_nom && form.client_email),
+  },
+  {
+    index: 2,
+    label: 'Offre',
+    hint: form.plan && parseNumber(form.montant_mensuel) > 0 ? 'Formule et tarif définis.' : 'Choisir une formule et un montant mensuel.',
+    done: Boolean(form.plan && parseNumber(form.montant_mensuel) > 0),
+  },
+  {
+    index: 3,
+    label: 'Modules',
+    hint: form.modules_autorises.length ? `${form.modules_autorises.length} module(s) inclus.` : 'Sélectionner les modules autorisés.',
+    done: form.modules_autorises.length > 0,
+  },
+  {
+    index: 4,
+    label: 'Documents',
+    hint: activeLicence.value ? 'Devis, contrat, email et certificat disponibles.' : 'Créer la licence pour générer le pack.',
+    done: Boolean(activeLicence.value?.licence_certificate),
+  },
+])
 
 onMounted(loadDashboard)
 
@@ -466,6 +573,9 @@ function licencePayload() {
 function applyPlanModules() {
   const modules = plans.value?.[form.plan]?.modules
   form.modules_autorises = Array.isArray(modules) ? [...modules] : []
+  if (!parseNumber(form.montant_mensuel)) {
+    form.montant_mensuel = tarifs.value?.[form.plan] ?? form.montant_mensuel
+  }
 }
 
 function moduleEnabled(moduleKey) {
@@ -506,6 +616,58 @@ async function copyText(value, successMessage = 'Copié.') {
   }
 }
 
+function openDocument(licence, type) {
+  if (!licence?.id) return
+
+  const rawUrl = type === 'contrat'
+    ? licence.contrat_pdf_url || `/api/admin/xelltekk/licences/${licence.id}/contrat-pdf`
+    : licence.devis_pdf_url || `/api/admin/xelltekk/licences/${licence.id}/devis-pdf`
+  const url = browserApiUrl(rawUrl)
+
+  window.open(url, '_blank', 'noopener,noreferrer')
+}
+
+async function prepareOnboardingEmail(licence) {
+  if (!licence?.id) return
+
+  const reservedWindow = reserveEmailComposerWindow()
+  try {
+    const { data } = await api.get(axiosApiUrl(licence.email_onboarding_url || `/admin/xelltekk/licences/${licence.id}/email-onboarding`))
+    const mailto = buildMailtoUrl({
+      to: data.to,
+      subject: data.subject,
+      body: data.body,
+    })
+
+    if (!data.to) {
+      closeReservedEmailComposerWindow(reservedWindow)
+      await copyText(data.body, 'Email copié : aucun email client renseigné.')
+      return
+    }
+
+    if (openEmailComposer(mailto, reservedWindow)) {
+      toast.success('Email préparé. Pensez à joindre le devis et le contrat PDF.')
+    } else {
+      closeReservedEmailComposerWindow(reservedWindow)
+      await copyText(data.body, 'Email copié.')
+    }
+  } catch (error) {
+    closeReservedEmailComposerWindow(reservedWindow)
+    toast.error(error.response?.data?.message || 'Impossible de préparer l’email.')
+  }
+}
+
+function axiosApiUrl(url) {
+  return String(url || '').replace(/^\/api(?=\/)/, '')
+}
+
+function browserApiUrl(url) {
+  const value = String(url || '')
+  if (value.startsWith('/api/')) return value
+  if (value.startsWith('/')) return `/api${value}`
+  return `/api/${value}`
+}
+
 function emptyForm() {
   return {
     client_nom: '',
@@ -538,6 +700,10 @@ function statusClass(licence) {
 
 function statutLabel(statut) {
   return statuts.value?.[statut] || statut || '-'
+}
+
+function planLabel(plan) {
+  return plans.value?.[plan]?.label || plan || '-'
 }
 
 function parseNumber(value) {
@@ -651,6 +817,32 @@ function addMonths(dateValue, months) {
   border-color: color-mix(in srgb, var(--saytu-primary, #2563eb) 55%, var(--saytu-border, #e2e8f0));
   background: color-mix(in srgb, var(--saytu-primary, #2563eb) 12%, var(--saytu-surface, #ffffff));
   color: var(--saytu-primary, #2563eb);
+}
+
+.xell-step {
+  min-height: 7rem;
+  border: 1px solid var(--saytu-border, #e2e8f0);
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--saytu-surface, #ffffff) 94%, var(--saytu-primary, #2563eb) 6%);
+  padding: 0.9rem;
+  transition: 160ms ease;
+}
+
+.xell-step-done {
+  border-color: color-mix(in srgb, var(--saytu-primary, #2563eb) 52%, var(--saytu-border, #e2e8f0));
+  background: color-mix(in srgb, var(--saytu-primary, #2563eb) 10%, var(--saytu-surface, #ffffff));
+}
+
+.xell-step-number {
+  display: grid;
+  height: 1.8rem;
+  width: 1.8rem;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--saytu-primary, #2563eb);
+  color: white;
+  font-size: 0.78rem;
+  font-weight: 900;
 }
 
 .xell-licence-row {
