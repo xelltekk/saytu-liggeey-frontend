@@ -38,6 +38,94 @@
     <section class="xell-panel overflow-hidden">
       <div class="xell-panel-header">
         <div>
+          <h2 class="font-black text-[color:var(--saytu-shell-text,#0f172a)]">Configuration email</h2>
+          <p class="text-xs text-[color:var(--saytu-muted,#64748b)]">
+            Envoi serveur des offres XELLTEKK avec devis et contrat PDF en pièces jointes.
+          </p>
+        </div>
+        <span class="rounded-full px-3 py-1 text-xs font-black" :class="emailSettings.configured ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'">
+          {{ emailSettings.configured ? 'SMTP prêt' : 'À configurer' }}
+        </span>
+      </div>
+
+      <div class="grid gap-4 p-4 xl:grid-cols-[1fr_320px]">
+        <div class="grid gap-3 md:grid-cols-3">
+          <label>
+            <span class="label">Email expéditeur</span>
+            <input v-model="emailForm.from_address" type="email" class="input" placeholder="xelltekk@xelltekk.com" />
+          </label>
+
+          <label>
+            <span class="label">Nom expéditeur</span>
+            <input v-model="emailForm.from_name" class="input" placeholder="XELLTEKK" />
+          </label>
+
+          <label class="flex items-end gap-2 rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-shell-bg,#f8fafc)] px-3 py-2">
+            <input v-model="emailForm.is_active" type="checkbox" class="h-4 w-4 accent-[color:var(--saytu-primary,#2563eb)]" />
+            <span class="pb-1 text-sm font-bold text-[color:var(--saytu-shell-text,#0f172a)]">Envoi serveur actif</span>
+          </label>
+
+          <label>
+            <span class="label">Serveur SMTP</span>
+            <input v-model="emailForm.host" class="input" placeholder="mail.infomaniak.com" />
+          </label>
+
+          <label>
+            <span class="label">Port</span>
+            <input v-model="emailForm.port" data-numeric-input class="input" placeholder="587" />
+          </label>
+
+          <label>
+            <span class="label">Sécurité</span>
+            <select v-model="emailForm.scheme" class="input">
+              <option value="smtp">STARTTLS / 587</option>
+              <option value="smtps">SSL / 465</option>
+            </select>
+          </label>
+
+          <label>
+            <span class="label">Utilisateur SMTP</span>
+            <input v-model="emailForm.username" type="email" class="input" placeholder="xelltekk@xelltekk.com" />
+          </label>
+
+          <label class="md:col-span-2">
+            <span class="label">Mot de passe SMTP</span>
+            <input v-model="emailForm.password" type="password" class="input" :placeholder="emailSettings.password_configured ? 'Déjà configuré — laisser vide pour conserver' : 'Mot de passe de la boîte mail'" autocomplete="new-password" />
+          </label>
+        </div>
+
+        <div class="rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-shell-bg,#f8fafc)] p-3">
+          <p class="text-xs font-black uppercase tracking-[0.14em] text-[color:var(--saytu-muted,#64748b)]">État SMTP</p>
+          <p class="mt-2 text-sm font-bold text-[color:var(--saytu-shell-text,#0f172a)]">{{ emailSettings.status_message }}</p>
+          <p class="mt-1 text-xs text-[color:var(--saytu-muted,#64748b)]">
+            Mot de passe : {{ emailSettings.password_configured ? 'configuré et chiffré' : 'non renseigné' }}
+          </p>
+          <p v-if="emailSettings.last_tested_at" class="mt-1 text-xs text-[color:var(--saytu-muted,#64748b)]">
+            Dernier test : {{ formatDateTime(emailSettings.last_tested_at) }}
+          </p>
+
+          <label class="mt-3 block">
+            <span class="label">Destinataire test</span>
+            <input v-model="emailForm.test_to" type="email" class="input" placeholder="xelltekk@xelltekk.com" />
+          </label>
+
+          <div class="mt-3 grid gap-2">
+            <button type="button" class="btn-primary" :disabled="savingEmailSettings" @click="saveEmailSettings()">
+              <Save class="h-4 w-4" />
+              {{ savingEmailSettings ? 'Sauvegarde...' : 'Enregistrer SMTP' }}
+            </button>
+            <button type="button" class="btn-secondary" :disabled="testingEmailSettings || savingEmailSettings" @click="testEmailSettings">
+              <Send class="h-4 w-4" />
+              {{ testingEmailSettings ? 'Test...' : 'Tester l’envoi' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="xell-panel overflow-hidden">
+      <div class="xell-panel-header">
+        <div>
           <h2 class="font-black text-[color:var(--saytu-shell-text,#0f172a)]">Assistant onboarding client</h2>
           <p class="text-xs text-[color:var(--saytu-muted,#64748b)]">
             Un parcours court : client, offre, documents commerciaux, puis licence d’activation.
@@ -357,6 +445,8 @@ const { confirm: askConfirm } = useConfirm()
 const loading = ref(false)
 const saving = ref(false)
 const sendingEmailId = ref(null)
+const savingEmailSettings = ref(false)
+const testingEmailSettings = ref(false)
 const search = ref('')
 const editingId = ref(null)
 const stats = reactive({
@@ -373,6 +463,8 @@ const reference = reactive({
 })
 const licences = ref([])
 const form = reactive(emptyForm())
+const emailSettings = reactive(emptyEmailSettings())
+const emailForm = reactive(emptyEmailForm())
 
 const plans = computed(() => reference.plans || {})
 const statuts = computed(() => reference.statuts || {})
@@ -479,9 +571,29 @@ function hydrate(data) {
   Object.assign(stats, data.stats || {})
   Object.assign(reference, data.reference || {})
   licences.value = Array.isArray(data.licences) ? data.licences : []
+  hydrateEmailSettings(data.email_settings)
   if (!editingId.value && form.modules_autorises.length === 0) {
     applyPlanModules()
   }
+}
+
+function hydrateEmailSettings(settings = null) {
+  const normalized = {
+    ...emptyEmailSettings(),
+    ...(settings || {}),
+  }
+  Object.assign(emailSettings, normalized)
+  Object.assign(emailForm, {
+    ...emptyEmailForm(),
+    is_active: normalized.is_active,
+    host: normalized.host || 'mail.infomaniak.com',
+    port: normalized.port || 587,
+    scheme: normalized.scheme || 'smtp',
+    username: normalized.username || 'xelltekk@xelltekk.com',
+    from_address: normalized.from_address || 'xelltekk@xelltekk.com',
+    from_name: normalized.from_name || 'XELLTEKK',
+    test_to: emailForm.test_to || normalized.from_address || 'xelltekk@xelltekk.com',
+  })
 }
 
 async function saveLicence() {
@@ -700,6 +812,53 @@ async function sendOnboardingEmail(licence) {
   }
 }
 
+async function saveEmailSettings(showToast = true) {
+  savingEmailSettings.value = true
+  try {
+    const payload = {
+      is_active: Boolean(emailForm.is_active),
+      host: emailForm.host || 'mail.infomaniak.com',
+      port: parseIntegerOrNull(emailForm.port) || 587,
+      scheme: emailForm.scheme || 'smtp',
+      username: emailForm.username || emailForm.from_address || 'xelltekk@xelltekk.com',
+      from_address: emailForm.from_address || emailForm.username || 'xelltekk@xelltekk.com',
+      from_name: emailForm.from_name || 'XELLTEKK',
+    }
+    if (emailForm.password) payload.password = emailForm.password
+
+    const { data } = await api.put('/admin/xelltekk/email/settings', payload)
+    hydrateEmailSettings(data.email_settings)
+    emailForm.password = ''
+    if (showToast) toast.success(data.message || 'Configuration email enregistrée.')
+    return true
+  } catch (error) {
+    if (showToast) toast.error(error.response?.data?.message || 'Impossible d’enregistrer la configuration email.')
+    return false
+  } finally {
+    savingEmailSettings.value = false
+  }
+}
+
+async function testEmailSettings() {
+  testingEmailSettings.value = true
+  try {
+    if (emailForm.password) {
+      const saved = await saveEmailSettings(false)
+      if (!saved) return
+    }
+
+    const { data } = await api.post('/admin/xelltekk/email/settings/test', {
+      to: emailForm.test_to || emailForm.from_address || 'xelltekk@xelltekk.com',
+    })
+    hydrateEmailSettings(data.email_settings)
+    toast.success(data.message || 'Email de test envoyé.')
+  } catch (error) {
+    toast.error(error.response?.data?.message || 'Impossible de tester la configuration email.')
+  } finally {
+    testingEmailSettings.value = false
+  }
+}
+
 function axiosApiUrl(url) {
   return String(url || '').replace(/^\/api(?=\/)/, '')
 }
@@ -730,6 +889,38 @@ function emptyForm() {
     montant_mensuel: '',
     devise: 'XOF',
     notes: '',
+  }
+}
+
+function emptyEmailSettings() {
+  return {
+    id: null,
+    is_active: true,
+    host: 'mail.infomaniak.com',
+    port: 587,
+    scheme: 'smtp',
+    username: 'xelltekk@xelltekk.com',
+    from_address: 'xelltekk@xelltekk.com',
+    from_name: 'XELLTEKK',
+    password_configured: false,
+    configured: false,
+    status_message: 'Mot de passe SMTP manquant : saisissez-le dans la configuration email XELLTEKK.',
+    last_tested_at: null,
+    updated_at: null,
+  }
+}
+
+function emptyEmailForm() {
+  return {
+    is_active: true,
+    host: 'mail.infomaniak.com',
+    port: 587,
+    scheme: 'smtp',
+    username: 'xelltekk@xelltekk.com',
+    password: '',
+    from_address: 'xelltekk@xelltekk.com',
+    from_name: 'XELLTEKK',
+    test_to: 'xelltekk@xelltekk.com',
   }
 }
 
@@ -775,6 +966,15 @@ function formatDate(value) {
   if (!value) return '-'
   try {
     return new Date(`${value}T00:00:00`).toLocaleDateString('fr-FR')
+  } catch (e) {
+    return value
+  }
+}
+
+function formatDateTime(value) {
+  if (!value) return '-'
+  try {
+    return new Date(value.replace(' ', 'T')).toLocaleString('fr-FR')
   } catch (e) {
     return value
   }
