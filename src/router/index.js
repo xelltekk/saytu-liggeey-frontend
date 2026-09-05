@@ -21,6 +21,16 @@ const routes = [
     meta: { guest: true },
   },
   {
+    path: '/conditions-commerciales',
+    name: 'conditions-commerciales',
+    component: () => import('@/views/MarketingTermsView.vue'),
+    meta: { guest: true },
+  },
+  {
+    path: '/conditions',
+    redirect: { name: 'conditions-commerciales' },
+  },
+  {
     path: '/tarifs',
     redirect: { name: 'offres' },
   },

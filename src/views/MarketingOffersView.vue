@@ -9,6 +9,7 @@
         </span>
       </RouterLink>
       <div class="flex items-center gap-2">
+        <RouterLink to="/conditions-commerciales" class="offers-link">Conditions</RouterLink>
         <RouterLink :to="{ name: 'decouvrir', hash: '#demo' }" class="offers-link">Démo</RouterLink>
         <RouterLink to="/login" class="offers-login">Connexion</RouterLink>
       </div>
@@ -107,6 +108,9 @@
         <RouterLink :to="{ name: 'decouvrir', query: { plan: 'pro' }, hash: '#demo' }" class="offers-primary">
           Parler à XELLTEKK
           <ArrowRight class="h-5 w-5" />
+        </RouterLink>
+        <RouterLink to="/conditions-commerciales" class="offers-secondary-cta">
+          Voir les conditions
         </RouterLink>
       </section>
     </section>
@@ -207,6 +211,7 @@ const comparison = [
 .offers-link,
 .offers-login,
 .offers-primary,
+.offers-secondary-cta,
 .offer-cta {
   display: inline-flex;
   align-items: center;
@@ -228,6 +233,15 @@ const comparison = [
   border: 1px solid rgb(255 255 255 / 0.22);
   padding: 0.75rem 1rem;
   color: white;
+}
+
+.offers-secondary-cta {
+  min-height: 3rem;
+  border: 1px solid #bae6fd;
+  background: #f8fcff;
+  color: #075985;
+  padding: 0.9rem 1.15rem;
+  white-space: nowrap;
 }
 
 .offers-primary,

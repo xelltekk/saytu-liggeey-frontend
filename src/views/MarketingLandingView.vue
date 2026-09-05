@@ -10,6 +10,7 @@
       </RouterLink>
       <div class="flex items-center gap-2">
         <RouterLink to="/offres" class="landing-secondary">Offres & tarifs</RouterLink>
+        <RouterLink to="/conditions-commerciales" class="landing-secondary">Conditions</RouterLink>
         <a href="#demo" class="landing-secondary">Demander une démo</a>
         <RouterLink to="/login" class="landing-login">Connexion</RouterLink>
       </div>
@@ -141,7 +142,10 @@
             <p class="landing-kicker text-sky-700">Offres simples</p>
             <h2 class="mt-2 text-3xl font-black text-slate-950">Démarrer petit, évoluer sans changer d’outil.</h2>
           </div>
-          <p class="max-w-md text-sm leading-6 text-slate-600">Les montants sont indicatifs. Le devis final est généré depuis XELLTEKK Admin selon les modules et le nombre d’utilisateurs.</p>
+          <p class="max-w-md text-sm leading-6 text-slate-600">
+            Les montants sont indicatifs. Le devis final est généré depuis XELLTEKK Admin selon les modules et le nombre d’utilisateurs.
+            <RouterLink to="/conditions-commerciales" class="font-black text-sky-700 hover:text-cyan-600">Voir les conditions.</RouterLink>
+          </p>
         </div>
 
         <div class="grid gap-3 md:grid-cols-3">
