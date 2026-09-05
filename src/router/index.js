@@ -15,6 +15,16 @@ const routes = [
     meta: { guest: true },
   },
   {
+    path: '/offres',
+    name: 'offres',
+    component: () => import('@/views/MarketingOffersView.vue'),
+    meta: { guest: true },
+  },
+  {
+    path: '/tarifs',
+    redirect: { name: 'offres' },
+  },
+  {
     path: '/',
     component: () => import('@/layouts/AppLayout.vue'),
     meta: { requiresAuth: true },

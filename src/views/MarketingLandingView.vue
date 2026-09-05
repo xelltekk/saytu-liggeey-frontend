@@ -9,6 +9,7 @@
         </span>
       </RouterLink>
       <div class="flex items-center gap-2">
+        <RouterLink to="/offres" class="landing-secondary">Offres & tarifs</RouterLink>
         <a href="#demo" class="landing-secondary">Demander une démo</a>
         <RouterLink to="/login" class="landing-login">Connexion</RouterLink>
       </div>
@@ -29,6 +30,7 @@
             <CalendarCheck class="h-5 w-5" />
             Réserver une démo
           </a>
+          <RouterLink to="/offres" class="landing-ghost">Voir les offres</RouterLink>
           <RouterLink to="/login" class="landing-ghost">Accéder à l’espace client</RouterLink>
         </div>
 
@@ -166,8 +168,8 @@
 </template>
 
 <script setup>
-import { reactive, ref } from 'vue'
-import { RouterLink } from 'vue-router'
+import { onMounted, reactive, ref, watch } from 'vue'
+import { RouterLink, useRoute } from 'vue-router'
 import {
   CalendarCheck,
   Check,
@@ -181,6 +183,8 @@ import api from '@/services/api'
 const submitting = ref(false)
 const successMessage = ref('')
 const errorMessage = ref('')
+const route = useRoute()
+const allowedPlans = ['starter', 'pro', 'business']
 
 const form = reactive({
   website: '',
@@ -269,12 +273,33 @@ async function submitDemoRequest() {
   }
 }
 
+function applySelectedPlanFromRoute() {
+  const plan = String(route.query.plan || '').toLowerCase()
+  if (allowedPlans.includes(plan)) {
+    form.plan = plan
+  }
+}
+
 function cleanPhone(value) {
   const digits = String(value || '').replace(/\D/g, '')
   if (digits.startsWith('00221')) return digits.slice(5, 14)
   if (digits.startsWith('221') && digits.length > 9) return digits.slice(3, 12)
   return digits.slice(0, 9)
 }
+
+onMounted(() => {
+  applySelectedPlanFromRoute()
+  if (route.hash === '#demo') {
+    window.requestAnimationFrame(() => {
+      document.getElementById('demo')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
+  }
+})
+
+watch(
+  () => route.query.plan,
+  () => applySelectedPlanFromRoute(),
+)
 </script>
 
 <style scoped>
