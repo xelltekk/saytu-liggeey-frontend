@@ -35,6 +35,39 @@
       </article>
     </section>
 
+    <section v-if="demoRequests.length" class="xell-panel overflow-hidden">
+      <div class="xell-panel-header">
+        <div>
+          <h2 class="font-black text-[color:var(--saytu-shell-text,#0f172a)]">Demandes démo</h2>
+          <p class="text-xs text-[color:var(--saytu-muted,#64748b)]">
+            Prospects captés depuis la page publique.
+          </p>
+        </div>
+        <span class="rounded-full bg-[color:var(--saytu-primary-soft,#dbeafe)] px-3 py-1 text-xs font-black text-[color:var(--saytu-primary,#2563eb)]">
+          {{ demoRequests.length }} à traiter
+        </span>
+      </div>
+
+      <div class="grid gap-3 p-4 lg:grid-cols-2">
+        <article v-for="lead in demoRequests" :key="lead.id" class="xell-lead-row">
+          <div class="min-w-0">
+            <div class="flex flex-wrap items-center gap-2">
+              <h3 class="font-black text-[color:var(--saytu-shell-text,#0f172a)]">{{ lead.nom }}</h3>
+              <span class="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-black text-amber-700">Prospect</span>
+            </div>
+            <p class="mt-1 text-xs text-[color:var(--saytu-muted,#64748b)]">
+              {{ lead.email || 'Email non renseigné' }} · {{ lead.telephone || 'Téléphone non renseigné' }}
+            </p>
+            <p class="mt-2 xell-lead-notes">{{ lead.notes }}</p>
+          </div>
+          <button type="button" class="btn-primary shrink-0 px-3 py-2 text-xs" @click="startLicenceFromLead(lead)">
+            <Plus class="h-4 w-4" />
+            Préparer licence
+          </button>
+        </article>
+      </div>
+    </section>
+
     <section class="xell-panel overflow-hidden">
       <div class="xell-panel-header">
         <div>
@@ -462,6 +495,7 @@ const reference = reactive({
   tarifs: {},
 })
 const licences = ref([])
+const clients = ref([])
 const form = reactive(emptyForm())
 const emailSettings = reactive(emptyEmailSettings())
 const emailForm = reactive(emptyEmailForm())
@@ -526,6 +560,14 @@ const filteredLicences = computed(() => {
   })
 })
 
+const demoRequests = computed(() => {
+  return clients.value
+    .filter(client => client.statut === 'prospect')
+    .slice()
+    .sort((a, b) => String(b.updated_at || b.created_at || '').localeCompare(String(a.updated_at || a.created_at || '')))
+    .slice(0, 6)
+})
+
 const onboardingSteps = computed(() => [
   {
     index: 1,
@@ -571,6 +613,7 @@ function hydrate(data) {
   Object.assign(stats, data.stats || {})
   Object.assign(reference, data.reference || {})
   licences.value = Array.isArray(data.licences) ? data.licences : []
+  clients.value = Array.isArray(data.clients) ? data.clients : []
   hydrateEmailSettings(data.email_settings)
   if (!editingId.value && form.modules_autorises.length === 0) {
     applyPlanModules()
@@ -668,6 +711,24 @@ function resetForm() {
   editingId.value = null
   Object.assign(form, emptyForm())
   applyPlanModules()
+}
+
+function startLicenceFromLead(lead) {
+  editingId.value = null
+  const preferredPlan = inferPlanFromNotes(lead.notes)
+  Object.assign(form, {
+    ...emptyForm(),
+    client_nom: lead.nom || '',
+    client_email: lead.email || '',
+    client_telephone: lead.telephone || '',
+    contact_nom: lead.contact_nom || '',
+    client_notes: lead.notes || '',
+    client_statut: 'client',
+    plan: preferredPlan,
+    notes: lead.notes ? `Origine demande démo :\n${lead.notes}` : '',
+  })
+  applyPlanModules()
+  toast.info('Demande chargée. Vérifiez l’offre puis créez la licence.')
 }
 
 function licencePayload() {
@@ -940,6 +1001,14 @@ function planLabel(plan) {
   return plans.value?.[plan]?.label || plan || '-'
 }
 
+function inferPlanFromNotes(notes = '') {
+  const value = String(notes).toLowerCase()
+  if (value.includes('starter')) return 'starter'
+  if (value.includes('pro')) return 'pro'
+  if (value.includes('business')) return 'business'
+  return 'business'
+}
+
 function parseNumber(value) {
   const raw = String(value ?? '').replace(/\s/g, '').replace(',', '.')
   const number = Number(raw)
@@ -1105,6 +1174,29 @@ function addMonths(dateValue, months) {
 .xell-licence-row-active {
   border-color: color-mix(in srgb, var(--saytu-primary, #2563eb) 55%, var(--saytu-border, #e2e8f0));
   background: color-mix(in srgb, var(--saytu-primary, #2563eb) 8%, var(--saytu-surface, #ffffff));
+}
+
+.xell-lead-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border: 1px solid var(--saytu-border, #e2e8f0);
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--saytu-surface, #ffffff) 94%, var(--saytu-primary, #2563eb) 6%);
+  padding: 0.85rem;
+}
+
+.xell-lead-notes {
+  display: -webkit-box;
+  max-height: 2.8rem;
+  overflow: hidden;
+  color: var(--saytu-muted, #64748b);
+  font-size: 0.75rem;
+  line-height: 1.35;
+  white-space: pre-line;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .label {

@@ -9,6 +9,12 @@ const routes = [
     meta: { guest: true },
   },
   {
+    path: '/decouvrir',
+    name: 'decouvrir',
+    component: () => import('@/views/MarketingLandingView.vue'),
+    meta: { guest: true },
+  },
+  {
     path: '/',
     component: () => import('@/layouts/AppLayout.vue'),
     meta: { requiresAuth: true },
