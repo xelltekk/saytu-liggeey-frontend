@@ -191,7 +191,7 @@
             {{ form.client_nom || 'Client à renseigner' }}
           </p>
           <p class="text-xs text-[color:var(--saytu-muted,#64748b)]">
-            {{ planLabel(form.plan) }} · {{ money(form.montant_mensuel) }} {{ form.devise }}/mois · {{ form.modules_autorises.length }} module(s)
+            {{ planLabel(form.plan) }} · {{ money(form.montant_mensuel) }} {{ currencyLabel(form.devise) }}/mois · {{ form.modules_autorises.length }} module(s)
           </p>
 
           <div class="mt-3 grid grid-cols-2 gap-2">
@@ -319,6 +319,56 @@
               <input v-model="form.periode_essai_fin" type="date" class="input" />
             </label>
           </div>
+
+          <section class="rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] p-3">
+            <div class="mb-3 flex items-center justify-between gap-2">
+              <div>
+                <h3 class="font-black text-[color:var(--saytu-shell-text,#0f172a)]">Contrat PDF</h3>
+                <p class="text-xs text-[color:var(--saytu-muted,#64748b)]">
+                  Ces informations apparaissent sur le devis, le contrat et l’email client.
+                </p>
+              </div>
+              <button type="button" class="btn-secondary px-3 py-2 text-xs" @click="applyContractDefaults">
+                Conditions types
+              </button>
+            </div>
+
+            <div class="grid gap-3 md:grid-cols-2">
+              <label>
+                <span class="label">Périodicité</span>
+                <select v-model="form.billing_cycle" class="input" @change="applyPaymentTermsForCycle(true)">
+                  <option v-for="(label, key) in billingCycles" :key="key" :value="key">{{ label }}</option>
+                </select>
+              </label>
+
+              <label>
+                <span class="label">Frais d’activation</span>
+                <input v-model="form.setup_fee" data-numeric-input data-decimals="2" class="input" placeholder="0" />
+              </label>
+
+              <label>
+                <span class="label">Préavis résiliation (jours)</span>
+                <input v-model="form.cancellation_notice_days" data-numeric-input class="input" placeholder="30" />
+              </label>
+
+              <label>
+                <span class="label">Support</span>
+                <select v-model="form.support_level" class="input">
+                  <option v-for="(label, key) in supportLevels" :key="key" :value="label">{{ supportLabel(key) }}</option>
+                </select>
+              </label>
+
+              <label class="md:col-span-2">
+                <span class="label">Modalités de paiement</span>
+                <textarea v-model="form.payment_terms" class="input min-h-20" placeholder="Ex : paiement mensuel à la réception de facture."></textarea>
+              </label>
+
+              <label class="md:col-span-2">
+                <span class="label">Conditions particulières</span>
+                <textarea v-model="form.contract_terms" class="input min-h-24" placeholder="Clauses particulières visibles sur le contrat client."></textarea>
+              </label>
+            </div>
+          </section>
 
           <section class="rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] p-3">
             <div class="mb-3 flex items-center justify-between gap-2">
@@ -493,6 +543,13 @@ const reference = reactive({
   modules: {},
   statuts: {},
   tarifs: {},
+  contract_defaults: {
+    billing_cycles: {},
+    payment_terms: {},
+    support_levels: {},
+    contract_terms: '',
+    cancellation_notice_days: 30,
+  },
 })
 const licences = ref([])
 const clients = ref([])
@@ -503,6 +560,10 @@ const emailForm = reactive(emptyEmailForm())
 const plans = computed(() => reference.plans || {})
 const statuts = computed(() => reference.statuts || {})
 const tarifs = computed(() => reference.tarifs || {})
+const contractDefaults = computed(() => reference.contract_defaults || {})
+const billingCycles = computed(() => contractDefaults.value.billing_cycles || { mensuel: 'Mensuel' })
+const paymentTerms = computed(() => contractDefaults.value.payment_terms || {})
+const supportLevels = computed(() => contractDefaults.value.support_levels || {})
 const activeLicence = computed(() => licences.value.find(licence => licence.id === editingId.value) || null)
 
 const statCards = computed(() => [
@@ -695,9 +756,16 @@ async function toggleLicenceStatus(licence) {
 
 function editLicence(licence) {
   editingId.value = licence.id
+  const cycle = licence.billing_cycle || 'mensuel'
   Object.assign(form, {
     ...emptyForm(),
     ...licence,
+    billing_cycle: cycle,
+    payment_terms: licence.payment_terms || paymentTermsForCycle(cycle),
+    support_level: licence.support_level || defaultSupportLevel(),
+    setup_fee: licence.setup_fee ?? '',
+    cancellation_notice_days: licence.cancellation_notice_days ?? contractDefaults.value.cancellation_notice_days ?? 30,
+    contract_terms: licence.contract_terms || '',
     modules_autorises: Array.isArray(licence.modules_autorises) ? [...licence.modules_autorises] : [],
     max_utilisateurs: licence.max_utilisateurs ?? '',
     montant_mensuel: licence.montant_mensuel ?? '',
@@ -749,6 +817,12 @@ function licencePayload() {
     modules_autorises: [...new Set(form.modules_autorises || [])],
     montant_mensuel: parseNumber(form.montant_mensuel),
     devise: form.devise || 'XOF',
+    billing_cycle: form.billing_cycle || 'mensuel',
+    payment_terms: form.payment_terms || paymentTermsForCycle(form.billing_cycle),
+    support_level: form.support_level || defaultSupportLevel(),
+    setup_fee: parseNumber(form.setup_fee),
+    cancellation_notice_days: parseIntegerOrNull(form.cancellation_notice_days) ?? 30,
+    contract_terms: form.contract_terms || null,
     notes: form.notes || null,
   }
 }
@@ -759,6 +833,43 @@ function applyPlanModules() {
   if (!parseNumber(form.montant_mensuel)) {
     form.montant_mensuel = tarifs.value?.[form.plan] ?? form.montant_mensuel
   }
+  if (!form.payment_terms) {
+    form.payment_terms = paymentTermsForCycle(form.billing_cycle)
+  }
+  if (!form.support_level) {
+    form.support_level = defaultSupportLevel()
+  }
+}
+
+function applyPaymentTermsForCycle(force = false) {
+  const defaults = Object.values(paymentTerms.value || {})
+  if (force || !form.payment_terms || defaults.includes(form.payment_terms)) {
+    form.payment_terms = paymentTermsForCycle(form.billing_cycle)
+  }
+}
+
+function applyContractDefaults() {
+  form.payment_terms = paymentTermsForCycle(form.billing_cycle)
+  form.support_level = defaultSupportLevel()
+  form.cancellation_notice_days = contractDefaults.value.cancellation_notice_days ?? 30
+  form.contract_terms = contractDefaults.value.contract_terms || form.contract_terms || ''
+  toast.info('Conditions types appliquées.')
+}
+
+function paymentTermsForCycle(cycle = 'mensuel') {
+  return paymentTerms.value?.[cycle] || paymentTerms.value?.mensuel || 'Paiement mensuel à la réception de facture.'
+}
+
+function defaultSupportLevel() {
+  return supportLevels.value?.standard || 'Support standard ouvré : assistance à l’utilisation, corrections et accompagnement raisonnable.'
+}
+
+function supportLabel(key) {
+  return {
+    standard: 'Standard',
+    prioritaire: 'Prioritaire',
+    premium: 'Premium',
+  }[key] || key
 }
 
 function moduleEnabled(moduleKey) {
@@ -949,6 +1060,12 @@ function emptyForm() {
     modules_autorises: [],
     montant_mensuel: '',
     devise: 'XOF',
+    billing_cycle: 'mensuel',
+    payment_terms: 'Paiement mensuel à la réception de facture. Activation après signature du contrat et validation du premier règlement.',
+    support_level: 'Support standard ouvré : assistance à l’utilisation, corrections et accompagnement raisonnable.',
+    setup_fee: '',
+    cancellation_notice_days: 30,
+    contract_terms: '',
     notes: '',
   }
 }
@@ -1029,6 +1146,15 @@ function cleanPhone(value) {
 
 function money(value) {
   return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(Number(value || 0))
+}
+
+function currencyLabel(devise) {
+  return {
+    XOF: 'FCFA BCEAO',
+    FCFA: 'FCFA BCEAO',
+    EUR: '€',
+    USD: '$',
+  }[String(devise || '').toUpperCase()] || devise || ''
 }
 
 function formatDate(value) {
