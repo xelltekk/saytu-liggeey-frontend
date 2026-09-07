@@ -928,7 +928,7 @@ async function openDocument(licence, type) {
   try {
     const response = await api.get(endpoint, {
       responseType: 'blob',
-      headers: { Accept: 'application/pdf' },
+      headers: { Accept: 'application/json, application/pdf' },
     })
     const blob = new Blob([response.data], { type: 'application/pdf' })
     const objectUrl = URL.createObjectURL(blob)
