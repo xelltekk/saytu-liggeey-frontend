@@ -910,15 +910,42 @@ async function copyText(value, successMessage = 'Copié.') {
   }
 }
 
-function openDocument(licence, type) {
+async function openDocument(licence, type) {
   if (!licence?.id) return
 
   const rawUrl = type === 'contrat'
     ? licence.contrat_pdf_url || `/api/admin/xelltekk/licences/${licence.id}/contrat-pdf`
     : licence.devis_pdf_url || `/api/admin/xelltekk/licences/${licence.id}/devis-pdf`
-  const url = browserApiUrl(rawUrl)
+  const endpoint = axiosApiUrl(rawUrl)
+  const label = type === 'contrat' ? 'contrat' : 'devis'
+  const reservedWindow = window.open('', '_blank')
 
-  window.open(url, '_blank', 'noopener,noreferrer')
+  if (reservedWindow) {
+    reservedWindow.opener = null
+    reservedWindow.document.write('<!doctype html><title>Préparation du PDF</title><p style="font-family:system-ui;padding:24px">Préparation du PDF...</p>')
+  }
+
+  try {
+    const response = await api.get(endpoint, {
+      responseType: 'blob',
+      headers: { Accept: 'application/pdf' },
+    })
+    const blob = new Blob([response.data], { type: 'application/pdf' })
+    const objectUrl = URL.createObjectURL(blob)
+
+    if (reservedWindow) {
+      reservedWindow.location.href = objectUrl
+    } else {
+      window.open(objectUrl, '_blank')
+    }
+
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 120000)
+  } catch (error) {
+    if (reservedWindow && !reservedWindow.closed) {
+      reservedWindow.close()
+    }
+    toast.error(await apiBlobErrorMessage(error, `Impossible d’ouvrir le ${label} PDF.`))
+  }
 }
 
 async function prepareOnboardingEmail(licence) {
@@ -1035,11 +1062,19 @@ function axiosApiUrl(url) {
   return String(url || '').replace(/^\/api(?=\/)/, '')
 }
 
-function browserApiUrl(url) {
-  const value = String(url || '')
-  if (value.startsWith('/api/')) return value
-  if (value.startsWith('/')) return `/api${value}`
-  return `/api/${value}`
+async function apiBlobErrorMessage(error, fallback) {
+  const data = error?.response?.data
+  if (data instanceof Blob) {
+    try {
+      const text = await data.text()
+      const parsed = JSON.parse(text)
+      return parsed?.message || fallback
+    } catch {
+      return fallback
+    }
+  }
+
+  return error?.response?.data?.message || fallback
 }
 
 function emptyForm() {
