@@ -119,7 +119,20 @@
             {{ submitting ? 'Envoi en cours...' : 'Envoyer ma demande' }}
           </button>
 
-          <p v-if="successMessage" class="landing-success">{{ successMessage }}</p>
+          <div v-if="successMessage" class="landing-success">
+            <p>{{ successMessage }}</p>
+            <a
+              v-if="reservedWorkspace?.url"
+              :href="reservedWorkspace.url"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {{ reservedWorkspace.domain || reservedWorkspace.url }}
+            </a>
+            <small v-if="reservedWorkspace?.url">
+              Sous-domaine réservé. L’activation technique sera finalisée par XELLTEKK après validation.
+            </small>
+          </div>
           <p v-if="errorMessage" class="landing-error">{{ errorMessage }}</p>
         </form>
       </section>
@@ -187,6 +200,7 @@ import api from '@/services/api'
 const submitting = ref(false)
 const successMessage = ref('')
 const errorMessage = ref('')
+const reservedWorkspace = ref(null)
 const route = useRoute()
 const allowedPlans = ['starter', 'pro', 'business']
 
@@ -251,6 +265,7 @@ const offers = [
 async function submitDemoRequest() {
   successMessage.value = ''
   errorMessage.value = ''
+  reservedWorkspace.value = null
   submitting.value = true
 
   try {
@@ -259,6 +274,12 @@ async function submitDemoRequest() {
       telephone: cleanPhone(form.telephone),
     })
     successMessage.value = data.message || 'Demande transmise. Nous vous recontactons rapidement.'
+    reservedWorkspace.value = data.workspace_url
+      ? {
+          url: data.workspace_url,
+          domain: data.workspace_domain,
+        }
+      : null
     Object.assign(form, {
       website: '',
       societe: '',
@@ -459,6 +480,7 @@ watch(
 
 .landing-success,
 .landing-error {
+  display: block;
   border-radius: 1rem;
   padding: 0.8rem 0.9rem;
   font-size: 0.88rem;
@@ -468,6 +490,23 @@ watch(
 .landing-success {
   background: #dcfce7;
   color: #047857;
+}
+
+.landing-success a {
+  display: block;
+  margin-top: 0.3rem;
+  color: #0369a1;
+  font-weight: 1000;
+  text-decoration: underline;
+}
+
+.landing-success small {
+  display: block;
+  margin-top: 0.2rem;
+  color: #0f766e;
+  font-size: 0.76rem;
+  font-weight: 700;
+  line-height: 1.35;
 }
 
 .landing-error {

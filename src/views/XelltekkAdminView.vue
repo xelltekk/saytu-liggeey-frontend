@@ -135,6 +135,15 @@
             <p class="mt-1 text-xs text-[color:var(--saytu-muted,#64748b)]">
               {{ lead.email || 'Email non renseigné' }} · {{ lead.telephone || 'Téléphone non renseigné' }}
             </p>
+            <a
+              v-if="workspaceUrl(lead)"
+              :href="workspaceUrl(lead)"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="mt-1 inline-flex max-w-full truncate rounded-full bg-[color:var(--saytu-primary-soft,#dbeafe)] px-2 py-0.5 text-[11px] font-black text-[color:var(--saytu-primary,#2563eb)] hover:underline"
+            >
+              {{ workspaceLabel(lead) }}
+            </a>
             <p class="mt-2 xell-lead-notes">{{ lead.notes }}</p>
           </div>
           <button type="button" class="btn-primary shrink-0 px-3 py-2 text-xs" @click="startLicenceFromLead(lead)">
@@ -339,8 +348,17 @@
             </label>
 
             <label>
-              <span class="label">Domaine</span>
-              <input v-model="form.domaine" class="input" placeholder="client.saytuliggeey.com" />
+              <span class="label">Sous-domaine / domaine</span>
+              <input v-model="form.domaine" class="input" placeholder="client.saytu.xelltekk.com" />
+              <a
+                v-if="form.domaine"
+                :href="urlFromDomain(form.domaine)"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="mt-1 inline-block text-xs font-black text-[color:var(--saytu-primary,#2563eb)] hover:underline"
+              >
+                Ouvrir l’espace
+              </a>
             </label>
 
             <label>
@@ -526,10 +544,19 @@
               <p class="mt-1 truncate text-xs text-[color:var(--saytu-muted,#64748b)]">
                 {{ licence.numero }} · {{ licence.licence_key }}
               </p>
-              <div class="mt-2 grid gap-2 text-xs text-[color:var(--saytu-muted,#64748b)] sm:grid-cols-3">
+              <div class="mt-2 grid gap-2 text-xs text-[color:var(--saytu-muted,#64748b)] sm:grid-cols-4">
                 <span><strong class="text-[color:var(--saytu-shell-text,#0f172a)]">Fin :</strong> {{ formatDate(licence.date_fin) }}</span>
                 <span><strong class="text-[color:var(--saytu-shell-text,#0f172a)]">Modules :</strong> {{ licence.modules_count }}</span>
                 <span><strong class="text-[color:var(--saytu-shell-text,#0f172a)]">Mensuel :</strong> {{ money(licence.montant_mensuel) }} {{ licence.devise }}</span>
+                <a
+                  v-if="workspaceUrl(licence)"
+                  :href="workspaceUrl(licence)"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="truncate font-black text-[color:var(--saytu-primary,#2563eb)] hover:underline"
+                >
+                  {{ workspaceLabel(licence) }}
+                </a>
               </div>
             </div>
 
@@ -938,6 +965,7 @@ function startLicenceFromLead(lead) {
     client_nom: lead.nom || '',
     client_email: lead.email || '',
     client_telephone: lead.telephone || '',
+    domaine: lead.workspace_domain || lead.domaine || '',
     contact_nom: lead.contact_nom || '',
     client_notes: lead.notes || '',
     client_statut: 'client',
@@ -1339,6 +1367,21 @@ function currencyLabel(devise) {
     EUR: '€',
     USD: '$',
   }[String(devise || '').toUpperCase()] || devise || ''
+}
+
+function urlFromDomain(domain) {
+  const value = String(domain || '').trim()
+  if (!value) return ''
+  if (/^https?:\/\//i.test(value)) return value
+  return `https://${value}`
+}
+
+function workspaceUrl(item) {
+  return item?.workspace_url || urlFromDomain(item?.workspace_domain || item?.domaine)
+}
+
+function workspaceLabel(item) {
+  return item?.workspace_domain || item?.domaine || item?.subdomain || item?.workspace_url || ''
 }
 
 function formatDate(value) {
