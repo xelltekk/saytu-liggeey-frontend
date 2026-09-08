@@ -35,6 +35,83 @@
       </article>
     </section>
 
+    <section v-if="licenceActionGroups.length" class="xell-panel overflow-hidden">
+      <div class="xell-panel-header">
+        <div>
+          <h2 class="font-black text-[color:var(--saytu-shell-text,#0f172a)]">Centre d’action licences</h2>
+          <p class="text-xs text-[color:var(--saytu-muted,#64748b)]">
+            Les dossiers à traiter en priorité pour garder les clients actifs et relancer vite.
+          </p>
+        </div>
+        <span class="rounded-full bg-[color:var(--saytu-primary-soft,#dbeafe)] px-3 py-1 text-xs font-black text-[color:var(--saytu-primary,#2563eb)]">
+          {{ licenceActionTotal }} action(s)
+        </span>
+      </div>
+
+      <div class="grid gap-3 p-4 xl:grid-cols-4">
+        <article
+          v-for="group in licenceActionGroups"
+          :key="group.key"
+          class="xell-action-card"
+          :class="`xell-action-card-${group.tone}`"
+        >
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <p class="xell-card-label">{{ group.title }}</p>
+              <p class="mt-1 text-2xl font-black text-[color:var(--saytu-shell-text,#0f172a)]">{{ group.count }}</p>
+              <p class="mt-1 text-xs text-[color:var(--saytu-muted,#64748b)]">{{ group.hint }}</p>
+            </div>
+            <span class="xell-action-icon">
+              <component :is="group.icon" class="h-4 w-4" />
+            </span>
+          </div>
+
+          <div class="mt-3 space-y-2">
+            <div v-for="licence in group.items" :key="`${group.key}-${licence.id}`" class="xell-action-row">
+              <button type="button" class="min-w-0 flex-1 text-left" @click="editLicence(licence)">
+                <span class="block truncate text-sm font-black text-[color:var(--saytu-shell-text,#0f172a)]">
+                  {{ licence.client_nom || 'Client sans nom' }}
+                </span>
+                <span class="block truncate text-[11px] font-semibold text-[color:var(--saytu-muted,#64748b)]">
+                  {{ group.detail(licence) }}
+                </span>
+              </button>
+
+              <button
+                v-if="group.key === 'a_envoyer'"
+                type="button"
+                class="xell-action-link"
+                :disabled="sendingEmailId === licence.id"
+                @click="sendOnboardingEmail(licence)"
+              >
+                Envoyer
+              </button>
+              <button
+                v-else-if="group.key === 'expirees' || group.key === 'a_renouveler'"
+                type="button"
+                class="xell-action-link"
+                @click="renewLicence(licence)"
+              >
+                +12m
+              </button>
+              <button
+                v-else
+                type="button"
+                class="xell-action-link"
+                @click="toggleLicenceStatus(licence)"
+              >
+                Réactiver
+              </button>
+            </div>
+
+            <p v-if="group.moreCount > 0" class="text-[11px] font-bold text-[color:var(--saytu-muted,#64748b)]">
+              + {{ group.moreCount }} autre(s) — utilisez la recherche pour filtrer.
+            </p>
+          </div>
+        </article>
+      </div>
+    </section>
+
     <section v-if="demoRequests.length" class="xell-panel overflow-hidden">
       <div class="xell-panel-header">
         <div>
@@ -503,6 +580,7 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 import {
+  AlertTriangle,
   Copy,
   FileSignature,
   FileText,
@@ -565,6 +643,7 @@ const billingCycles = computed(() => contractDefaults.value.billing_cycles || { 
 const paymentTerms = computed(() => contractDefaults.value.payment_terms || {})
 const supportLevels = computed(() => contractDefaults.value.support_levels || {})
 const activeLicence = computed(() => licences.value.find(licence => licence.id === editingId.value) || null)
+const licenceActionTotal = computed(() => licenceActionGroups.value.reduce((total, group) => total + group.count, 0))
 
 const statCards = computed(() => [
   {
@@ -627,6 +706,76 @@ const demoRequests = computed(() => {
     .slice()
     .sort((a, b) => String(b.updated_at || b.created_at || '').localeCompare(String(a.updated_at || a.created_at || '')))
     .slice(0, 6)
+})
+
+const licenceActionGroups = computed(() => {
+  const all = Array.isArray(licences.value) ? licences.value : []
+  const buildGroup = ({ key, title, hint, icon, tone, items, detail }) => ({
+    key,
+    title,
+    hint,
+    icon,
+    tone,
+    count: items.length,
+    items: items.slice(0, 3),
+    moreCount: Math.max(items.length - 3, 0),
+    detail,
+  })
+
+  const expired = all
+    .filter(isLicenceExpired)
+    .sort(sortByUrgency)
+
+  const renewSoon = all
+    .filter(isLicenceToRenewSoon)
+    .sort(sortByUrgency)
+
+  const unsent = all
+    .filter(isLicenceOfferToSend)
+    .sort((a, b) => String(b.updated_at || b.created_at || '').localeCompare(String(a.updated_at || a.created_at || '')))
+
+  const suspended = all
+    .filter(licence => licence.statut === 'suspendue')
+    .sort(sortByUrgency)
+
+  return [
+    buildGroup({
+      key: 'expirees',
+      title: 'Expirées',
+      hint: 'À renouveler ou suspendre.',
+      icon: AlertTriangle,
+      tone: 'danger',
+      items: expired,
+      detail: licenceDeadlineLabel,
+    }),
+    buildGroup({
+      key: 'a_renouveler',
+      title: 'À renouveler',
+      hint: 'Échéance dans 30 jours.',
+      icon: KeyRound,
+      tone: 'warning',
+      items: renewSoon,
+      detail: licenceDeadlineLabel,
+    }),
+    buildGroup({
+      key: 'a_envoyer',
+      title: 'Offre à envoyer',
+      hint: 'Pack créé, email non envoyé.',
+      icon: Mail,
+      tone: 'info',
+      items: unsent,
+      detail: licence => `${licence.numero || 'Licence'} · ${licence.client_email || 'email manquant'}`,
+    }),
+    buildGroup({
+      key: 'suspendues',
+      title: 'Suspendues',
+      hint: 'À réactiver après régularisation.',
+      icon: ShieldCheck,
+      tone: 'muted',
+      items: suspended,
+      detail: licence => `${licence.numero || 'Licence'} · ${licence.plan_label || planLabel(licence.plan)}`,
+    }),
+  ].filter(group => group.count > 0)
 })
 
 const onboardingSteps = computed(() => [
@@ -1219,6 +1368,48 @@ function addMonths(dateValue, months) {
   date.setMonth(date.getMonth() + months)
   return date.toISOString().slice(0, 10)
 }
+
+function daysUntil(value) {
+  if (!value) return null
+  const target = new Date(`${value}T00:00:00`)
+  if (Number.isNaN(target.getTime())) return null
+  const current = new Date()
+  current.setHours(0, 0, 0, 0)
+  return Math.ceil((target.getTime() - current.getTime()) / 86400000)
+}
+
+function isLicenceExpired(licence) {
+  const days = daysUntil(licence?.date_fin)
+  return licence?.statut === 'expiree' || licence?.is_expired || (days !== null && days < 0)
+}
+
+function isLicenceToRenewSoon(licence) {
+  const days = daysUntil(licence?.date_fin)
+  return !isLicenceExpired(licence)
+    && licence?.statut !== 'suspendue'
+    && days !== null
+    && days <= 30
+}
+
+function isLicenceOfferToSend(licence) {
+  return Boolean(licence?.client_email)
+    && !licence?.last_sent_at
+    && !['suspendue', 'expiree'].includes(licence?.statut)
+}
+
+function licenceDeadlineLabel(licence) {
+  const days = daysUntil(licence?.date_fin)
+  if (days === null) return `${licence?.numero || 'Licence'} · sans date de fin`
+  if (days < 0) return `${licence?.numero || 'Licence'} · expirée depuis ${Math.abs(days)} j`
+  if (days === 0) return `${licence?.numero || 'Licence'} · expire aujourd’hui`
+  return `${licence?.numero || 'Licence'} · J-${days}`
+}
+
+function sortByUrgency(a, b) {
+  const first = daysUntil(a?.date_fin)
+  const second = daysUntil(b?.date_fin)
+  return (first ?? 99999) - (second ?? 99999)
+}
 </script>
 
 <style scoped>
@@ -1316,6 +1507,66 @@ function addMonths(dateValue, months) {
   color: white;
   font-size: 0.78rem;
   font-weight: 900;
+}
+
+.xell-action-card {
+  min-height: 13.5rem;
+  border: 1px solid var(--saytu-border, #e2e8f0);
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--saytu-surface, #ffffff) 95%, var(--saytu-primary, #2563eb) 5%);
+  padding: 0.85rem;
+}
+
+.xell-action-icon {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  flex-shrink: 0;
+  border-radius: 0.8rem;
+  background: color-mix(in srgb, var(--saytu-primary, #2563eb) 14%, var(--saytu-surface, #ffffff));
+  color: var(--saytu-primary, #2563eb);
+}
+
+.xell-action-card-danger .xell-action-icon {
+  background: color-mix(in srgb, #ef4444 14%, var(--saytu-surface, #ffffff));
+  color: #dc2626;
+}
+
+.xell-action-card-warning .xell-action-icon {
+  background: color-mix(in srgb, #f59e0b 16%, var(--saytu-surface, #ffffff));
+  color: #b45309;
+}
+
+.xell-action-card-muted .xell-action-icon {
+  background: color-mix(in srgb, var(--saytu-muted, #64748b) 14%, var(--saytu-surface, #ffffff));
+  color: var(--saytu-muted, #64748b);
+}
+
+.xell-action-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 3rem;
+  border: 1px solid color-mix(in srgb, var(--saytu-border, #e2e8f0) 75%, transparent);
+  border-radius: 0.85rem;
+  background: color-mix(in srgb, var(--saytu-surface, #ffffff) 88%, var(--saytu-primary, #2563eb) 12%);
+  padding: 0.55rem 0.65rem;
+}
+
+.xell-action-link {
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--saytu-primary, #2563eb) 12%, var(--saytu-surface, #ffffff));
+  color: var(--saytu-primary, #2563eb);
+  padding: 0.35rem 0.6rem;
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.xell-action-link:disabled {
+  cursor: wait;
+  opacity: 0.55;
 }
 
 .xell-licence-row {
