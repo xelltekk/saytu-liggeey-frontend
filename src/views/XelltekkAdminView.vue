@@ -368,14 +368,16 @@
 
             <label>
               <span class="label">Formule</span>
-              <select v-model="form.plan" class="input" @change="applyPlanModules">
+              <select v-model="form.plan" class="input xell-select" required @change="applyPlanModules">
+                <option disabled value="">Choisir une formule</option>
                 <option v-for="(plan, key) in plans" :key="key" :value="key">{{ plan.label }}</option>
               </select>
             </label>
 
             <label>
               <span class="label">Statut</span>
-              <select v-model="form.statut" class="input">
+              <select v-model="form.statut" class="input xell-select" required>
+                <option disabled value="">Choisir un statut</option>
                 <option v-for="(label, key) in statuts" :key="key" :value="key">{{ label }}</option>
               </select>
             </label>
@@ -627,6 +629,89 @@ import { useConfirm } from '@/composables/useConfirm'
 import { useToast } from '@/composables/useToast'
 import { buildMailtoUrl, closeReservedEmailComposerWindow, openEmailComposer, reserveEmailComposerWindow } from '@/utils/emailComposer'
 
+const DEFAULT_MODULES = {
+  dashboard: { label: 'Tableau de bord', group: 'Pilotage' },
+  pilotage: { label: 'Aujourd’hui', group: 'Pilotage' },
+  agenda: { label: 'Agenda', group: 'Pilotage' },
+  clients: { label: 'Clients', group: 'Ventes' },
+  prospection: { label: 'Prospection', group: 'Ventes' },
+  devis: { label: 'Devis', group: 'Ventes' },
+  factures: { label: 'Factures', group: 'Ventes' },
+  caisse: { label: 'Caisse', group: 'Boutique' },
+  produits: { label: 'Produits', group: 'Stock' },
+  stock: { label: 'Stock & entrepôts', group: 'Stock' },
+  achats: { label: 'Achats fournisseurs', group: 'Achats' },
+  leasing: { label: 'Leasing imprimantes', group: 'Métiers' },
+  paiements: { label: 'Paiements clients', group: 'Comptabilité' },
+  recouvrement: { label: 'Recouvrement clients', group: 'Comptabilité' },
+  depenses: { label: 'Dépenses', group: 'Comptabilité' },
+  fournisseurs_reglements: { label: 'Règlements fournisseurs', group: 'Comptabilité' },
+  comptabilite: { label: 'Écritures comptables', group: 'Analyse' },
+  tresorerie: { label: 'Trésorerie', group: 'Analyse' },
+  rh: { label: 'Ressources humaines', group: 'RH' },
+  utilisateurs: { label: 'Utilisateurs', group: 'Administration' },
+  access_control: { label: 'Rôles & permissions', group: 'Administration' },
+  licence: { label: 'Licence & abonnement', group: 'Administration' },
+  xelltekk_admin: { label: 'XELLTEKK Admin', group: 'Administration' },
+  securite: { label: 'Sécurité & sauvegarde', group: 'Administration' },
+  parametres: { label: 'Paramètres société', group: 'Administration' },
+  activites: { label: 'Journal des activités', group: 'Administration' },
+  corbeille: { label: 'Corbeille', group: 'Administration' },
+  notifications: { label: 'Notifications', group: 'Système' },
+  exports: { label: 'Exports', group: 'Système' },
+}
+
+const DEFAULT_PLANS = {
+  starter: {
+    label: 'Starter',
+    description: 'Vente, clients, devis, factures, caisse et stock simple.',
+    modules: ['dashboard', 'pilotage', 'agenda', 'clients', 'prospection', 'devis', 'factures', 'caisse', 'produits', 'stock', 'paiements', 'notifications'],
+  },
+  pro: {
+    label: 'Pro',
+    description: 'Gestion commerciale complète avec achats, trésorerie et recouvrement.',
+    modules: ['dashboard', 'pilotage', 'agenda', 'clients', 'prospection', 'devis', 'factures', 'caisse', 'produits', 'stock', 'achats', 'paiements', 'recouvrement', 'depenses', 'fournisseurs_reglements', 'comptabilite', 'tresorerie', 'notifications'],
+  },
+  business: {
+    label: 'Business',
+    description: 'Tous les modules, administration avancée et pilotage complet.',
+    modules: Object.keys(DEFAULT_MODULES),
+  },
+}
+
+const DEFAULT_STATUTS = {
+  actif: 'Active',
+  essai: 'Essai',
+  suspendue: 'Suspendue',
+  expiree: 'Expirée',
+}
+
+const DEFAULT_TARIFS = {
+  starter: 15000,
+  pro: 30000,
+  business: 50000,
+}
+
+const DEFAULT_CONTRACT_DEFAULTS = {
+  billing_cycles: {
+    mensuel: 'Mensuel',
+    trimestriel: 'Trimestriel',
+    annuel: 'Annuel',
+  },
+  payment_terms: {
+    mensuel: 'Paiement mensuel à la réception de facture. Activation après signature du contrat et validation du premier règlement.',
+    trimestriel: 'Paiement trimestriel à la réception de facture. Activation après signature du contrat et validation du premier règlement.',
+    annuel: 'Paiement annuel à la réception de facture. Activation après signature du contrat et validation du premier règlement.',
+  },
+  support_levels: {
+    standard: 'Support standard ouvré : assistance à l’utilisation, corrections et accompagnement raisonnable.',
+    prioritaire: 'Support prioritaire ouvré : assistance accélérée, corrections et accompagnement renforcé.',
+    premium: 'Support premium : assistance prioritaire, accompagnement avancé et suivi commercial dédié.',
+  },
+  contract_terms: '',
+  cancellation_notice_days: 30,
+}
+
 const toast = useToast()
 const { confirm: askConfirm } = useConfirm()
 
@@ -644,17 +729,11 @@ const stats = reactive({
   revenu_mensuel: 0,
 })
 const reference = reactive({
-  plans: {},
-  modules: {},
-  statuts: {},
-  tarifs: {},
-  contract_defaults: {
-    billing_cycles: {},
-    payment_terms: {},
-    support_levels: {},
-    contract_terms: '',
-    cancellation_notice_days: 30,
-  },
+  plans: DEFAULT_PLANS,
+  modules: DEFAULT_MODULES,
+  statuts: DEFAULT_STATUTS,
+  tarifs: DEFAULT_TARIFS,
+  contract_defaults: cloneContractDefaults(),
 })
 const licences = ref([])
 const clients = ref([])
@@ -662,13 +741,13 @@ const form = reactive(emptyForm())
 const emailSettings = reactive(emptyEmailSettings())
 const emailForm = reactive(emptyEmailForm())
 
-const plans = computed(() => reference.plans || {})
-const statuts = computed(() => reference.statuts || {})
-const tarifs = computed(() => reference.tarifs || {})
-const contractDefaults = computed(() => reference.contract_defaults || {})
-const billingCycles = computed(() => contractDefaults.value.billing_cycles || { mensuel: 'Mensuel' })
-const paymentTerms = computed(() => contractDefaults.value.payment_terms || {})
-const supportLevels = computed(() => contractDefaults.value.support_levels || {})
+const plans = computed(() => nonEmptyObject(reference.plans) ? reference.plans : DEFAULT_PLANS)
+const statuts = computed(() => nonEmptyObject(reference.statuts) ? reference.statuts : DEFAULT_STATUTS)
+const tarifs = computed(() => nonEmptyObject(reference.tarifs) ? reference.tarifs : DEFAULT_TARIFS)
+const contractDefaults = computed(() => normalizeContractDefaults(reference.contract_defaults))
+const billingCycles = computed(() => nonEmptyObject(contractDefaults.value.billing_cycles) ? contractDefaults.value.billing_cycles : DEFAULT_CONTRACT_DEFAULTS.billing_cycles)
+const paymentTerms = computed(() => nonEmptyObject(contractDefaults.value.payment_terms) ? contractDefaults.value.payment_terms : DEFAULT_CONTRACT_DEFAULTS.payment_terms)
+const supportLevels = computed(() => nonEmptyObject(contractDefaults.value.support_levels) ? contractDefaults.value.support_levels : DEFAULT_CONTRACT_DEFAULTS.support_levels)
 const activeLicence = computed(() => licences.value.find(licence => licence.id === editingId.value) || null)
 const licenceActionTotal = computed(() => licenceActionGroups.value.reduce((total, group) => total + group.count, 0))
 
@@ -848,9 +927,15 @@ async function loadDashboard() {
 
 function hydrate(data) {
   Object.assign(stats, data.stats || {})
-  Object.assign(reference, data.reference || {})
+  const incomingReference = data.reference || {}
+  reference.plans = nonEmptyObject(incomingReference.plans) ? incomingReference.plans : DEFAULT_PLANS
+  reference.modules = nonEmptyObject(incomingReference.modules) ? incomingReference.modules : DEFAULT_MODULES
+  reference.statuts = nonEmptyObject(incomingReference.statuts) ? incomingReference.statuts : DEFAULT_STATUTS
+  reference.tarifs = nonEmptyObject(incomingReference.tarifs) ? incomingReference.tarifs : DEFAULT_TARIFS
+  reference.contract_defaults = normalizeContractDefaults(incomingReference.contract_defaults)
   licences.value = Array.isArray(data.licences) ? data.licences : []
   clients.value = Array.isArray(data.clients) ? data.clients : []
+  ensureSelectableDefaults()
   hydrateEmailSettings(data.email_settings)
   if (!editingId.value && form.modules_autorises.length === 0) {
     applyPlanModules()
@@ -877,6 +962,16 @@ function hydrateEmailSettings(settings = null) {
 }
 
 async function saveLicence() {
+  ensureSelectableDefaults()
+  if (!String(form.client_nom || '').trim()) {
+    toast.error('Renseignez le nom du client avant de créer la licence.')
+    return
+  }
+  if (!form.plan || !form.statut) {
+    toast.error('Choisissez une formule et un statut avant d’enregistrer.')
+    return
+  }
+
   saving.value = true
   try {
     const payload = licencePayload()
@@ -888,7 +983,7 @@ async function saveLicence() {
     if (data.licence) editLicence(data.licence)
     toast.success(data.message || 'Licence enregistrée.')
   } catch (error) {
-    toast.error(error.response?.data?.message || 'Impossible d’enregistrer la licence.')
+    toast.error(apiErrorMessage(error, 'Impossible d’enregistrer la licence.'))
   } finally {
     saving.value = false
   }
@@ -949,11 +1044,13 @@ function editLicence(licence) {
     date_fin: licence.date_fin || '',
     periode_essai_fin: licence.periode_essai_fin || '',
   })
+  ensureSelectableDefaults()
 }
 
 function resetForm() {
   editingId.value = null
   Object.assign(form, emptyForm())
+  ensureSelectableDefaults()
   applyPlanModules()
 }
 
@@ -972,11 +1069,14 @@ function startLicenceFromLead(lead) {
     plan: preferredPlan,
     notes: lead.notes ? `Origine demande démo :\n${lead.notes}` : '',
   })
+  ensureSelectableDefaults()
   applyPlanModules()
   toast.info('Demande chargée. Vérifiez l’offre puis créez la licence.')
 }
 
 function licencePayload() {
+  ensureSelectableDefaults()
+
   return {
     client_nom: form.client_nom,
     client_email: form.client_email || null,
@@ -1239,6 +1339,76 @@ function axiosApiUrl(url) {
   return String(url || '').replace(/^\/api(?=\/)/, '')
 }
 
+function nonEmptyObject(value) {
+  return Boolean(value && typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length > 0)
+}
+
+function cloneContractDefaults() {
+  return {
+    ...DEFAULT_CONTRACT_DEFAULTS,
+    billing_cycles: { ...DEFAULT_CONTRACT_DEFAULTS.billing_cycles },
+    payment_terms: { ...DEFAULT_CONTRACT_DEFAULTS.payment_terms },
+    support_levels: { ...DEFAULT_CONTRACT_DEFAULTS.support_levels },
+  }
+}
+
+function normalizeContractDefaults(value = {}) {
+  const defaults = cloneContractDefaults()
+  const source = nonEmptyObject(value) ? value : {}
+
+  return {
+    ...defaults,
+    ...source,
+    billing_cycles: nonEmptyObject(source.billing_cycles) ? source.billing_cycles : defaults.billing_cycles,
+    payment_terms: nonEmptyObject(source.payment_terms) ? source.payment_terms : defaults.payment_terms,
+    support_levels: nonEmptyObject(source.support_levels) ? source.support_levels : defaults.support_levels,
+    contract_terms: source.contract_terms ?? defaults.contract_terms,
+    cancellation_notice_days: source.cancellation_notice_days ?? defaults.cancellation_notice_days,
+  }
+}
+
+function objectHasKey(object, key) {
+  return Object.prototype.hasOwnProperty.call(object || {}, key)
+}
+
+function preferredKey(object, preferred, fallback) {
+  const keys = Object.keys(object || {})
+  if (preferred && keys.includes(preferred)) return preferred
+  return keys[0] || fallback
+}
+
+function ensureSelectableDefaults() {
+  if (!form.plan || !objectHasKey(plans.value, form.plan)) {
+    form.plan = preferredKey(plans.value, 'business', 'business')
+  }
+
+  if (!form.statut || !objectHasKey(statuts.value, form.statut)) {
+    form.statut = preferredKey(statuts.value, 'actif', 'actif')
+  }
+
+  if (!form.billing_cycle || !objectHasKey(billingCycles.value, form.billing_cycle)) {
+    form.billing_cycle = preferredKey(billingCycles.value, 'mensuel', 'mensuel')
+  }
+
+  if (!form.payment_terms) {
+    form.payment_terms = paymentTermsForCycle(form.billing_cycle)
+  }
+
+  if (!form.support_level) {
+    form.support_level = defaultSupportLevel()
+  }
+}
+
+function apiErrorMessage(error, fallback) {
+  const errors = error.response?.data?.errors
+  if (errors && typeof errors === 'object') {
+    const first = Object.values(errors).flat().find(Boolean)
+    if (first) return String(first)
+  }
+
+  return error.response?.data?.message || fallback
+}
+
 async function apiBlobErrorMessage(error, fallback) {
   const data = error?.response?.data
   if (data instanceof Blob) {
@@ -1467,6 +1637,16 @@ function sortByUrgency(a, b) {
 
 .xell-panel {
   border-radius: 1rem;
+}
+
+.xell-select {
+  color: var(--saytu-shell-text, #0f172a) !important;
+  background-color: color-mix(in srgb, var(--saytu-surface, #ffffff) 92%, var(--saytu-primary, #2563eb) 8%) !important;
+}
+
+.xell-select option {
+  background-color: var(--saytu-surface, #ffffff);
+  color: var(--saytu-shell-text, #0f172a);
 }
 
 .xell-panel-header {
