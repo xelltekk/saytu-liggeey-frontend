@@ -384,6 +384,7 @@ import { setCurrency, syncAmountTableNotes } from '@/composables/useCurrency'
 import { useViewport } from '@/composables/useViewport'
 import { useWindowDock } from '@/composables/useWindowDock'
 import api from '@/services/api'
+import { isXelltekkAdmin as userIsXelltekkAdmin } from '@/utils/platformAccess'
 
 import ToastContainer from '@/components/ToastContainer.vue'
 import NotificationsBell from '@/components/NotificationsBell.vue'
@@ -764,8 +765,7 @@ function userHasPermission(permission) {
 }
 
 function isXelltekkAdmin() {
-  const email = String(auth.user?.email || '').toLowerCase()
-  return auth.user?.role === 'admin' && (email.endsWith('@xelltekk.com') || email.endsWith('@xelltekk.sn'))
+  return userIsXelltekkAdmin(auth.user)
 }
 
 const companyLogoUrl = computed(() => {

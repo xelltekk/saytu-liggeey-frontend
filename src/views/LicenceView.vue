@@ -398,6 +398,7 @@ import api from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 import { useConfirm } from '@/composables/useConfirm'
 import { useToast } from '@/composables/useToast'
+import { isXelltekkAdmin } from '@/utils/platformAccess'
 
 const auth = useAuthStore()
 const toast = useToast()
@@ -428,10 +429,7 @@ const paiements = computed(() => form.value?.paiements || [])
 const totalPaiements = computed(() => paiements.value.reduce((total, item) => total + Number(item.montant || 0), 0))
 const licenceMessage = computed(() => form.value?.message || '')
 const licenceIsSensitive = computed(() => ['expiree', 'essai_expire', 'suspendue'].includes(form.value?.etat) || form.value?.expires_soon || form.value?.depasse_limite_utilisateurs)
-const canManageLicence = computed(() => {
-  const email = String(auth.user?.email || '').toLowerCase()
-  return auth.user?.role === 'admin' && (email.endsWith('@xelltekk.com') || email.endsWith('@xelltekk.sn'))
-})
+const canManageLicence = computed(() => isXelltekkAdmin(auth.user))
 const shortFingerprint = computed(() => {
   const fingerprint = String(form.value?.instance_fingerprint || '')
   return fingerprint ? `${fingerprint.slice(0, 12)}…${fingerprint.slice(-8)}` : '-'

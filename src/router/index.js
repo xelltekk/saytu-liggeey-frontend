@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { isXelltekkAdmin } from '@/utils/platformAccess'
 
 const routes = [
   {
@@ -295,11 +296,6 @@ function hasPermission(user, permission) {
   if (!permission) return false
   if (user?.role === 'admin') return true
   return Array.isArray(user?.permissions?.flat) && user.permissions.flat.includes(permission)
-}
-
-function isXelltekkAdmin(user) {
-  const email = String(user?.email || '').toLowerCase()
-  return user?.role === 'admin' && (email.endsWith('@xelltekk.com') || email.endsWith('@xelltekk.sn'))
 }
 
 function licenceAllowsRoute(user, permission) {
