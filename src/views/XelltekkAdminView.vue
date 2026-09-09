@@ -579,6 +579,10 @@
               <button type="button" class="btn-secondary px-3 py-2 text-xs" @click="prepareOnboardingEmail(licence)">
                 Email
               </button>
+              <button type="button" class="btn-secondary px-3 py-2 text-xs" :disabled="resetAdminAccessLoadingId === licence.id" @click="resetTenantAdminAccess(licence)">
+                <KeyRound class="h-4 w-4" />
+                {{ resetAdminAccessLoadingId === licence.id ? '...' : 'Réinitialiser accès' }}
+              </button>
               <button type="button" class="btn-secondary px-3 py-2 text-xs" :disabled="sendingEmailId === licence.id" @click="sendOnboardingEmail(licence)">
                 <Send class="h-4 w-4" />
                 {{ sendingEmailId === licence.id ? '...' : 'Envoyer' }}
@@ -718,6 +722,7 @@ const { confirm: askConfirm } = useConfirm()
 const loading = ref(false)
 const saving = ref(false)
 const sendingEmailId = ref(null)
+const resetAdminAccessLoadingId = ref(null)
 const savingEmailSettings = ref(false)
 const testingEmailSettings = ref(false)
 const search = ref('')
@@ -1022,6 +1027,41 @@ async function toggleLicenceStatus(licence) {
     toast.success(data.message || 'Statut mis à jour.')
   } catch (error) {
     toast.error(error.response?.data?.message || 'Impossible de changer le statut.')
+  }
+}
+
+async function resetTenantAdminAccess(licence) {
+  const ok = await askConfirm({
+    title: 'Réinitialiser l’accès admin',
+    message: `Générer un nouveau mot de passe temporaire pour ${licence.client_nom} ? L’ancien mot de passe admin ne fonctionnera plus.`,
+    confirmLabel: 'Réinitialiser',
+    tone: 'danger',
+  })
+  if (!ok) return
+
+  resetAdminAccessLoadingId.value = licence.id
+  try {
+    const { data } = await api.post(`/admin/xelltekk/licences/${licence.id}/reset-admin-access`)
+    hydrate(data)
+    if (data.licence) editLicence(data.licence)
+
+    const access = data.tenant_admin_access || {}
+    const credentials = [
+      `Espace : ${access.workspace_url || workspaceUrl(data.licence || licence) || ''}`,
+      `Email : ${access.email || ''}`,
+      `Mot de passe temporaire : ${access.password || ''}`,
+      'À changer après la première connexion.',
+    ].filter(Boolean).join('\n')
+
+    if (access.email && access.password) {
+      await copyText(credentials, 'Nouveaux accès copiés.')
+    } else {
+      toast.success(data.message || 'Accès admin réinitialisé.')
+    }
+  } catch (error) {
+    toast.error(error.response?.data?.message || 'Impossible de réinitialiser l’accès admin.')
+  } finally {
+    resetAdminAccessLoadingId.value = null
   }
 }
 
