@@ -822,7 +822,7 @@
             class="xell-licence-row"
             :class="editingId === licence.id ? 'xell-licence-row-active' : ''"
           >
-            <div class="min-w-0 flex-1">
+            <div class="xell-licence-main min-w-0 flex-1">
               <div class="flex flex-wrap items-center gap-2">
                 <h3 class="truncate font-black text-[color:var(--saytu-shell-text,#0f172a)]">{{ licence.client_nom || 'Client sans nom' }}</h3>
                 <span class="rounded-full px-2 py-0.5 text-[11px] font-black" :class="statusClass(licence)">
@@ -835,24 +835,24 @@
               <p class="mt-1 truncate text-xs text-[color:var(--saytu-muted,#64748b)]">
                 {{ licence.numero }} · {{ licence.licence_key }}
               </p>
-              <div class="mt-2 grid gap-2 text-xs text-[color:var(--saytu-muted,#64748b)] sm:grid-cols-4">
-                <span><strong class="text-[color:var(--saytu-shell-text,#0f172a)]">Fin :</strong> {{ formatDate(licence.date_fin) }}</span>
-                <span><strong class="text-[color:var(--saytu-shell-text,#0f172a)]">Modules :</strong> {{ licence.modules_count }}</span>
-                <span><strong class="text-[color:var(--saytu-shell-text,#0f172a)]">Limites :</strong> {{ licence.max_utilisateurs || '∞' }} users · {{ licence.monthly_documents_limit || '∞' }} docs</span>
-                <span><strong class="text-[color:var(--saytu-shell-text,#0f172a)]">Mensuel :</strong> {{ money(licence.montant_mensuel) }} {{ licence.devise }}</span>
+              <div class="xell-licence-meta">
+                <span class="xell-licence-meta-item"><strong class="text-[color:var(--saytu-shell-text,#0f172a)]">Fin :</strong> {{ formatDate(licence.date_fin) }}</span>
+                <span class="xell-licence-meta-item"><strong class="text-[color:var(--saytu-shell-text,#0f172a)]">Modules :</strong> {{ licence.modules_count }}</span>
+                <span class="xell-licence-meta-item"><strong class="text-[color:var(--saytu-shell-text,#0f172a)]">Limites :</strong> {{ licence.max_utilisateurs || '∞' }} users · {{ licence.monthly_documents_limit || '∞' }} docs</span>
+                <span class="xell-licence-meta-item"><strong class="text-[color:var(--saytu-shell-text,#0f172a)]">Mensuel :</strong> {{ money(licence.montant_mensuel) }} {{ licence.devise }}</span>
                 <a
                   v-if="workspaceUrl(licence)"
                   :href="workspaceUrl(licence)"
                   target="_blank"
                   rel="noopener noreferrer"
-                  class="truncate font-black text-[color:var(--saytu-primary,#2563eb)] hover:underline"
+                  class="xell-licence-workspace hover:underline"
                 >
                   {{ workspaceLabel(licence) }}
                 </a>
               </div>
             </div>
 
-            <div class="flex flex-wrap items-center justify-end gap-2">
+            <div class="xell-licence-actions">
               <button type="button" class="btn-secondary px-3 py-2 text-xs" @click="editLicence(licence)">
                 Modifier
               </button>
@@ -2540,9 +2540,54 @@ function sortByUrgency(a, b) {
   display: flex;
   flex-direction: column;
   gap: 0.85rem;
+  min-width: 0;
+  overflow: hidden;
   border-radius: 1rem;
   padding: 1rem;
   transition: 160ms ease;
+}
+
+.xell-licence-main,
+.xell-licence-row h3,
+.xell-licence-row p {
+  min-width: 0;
+}
+
+.xell-licence-meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 9.5rem), 1fr));
+  gap: 0.42rem 0.75rem;
+  margin-top: 0.65rem;
+  color: var(--saytu-muted, #64748b);
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
+.xell-licence-meta-item,
+.xell-licence-workspace {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.xell-licence-workspace {
+  color: var(--saytu-primary, #2563eb);
+  font-weight: 900;
+}
+
+.xell-licence-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.xell-licence-actions .btn-secondary {
+  max-width: 100%;
+  min-height: 2.15rem;
+  white-space: nowrap;
 }
 
 .xell-licence-row + .xell-licence-row {
@@ -2737,6 +2782,35 @@ function sortByUrgency(a, b) {
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
+  }
+
+  .xell-licence-actions {
+    justify-content: flex-end;
+  }
+}
+
+@media (max-width: 760px) {
+  .xell-panel-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .xell-licence-row {
+    gap: 0.7rem;
+    padding: 0.75rem;
+  }
+}
+
+@media (max-width: 420px) {
+  .xell-licence-row h3 {
+    overflow: visible;
+    white-space: normal;
+    text-overflow: clip;
+  }
+
+  .xell-licence-actions .btn-secondary {
+    flex: 1 1 100%;
+    justify-content: center;
   }
 }
 </style>
