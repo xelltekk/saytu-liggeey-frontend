@@ -2539,7 +2539,9 @@ function sortByUrgency(a, b) {
 .xell-licence-row {
   display: flex;
   flex-direction: column;
+  align-items: stretch;
   gap: 0.85rem;
+  width: 100%;
   min-width: 0;
   overflow: hidden;
   border-radius: 1rem;
@@ -2547,7 +2549,11 @@ function sortByUrgency(a, b) {
   transition: 160ms ease;
 }
 
-.xell-licence-main,
+.xell-licence-main {
+  width: 100%;
+  min-width: 0;
+}
+
 .xell-licence-row h3,
 .xell-licence-row p {
   min-width: 0;
@@ -2555,7 +2561,7 @@ function sortByUrgency(a, b) {
 
 .xell-licence-meta {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 9.5rem), 1fr));
+  grid-template-columns: 1fr;
   gap: 0.42rem 0.75rem;
   margin-top: 0.65rem;
   color: var(--saytu-muted, #64748b);
@@ -2567,7 +2573,8 @@ function sortByUrgency(a, b) {
 .xell-licence-workspace {
   min-width: 0;
   max-width: 100%;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
+  word-break: normal;
 }
 
 .xell-licence-workspace {
@@ -2778,14 +2785,14 @@ function sortByUrgency(a, b) {
 }
 
 @media (min-width: 1024px) {
-  .xell-licence-row {
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-  }
-
   .xell-licence-actions {
     justify-content: flex-end;
+  }
+}
+
+@media (min-width: 1280px) {
+  .xell-licence-meta {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
