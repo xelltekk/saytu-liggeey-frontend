@@ -374,6 +374,14 @@
                 +12m
               </button>
               <button
+                v-else-if="group.key === 'onboarding'"
+                type="button"
+                class="xell-action-link"
+                @click="editLicence(licence)"
+              >
+                Ouvrir
+              </button>
+              <button
                 v-else
                 type="button"
                 class="xell-action-link"
@@ -530,7 +538,7 @@
           </p>
         </div>
         <span class="rounded-full bg-[color:var(--saytu-primary-soft,#dbeafe)] px-3 py-1 text-xs font-black text-[color:var(--saytu-primary,#2563eb)]">
-          {{ editingId ? 'Pack prêt' : 'Nouveau client' }}
+          {{ activeOnboarding ? `${activeOnboarding.status_label} · ${activeOnboarding.progress}%` : (editingId ? 'Pack prêt' : 'Nouveau client') }}
         </span>
       </div>
 
@@ -831,6 +839,14 @@
                 <span class="rounded-full bg-[color:var(--saytu-primary-soft,#dbeafe)] px-2 py-0.5 text-[11px] font-black text-[color:var(--saytu-primary,#2563eb)]">
                   {{ licence.plan_label }}
                 </span>
+                <span
+                  v-if="licence.onboarding"
+                  class="xell-onboarding-badge"
+                  :class="onboardingStatusClass(licence.onboarding_status)"
+                  :title="licence.onboarding_next_action"
+                >
+                  {{ licence.onboarding_status_label }} · {{ licence.onboarding_progress }}%
+                </span>
               </div>
               <p class="mt-1 truncate text-xs text-[color:var(--saytu-muted,#64748b)]">
                 {{ licence.numero }} · {{ licence.licence_key }}
@@ -850,6 +866,12 @@
                   {{ workspaceLabel(licence) }}
                 </a>
               </div>
+              <div v-if="licence.onboarding" class="xell-licence-progress" :title="licence.onboarding_next_action">
+                <span :style="onboardingProgressStyle(licence.onboarding_progress)"></span>
+              </div>
+              <p v-if="licence.onboarding_next_action" class="mt-1 text-[11px] font-bold text-[color:var(--saytu-muted,#64748b)]">
+                Suivant : {{ licence.onboarding_next_action }}
+              </p>
             </div>
 
             <div class="xell-licence-actions">
@@ -1070,6 +1092,7 @@ const stats = reactive({
   licences_actives: 0,
   a_renouveler: 0,
   revenu_mensuel: 0,
+  onboarding_a_finaliser: 0,
 })
 const reference = reactive({
   plans: DEFAULT_PLANS,
@@ -1098,6 +1121,7 @@ const billingCycles = computed(() => nonEmptyObject(contractDefaults.value.billi
 const paymentTerms = computed(() => nonEmptyObject(contractDefaults.value.payment_terms) ? contractDefaults.value.payment_terms : DEFAULT_CONTRACT_DEFAULTS.payment_terms)
 const supportLevels = computed(() => nonEmptyObject(contractDefaults.value.support_levels) ? contractDefaults.value.support_levels : DEFAULT_CONTRACT_DEFAULTS.support_levels)
 const activeLicence = computed(() => licences.value.find(licence => licence.id === editingId.value) || null)
+const activeOnboarding = computed(() => activeLicence.value?.onboarding || null)
 const licenceActionTotal = computed(() => licenceActionGroups.value.reduce((total, group) => total + group.count, 0))
 const saasHealthItems = computed(() => Array.isArray(saasHealth.items) ? saasHealth.items : [])
 const subscriptionInvoices = computed(() => Array.isArray(saasCommerce.invoices) ? saasCommerce.invoices : [])
@@ -1150,6 +1174,12 @@ const statCards = computed(() => [
     value: stats.a_renouveler,
     hint: 'Échéance ≤ 30 jours',
     icon: KeyRound,
+  },
+  {
+    label: 'Onboarding',
+    value: stats.onboarding_a_finaliser || 0,
+    hint: 'Dossiers client à finaliser',
+    icon: CheckCircle2,
   },
   {
     label: 'Mensuel actif',
@@ -1248,6 +1278,11 @@ const licenceActionGroups = computed(() => {
     .filter(isLicenceOfferToSend)
     .sort((a, b) => String(b.updated_at || b.created_at || '').localeCompare(String(a.updated_at || a.created_at || '')))
 
+  const onboardingTodoStatuses = ['a_preparer', 'a_facturer', 'paiement_attendu']
+  const onboardingTodo = all
+    .filter(licence => onboardingTodoStatuses.includes(licence.onboarding_status))
+    .sort((a, b) => Number(a.onboarding_progress || 0) - Number(b.onboarding_progress || 0))
+
   const suspended = all
     .filter(licence => licence.statut === 'suspendue')
     .sort(sortByUrgency)
@@ -1281,6 +1316,15 @@ const licenceActionGroups = computed(() => {
       detail: licence => `${licence.numero || 'Licence'} · ${licence.client_email || 'email manquant'}`,
     }),
     buildGroup({
+      key: 'onboarding',
+      title: 'Onboarding',
+      hint: 'À finaliser avant exploitation.',
+      icon: CheckCircle2,
+      tone: 'warning',
+      items: onboardingTodo,
+      detail: licence => `${licence.onboarding_progress || 0}% · ${licence.onboarding_next_action || 'Prochaine action à vérifier'}`,
+    }),
+    buildGroup({
       key: 'suspendues',
       title: 'Suspendues',
       hint: 'À réactiver après régularisation.',
@@ -1292,32 +1336,43 @@ const licenceActionGroups = computed(() => {
   ].filter(group => group.count > 0)
 })
 
-const onboardingSteps = computed(() => [
-  {
-    index: 1,
-    label: 'Client',
-    hint: form.client_nom && form.client_email ? 'Identité et email prêts.' : 'Renseigner au minimum le nom et l’email.',
-    done: Boolean(form.client_nom && form.client_email),
-  },
-  {
-    index: 2,
-    label: 'Offre',
-    hint: form.plan && parseNumber(form.montant_mensuel) > 0 ? 'Formule et tarif définis.' : 'Choisir une formule et un montant mensuel.',
-    done: Boolean(form.plan && parseNumber(form.montant_mensuel) > 0),
-  },
-  {
-    index: 3,
-    label: 'Modules',
-    hint: form.modules_autorises.length ? `${form.modules_autorises.length} module(s) inclus.` : 'Sélectionner les modules autorisés.',
-    done: form.modules_autorises.length > 0,
-  },
-  {
-    index: 4,
-    label: 'Documents',
-    hint: activeLicence.value ? 'Devis, contrat, email et certificat disponibles.' : 'Créer la licence pour générer le pack.',
-    done: Boolean(activeLicence.value?.licence_certificate),
-  },
-])
+const onboardingSteps = computed(() => {
+  if (Array.isArray(activeOnboarding.value?.steps) && activeOnboarding.value.steps.length) {
+    return activeOnboarding.value.steps.map((step, index) => ({
+      index: index + 1,
+      label: step.label,
+      hint: step.detail || step.hint || 'Étape à vérifier.',
+      done: Boolean(step.done),
+    }))
+  }
+
+  return [
+    {
+      index: 1,
+      label: 'Client',
+      hint: form.client_nom && form.client_email ? 'Identité et email prêts.' : 'Renseigner au minimum le nom et l’email.',
+      done: Boolean(form.client_nom && form.client_email),
+    },
+    {
+      index: 2,
+      label: 'Offre',
+      hint: form.plan && parseNumber(form.montant_mensuel) > 0 ? 'Formule et tarif définis.' : 'Choisir une formule et un montant mensuel.',
+      done: Boolean(form.plan && parseNumber(form.montant_mensuel) > 0),
+    },
+    {
+      index: 3,
+      label: 'Modules',
+      hint: form.modules_autorises.length ? `${form.modules_autorises.length} module(s) inclus.` : 'Sélectionner les modules autorisés.',
+      done: form.modules_autorises.length > 0,
+    },
+    {
+      index: 4,
+      label: 'Documents',
+      hint: activeLicence.value ? 'Devis, contrat, email et certificat disponibles.' : 'Créer la licence pour générer le pack.',
+      done: Boolean(activeLicence.value?.licence_certificate),
+    },
+  ]
+})
 
 onMounted(loadDashboard)
 
@@ -2286,6 +2341,19 @@ function supportTicketClass(priority) {
   return 'border-sky-200 bg-sky-50 text-sky-700'
 }
 
+function onboardingStatusClass(status) {
+  if (status === 'complete') return 'border-emerald-200 bg-emerald-50 text-emerald-700'
+  if (status === 'paiement_attendu') return 'border-amber-200 bg-amber-50 text-amber-700'
+  if (status === 'a_preparer') return 'border-red-200 bg-red-50 text-red-700'
+  if (status === 'a_facturer') return 'border-indigo-200 bg-indigo-50 text-indigo-700'
+  return 'border-sky-200 bg-sky-50 text-sky-700'
+}
+
+function onboardingProgressStyle(progress) {
+  const value = Math.max(0, Math.min(100, Number(progress || 0)))
+  return { width: `${value}%` }
+}
+
 function securityEventClass(severity) {
   if (severity === 'danger') return 'border-red-200 bg-red-50 text-red-700'
   if (severity === 'warning') return 'border-amber-200 bg-amber-50 text-amber-700'
@@ -2580,6 +2648,34 @@ function sortByUrgency(a, b) {
 .xell-licence-workspace {
   color: var(--saytu-primary, #2563eb);
   font-weight: 900;
+}
+
+.xell-onboarding-badge {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid;
+  border-radius: 999px;
+  padding: 0.16rem 0.5rem;
+  font-size: 0.68rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.xell-licence-progress {
+  height: 0.38rem;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--saytu-border, #e2e8f0) 70%, transparent);
+  margin-top: 0.6rem;
+}
+
+.xell-licence-progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--saytu-primary, #2563eb), #22d3ee);
+  transition: width 180ms ease;
 }
 
 .xell-licence-actions {
