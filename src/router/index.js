@@ -169,6 +169,11 @@ const routes = [
         component: () => import('@/views/ParametresView.vue'),
       },
       {
+        path: 'demarrage',
+        name: 'onboarding',
+        component: () => import('@/views/OnboardingView.vue'),
+      },
+      {
         path: 'utilisateurs',
         name: 'utilisateurs',
         component: () => import('@/views/UtilisateursView.vue'),
@@ -259,6 +264,7 @@ const routeRoles = {
   '/notifications': ['admin', 'gerant', 'commercial', 'magasinier', 'comptable', 'caissier'],
   '/rh': ['admin', 'gerant', 'commercial', 'magasinier', 'comptable'],
   '/parametres': ['admin'],
+  '/demarrage': ['admin'],
 }
 
 const routePermissions = {
@@ -290,6 +296,21 @@ const routePermissions = {
   '/notifications': 'notifications.view',
   '/rh': 'rh.view',
   '/parametres': 'parametres.view',
+  '/demarrage': 'dashboard.view',
+}
+
+function shouldOpenOnboarding(user) {
+  return user?.role === 'admin'
+    && user?.onboarding?.enabled
+    && !user.onboarding.completed
+    && !user?.tenant?.is_platform
+    && !isXelltekkAdmin(user)
+}
+
+function homeRouteForUser(user) {
+  if (user?.role === 'caissier') return 'caisse'
+  if (shouldOpenOnboarding(user)) return 'onboarding'
+  return 'dashboard'
 }
 
 function hasPermission(user, permission) {
@@ -318,7 +339,7 @@ router.beforeEach(async (to, from, next) => {
   if (to.meta.guest) {
     // Si déjà connecté, on l'envoie au dashboard
     if (auth.isAuthenticated && to.name === 'login') {
-      return next({ name: auth.user?.role === 'caissier' ? 'caisse' : 'dashboard' })
+      return next({ name: homeRouteForUser(auth.user) })
     }
     return next()
   }

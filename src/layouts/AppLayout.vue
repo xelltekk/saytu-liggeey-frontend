@@ -415,6 +415,7 @@ import {
   KeyRound,
   ClipboardList,
   Sparkles,
+  Rocket,
   CalendarDays,
   Search,
   PanelLeftOpen,
@@ -717,6 +718,15 @@ const tousLesMenus = [
   },
 
   {
+    to: '/demarrage',
+    label: 'Démarrage client',
+    icon: Rocket,
+    permission: 'dashboard.view',
+    roles: ['admin'],
+    tenantOnly: true
+  },
+
+  {
     to: '/activites',
     label: 'Activités',
     icon: ClipboardList,
@@ -736,6 +746,7 @@ function canAccessMenuItem(item) {
   const role = auth.user?.role
   if (!role) return false
   if (item.xelltekkOnly && !isXelltekkAdmin()) return false
+  if (item.tenantOnly && (!auth.user?.tenant || auth.user.tenant.is_platform)) return false
   if (!licenceAllowsMenuItem(item)) return false
   if (role === 'admin') return true
   if (item.roles.includes(role)) return true
@@ -886,7 +897,7 @@ const menuGroupDefinitions = [
     key: 'administration',
     label: 'Administration',
     icon: Settings,
-    items: ['/leasing', '/utilisateurs', '/roles-permissions', '/licence', '/xelltekk-admin', '/securite', '/parametres', '/activites']
+    items: ['/leasing', '/utilisateurs', '/roles-permissions', '/licence', '/xelltekk-admin', '/securite', '/parametres', '/demarrage', '/activites']
   },
 ]
 

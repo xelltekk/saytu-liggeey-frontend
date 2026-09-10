@@ -165,10 +165,10 @@ async function handleLogin() {
     if (data.user?.role === 'caissier') {
       await entrerPleinEcran()
     }
-    router.push({ name: 'dashboard' })
+    router.push({ name: homeRouteForUser(data.user) })
   } catch (err) {
-    error.value = err.response.data.message
-      || err.response.data.errors.email?.[0]
+    error.value = err.response?.data?.message
+      || err.response?.data?.errors?.email?.[0]
       || 'Erreur de connexion. Vérifiez vos identifiants.'
   } finally {
     loading.value = false
@@ -182,6 +182,21 @@ async function entrerPleinEcran() {
   } catch (e) {
     // Certains navigateurs bloquent le plein écran automatique.
   }
+}
+
+function homeRouteForUser(user) {
+  if (user?.role === 'caissier') return 'caisse'
+
+  if (
+    user?.role === 'admin'
+    && user?.onboarding?.enabled
+    && !user.onboarding.completed
+    && !user?.tenant?.is_platform
+  ) {
+    return 'onboarding'
+  }
+
+  return 'dashboard'
 }
 
 onMounted(() => {
