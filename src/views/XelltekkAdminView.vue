@@ -35,6 +35,99 @@
       </article>
     </section>
 
+    <section class="xell-panel overflow-hidden">
+      <div class="xell-panel-header">
+        <div>
+          <h2 class="font-black text-[color:var(--saytu-shell-text,#0f172a)]">Santé SaaS</h2>
+          <p class="text-xs text-[color:var(--saytu-muted,#64748b)]">
+            Contrôle rapide de l’isolation, des sous-domaines, licences, utilisateurs et fichiers par client.
+          </p>
+        </div>
+        <span
+          class="rounded-full px-3 py-1 text-xs font-black"
+          :class="saasHealth.summary.blocked_clients > 0 ? 'bg-red-100 text-red-700' : (saasHealth.summary.warning_clients > 0 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700')"
+        >
+          {{ saasHealth.summary.ready_clients }}/{{ saasHealth.summary.total_clients }} prêt(s)
+        </span>
+      </div>
+
+      <div class="grid gap-3 p-4 xl:grid-cols-[300px_1fr]">
+        <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
+          <article v-for="card in saasHealthCards" :key="card.label" class="xell-saas-summary">
+            <span class="xell-card-icon h-9 w-9 rounded-xl">
+              <component :is="card.icon" class="h-4 w-4" />
+            </span>
+            <div>
+              <p class="xell-card-label">{{ card.label }}</p>
+              <p class="mt-1 text-lg font-black text-[color:var(--saytu-shell-text,#0f172a)]">{{ card.value }}</p>
+              <p class="text-[11px] font-semibold text-[color:var(--saytu-muted,#64748b)]">{{ card.hint }}</p>
+            </div>
+          </article>
+        </div>
+
+        <div class="space-y-2">
+          <article
+            v-for="item in saasHealthItems"
+            :key="item.id"
+            class="xell-saas-row"
+            :class="`xell-saas-row-${item.status || 'warning'}`"
+          >
+            <div class="min-w-0 flex-1">
+              <div class="flex flex-wrap items-center gap-2">
+                <h3 class="truncate text-sm font-black text-[color:var(--saytu-shell-text,#0f172a)]">
+                  {{ item.client_nom || 'Client sans nom' }}
+                </h3>
+                <span class="rounded-full px-2 py-0.5 text-[11px] font-black" :class="saasHealthStatusClass(item.status)">
+                  {{ item.status_label || 'À vérifier' }}
+                </span>
+                <a
+                  v-if="workspaceUrl(item)"
+                  :href="workspaceUrl(item)"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="truncate rounded-full bg-[color:var(--saytu-primary-soft,#dbeafe)] px-2 py-0.5 text-[11px] font-black text-[color:var(--saytu-primary,#2563eb)] hover:underline"
+                >
+                  {{ workspaceLabel(item) }}
+                </a>
+              </div>
+
+              <div class="mt-2 flex flex-wrap gap-2 text-[11px] font-bold text-[color:var(--saytu-muted,#64748b)]">
+                <span class="xell-saas-metric"><Server class="h-3.5 w-3.5" /> Tenant #{{ item.tenant_id || '-' }}</span>
+                <span class="xell-saas-metric"><Users class="h-3.5 w-3.5" /> {{ item.users_count || 0 }} utilisateur(s)</span>
+                <span class="xell-saas-metric"><Database class="h-3.5 w-3.5" /> {{ item.business_rows_total || 0 }} ligne(s)</span>
+                <span class="xell-saas-metric"><HardDrive class="h-3.5 w-3.5" /> {{ item.storage?.total_label || '0 o' }}</span>
+                <span class="xell-saas-metric"><KeyRound class="h-3.5 w-3.5" /> {{ item.licence_label || 'Sans licence' }} · {{ item.licence_ends_at ? formatDate(item.licence_ends_at) : 'sans fin' }}</span>
+              </div>
+
+              <div v-if="visibleBusinessCounts(item).length" class="mt-2 flex flex-wrap gap-1.5">
+                <span v-for="count in visibleBusinessCounts(item)" :key="`${item.id}-${count.table}`" class="xell-saas-count-chip">
+                  {{ count.label }} {{ count.count }}
+                </span>
+              </div>
+
+              <div class="mt-2 flex flex-wrap gap-1.5">
+                <span
+                  v-for="check in item.checks || []"
+                  :key="`${item.id}-${check.key}`"
+                  class="xell-saas-check"
+                  :class="saasCheckClass(check.state)"
+                  :title="check.detail"
+                >
+                  <CheckCircle2 v-if="check.state === 'ok'" class="h-3 w-3" />
+                  <AlertTriangle v-else class="h-3 w-3" />
+                  {{ check.label }}
+                </span>
+              </div>
+            </div>
+          </article>
+
+          <div v-if="!saasHealthItems.length" class="rounded-2xl border border-dashed border-[color:var(--saytu-border,#e2e8f0)] p-4 text-center text-sm font-bold text-[color:var(--saytu-muted,#64748b)]">
+            Aucun client SaaS à contrôler pour le moment.
+          </div>
+        </div>
+      </div>
+    </section>
+
     <section v-if="licenceActionGroups.length" class="xell-panel overflow-hidden">
       <div class="xell-panel-header">
         <div>
@@ -614,9 +707,12 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import {
   AlertTriangle,
+  CheckCircle2,
   Copy,
+  Database,
   FileSignature,
   FileText,
+  HardDrive,
   KeyRound,
   Mail,
   Plus,
@@ -624,6 +720,7 @@ import {
   Save,
   Search,
   Send,
+  Server,
   ShieldCheck,
   TrendingUp,
   Users,
@@ -745,6 +842,7 @@ const clients = ref([])
 const form = reactive(emptyForm())
 const emailSettings = reactive(emptyEmailSettings())
 const emailForm = reactive(emptyEmailForm())
+const saasHealth = reactive(emptySaasHealth())
 
 const plans = computed(() => nonEmptyObject(reference.plans) ? reference.plans : DEFAULT_PLANS)
 const statuts = computed(() => nonEmptyObject(reference.statuts) ? reference.statuts : DEFAULT_STATUTS)
@@ -755,6 +853,34 @@ const paymentTerms = computed(() => nonEmptyObject(contractDefaults.value.paymen
 const supportLevels = computed(() => nonEmptyObject(contractDefaults.value.support_levels) ? contractDefaults.value.support_levels : DEFAULT_CONTRACT_DEFAULTS.support_levels)
 const activeLicence = computed(() => licences.value.find(licence => licence.id === editingId.value) || null)
 const licenceActionTotal = computed(() => licenceActionGroups.value.reduce((total, group) => total + group.count, 0))
+const saasHealthItems = computed(() => Array.isArray(saasHealth.items) ? saasHealth.items : [])
+
+const saasHealthCards = computed(() => [
+  {
+    label: 'Espaces prêts',
+    value: `${saasHealth.summary.ready_clients || 0}/${saasHealth.summary.total_clients || 0}`,
+    hint: 'Tenant + licence + admin OK',
+    icon: Server,
+  },
+  {
+    label: 'À vérifier',
+    value: saasHealth.summary.warning_clients || 0,
+    hint: 'Points non bloquants',
+    icon: AlertTriangle,
+  },
+  {
+    label: 'À corriger',
+    value: saasHealth.summary.blocked_clients || 0,
+    hint: 'Tenant/licence/admin manquant',
+    icon: ShieldCheck,
+  },
+  {
+    label: 'Fichiers isolés',
+    value: saasHealth.summary.storage_label || '0 o',
+    hint: 'Stockage tenant détecté',
+    icon: HardDrive,
+  },
+])
 
 const statCards = computed(() => [
   {
@@ -940,11 +1066,18 @@ function hydrate(data) {
   reference.contract_defaults = normalizeContractDefaults(incomingReference.contract_defaults)
   licences.value = Array.isArray(data.licences) ? data.licences : []
   clients.value = Array.isArray(data.clients) ? data.clients : []
+  hydrateSaasHealth(data.saas_health)
   ensureSelectableDefaults()
   hydrateEmailSettings(data.email_settings)
   if (!editingId.value && form.modules_autorises.length === 0) {
     applyPlanModules()
   }
+}
+
+function hydrateSaasHealth(payload = null) {
+  const normalized = normalizeSaasHealth(payload)
+  Object.assign(saasHealth.summary, normalized.summary)
+  saasHealth.items = normalized.items
 }
 
 function hydrateEmailSettings(settings = null) {
@@ -1524,6 +1657,32 @@ function emptyEmailForm() {
   }
 }
 
+function emptySaasHealth() {
+  return {
+    summary: {
+      total_clients: 0,
+      ready_clients: 0,
+      warning_clients: 0,
+      blocked_clients: 0,
+      missing_tenants: 0,
+      storage_bytes: 0,
+      storage_label: '0 o',
+    },
+    items: [],
+  }
+}
+
+function normalizeSaasHealth(payload = null) {
+  const fallback = emptySaasHealth()
+  return {
+    summary: {
+      ...fallback.summary,
+      ...(payload?.summary || {}),
+    },
+    items: Array.isArray(payload?.items) ? payload.items : [],
+  }
+}
+
 function statusClass(licence) {
   if (licence.statut === 'suspendue') return 'bg-red-100 text-red-700'
   if (licence.is_expired || licence.statut === 'expiree') return 'bg-amber-100 text-amber-700'
@@ -1592,6 +1751,24 @@ function workspaceUrl(item) {
 
 function workspaceLabel(item) {
   return item?.workspace_domain || item?.domaine || item?.subdomain || item?.workspace_url || ''
+}
+
+function saasHealthStatusClass(status) {
+  if (status === 'danger') return 'bg-red-100 text-red-700'
+  if (status === 'warning') return 'bg-amber-100 text-amber-700'
+  return 'bg-emerald-100 text-emerald-700'
+}
+
+function saasCheckClass(status) {
+  if (status === 'danger') return 'border-red-200 bg-red-50 text-red-700'
+  if (status === 'warning') return 'border-amber-200 bg-amber-50 text-amber-700'
+  return 'border-emerald-200 bg-emerald-50 text-emerald-700'
+}
+
+function visibleBusinessCounts(item) {
+  return Array.isArray(item?.business_counts)
+    ? item.business_counts.filter(row => Number(row?.count || 0) > 0).slice(0, 4)
+    : []
 }
 
 function formatDate(value) {
@@ -1872,6 +2049,67 @@ function sortByUrgency(a, b) {
   white-space: pre-line;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
+}
+
+.xell-saas-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border: 1px solid var(--saytu-border, #e2e8f0);
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--saytu-surface, #ffffff) 94%, var(--saytu-primary, #2563eb) 6%);
+  padding: 0.75rem;
+}
+
+.xell-saas-row {
+  display: flex;
+  gap: 0.75rem;
+  border: 1px solid var(--saytu-border, #e2e8f0);
+  border-left-width: 4px;
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--saytu-surface, #ffffff) 96%, var(--saytu-primary, #2563eb) 4%);
+  padding: 0.75rem;
+}
+
+.xell-saas-row-ok {
+  border-left-color: #10b981;
+}
+
+.xell-saas-row-warning {
+  border-left-color: #f59e0b;
+}
+
+.xell-saas-row-danger {
+  border-left-color: #ef4444;
+}
+
+.xell-saas-metric {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--saytu-surface, #ffffff) 90%, var(--saytu-primary, #2563eb) 10%);
+  padding: 0.28rem 0.5rem;
+}
+
+.xell-saas-count-chip {
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--saytu-primary, #2563eb) 10%, var(--saytu-surface, #ffffff));
+  color: var(--saytu-primary, #2563eb);
+  padding: 0.25rem 0.5rem;
+  font-size: 0.68rem;
+  font-weight: 900;
+}
+
+.xell-saas-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.22rem;
+  border: 1px solid;
+  border-radius: 999px;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.68rem;
+  font-weight: 900;
 }
 
 .label {
