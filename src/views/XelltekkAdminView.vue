@@ -210,8 +210,25 @@
                   {{ invoice.numero }} · échéance {{ formatDate(invoice.date_echeance) }}
                 </p>
               </div>
-              <div class="text-right">
+              <div class="xell-subscription-actions">
                 <p class="text-sm font-black text-[color:var(--saytu-shell-text,#0f172a)]">{{ money(invoice.montant) }}</p>
+                <div class="flex flex-wrap justify-end gap-1.5">
+                  <button
+                    type="button"
+                    class="xell-mini-chip border-sky-200 bg-sky-50 text-sky-700"
+                    @click="openSubscriptionInvoicePdf(invoice)"
+                  >
+                    PDF
+                  </button>
+                  <button
+                    type="button"
+                    class="xell-mini-chip border-indigo-200 bg-indigo-50 text-indigo-700"
+                    :disabled="sendingSubscriptionInvoiceId === invoice.id || !invoice.client_email"
+                    @click="sendSubscriptionInvoiceEmail(invoice)"
+                  >
+                    {{ sendingSubscriptionInvoiceId === invoice.id ? '...' : 'Envoyer' }}
+                  </button>
+                </div>
                 <button
                   type="button"
                   class="xell-mini-chip"
@@ -1082,6 +1099,7 @@ const backingUpTenantId = ref(null)
 const revokingTenantId = ref(null)
 const generatingSubscriptionInvoices = ref(false)
 const payingSubscriptionInvoiceId = ref(null)
+const sendingSubscriptionInvoiceId = ref(null)
 const updatingSupportTicketId = ref(null)
 const savingEmailSettings = ref(false)
 const testingEmailSettings = ref(false)
@@ -1855,6 +1873,64 @@ async function generateSubscriptionInvoices() {
     toast.error(error.response?.data?.message || 'Impossible de générer les factures abonnement.')
   } finally {
     generatingSubscriptionInvoices.value = false
+  }
+}
+
+async function openSubscriptionInvoicePdf(invoice) {
+  if (!invoice?.id) return
+
+  const rawUrl = invoice.pdf_url || `/api/admin/xelltekk/subscription-invoices/${invoice.id}/pdf`
+  const endpoint = axiosApiUrl(rawUrl)
+  const reservedWindow = window.open('', '_blank')
+
+  if (reservedWindow) {
+    reservedWindow.opener = null
+    reservedWindow.document.write('<!doctype html><title>Préparation du PDF</title><p style="font-family:system-ui;padding:24px">Préparation de la facture...</p>')
+  }
+
+  try {
+    const response = await api.get(endpoint, {
+      responseType: 'blob',
+      headers: { Accept: 'application/json, application/pdf' },
+    })
+    const blob = new Blob([response.data], { type: 'application/pdf' })
+    const objectUrl = URL.createObjectURL(blob)
+
+    if (reservedWindow) {
+      reservedWindow.location.href = objectUrl
+    } else {
+      window.open(objectUrl, '_blank')
+    }
+
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 120000)
+  } catch (error) {
+    if (reservedWindow && !reservedWindow.closed) {
+      reservedWindow.close()
+    }
+    toast.error(await apiBlobErrorMessage(error, 'Impossible d’ouvrir la facture PDF.'))
+  }
+}
+
+async function sendSubscriptionInvoiceEmail(invoice) {
+  if (!invoice?.id) return
+
+  const ok = await askConfirm({
+    title: 'Envoyer la facture',
+    message: `Envoyer la facture ${invoice.numero || ''} à ${invoice.client_email || invoice.client_nom || 'ce client'} ?`,
+    confirmLabel: 'Envoyer',
+  })
+  if (!ok) return
+
+  sendingSubscriptionInvoiceId.value = invoice.id
+  try {
+    const endpoint = axiosApiUrl(invoice.send_email_url || `/admin/xelltekk/subscription-invoices/${invoice.id}/email`)
+    const { data } = await api.post(endpoint, {})
+    hydrate(data)
+    toast.success(data.message || 'Facture abonnement envoyée.')
+  } catch (error) {
+    toast.error(error.response?.data?.message || 'Impossible d’envoyer la facture abonnement.')
+  } finally {
+    sendingSubscriptionInvoiceId.value = null
   }
 }
 
@@ -2844,6 +2920,14 @@ function sortByUrgency(a, b) {
   border-radius: 0.9rem;
   background: color-mix(in srgb, var(--saytu-surface, #ffffff) 90%, var(--saytu-primary, #2563eb) 10%);
   padding: 0.55rem 0.65rem;
+}
+
+.xell-subscription-actions {
+  display: grid;
+  justify-items: end;
+  gap: 0.35rem;
+  min-width: 8.5rem;
+  text-align: right;
 }
 
 .xell-mini-chip {
