@@ -102,7 +102,7 @@
             class="app-sidebar-active-bar absolute left-0 top-2 bottom-2 w-1 rounded-full"
           ></div>
           <component :is="dashboardMenuItem.icon" class="h-5 w-5 shrink-0" />
-          <span class="ml-4 flex-1 text-sm font-semibold">{{ dashboardMenuItem.label }}</span>
+          <span class="ml-4 flex-1 text-sm font-semibold notranslate" translate="no">{{ dashboardMenuItem.label }}</span>
         </router-link>
 
         <div v-if="sidebarOpen" v-for="group in groupedMenuItems" :key="group.key" class="space-y-1">
@@ -113,7 +113,7 @@
             :class="isGroupActive(group) ? 'app-sidebar-group-active bg-white/10 border border-white/10' : ''"
           >
             <component :is="group.icon" class="h-5 w-5 shrink-0" />
-            <span class="ml-4 flex-1 text-sm font-semibold">{{ group.label }}</span>
+            <span class="ml-4 flex-1 text-sm font-semibold notranslate" translate="no">{{ group.label }}</span>
             <span
               v-if="groupBadgeCount(group) > 0"
               class="mr-2 rounded-full px-2 py-0.5 text-[10px] font-bold"
@@ -141,7 +141,7 @@
                 class="app-sidebar-active-bar absolute left-0 top-2 bottom-2 w-1 rounded-full"
               ></div>
               <component :is="item.icon" class="h-4 w-4 shrink-0" />
-              <span class="ml-3 flex-1 text-sm font-medium">{{ item.label }}</span>
+              <span class="ml-3 flex-1 text-sm font-medium notranslate" translate="no">{{ item.label }}</span>
               <span
                 v-if="getBadgeCount(item.to) > 0"
                 class="rounded-full px-2 py-0.5 text-[10px] font-bold"
