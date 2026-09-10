@@ -11,6 +11,7 @@
       <div class="flex items-center gap-2">
         <RouterLink to="/conditions-commerciales" class="offers-link">Conditions</RouterLink>
         <RouterLink :to="{ name: 'decouvrir', hash: '#demo' }" class="offers-link">Démo</RouterLink>
+        <RouterLink :to="{ name: 'decouvrir', hash: '#essai' }" class="offers-link">Essai</RouterLink>
         <RouterLink to="/login" class="offers-login">Connexion</RouterLink>
       </div>
     </nav>
@@ -25,8 +26,8 @@
             Le devis final reste personnalisable selon vos modules, utilisateurs et besoins terrain.
           </p>
         </div>
-        <RouterLink :to="{ name: 'decouvrir', hash: '#demo' }" class="offers-primary">
-          Demander une démo
+        <RouterLink :to="{ name: 'decouvrir', hash: '#essai' }" class="offers-primary">
+          Démarrer un essai
           <ArrowRight class="h-5 w-5" />
         </RouterLink>
       </div>
@@ -61,7 +62,7 @@
           </ul>
 
           <RouterLink
-            :to="{ name: 'decouvrir', query: { plan: offer.key }, hash: '#demo' }"
+            :to="{ name: 'decouvrir', query: { plan: offer.key }, hash: '#essai' }"
             class="offer-cta"
           >
             Choisir {{ offer.name }}
@@ -105,7 +106,7 @@
             avec la possibilité d’évoluer ensuite.
           </p>
         </div>
-        <RouterLink :to="{ name: 'decouvrir', query: { plan: 'pro' }, hash: '#demo' }" class="offers-primary">
+        <RouterLink :to="{ name: 'decouvrir', query: { plan: 'pro' }, hash: '#essai' }" class="offers-primary">
           Parler à XELLTEKK
           <ArrowRight class="h-5 w-5" />
         </RouterLink>

@@ -58,6 +58,77 @@
         </article>
       </section>
 
+      <section v-if="!canManageLicence" class="licence-panel">
+        <div class="licence-panel-header">
+          <div>
+            <h2 class="font-black text-[color:var(--saytu-shell-text,#0f172a)]">Support XELLTEKK</h2>
+            <p class="text-xs text-[color:var(--saytu-muted,#64748b)]">
+              Envoyez une demande depuis votre espace client. Elle arrive directement côté XELLTEKK Admin.
+            </p>
+          </div>
+          <span class="rounded-full bg-[color:var(--saytu-primary-soft,#dbeafe)] px-3 py-1 text-xs font-black text-[color:var(--saytu-primary,#2563eb)]">
+            {{ supportTickets.length }} ticket(s)
+          </span>
+        </div>
+
+        <div class="grid gap-4 p-4 xl:grid-cols-[1fr_0.9fr]">
+          <form class="grid gap-3 md:grid-cols-2" @submit.prevent="submitSupportTicket">
+            <label>
+              <span class="label">Priorité</span>
+              <select v-model="supportForm.priorite" class="input">
+                <option value="normale">Normale</option>
+                <option value="haute">Haute</option>
+                <option value="urgente">Urgente</option>
+                <option value="basse">Basse</option>
+              </select>
+            </label>
+
+            <label>
+              <span class="label">Catégorie</span>
+              <select v-model="supportForm.categorie" class="input">
+                <option value="support">Support</option>
+                <option value="facturation">Facturation</option>
+                <option value="licence">Licence</option>
+                <option value="technique">Technique</option>
+              </select>
+            </label>
+
+            <label class="md:col-span-2">
+              <span class="label">Sujet</span>
+              <input v-model.trim="supportForm.sujet" class="input" required placeholder="Ex: Impossible d’ouvrir une facture" />
+            </label>
+
+            <label class="md:col-span-2">
+              <span class="label">Description</span>
+              <textarea v-model.trim="supportForm.description" class="input min-h-24" required placeholder="Expliquez le souci ou la demande..."></textarea>
+            </label>
+
+            <button type="submit" class="btn-primary md:col-span-2" :disabled="supportSaving">
+              <LifeBuoy class="h-4 w-4" />
+              {{ supportSaving ? 'Envoi...' : 'Envoyer au support' }}
+            </button>
+          </form>
+
+          <div class="space-y-2 rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-shell-bg,#f8fafc)] p-3">
+            <h3 class="font-black text-[color:var(--saytu-shell-text,#0f172a)]">Dernières demandes</h3>
+            <article v-for="ticket in supportTickets.slice(0, 4)" :key="ticket.id" class="licence-support-row">
+              <div class="min-w-0">
+                <p class="truncate text-sm font-black">{{ ticket.sujet }}</p>
+                <p class="truncate text-[11px] font-bold text-[color:var(--saytu-muted,#64748b)]">
+                  {{ ticket.numero }} · {{ ticket.statut_label }} · {{ formatDateTime(ticket.created_at) }}
+                </p>
+              </div>
+              <span class="rounded-full bg-white px-2 py-0.5 text-[11px] font-black text-[color:var(--saytu-primary,#2563eb)]">
+                {{ ticket.priorite_label }}
+              </span>
+            </article>
+            <p v-if="!supportTickets.length" class="rounded-xl border border-dashed border-[color:var(--saytu-border,#e2e8f0)] p-4 text-center text-xs font-bold text-[color:var(--saytu-muted,#64748b)]">
+              Aucun ticket envoyé pour le moment.
+            </p>
+          </div>
+        </div>
+      </section>
+
       <section class="licence-panel">
         <div class="licence-panel-header">
           <div>
@@ -385,7 +456,10 @@ import {
   CheckCircle2,
   Copy,
   CreditCard,
+  FileText,
+  HardDrive,
   KeyRound,
+  LifeBuoy,
   PauseCircle,
   PlayCircle,
   RefreshCw,
@@ -407,8 +481,10 @@ const { confirm: askConfirm } = useConfirm()
 const loading = ref(false)
 const saving = ref(false)
 const paiementSaving = ref(false)
+const supportSaving = ref(false)
 const certificateImport = ref('')
 const form = ref(null)
+const supportTickets = ref([])
 const reference = reactive({
   plans: {},
   modules: {},
@@ -423,12 +499,23 @@ const paiementForm = reactive({
   notes: '',
 })
 
+const supportForm = reactive({
+  categorie: 'support',
+  priorite: 'normale',
+  sujet: '',
+  description: '',
+})
+
 const plans = computed(() => reference.plans || {})
 const statuts = computed(() => reference.statuts || {})
 const paiements = computed(() => form.value?.paiements || [])
 const totalPaiements = computed(() => paiements.value.reduce((total, item) => total + Number(item.montant || 0), 0))
 const licenceMessage = computed(() => form.value?.message || '')
-const licenceIsSensitive = computed(() => ['expiree', 'essai_expire', 'suspendue'].includes(form.value?.etat) || form.value?.expires_soon || form.value?.depasse_limite_utilisateurs)
+const licenceIsSensitive = computed(() => ['expiree', 'essai_expire', 'suspendue'].includes(form.value?.etat)
+  || form.value?.expires_soon
+  || form.value?.depasse_limite_utilisateurs
+  || form.value?.depasse_limite_stockage
+  || form.value?.depasse_limite_documents)
 const canManageLicence = computed(() => isXelltekkAdmin(auth.user))
 const shortFingerprint = computed(() => {
   const fingerprint = String(form.value?.instance_fingerprint || '')
@@ -462,6 +549,18 @@ const cards = computed(() => [
     hint: form.value?.depasse_limite_utilisateurs ? 'Limite dépassée' : 'Comptes actifs',
     icon: Users,
   },
+  {
+    label: 'Documents/mois',
+    value: `${form.value?.documents_mois || 0}/${form.value?.monthly_documents_limit || '∞'}`,
+    hint: form.value?.depasse_limite_documents ? 'Limite dépassée' : 'Devis + factures',
+    icon: FileText,
+  },
+  {
+    label: 'Stockage',
+    value: `${form.value?.storage_used_mb || 0}/${form.value?.storage_limit_mb || '∞'} Mo`,
+    hint: form.value?.depasse_limite_stockage ? 'Limite dépassée' : 'Fichiers client',
+    icon: HardDrive,
+  },
 ])
 
 const groupedModules = computed(() => {
@@ -481,7 +580,10 @@ const statusAlertClass = computed(() => {
   return 'border-emerald-200 bg-emerald-50 text-emerald-800'
 })
 
-onMounted(loadLicence)
+onMounted(async () => {
+  await loadLicence()
+  await loadSupportTickets()
+})
 
 async function loadLicence() {
   loading.value = true
@@ -501,6 +603,17 @@ function hydrate(data) {
   syncAuthLicence(form.value)
 }
 
+async function loadSupportTickets() {
+  if (canManageLicence.value) return
+
+  try {
+    const { data } = await api.get('/support/tickets')
+    supportTickets.value = Array.isArray(data.tickets) ? data.tickets : []
+  } catch {
+    supportTickets.value = []
+  }
+}
+
 function normalizeLicence(licence) {
   return {
     client_nom: '',
@@ -515,6 +628,12 @@ function normalizeLicence(licence) {
     max_utilisateurs: '',
     utilisateurs_actifs: 0,
     depasse_limite_utilisateurs: false,
+    storage_limit_mb: '',
+    storage_used_mb: 0,
+    depasse_limite_stockage: false,
+    monthly_documents_limit: '',
+    documents_mois: 0,
+    depasse_limite_documents: false,
     modules_autorises: [],
     options: {},
     montant_mensuel: '',
@@ -620,11 +739,42 @@ function licencePayload() {
     periode_essai_fin: form.value.periode_essai_fin || null,
     max_utilisateurs: parseIntegerOrNull(form.value.max_utilisateurs),
     modules_autorises: [...new Set(form.value.modules_autorises || [])],
+    storage_limit_mb: parseIntegerOrNull(form.value.storage_limit_mb),
+    monthly_documents_limit: parseIntegerOrNull(form.value.monthly_documents_limit),
     options: form.value.options || {},
     montant_mensuel: parseNumber(form.value.montant_mensuel),
     devise: form.value.devise || 'XOF',
     notes: form.value.notes || null,
     suspension_reason: form.value.suspension_reason || null,
+  }
+}
+
+async function submitSupportTicket() {
+  if (!supportForm.sujet.trim() || !supportForm.description.trim()) {
+    toast.error('Renseignez le sujet et la description.')
+    return
+  }
+
+  supportSaving.value = true
+  try {
+    const { data } = await api.post('/support/tickets', {
+      categorie: supportForm.categorie || 'support',
+      priorite: supportForm.priorite || 'normale',
+      sujet: supportForm.sujet.trim(),
+      description: supportForm.description.trim(),
+    })
+    supportTickets.value = [data.ticket, ...supportTickets.value.filter(ticket => ticket.id !== data.ticket?.id)].filter(Boolean)
+    Object.assign(supportForm, {
+      categorie: 'support',
+      priorite: 'normale',
+      sujet: '',
+      description: '',
+    })
+    toast.success(data.message || 'Ticket support envoyé.')
+  } catch (error) {
+    toast.error(error.response?.data?.message || 'Impossible d’envoyer le ticket support.')
+  } finally {
+    supportSaving.value = false
   }
 }
 
@@ -898,6 +1048,18 @@ function today() {
 .licence-module-active {
   border-color: color-mix(in srgb, var(--saytu-primary, #2563eb) 55%, var(--saytu-border, #e2e8f0));
   background: color-mix(in srgb, var(--saytu-primary, #2563eb) 12%, var(--saytu-surface, #ffffff));
+}
+
+.licence-support-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border: 1px solid var(--saytu-border, #e2e8f0);
+  border-radius: 0.9rem;
+  background: color-mix(in srgb, var(--saytu-surface, #ffffff) 92%, var(--saytu-primary, #2563eb) 8%);
+  padding: 0.65rem;
+  color: var(--saytu-shell-text, #334155);
 }
 
 .label {

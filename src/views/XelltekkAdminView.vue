@@ -120,20 +120,196 @@
               </div>
             </div>
 
-            <button
-              type="button"
-              class="xell-saas-export"
-              :disabled="exportingTenantId === item.id || !item.tenant_id"
-              @click="exportTenantData(item)"
-            >
-              <Download class="h-3.5 w-3.5" />
-              {{ exportingTenantId === item.id ? 'Export...' : 'Export' }}
-            </button>
+            <div class="xell-saas-actions">
+              <button
+                type="button"
+                class="xell-saas-export"
+                :disabled="exportingTenantId === item.id || !item.tenant_id"
+                @click="exportTenantData(item)"
+              >
+                <Download class="h-3.5 w-3.5" />
+                {{ exportingTenantId === item.id ? 'Export...' : 'Export' }}
+              </button>
+              <button
+                type="button"
+                class="xell-saas-export"
+                :disabled="backingUpTenantId === item.id || !item.tenant_id"
+                @click="createTenantBackup(item)"
+              >
+                <Archive class="h-3.5 w-3.5" />
+                {{ backingUpTenantId === item.id ? 'Backup...' : 'Backup' }}
+              </button>
+              <button
+                type="button"
+                class="xell-saas-export"
+                :disabled="revokingTenantId === item.id || !item.tenant_id"
+                @click="revokeTenantSessions(item)"
+              >
+                <LockKeyhole class="h-3.5 w-3.5" />
+                {{ revokingTenantId === item.id ? '...' : 'Sessions' }}
+              </button>
+            </div>
           </article>
 
           <div v-if="!saasHealthItems.length" class="rounded-2xl border border-dashed border-[color:var(--saytu-border,#e2e8f0)] p-4 text-center text-sm font-bold text-[color:var(--saytu-muted,#64748b)]">
             Aucun client SaaS à contrôler pour le moment.
           </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="xell-panel overflow-hidden">
+      <div class="xell-panel-header">
+        <div>
+          <h2 class="font-black text-[color:var(--saytu-shell-text,#0f172a)]">Pilotage commercial SaaS</h2>
+          <p class="text-xs text-[color:var(--saytu-muted,#64748b)]">
+            Abonnements, impayés, support, sécurité et sauvegardes clients depuis un seul endroit.
+          </p>
+        </div>
+        <button
+          type="button"
+          class="btn-primary px-3 py-2 text-xs"
+          :disabled="generatingSubscriptionInvoices"
+          @click="generateSubscriptionInvoices"
+        >
+          <CreditCard class="h-4 w-4" />
+          {{ generatingSubscriptionInvoices ? 'Génération...' : 'Facturer le mois' }}
+        </button>
+      </div>
+
+      <div class="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-4">
+        <article v-for="card in saasCommerceCards" :key="card.label" class="xell-commerce-card">
+          <span class="xell-card-icon h-9 w-9 rounded-xl">
+            <component :is="card.icon" class="h-4 w-4" />
+          </span>
+          <div>
+            <p class="xell-card-label">{{ card.label }}</p>
+            <p class="mt-1 text-lg font-black text-[color:var(--saytu-shell-text,#0f172a)]">{{ card.value }}</p>
+            <p class="text-[11px] font-semibold text-[color:var(--saytu-muted,#64748b)]">{{ card.hint }}</p>
+          </div>
+        </article>
+      </div>
+
+      <div class="grid gap-3 px-4 pb-4 xl:grid-cols-3">
+        <article class="xell-commerce-box">
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <h3 class="font-black text-[color:var(--saytu-shell-text,#0f172a)]">Factures abonnement</h3>
+              <p class="text-xs text-[color:var(--saytu-muted,#64748b)]">Dernières factures XELLTEKK.</p>
+            </div>
+            <span class="rounded-full bg-[color:var(--saytu-primary-soft,#dbeafe)] px-2 py-0.5 text-[11px] font-black text-[color:var(--saytu-primary,#2563eb)]">
+              {{ subscriptionInvoices.length }}
+            </span>
+          </div>
+
+          <div class="mt-3 space-y-2">
+            <div v-for="invoice in subscriptionInvoices.slice(0, 5)" :key="invoice.id" class="xell-commerce-row">
+              <div class="min-w-0">
+                <p class="truncate text-sm font-black text-[color:var(--saytu-shell-text,#0f172a)]">{{ invoice.client_nom || 'Client' }}</p>
+                <p class="truncate text-[11px] font-bold text-[color:var(--saytu-muted,#64748b)]">
+                  {{ invoice.numero }} · échéance {{ formatDate(invoice.date_echeance) }}
+                </p>
+              </div>
+              <div class="text-right">
+                <p class="text-sm font-black text-[color:var(--saytu-shell-text,#0f172a)]">{{ money(invoice.montant) }}</p>
+                <button
+                  type="button"
+                  class="xell-mini-chip"
+                  :class="subscriptionInvoiceClass(invoice.statut)"
+                  :disabled="invoice.statut === 'payee' || payingSubscriptionInvoiceId === invoice.id"
+                  @click="markSubscriptionInvoicePaid(invoice)"
+                >
+                  {{ invoice.statut === 'payee' ? 'Payée' : (payingSubscriptionInvoiceId === invoice.id ? '...' : invoice.statut_label) }}
+                </button>
+              </div>
+            </div>
+            <p v-if="!subscriptionInvoices.length" class="xell-empty-mini">Aucune facture abonnement générée.</p>
+          </div>
+        </article>
+
+        <article class="xell-commerce-box">
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <h3 class="font-black text-[color:var(--saytu-shell-text,#0f172a)]">Support client</h3>
+              <p class="text-xs text-[color:var(--saytu-muted,#64748b)]">Demandes à traiter côté XELLTEKK.</p>
+            </div>
+            <span class="rounded-full bg-cyan-100 px-2 py-0.5 text-[11px] font-black text-cyan-700">
+              {{ supportTickets.length }}
+            </span>
+          </div>
+
+          <div class="mt-3 space-y-2">
+            <div v-for="ticket in supportTickets.slice(0, 5)" :key="ticket.id" class="xell-commerce-row">
+              <div class="min-w-0">
+                <p class="truncate text-sm font-black text-[color:var(--saytu-shell-text,#0f172a)]">{{ ticket.sujet }}</p>
+                <p class="truncate text-[11px] font-bold text-[color:var(--saytu-muted,#64748b)]">
+                  {{ ticket.client_nom || ticket.requester_email || 'Client' }} · {{ formatDateTime(ticket.created_at) }}
+                </p>
+              </div>
+              <div class="text-right">
+                <span class="xell-mini-chip" :class="supportTicketClass(ticket.priorite)">
+                  {{ ticket.priorite_label }}
+                </span>
+                <button
+                  v-if="!['resolu', 'ferme'].includes(ticket.statut)"
+                  type="button"
+                  class="mt-1 block text-[11px] font-black text-[color:var(--saytu-primary,#2563eb)]"
+                  :disabled="updatingSupportTicketId === ticket.id"
+                  @click="updateSupportTicketStatus(ticket, 'resolu')"
+                >
+                  Résoudre
+                </button>
+              </div>
+            </div>
+            <p v-if="!supportTickets.length" class="xell-empty-mini">Aucun ticket support ouvert.</p>
+          </div>
+        </article>
+
+        <article class="xell-commerce-box">
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <h3 class="font-black text-[color:var(--saytu-shell-text,#0f172a)]">Sécurité & backups</h3>
+              <p class="text-xs text-[color:var(--saytu-muted,#64748b)]">Connexions, alertes et exports serveur.</p>
+            </div>
+            <LockKeyhole class="h-5 w-5 text-[color:var(--saytu-primary,#2563eb)]" />
+          </div>
+
+          <div class="mt-3 space-y-2">
+            <div v-for="event in securityEvents.slice(0, 3)" :key="event.id" class="xell-commerce-row">
+              <div class="min-w-0">
+                <p class="truncate text-sm font-black text-[color:var(--saytu-shell-text,#0f172a)]">{{ event.event_label }}</p>
+                <p class="truncate text-[11px] font-bold text-[color:var(--saytu-muted,#64748b)]">
+                  {{ event.client_nom || event.email || event.host || 'Système' }} · {{ formatDateTime(event.created_at) }}
+                </p>
+              </div>
+              <span class="xell-mini-chip" :class="securityEventClass(event.severity)">
+                {{ event.success ? 'OK' : 'Alerte' }}
+              </span>
+            </div>
+
+            <div v-for="backup in tenantBackups.slice(0, 2)" :key="`backup-${backup.id}`" class="xell-commerce-row">
+              <div class="min-w-0">
+                <p class="truncate text-sm font-black text-[color:var(--saytu-shell-text,#0f172a)]">{{ backup.client_nom || 'Backup client' }}</p>
+                <p class="truncate text-[11px] font-bold text-[color:var(--saytu-muted,#64748b)]">
+                  {{ backup.size_label }} · {{ backup.rows_count }} ligne(s)
+                </p>
+              </div>
+              <button type="button" class="xell-action-link" @click="downloadTenantBackup(backup)">
+                Télécharger
+              </button>
+            </div>
+
+            <p v-if="!securityEvents.length && !tenantBackups.length" class="xell-empty-mini">Aucune alerte ni sauvegarde récente.</p>
+          </div>
+        </article>
+      </div>
+
+      <div class="border-t border-[color:var(--saytu-border,#e2e8f0)] px-4 py-3">
+        <p class="text-xs font-black uppercase tracking-[0.14em] text-[color:var(--saytu-muted,#64748b)]">Moyens de paiement XELLTEKK</p>
+        <div class="mt-2 flex flex-wrap gap-2">
+          <span v-for="method in paymentMethods" :key="method.label" class="xell-saas-metric">
+            {{ method.label }} · {{ method.details }}
+          </span>
         </div>
       </div>
     </section>
@@ -501,6 +677,16 @@
             </label>
 
             <label>
+              <span class="label">Stockage max (Mo)</span>
+              <input v-model="form.storage_limit_mb" data-numeric-input class="input" placeholder="Ex: 2048" />
+            </label>
+
+            <label>
+              <span class="label">Documents / mois</span>
+              <input v-model="form.monthly_documents_limit" data-numeric-input class="input" placeholder="Ex: 500" />
+            </label>
+
+            <label>
               <span class="label">Mensuel</span>
               <input v-model="form.montant_mensuel" data-numeric-input data-decimals="2" class="input" placeholder="0" />
             </label>
@@ -652,6 +838,7 @@
               <div class="mt-2 grid gap-2 text-xs text-[color:var(--saytu-muted,#64748b)] sm:grid-cols-4">
                 <span><strong class="text-[color:var(--saytu-shell-text,#0f172a)]">Fin :</strong> {{ formatDate(licence.date_fin) }}</span>
                 <span><strong class="text-[color:var(--saytu-shell-text,#0f172a)]">Modules :</strong> {{ licence.modules_count }}</span>
+                <span><strong class="text-[color:var(--saytu-shell-text,#0f172a)]">Limites :</strong> {{ licence.max_utilisateurs || '∞' }} users · {{ licence.monthly_documents_limit || '∞' }} docs</span>
                 <span><strong class="text-[color:var(--saytu-shell-text,#0f172a)]">Mensuel :</strong> {{ money(licence.montant_mensuel) }} {{ licence.devise }}</span>
                 <a
                   v-if="workspaceUrl(licence)"
@@ -717,14 +904,18 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import {
   AlertTriangle,
+  Archive,
   CheckCircle2,
   Copy,
+  CreditCard,
   Database,
   Download,
   FileSignature,
   FileText,
   HardDrive,
   KeyRound,
+  LifeBuoy,
+  LockKeyhole,
   Mail,
   Plus,
   RefreshCw,
@@ -800,8 +991,41 @@ const DEFAULT_STATUTS = {
 
 const DEFAULT_TARIFS = {
   starter: 15000,
-  pro: 30000,
-  business: 50000,
+  pro: 35000,
+  business: 60000,
+}
+
+const DEFAULT_PLAN_LIMITS = {
+  starter: {
+    max_utilisateurs: 3,
+    storage_limit_mb: 512,
+    monthly_documents_limit: 100,
+  },
+  pro: {
+    max_utilisateurs: 10,
+    storage_limit_mb: 2048,
+    monthly_documents_limit: 500,
+  },
+  business: {
+    max_utilisateurs: 50,
+    storage_limit_mb: 10240,
+    monthly_documents_limit: 5000,
+  },
+}
+
+const DEFAULT_PAYMENT_METHODS = {
+  wave: {
+    label: 'Wave Business',
+    details: '+221 77 437 09 52',
+  },
+  virement: {
+    label: 'Virement bancaire',
+    details: 'ORABANK — SN08 SN17 5014 0404 3148 3019 0178',
+  },
+  especes: {
+    label: 'Espèces',
+    details: 'Paiement au bureau XELLTEKK',
+  },
 }
 
 const DEFAULT_CONTRACT_DEFAULTS = {
@@ -832,6 +1056,11 @@ const saving = ref(false)
 const sendingEmailId = ref(null)
 const resetAdminAccessLoadingId = ref(null)
 const exportingTenantId = ref(null)
+const backingUpTenantId = ref(null)
+const revokingTenantId = ref(null)
+const generatingSubscriptionInvoices = ref(false)
+const payingSubscriptionInvoiceId = ref(null)
+const updatingSupportTicketId = ref(null)
 const savingEmailSettings = ref(false)
 const testingEmailSettings = ref(false)
 const search = ref('')
@@ -847,6 +1076,8 @@ const reference = reactive({
   modules: DEFAULT_MODULES,
   statuts: DEFAULT_STATUTS,
   tarifs: DEFAULT_TARIFS,
+  plan_limits: DEFAULT_PLAN_LIMITS,
+  payment_methods: DEFAULT_PAYMENT_METHODS,
   contract_defaults: cloneContractDefaults(),
 })
 const licences = ref([])
@@ -855,10 +1086,13 @@ const form = reactive(emptyForm())
 const emailSettings = reactive(emptyEmailSettings())
 const emailForm = reactive(emptyEmailForm())
 const saasHealth = reactive(emptySaasHealth())
+const saasCommerce = reactive(emptySaasCommerce())
 
 const plans = computed(() => nonEmptyObject(reference.plans) ? reference.plans : DEFAULT_PLANS)
 const statuts = computed(() => nonEmptyObject(reference.statuts) ? reference.statuts : DEFAULT_STATUTS)
 const tarifs = computed(() => nonEmptyObject(reference.tarifs) ? reference.tarifs : DEFAULT_TARIFS)
+const planLimits = computed(() => nonEmptyObject(reference.plan_limits) ? reference.plan_limits : DEFAULT_PLAN_LIMITS)
+const paymentMethods = computed(() => nonEmptyObject(reference.payment_methods) ? reference.payment_methods : DEFAULT_PAYMENT_METHODS)
 const contractDefaults = computed(() => normalizeContractDefaults(reference.contract_defaults))
 const billingCycles = computed(() => nonEmptyObject(contractDefaults.value.billing_cycles) ? contractDefaults.value.billing_cycles : DEFAULT_CONTRACT_DEFAULTS.billing_cycles)
 const paymentTerms = computed(() => nonEmptyObject(contractDefaults.value.payment_terms) ? contractDefaults.value.payment_terms : DEFAULT_CONTRACT_DEFAULTS.payment_terms)
@@ -866,6 +1100,10 @@ const supportLevels = computed(() => nonEmptyObject(contractDefaults.value.suppo
 const activeLicence = computed(() => licences.value.find(licence => licence.id === editingId.value) || null)
 const licenceActionTotal = computed(() => licenceActionGroups.value.reduce((total, group) => total + group.count, 0))
 const saasHealthItems = computed(() => Array.isArray(saasHealth.items) ? saasHealth.items : [])
+const subscriptionInvoices = computed(() => Array.isArray(saasCommerce.invoices) ? saasCommerce.invoices : [])
+const supportTickets = computed(() => Array.isArray(saasCommerce.support_tickets) ? saasCommerce.support_tickets : [])
+const securityEvents = computed(() => Array.isArray(saasCommerce.security_events) ? saasCommerce.security_events : [])
+const tenantBackups = computed(() => Array.isArray(saasCommerce.backups) ? saasCommerce.backups : [])
 
 const saasHealthCards = computed(() => [
   {
@@ -918,6 +1156,33 @@ const statCards = computed(() => [
     value: money(stats.revenu_mensuel),
     hint: 'Revenu mensuel estimé',
     icon: TrendingUp,
+  },
+])
+
+const saasCommerceCards = computed(() => [
+  {
+    label: 'MRR abonnement',
+    value: money(saasCommerce.summary.subscription_revenue_month || 0),
+    hint: 'CA mensuel récurrent',
+    icon: CreditCard,
+  },
+  {
+    label: 'Impayés SaaS',
+    value: money(saasCommerce.summary.unpaid_amount || 0),
+    hint: `${saasCommerce.summary.unpaid_count || 0} facture(s), ${saasCommerce.summary.overdue_count || 0} en retard`,
+    icon: AlertTriangle,
+  },
+  {
+    label: 'Support ouvert',
+    value: saasCommerce.summary.support_open_count || 0,
+    hint: 'Tickets clients à traiter',
+    icon: LifeBuoy,
+  },
+  {
+    label: 'Alertes sécurité',
+    value: saasCommerce.summary.security_alerts_count || 0,
+    hint: '7 derniers jours',
+    icon: LockKeyhole,
   },
 ])
 
@@ -1075,10 +1340,13 @@ function hydrate(data) {
   reference.modules = nonEmptyObject(incomingReference.modules) ? incomingReference.modules : DEFAULT_MODULES
   reference.statuts = nonEmptyObject(incomingReference.statuts) ? incomingReference.statuts : DEFAULT_STATUTS
   reference.tarifs = nonEmptyObject(incomingReference.tarifs) ? incomingReference.tarifs : DEFAULT_TARIFS
+  reference.plan_limits = nonEmptyObject(incomingReference.plan_limits) ? incomingReference.plan_limits : DEFAULT_PLAN_LIMITS
+  reference.payment_methods = nonEmptyObject(incomingReference.payment_methods) ? incomingReference.payment_methods : DEFAULT_PAYMENT_METHODS
   reference.contract_defaults = normalizeContractDefaults(incomingReference.contract_defaults)
   licences.value = Array.isArray(data.licences) ? data.licences : []
   clients.value = Array.isArray(data.clients) ? data.clients : []
   hydrateSaasHealth(data.saas_health)
+  hydrateSaasCommerce(data.saas_commerce)
   ensureSelectableDefaults()
   hydrateEmailSettings(data.email_settings)
   if (!editingId.value && form.modules_autorises.length === 0) {
@@ -1090,6 +1358,17 @@ function hydrateSaasHealth(payload = null) {
   const normalized = normalizeSaasHealth(payload)
   Object.assign(saasHealth.summary, normalized.summary)
   saasHealth.items = normalized.items
+}
+
+function hydrateSaasCommerce(payload = null) {
+  const normalized = normalizeSaasCommerce(payload)
+  Object.assign(saasCommerce.summary, normalized.summary)
+  saasCommerce.invoices = normalized.invoices
+  saasCommerce.support_tickets = normalized.support_tickets
+  saasCommerce.security_events = normalized.security_events
+  saasCommerce.backups = normalized.backups
+  saasCommerce.payment_methods = normalized.payment_methods
+  saasCommerce.plan_limits = normalized.plan_limits
 }
 
 function hydrateEmailSettings(settings = null) {
@@ -1224,6 +1503,8 @@ function editLicence(licence) {
     contract_terms: licence.contract_terms || '',
     modules_autorises: Array.isArray(licence.modules_autorises) ? [...licence.modules_autorises] : [],
     max_utilisateurs: licence.max_utilisateurs ?? '',
+    storage_limit_mb: licence.storage_limit_mb ?? '',
+    monthly_documents_limit: licence.monthly_documents_limit ?? '',
     montant_mensuel: licence.montant_mensuel ?? '',
     date_debut: licence.date_debut || '',
     date_fin: licence.date_fin || '',
@@ -1276,6 +1557,8 @@ function licencePayload() {
     date_fin: form.date_fin || null,
     periode_essai_fin: form.periode_essai_fin || null,
     max_utilisateurs: parseIntegerOrNull(form.max_utilisateurs),
+    storage_limit_mb: parseIntegerOrNull(form.storage_limit_mb),
+    monthly_documents_limit: parseIntegerOrNull(form.monthly_documents_limit),
     modules_autorises: [...new Set(form.modules_autorises || [])],
     montant_mensuel: parseNumber(form.montant_mensuel),
     devise: form.devise || 'XOF',
@@ -1291,9 +1574,19 @@ function licencePayload() {
 
 function applyPlanModules() {
   const modules = plans.value?.[form.plan]?.modules
+  const limits = planLimits.value?.[form.plan] || {}
   form.modules_autorises = Array.isArray(modules) ? [...modules] : []
   if (!parseNumber(form.montant_mensuel)) {
     form.montant_mensuel = tarifs.value?.[form.plan] ?? form.montant_mensuel
+  }
+  if (!parseIntegerOrNull(form.max_utilisateurs)) {
+    form.max_utilisateurs = limits.max_utilisateurs ?? form.max_utilisateurs
+  }
+  if (!parseIntegerOrNull(form.storage_limit_mb)) {
+    form.storage_limit_mb = limits.storage_limit_mb ?? form.storage_limit_mb
+  }
+  if (!parseIntegerOrNull(form.monthly_documents_limit)) {
+    form.monthly_documents_limit = limits.monthly_documents_limit ?? form.monthly_documents_limit
   }
   if (!form.payment_terms) {
     form.payment_terms = paymentTermsForCycle(form.billing_cycle)
@@ -1434,6 +1727,118 @@ async function exportTenantData(item) {
     toast.error(await apiBlobErrorMessage(error, 'Impossible de télécharger l’export client.'))
   } finally {
     exportingTenantId.value = null
+  }
+}
+
+async function createTenantBackup(item) {
+  if (!item?.id) return
+
+  backingUpTenantId.value = item.id
+  try {
+    const { data } = await api.post(`/admin/xelltekk/clients/${item.id}/backup`)
+    hydrate(data)
+    toast.success(data.message || 'Sauvegarde client créée.')
+  } catch (error) {
+    toast.error(error.response?.data?.message || 'Impossible de créer la sauvegarde client.')
+  } finally {
+    backingUpTenantId.value = null
+  }
+}
+
+async function downloadTenantBackup(backup) {
+  if (!backup?.id) return
+
+  try {
+    const response = await api.get(`/admin/xelltekk/backups/${backup.id}/download`, {
+      responseType: 'blob',
+      headers: { Accept: 'application/json' },
+    })
+    const blob = new Blob([response.data], { type: 'application/json;charset=utf-8' })
+    const objectUrl = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = objectUrl
+    link.download = backup.filename || filenameFromDisposition(response.headers?.['content-disposition']) || `sauvegarde-saytu-${backup.id}.json`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 1000)
+  } catch (error) {
+    toast.error(await apiBlobErrorMessage(error, 'Impossible de télécharger la sauvegarde.'))
+  }
+}
+
+async function revokeTenantSessions(item) {
+  if (!item?.id) return
+
+  const ok = await askConfirm({
+    title: 'Déconnecter le client',
+    message: `Déconnecter toutes les sessions actives de ${item.client_nom || item.nom || 'ce client'} ?`,
+    confirmLabel: 'Déconnecter',
+    tone: 'danger',
+  })
+  if (!ok) return
+
+  revokingTenantId.value = item.id
+  try {
+    const { data } = await api.post(`/admin/xelltekk/clients/${item.id}/revoke-sessions`)
+    hydrate(data)
+    toast.success(data.message || 'Sessions client déconnectées.')
+  } catch (error) {
+    toast.error(error.response?.data?.message || 'Impossible de déconnecter les sessions client.')
+  } finally {
+    revokingTenantId.value = null
+  }
+}
+
+async function generateSubscriptionInvoices() {
+  generatingSubscriptionInvoices.value = true
+  try {
+    const { data } = await api.post('/admin/xelltekk/subscription-invoices/generate')
+    hydrate(data)
+    toast.success(data.message || 'Factures abonnement générées.')
+  } catch (error) {
+    toast.error(error.response?.data?.message || 'Impossible de générer les factures abonnement.')
+  } finally {
+    generatingSubscriptionInvoices.value = false
+  }
+}
+
+async function markSubscriptionInvoicePaid(invoice) {
+  if (!invoice?.id) return
+
+  const ok = await askConfirm({
+    title: 'Marquer payée',
+    message: `Marquer la facture ${invoice.numero || ''} de ${invoice.client_nom || 'ce client'} comme payée ?`,
+    confirmLabel: 'Marquer payée',
+  })
+  if (!ok) return
+
+  payingSubscriptionInvoiceId.value = invoice.id
+  try {
+    const { data } = await api.post(`/admin/xelltekk/subscription-invoices/${invoice.id}/mark-paid`, {
+      payment_mode: 'virement',
+    })
+    hydrate(data)
+    toast.success(data.message || 'Facture abonnement payée.')
+  } catch (error) {
+    toast.error(error.response?.data?.message || 'Impossible de marquer la facture payée.')
+  } finally {
+    payingSubscriptionInvoiceId.value = null
+  }
+}
+
+async function updateSupportTicketStatus(ticket, statut) {
+  if (!ticket?.id) return
+
+  updatingSupportTicketId.value = ticket.id
+  try {
+    const { data } = await api.put(`/admin/xelltekk/support-tickets/${ticket.id}`, { statut })
+    hydrate(data)
+    toast.success(data.message || 'Ticket support mis à jour.')
+  } catch (error) {
+    toast.error(error.response?.data?.message || 'Impossible de mettre à jour le ticket.')
+  } finally {
+    updatingSupportTicketId.value = null
   }
 }
 
@@ -1676,6 +2081,8 @@ function emptyForm() {
     date_fin: addMonths(today(), 12),
     periode_essai_fin: '',
     max_utilisateurs: '',
+    storage_limit_mb: '',
+    monthly_documents_limit: '',
     modules_autorises: [],
     montant_mensuel: '',
     devise: 'XOF',
@@ -1736,6 +2143,27 @@ function emptySaasHealth() {
   }
 }
 
+function emptySaasCommerce() {
+  return {
+    summary: {
+      subscription_revenue_month: 0,
+      subscription_revenue_year: 0,
+      unpaid_amount: 0,
+      unpaid_count: 0,
+      overdue_count: 0,
+      support_open_count: 0,
+      security_alerts_count: 0,
+      trial_signups_30d: 0,
+    },
+    invoices: [],
+    support_tickets: [],
+    security_events: [],
+    backups: [],
+    plan_limits: DEFAULT_PLAN_LIMITS,
+    payment_methods: DEFAULT_PAYMENT_METHODS,
+  }
+}
+
 function normalizeSaasHealth(payload = null) {
   const fallback = emptySaasHealth()
   return {
@@ -1744,6 +2172,23 @@ function normalizeSaasHealth(payload = null) {
       ...(payload?.summary || {}),
     },
     items: Array.isArray(payload?.items) ? payload.items : [],
+  }
+}
+
+function normalizeSaasCommerce(payload = null) {
+  const fallback = emptySaasCommerce()
+
+  return {
+    summary: {
+      ...fallback.summary,
+      ...(payload?.summary || {}),
+    },
+    invoices: Array.isArray(payload?.invoices) ? payload.invoices : [],
+    support_tickets: Array.isArray(payload?.support_tickets) ? payload.support_tickets : [],
+    security_events: Array.isArray(payload?.security_events) ? payload.security_events : [],
+    backups: Array.isArray(payload?.backups) ? payload.backups : [],
+    plan_limits: nonEmptyObject(payload?.plan_limits) ? payload.plan_limits : fallback.plan_limits,
+    payment_methods: nonEmptyObject(payload?.payment_methods) ? payload.payment_methods : fallback.payment_methods,
   }
 }
 
@@ -1826,6 +2271,24 @@ function saasHealthStatusClass(status) {
 function saasCheckClass(status) {
   if (status === 'danger') return 'border-red-200 bg-red-50 text-red-700'
   if (status === 'warning') return 'border-amber-200 bg-amber-50 text-amber-700'
+  return 'border-emerald-200 bg-emerald-50 text-emerald-700'
+}
+
+function subscriptionInvoiceClass(status) {
+  if (status === 'payee') return 'border-emerald-200 bg-emerald-50 text-emerald-700'
+  if (status === 'en_retard') return 'border-red-200 bg-red-50 text-red-700'
+  return 'border-amber-200 bg-amber-50 text-amber-700'
+}
+
+function supportTicketClass(priority) {
+  if (priority === 'urgente') return 'border-red-200 bg-red-50 text-red-700'
+  if (priority === 'haute') return 'border-amber-200 bg-amber-50 text-amber-700'
+  return 'border-sky-200 bg-sky-50 text-sky-700'
+}
+
+function securityEventClass(severity) {
+  if (severity === 'danger') return 'border-red-200 bg-red-50 text-red-700'
+  if (severity === 'warning') return 'border-amber-200 bg-amber-50 text-amber-700'
   return 'border-emerald-200 bg-emerald-50 text-emerald-700'
 }
 
@@ -2147,6 +2610,14 @@ function sortByUrgency(a, b) {
   border-left-color: #ef4444;
 }
 
+.xell-saas-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-self: flex-start;
+  justify-content: flex-end;
+  gap: 0.4rem;
+}
+
 .xell-saas-metric {
   display: inline-flex;
   align-items: center;
@@ -2194,6 +2665,63 @@ function sortByUrgency(a, b) {
 .xell-saas-export:disabled {
   cursor: not-allowed;
   opacity: 0.5;
+}
+
+.xell-commerce-card,
+.xell-commerce-box {
+  border: 1px solid var(--saytu-border, #e2e8f0);
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--saytu-surface, #ffffff) 94%, var(--saytu-primary, #2563eb) 6%);
+}
+
+.xell-commerce-card {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.8rem;
+}
+
+.xell-commerce-box {
+  min-height: 16rem;
+  padding: 0.9rem;
+}
+
+.xell-commerce-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-height: 3.1rem;
+  border: 1px solid color-mix(in srgb, var(--saytu-border, #e2e8f0) 78%, transparent);
+  border-radius: 0.9rem;
+  background: color-mix(in srgb, var(--saytu-surface, #ffffff) 90%, var(--saytu-primary, #2563eb) 10%);
+  padding: 0.55rem 0.65rem;
+}
+
+.xell-mini-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid;
+  border-radius: 999px;
+  padding: 0.22rem 0.5rem;
+  font-size: 0.68rem;
+  font-weight: 900;
+}
+
+.xell-mini-chip:disabled {
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+
+.xell-empty-mini {
+  border: 1px dashed var(--saytu-border, #e2e8f0);
+  border-radius: 0.9rem;
+  padding: 0.9rem;
+  text-align: center;
+  color: var(--saytu-muted, #64748b);
+  font-size: 0.78rem;
+  font-weight: 800;
 }
 
 .label {

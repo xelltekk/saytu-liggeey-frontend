@@ -12,6 +12,7 @@
         <RouterLink to="/offres" class="landing-secondary">Offres & tarifs</RouterLink>
         <RouterLink to="/conditions-commerciales" class="landing-secondary">Conditions</RouterLink>
         <a href="#demo" class="landing-secondary">Demander une démo</a>
+        <a href="#essai" class="landing-secondary">Essai gratuit</a>
         <RouterLink to="/login" class="landing-login">Connexion</RouterLink>
       </div>
     </nav>
@@ -31,6 +32,7 @@
             <CalendarCheck class="h-5 w-5" />
             Réserver une démo
           </a>
+          <a href="#essai" class="landing-ghost">Créer un espace d’essai</a>
           <RouterLink to="/offres" class="landing-ghost">Voir les offres</RouterLink>
           <RouterLink to="/login" class="landing-ghost">Accéder à l’espace client</RouterLink>
         </div>
@@ -181,6 +183,77 @@
         </div>
       </div>
     </section>
+
+    <section id="essai" class="relative z-10 mx-auto w-full max-w-7xl px-5 pb-24">
+      <div class="landing-trial-card">
+        <div>
+          <p class="landing-kicker text-sky-700">Essai automatisé</p>
+          <h2 class="mt-2 text-3xl font-black text-slate-950">Créer un espace client en quelques secondes.</h2>
+          <p class="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+            Idéal pour faire tester Saytu Liggéey à un prospect : sous-domaine, licence d’essai et accès admin temporaire sont préparés automatiquement.
+          </p>
+        </div>
+
+        <form class="mt-5 grid gap-3 md:grid-cols-2" @submit.prevent="submitTrialSignup">
+          <input v-model="trialForm.website" tabindex="-1" autocomplete="off" class="hidden" aria-hidden="true" />
+
+          <label class="landing-field">
+            <span>Société *</span>
+            <input v-model.trim="trialForm.societe" required placeholder="Ex: TELOGIK" />
+          </label>
+
+          <label class="landing-field">
+            <span>Email admin *</span>
+            <input v-model.trim="trialForm.email" type="email" required placeholder="admin@entreprise.com" />
+          </label>
+
+          <label class="landing-field">
+            <span>Contact</span>
+            <input v-model.trim="trialForm.contact_nom" placeholder="Nom du responsable" />
+          </label>
+
+          <label class="landing-field">
+            <span>Téléphone</span>
+            <input v-model="trialForm.telephone" type="tel" data-phone-input placeholder="77 123 45 67" />
+          </label>
+
+          <label class="landing-field">
+            <span>Formule d’essai</span>
+            <select v-model="trialForm.plan">
+              <option value="starter">Starter</option>
+              <option value="pro">Pro</option>
+              <option value="business">Business</option>
+            </select>
+          </label>
+
+          <label class="landing-field">
+            <span>Besoin principal</span>
+            <select v-model="trialForm.besoin">
+              <option value="Gestion complète">Gestion complète</option>
+              <option value="Facturation et recouvrement">Facturation et recouvrement</option>
+              <option value="Stock et achats">Stock et achats</option>
+              <option value="Caisse et boutique">Caisse et boutique</option>
+            </select>
+          </label>
+
+          <button type="submit" class="landing-submit md:col-span-2" :disabled="trialSubmitting">
+            <Send class="h-5 w-5" />
+            {{ trialSubmitting ? 'Création...' : 'Créer mon espace d’essai' }}
+          </button>
+
+          <div v-if="trialResult" class="landing-success md:col-span-2">
+            <p>{{ trialResult.message }}</p>
+            <a :href="trialResult.workspace_url" target="_blank" rel="noopener noreferrer">
+              {{ trialResult.workspace_domain || trialResult.workspace_url }}
+            </a>
+            <small>
+              Email : {{ trialResult.admin_email }} · Mot de passe temporaire : {{ trialResult.admin_initial_password }}
+            </small>
+          </div>
+          <p v-if="trialError" class="landing-error md:col-span-2">{{ trialError }}</p>
+        </form>
+      </div>
+    </section>
   </main>
 </template>
 
@@ -198,8 +271,11 @@ import {
 import api from '@/services/api'
 
 const submitting = ref(false)
+const trialSubmitting = ref(false)
 const successMessage = ref('')
 const errorMessage = ref('')
+const trialError = ref('')
+const trialResult = ref(null)
 const reservedWorkspace = ref(null)
 const route = useRoute()
 const allowedPlans = ['starter', 'pro', 'business']
@@ -211,6 +287,18 @@ const form = reactive({
   email: '',
   telephone: '',
   plan: 'business',
+  taille: '4-10 utilisateurs',
+  besoin: 'Gestion complète',
+  message: '',
+})
+
+const trialForm = reactive({
+  website: '',
+  societe: '',
+  contact_nom: '',
+  email: '',
+  telephone: '',
+  plan: 'pro',
   taille: '4-10 utilisateurs',
   besoin: 'Gestion complète',
   message: '',
@@ -298,10 +386,40 @@ async function submitDemoRequest() {
   }
 }
 
+async function submitTrialSignup() {
+  trialError.value = ''
+  trialResult.value = null
+  trialSubmitting.value = true
+
+  try {
+    const { data } = await api.post('/public/signup-trial', {
+      ...trialForm,
+      telephone: cleanPhone(trialForm.telephone),
+    })
+    trialResult.value = data
+    Object.assign(trialForm, {
+      website: '',
+      societe: '',
+      contact_nom: '',
+      email: '',
+      telephone: '',
+      plan: 'pro',
+      taille: '4-10 utilisateurs',
+      besoin: 'Gestion complète',
+      message: '',
+    })
+  } catch (error) {
+    trialError.value = error.response?.data?.message || 'Impossible de créer l’espace d’essai pour le moment.'
+  } finally {
+    trialSubmitting.value = false
+  }
+}
+
 function applySelectedPlanFromRoute() {
   const plan = String(route.query.plan || '').toLowerCase()
   if (allowedPlans.includes(plan)) {
     form.plan = plan
+    trialForm.plan = plan
   }
 }
 
@@ -314,9 +432,9 @@ function cleanPhone(value) {
 
 onMounted(() => {
   applySelectedPlanFromRoute()
-  if (route.hash === '#demo') {
+  if (['#demo', '#essai'].includes(route.hash)) {
     window.requestAnimationFrame(() => {
-      document.getElementById('demo')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      document.getElementById(route.hash.slice(1))?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     })
   }
 })
@@ -415,7 +533,8 @@ watch(
 .landing-metric,
 .landing-feature,
 .landing-form-card,
-.landing-pricing {
+.landing-pricing,
+.landing-trial-card {
   border: 1px solid rgb(255 255 255 / 0.18);
   background: rgb(255 255 255 / 0.94);
   box-shadow: 0 24px 80px rgb(8 47 73 / 0.26);
@@ -440,7 +559,8 @@ watch(
 }
 
 .landing-form-card,
-.landing-pricing {
+.landing-pricing,
+.landing-trial-card {
   border-radius: 2rem;
   color: #0f172a;
   padding: 1.2rem;
