@@ -119,6 +119,16 @@
                 </span>
               </div>
             </div>
+
+            <button
+              type="button"
+              class="xell-saas-export"
+              :disabled="exportingTenantId === item.id || !item.tenant_id"
+              @click="exportTenantData(item)"
+            >
+              <Download class="h-3.5 w-3.5" />
+              {{ exportingTenantId === item.id ? 'Export...' : 'Export' }}
+            </button>
           </article>
 
           <div v-if="!saasHealthItems.length" class="rounded-2xl border border-dashed border-[color:var(--saytu-border,#e2e8f0)] p-4 text-center text-sm font-bold text-[color:var(--saytu-muted,#64748b)]">
@@ -710,6 +720,7 @@ import {
   CheckCircle2,
   Copy,
   Database,
+  Download,
   FileSignature,
   FileText,
   HardDrive,
@@ -820,6 +831,7 @@ const loading = ref(false)
 const saving = ref(false)
 const sendingEmailId = ref(null)
 const resetAdminAccessLoadingId = ref(null)
+const exportingTenantId = ref(null)
 const savingEmailSettings = ref(false)
 const testingEmailSettings = ref(false)
 const search = ref('')
@@ -1398,6 +1410,33 @@ async function openDocument(licence, type) {
   }
 }
 
+async function exportTenantData(item) {
+  if (!item?.id) return
+
+  exportingTenantId.value = item.id
+  try {
+    const response = await api.get(`/admin/xelltekk/clients/${item.id}/export`, {
+      responseType: 'blob',
+      headers: { Accept: 'application/json' },
+    })
+    const blob = new Blob([response.data], { type: 'application/json;charset=utf-8' })
+    const objectUrl = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = objectUrl
+    link.download = filenameFromDisposition(response.headers?.['content-disposition'])
+      || `sauvegarde-saytu-${slugForFilename(item.client_nom || item.code || 'client')}.json`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 1000)
+    toast.success('Export client téléchargé.')
+  } catch (error) {
+    toast.error(await apiBlobErrorMessage(error, 'Impossible de télécharger l’export client.'))
+  } finally {
+    exportingTenantId.value = null
+  }
+}
+
 async function prepareOnboardingEmail(licence) {
   if (!licence?.id) return
 
@@ -1510,6 +1549,31 @@ async function testEmailSettings() {
 
 function axiosApiUrl(url) {
   return String(url || '').replace(/^\/api(?=\/)/, '')
+}
+
+function filenameFromDisposition(disposition = '') {
+  const value = String(disposition || '')
+  const utf8 = value.match(/filename\*=UTF-8''([^;]+)/i)
+  if (utf8?.[1]) {
+    try {
+      return decodeURIComponent(utf8[1].replace(/"/g, ''))
+    } catch {
+      return utf8[1].replace(/"/g, '')
+    }
+  }
+
+  const classic = value.match(/filename="?([^";]+)"?/i)
+  return classic?.[1] || ''
+}
+
+function slugForFilename(value) {
+  return String(value || 'client')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    || 'client'
 }
 
 function nonEmptyObject(value) {
@@ -2110,6 +2174,26 @@ function sortByUrgency(a, b) {
   padding: 0.25rem 0.5rem;
   font-size: 0.68rem;
   font-weight: 900;
+}
+
+.xell-saas-export {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  align-self: flex-start;
+  flex-shrink: 0;
+  border: 1px solid color-mix(in srgb, var(--saytu-primary, #2563eb) 45%, var(--saytu-border, #e2e8f0));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--saytu-primary, #2563eb) 10%, var(--saytu-surface, #ffffff));
+  color: var(--saytu-primary, #2563eb);
+  padding: 0.35rem 0.65rem;
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.xell-saas-export:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 .label {
