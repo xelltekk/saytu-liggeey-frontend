@@ -209,6 +209,10 @@
                 <p class="truncate text-[11px] font-bold text-[color:var(--saytu-muted,#64748b)]">
                   {{ invoice.numero }} · échéance {{ formatDate(invoice.date_echeance) }}
                 </p>
+                <p v-if="invoice.reminder?.count || invoice.reminder?.is_due" class="mt-1 text-[10px] font-black" :class="subscriptionReminderTextClass(invoice.reminder)">
+                  {{ invoice.reminder?.label }}
+                  <span v-if="invoice.reminder?.count"> · {{ invoice.reminder.count }} relance(s)</span>
+                </p>
               </div>
               <div class="xell-subscription-actions">
                 <p class="text-sm font-black text-[color:var(--saytu-shell-text,#0f172a)]">{{ money(invoice.montant) }}</p>
@@ -227,6 +231,15 @@
                     @click="sendSubscriptionInvoiceEmail(invoice)"
                   >
                     {{ sendingSubscriptionInvoiceId === invoice.id ? '...' : 'Envoyer' }}
+                  </button>
+                  <button
+                    type="button"
+                    class="xell-mini-chip"
+                    :class="subscriptionReminderChipClass(invoice.reminder)"
+                    :disabled="remindingSubscriptionInvoiceId === invoice.id || !invoice.reminder?.can_send"
+                    @click="remindSubscriptionInvoice(invoice)"
+                  >
+                    {{ remindingSubscriptionInvoiceId === invoice.id ? '...' : 'Relancer' }}
                   </button>
                 </div>
                 <button
@@ -1100,6 +1113,7 @@ const revokingTenantId = ref(null)
 const generatingSubscriptionInvoices = ref(false)
 const payingSubscriptionInvoiceId = ref(null)
 const sendingSubscriptionInvoiceId = ref(null)
+const remindingSubscriptionInvoiceId = ref(null)
 const updatingSupportTicketId = ref(null)
 const savingEmailSettings = ref(false)
 const testingEmailSettings = ref(false)
@@ -1934,6 +1948,29 @@ async function sendSubscriptionInvoiceEmail(invoice) {
   }
 }
 
+async function remindSubscriptionInvoice(invoice) {
+  if (!invoice?.id) return
+
+  const ok = await askConfirm({
+    title: 'Relancer l’abonnement',
+    message: `Envoyer une relance à ${invoice.client_email || invoice.client_nom || 'ce client'} pour la facture ${invoice.numero || ''} ?`,
+    confirmLabel: 'Relancer',
+  })
+  if (!ok) return
+
+  remindingSubscriptionInvoiceId.value = invoice.id
+  try {
+    const endpoint = axiosApiUrl(invoice.remind_url || `/admin/xelltekk/subscription-invoices/${invoice.id}/remind`)
+    const { data } = await api.post(endpoint, {})
+    hydrate(data)
+    toast.success(data.message || 'Relance abonnement envoyée.')
+  } catch (error) {
+    toast.error(error.response?.data?.message || 'Impossible d’envoyer la relance abonnement.')
+  } finally {
+    remindingSubscriptionInvoiceId.value = null
+  }
+}
+
 async function markSubscriptionInvoicePaid(invoice) {
   if (!invoice?.id) return
 
@@ -2409,6 +2446,19 @@ function subscriptionInvoiceClass(status) {
   if (status === 'payee') return 'border-emerald-200 bg-emerald-50 text-emerald-700'
   if (status === 'en_retard') return 'border-red-200 bg-red-50 text-red-700'
   return 'border-amber-200 bg-amber-50 text-amber-700'
+}
+
+function subscriptionReminderChipClass(reminder) {
+  if (!reminder?.can_send) return 'border-slate-200 bg-slate-50 text-slate-400'
+  if (reminder.stage === 'en_retard') return 'border-red-200 bg-red-50 text-red-700'
+  if (reminder.is_due) return 'border-amber-200 bg-amber-50 text-amber-700'
+  return 'border-indigo-200 bg-indigo-50 text-indigo-700'
+}
+
+function subscriptionReminderTextClass(reminder) {
+  if (reminder?.stage === 'en_retard') return 'text-red-600'
+  if (reminder?.is_due) return 'text-amber-600'
+  return 'text-[color:var(--saytu-muted,#64748b)]'
 }
 
 function supportTicketClass(priority) {
