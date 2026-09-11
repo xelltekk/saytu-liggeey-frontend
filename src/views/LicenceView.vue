@@ -256,16 +256,51 @@
 
           <div class="space-y-2 rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-shell-bg,#f8fafc)] p-3">
             <h3 class="font-black text-[color:var(--saytu-shell-text,#0f172a)]">Dernières demandes</h3>
-            <article v-for="ticket in supportTickets.slice(0, 4)" :key="ticket.id" class="licence-support-row">
-              <div class="min-w-0">
-                <p class="truncate text-sm font-black">{{ ticket.sujet }}</p>
-                <p class="truncate text-[11px] font-bold text-[color:var(--saytu-muted,#64748b)]">
-                  {{ ticket.numero }} · {{ ticket.statut_label }} · {{ formatDateTime(ticket.created_at) }}
-                </p>
+            <article v-for="ticket in supportTickets.slice(0, 4)" :key="ticket.id" class="licence-support-row licence-ticket-row">
+              <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                  <p class="truncate text-sm font-black">{{ ticket.sujet }}</p>
+                  <p class="truncate text-[11px] font-bold text-[color:var(--saytu-muted,#64748b)]">
+                    {{ ticket.numero }} · {{ ticket.statut_label }} · {{ formatDateTime(ticket.created_at) }}
+                  </p>
+                  <p v-if="ticket.last_message" class="mt-1 line-clamp-2 text-[11px] font-semibold text-[color:var(--saytu-muted,#64748b)]">
+                    {{ ticket.last_message.author_label }} : {{ ticket.last_message.message }}
+                  </p>
+                </div>
+                <span class="rounded-full bg-white px-2 py-0.5 text-[11px] font-black text-[color:var(--saytu-primary,#2563eb)]">
+                  {{ ticket.priorite_label }}
+                </span>
               </div>
-              <span class="rounded-full bg-white px-2 py-0.5 text-[11px] font-black text-[color:var(--saytu-primary,#2563eb)]">
-                {{ ticket.priorite_label }}
-              </span>
+
+              <div class="mt-2 flex flex-wrap gap-1.5">
+                <button
+                  type="button"
+                  class="licence-mini-action"
+                  :disabled="!ticket.can_reply"
+                  @click="toggleSupportReply(ticket)"
+                >
+                  Répondre
+                </button>
+                <button
+                  v-if="ticket.can_close"
+                  type="button"
+                  class="licence-mini-action"
+                  :disabled="closingSupportTicketId === ticket.id"
+                  @click="closeClientSupportTicket(ticket)"
+                >
+                  {{ closingSupportTicketId === ticket.id ? '...' : 'Fermer' }}
+                </button>
+              </div>
+
+              <form v-if="supportReplyForm.ticket_id === ticket.id" class="mt-2 grid gap-2" @submit.prevent="submitClientSupportReply(ticket)">
+                <textarea v-model.trim="supportReplyForm.message" class="input min-h-16" required placeholder="Votre réponse..."></textarea>
+                <div class="flex justify-end gap-2">
+                  <button type="button" class="btn-secondary px-3 py-2 text-xs" @click="resetSupportReply">Annuler</button>
+                  <button type="submit" class="btn-primary px-3 py-2 text-xs" :disabled="supportReplySaving">
+                    {{ supportReplySaving ? 'Envoi...' : 'Envoyer la réponse' }}
+                  </button>
+                </div>
+              </form>
             </article>
             <p v-if="!supportTickets.length" class="rounded-xl border border-dashed border-[color:var(--saytu-border,#e2e8f0)] p-4 text-center text-xs font-bold text-[color:var(--saytu-muted,#64748b)]">
               Aucun ticket envoyé pour le moment.
@@ -629,6 +664,8 @@ const loading = ref(false)
 const saving = ref(false)
 const paiementSaving = ref(false)
 const supportSaving = ref(false)
+const supportReplySaving = ref(false)
+const closingSupportTicketId = ref(null)
 const paymentRequestSaving = ref(false)
 const certificateImport = ref('')
 const form = ref(null)
@@ -653,6 +690,11 @@ const supportForm = reactive({
   priorite: 'normale',
   sujet: '',
   description: '',
+})
+
+const supportReplyForm = reactive({
+  ticket_id: null,
+  message: '',
 })
 
 const paymentRequestForm = reactive({
@@ -937,6 +979,89 @@ function requestBackupRestore() {
   toast.info('La demande est prête dans le bloc support. Vérifiez puis envoyez.')
 }
 
+function toggleSupportReply(ticket) {
+  if (!ticket?.can_reply) return
+
+  if (supportReplyForm.ticket_id === ticket.id) {
+    resetSupportReply()
+    return
+  }
+
+  Object.assign(supportReplyForm, {
+    ticket_id: ticket.id,
+    message: '',
+  })
+}
+
+function resetSupportReply() {
+  Object.assign(supportReplyForm, {
+    ticket_id: null,
+    message: '',
+  })
+}
+
+function syncSupportTicketsFromResponse(data) {
+  if (Array.isArray(data?.tickets)) {
+    supportTickets.value = data.tickets
+  } else if (data?.ticket) {
+    supportTickets.value = [
+      data.ticket,
+      ...supportTickets.value.filter(ticket => ticket.id !== data.ticket.id),
+    ]
+  }
+
+  if (Array.isArray(portal.support?.tickets)) {
+    portal.support.tickets = supportTickets.value
+    portal.support.open_count = supportTickets.value.filter(ticket => ['ouvert', 'en_cours'].includes(ticket.statut)).length
+  }
+}
+
+async function submitClientSupportReply(ticket) {
+  if (!ticket?.id || !supportReplyForm.message.trim()) {
+    toast.error('Renseignez votre réponse.')
+    return
+  }
+
+  supportReplySaving.value = true
+  try {
+    const { data } = await api.post(`/support/tickets/${ticket.id}/messages`, {
+      message: supportReplyForm.message.trim(),
+    })
+    syncSupportTicketsFromResponse(data)
+    resetSupportReply()
+    toast.success(data.message || 'Réponse envoyée.')
+  } catch (error) {
+    toast.error(error.response?.data?.message || 'Impossible d’envoyer la réponse.')
+  } finally {
+    supportReplySaving.value = false
+  }
+}
+
+async function closeClientSupportTicket(ticket) {
+  if (!ticket?.id) return
+
+  const ok = await askConfirm({
+    title: 'Fermer le ticket',
+    message: `Fermer le ticket ${ticket.numero || ''} ?`,
+    confirmLabel: 'Fermer',
+  })
+  if (!ok) return
+
+  closingSupportTicketId.value = ticket.id
+  try {
+    const { data } = await api.post(`/support/tickets/${ticket.id}/close`, {
+      message: 'Ticket fermé par le client.',
+    })
+    syncSupportTicketsFromResponse(data)
+    resetSupportReply()
+    toast.success(data.message || 'Ticket fermé.')
+  } catch (error) {
+    toast.error(error.response?.data?.message || 'Impossible de fermer le ticket.')
+  } finally {
+    closingSupportTicketId.value = null
+  }
+}
+
 function axiosApiUrl(url) {
   return String(url || '').replace(/^\/api(?=\/)/, '')
 }
@@ -1056,11 +1181,7 @@ async function submitSupportTicket() {
       sujet: supportForm.sujet.trim(),
       description: supportForm.description.trim(),
     })
-    supportTickets.value = [data.ticket, ...supportTickets.value.filter(ticket => ticket.id !== data.ticket?.id)].filter(Boolean)
-    if (Array.isArray(portal.support?.tickets)) {
-      portal.support.tickets = supportTickets.value
-      portal.support.open_count = supportTickets.value.filter(ticket => ['ouvert', 'en_cours'].includes(ticket.statut)).length
-    }
+    syncSupportTicketsFromResponse(data)
     Object.assign(supportForm, {
       categorie: 'support',
       priorite: 'normale',
@@ -1414,6 +1535,10 @@ function today() {
   background: color-mix(in srgb, var(--saytu-surface, #ffffff) 92%, var(--saytu-primary, #2563eb) 8%);
   padding: 0.65rem;
   color: var(--saytu-shell-text, #334155);
+}
+
+.licence-ticket-row {
+  display: block;
 }
 
 .licence-limit-row {

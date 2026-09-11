@@ -395,27 +395,69 @@
           </div>
 
           <div class="mt-3 space-y-2">
-            <div v-for="ticket in supportTickets.slice(0, 5)" :key="ticket.id" class="xell-commerce-row">
-              <div class="min-w-0">
-                <p class="truncate text-sm font-black text-[color:var(--saytu-shell-text,#0f172a)]">{{ ticket.sujet }}</p>
-                <p class="truncate text-[11px] font-bold text-[color:var(--saytu-muted,#64748b)]">
-                  {{ ticket.client_nom || ticket.requester_email || 'Client' }} · {{ formatDateTime(ticket.created_at) }}
-                </p>
-              </div>
-              <div class="text-right">
+            <div v-for="ticket in supportTickets.slice(0, 5)" :key="ticket.id" class="xell-commerce-row xell-ticket-row">
+              <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                  <p class="truncate text-sm font-black text-[color:var(--saytu-shell-text,#0f172a)]">{{ ticket.sujet }}</p>
+                  <p class="truncate text-[11px] font-bold text-[color:var(--saytu-muted,#64748b)]">
+                    {{ ticket.client_nom || ticket.requester_email || 'Client' }} · {{ ticket.statut_label }} · {{ formatDateTime(ticket.created_at) }}
+                  </p>
+                  <p v-if="ticket.last_message" class="mt-1 line-clamp-2 text-[11px] font-semibold text-[color:var(--saytu-muted,#64748b)]">
+                    {{ ticket.last_message.author_label }} : {{ ticket.last_message.message }}
+                  </p>
+                </div>
                 <span class="xell-mini-chip" :class="supportTicketClass(ticket.priorite)">
                   {{ ticket.priorite_label }}
                 </span>
+              </div>
+
+              <div class="mt-2 flex flex-wrap justify-end gap-1.5">
+                <button
+                  type="button"
+                  class="xell-mini-chip border-sky-200 bg-sky-50 text-sky-700"
+                  :disabled="!ticket.can_reply"
+                  @click="toggleAdminSupportReply(ticket)"
+                >
+                  Répondre
+                </button>
                 <button
                   v-if="!['resolu', 'ferme'].includes(ticket.statut)"
                   type="button"
-                  class="mt-1 block text-[11px] font-black text-[color:var(--saytu-primary,#2563eb)]"
+                  class="xell-mini-chip border-emerald-200 bg-emerald-50 text-emerald-700"
                   :disabled="updatingSupportTicketId === ticket.id"
                   @click="updateSupportTicketStatus(ticket, 'resolu')"
                 >
                   Résoudre
                 </button>
+                <button
+                  v-if="ticket.can_close"
+                  type="button"
+                  class="xell-mini-chip border-red-200 bg-red-50 text-red-700"
+                  :disabled="updatingSupportTicketId === ticket.id"
+                  @click="closeAdminSupportTicket(ticket)"
+                >
+                  Fermer
+                </button>
+                <button
+                  v-if="ticket.can_reopen"
+                  type="button"
+                  class="xell-mini-chip border-indigo-200 bg-indigo-50 text-indigo-700"
+                  :disabled="updatingSupportTicketId === ticket.id"
+                  @click="reopenAdminSupportTicket(ticket)"
+                >
+                  Rouvrir
+                </button>
               </div>
+
+              <form v-if="supportReplyForm.ticket_id === ticket.id" class="mt-2 grid gap-2" @submit.prevent="submitAdminSupportReply(ticket)">
+                <textarea v-model.trim="supportReplyForm.message" class="input min-h-16" required placeholder="Réponse à envoyer au client..."></textarea>
+                <div class="flex justify-end gap-2">
+                  <button type="button" class="btn-secondary px-3 py-2 text-xs" @click="resetAdminSupportReply">Annuler</button>
+                  <button type="submit" class="btn-primary px-3 py-2 text-xs" :disabled="supportReplySaving">
+                    {{ supportReplySaving ? 'Envoi...' : 'Envoyer' }}
+                  </button>
+                </div>
+              </form>
             </div>
             <p v-if="!supportTickets.length" class="xell-empty-mini">Aucun ticket support ouvert.</p>
           </div>
@@ -1257,6 +1299,7 @@ const payingSubscriptionInvoiceId = ref(null)
 const sendingSubscriptionInvoiceId = ref(null)
 const remindingSubscriptionInvoiceId = ref(null)
 const updatingSupportTicketId = ref(null)
+const supportReplySaving = ref(false)
 const reviewingPaymentRequestId = ref(null)
 const suspensionNoticeLoadingId = ref(null)
 const savingEmailSettings = ref(false)
@@ -1284,6 +1327,10 @@ const clients = ref([])
 const form = reactive(emptyForm())
 const emailSettings = reactive(emptyEmailSettings())
 const emailForm = reactive(emptyEmailForm())
+const supportReplyForm = reactive({
+  ticket_id: null,
+  message: '',
+})
 const saasHealth = reactive(emptySaasHealth())
 const saasCommerce = reactive(emptySaasCommerce())
 const productionMonitoring = reactive(emptyProductionMonitoring())
@@ -2228,6 +2275,91 @@ async function updateSupportTicketStatus(ticket, statut) {
     toast.success(data.message || 'Ticket support mis à jour.')
   } catch (error) {
     toast.error(error.response?.data?.message || 'Impossible de mettre à jour le ticket.')
+  } finally {
+    updatingSupportTicketId.value = null
+  }
+}
+
+function toggleAdminSupportReply(ticket) {
+  if (!ticket?.can_reply) return
+
+  if (supportReplyForm.ticket_id === ticket.id) {
+    resetAdminSupportReply()
+    return
+  }
+
+  Object.assign(supportReplyForm, {
+    ticket_id: ticket.id,
+    message: '',
+  })
+}
+
+function resetAdminSupportReply() {
+  Object.assign(supportReplyForm, {
+    ticket_id: null,
+    message: '',
+  })
+}
+
+async function submitAdminSupportReply(ticket) {
+  if (!ticket?.id || !supportReplyForm.message.trim()) {
+    toast.error('Renseignez la réponse.')
+    return
+  }
+
+  supportReplySaving.value = true
+  try {
+    const { data } = await api.post(`/admin/xelltekk/support-tickets/${ticket.id}/messages`, {
+      message: supportReplyForm.message.trim(),
+    })
+    hydrate(data)
+    resetAdminSupportReply()
+    toast.success(data.message || 'Réponse envoyée.')
+  } catch (error) {
+    toast.error(error.response?.data?.message || 'Impossible d’envoyer la réponse.')
+  } finally {
+    supportReplySaving.value = false
+  }
+}
+
+async function closeAdminSupportTicket(ticket) {
+  if (!ticket?.id) return
+
+  const ok = await askConfirm({
+    title: 'Fermer le ticket',
+    message: `Fermer le ticket ${ticket.numero || ''} ?`,
+    confirmLabel: 'Fermer',
+    tone: 'danger',
+  })
+  if (!ok) return
+
+  updatingSupportTicketId.value = ticket.id
+  try {
+    const { data } = await api.post(`/admin/xelltekk/support-tickets/${ticket.id}/close`, {
+      message: 'Ticket fermé par XELLTEKK.',
+    })
+    hydrate(data)
+    resetAdminSupportReply()
+    toast.success(data.message || 'Ticket fermé.')
+  } catch (error) {
+    toast.error(error.response?.data?.message || 'Impossible de fermer le ticket.')
+  } finally {
+    updatingSupportTicketId.value = null
+  }
+}
+
+async function reopenAdminSupportTicket(ticket) {
+  if (!ticket?.id) return
+
+  updatingSupportTicketId.value = ticket.id
+  try {
+    const { data } = await api.post(`/admin/xelltekk/support-tickets/${ticket.id}/reopen`, {
+      message: 'Ticket rouvert par XELLTEKK.',
+    })
+    hydrate(data)
+    toast.success(data.message || 'Ticket rouvert.')
+  } catch (error) {
+    toast.error(error.response?.data?.message || 'Impossible de rouvrir le ticket.')
   } finally {
     updatingSupportTicketId.value = null
   }
@@ -3285,6 +3417,10 @@ function sortByUrgency(a, b) {
   border-radius: 0.9rem;
   background: color-mix(in srgb, var(--saytu-surface, #ffffff) 90%, var(--saytu-primary, #2563eb) 10%);
   padding: 0.55rem 0.65rem;
+}
+
+.xell-ticket-row {
+  display: block;
 }
 
 .xell-subscription-actions {
