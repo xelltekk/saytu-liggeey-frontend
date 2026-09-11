@@ -190,6 +190,50 @@
         </article>
       </div>
 
+      <div v-if="subscriptionRisks.length" class="px-4 pb-4">
+        <article class="xell-risk-panel">
+          <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h3 class="font-black text-[color:var(--saytu-shell-text,#0f172a)]">Abonnements à risque</h3>
+              <p class="text-xs text-[color:var(--saytu-muted,#64748b)]">
+                À traiter avant suspension ou perte de revenu.
+              </p>
+            </div>
+            <span class="rounded-full bg-red-50 px-3 py-1 text-[11px] font-black text-red-700">
+              {{ saasCommerce.summary.suspension_risk_count || 0 }} risque(s) suspension
+            </span>
+          </div>
+
+          <div class="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+            <div
+              v-for="risk in subscriptionRisks.slice(0, 4)"
+              :key="`subscription-risk-${risk.id}`"
+              class="xell-risk-item"
+              :class="subscriptionRiskClass(risk.risk_level)"
+            >
+              <div class="min-w-0">
+                <div class="flex items-center gap-2">
+                  <span class="h-2.5 w-2.5 shrink-0 rounded-full" :class="subscriptionRiskDotClass(risk.risk_level)"></span>
+                  <p class="truncate text-sm font-black">{{ risk.client_nom || 'Client' }}</p>
+                </div>
+                <p class="mt-1 truncate text-[11px] font-bold opacity-80">
+                  {{ risk.numero }} · {{ risk.reason }}
+                </p>
+                <p class="mt-1 font-mono text-xs font-black">{{ money(risk.montant) }}</p>
+              </div>
+              <button
+                type="button"
+                class="xell-mini-chip bg-white/80"
+                :disabled="remindingSubscriptionInvoiceId === risk.id || !risk.reminder?.can_send"
+                @click="remindSubscriptionInvoice(risk)"
+              >
+                {{ remindingSubscriptionInvoiceId === risk.id ? '...' : risk.action_label }}
+              </button>
+            </div>
+          </div>
+        </article>
+      </div>
+
       <div class="grid gap-3 px-4 pb-4 xl:grid-cols-3">
         <article class="xell-commerce-box">
           <div class="flex items-start justify-between gap-3">
@@ -1157,6 +1201,7 @@ const activeOnboarding = computed(() => activeLicence.value?.onboarding || null)
 const licenceActionTotal = computed(() => licenceActionGroups.value.reduce((total, group) => total + group.count, 0))
 const saasHealthItems = computed(() => Array.isArray(saasHealth.items) ? saasHealth.items : [])
 const subscriptionInvoices = computed(() => Array.isArray(saasCommerce.invoices) ? saasCommerce.invoices : [])
+const subscriptionRisks = computed(() => Array.isArray(saasCommerce.subscription_risks) ? saasCommerce.subscription_risks : [])
 const supportTickets = computed(() => Array.isArray(saasCommerce.support_tickets) ? saasCommerce.support_tickets : [])
 const securityEvents = computed(() => Array.isArray(saasCommerce.security_events) ? saasCommerce.security_events : [])
 const tenantBackups = computed(() => Array.isArray(saasCommerce.backups) ? saasCommerce.backups : [])
@@ -1233,6 +1278,12 @@ const saasCommerceCards = computed(() => [
     value: money(saasCommerce.summary.unpaid_amount || 0),
     hint: `${saasCommerce.summary.unpaid_count || 0} facture(s), ${saasCommerce.summary.overdue_count || 0} en retard`,
     icon: AlertTriangle,
+  },
+  {
+    label: 'Risques abonnement',
+    value: saasCommerce.summary.subscription_risk_count || 0,
+    hint: `${saasCommerce.summary.reminders_due_count || 0} à relancer, ${saasCommerce.summary.suspension_risk_count || 0} critiques`,
+    icon: ShieldCheck,
   },
   {
     label: 'Support ouvert',
@@ -1451,6 +1502,7 @@ function hydrateSaasCommerce(payload = null) {
   const normalized = normalizeSaasCommerce(payload)
   Object.assign(saasCommerce.summary, normalized.summary)
   saasCommerce.invoices = normalized.invoices
+  saasCommerce.subscription_risks = normalized.subscription_risks
   saasCommerce.support_tickets = normalized.support_tickets
   saasCommerce.security_events = normalized.security_events
   saasCommerce.backups = normalized.backups
@@ -2319,11 +2371,15 @@ function emptySaasCommerce() {
       unpaid_amount: 0,
       unpaid_count: 0,
       overdue_count: 0,
+      reminders_due_count: 0,
+      subscription_risk_count: 0,
+      suspension_risk_count: 0,
       support_open_count: 0,
       security_alerts_count: 0,
       trial_signups_30d: 0,
     },
     invoices: [],
+    subscription_risks: [],
     support_tickets: [],
     security_events: [],
     backups: [],
@@ -2352,6 +2408,7 @@ function normalizeSaasCommerce(payload = null) {
       ...(payload?.summary || {}),
     },
     invoices: Array.isArray(payload?.invoices) ? payload.invoices : [],
+    subscription_risks: Array.isArray(payload?.subscription_risks) ? payload.subscription_risks : [],
     support_tickets: Array.isArray(payload?.support_tickets) ? payload.support_tickets : [],
     security_events: Array.isArray(payload?.security_events) ? payload.security_events : [],
     backups: Array.isArray(payload?.backups) ? payload.backups : [],
@@ -2459,6 +2516,20 @@ function subscriptionReminderTextClass(reminder) {
   if (reminder?.stage === 'en_retard') return 'text-red-600'
   if (reminder?.is_due) return 'text-amber-600'
   return 'text-[color:var(--saytu-muted,#64748b)]'
+}
+
+function subscriptionRiskClass(level) {
+  if (level === 'critical') return 'border-red-200 bg-red-50 text-red-800'
+  if (level === 'high') return 'border-orange-200 bg-orange-50 text-orange-800'
+  if (level === 'warning') return 'border-amber-200 bg-amber-50 text-amber-800'
+  return 'border-sky-200 bg-sky-50 text-sky-800'
+}
+
+function subscriptionRiskDotClass(level) {
+  if (level === 'critical') return 'bg-red-500'
+  if (level === 'high') return 'bg-orange-500'
+  if (level === 'warning') return 'bg-amber-500'
+  return 'bg-sky-500'
 }
 
 function supportTicketClass(priority) {
@@ -2958,6 +3029,24 @@ function sortByUrgency(a, b) {
 .xell-commerce-box {
   min-height: 16rem;
   padding: 0.9rem;
+}
+
+.xell-risk-panel {
+  border: 1px solid color-mix(in srgb, var(--saytu-border, #bfdbfe) 90%, transparent);
+  border-radius: 1.25rem;
+  background: color-mix(in srgb, var(--saytu-surface, #ffffff) 92%, #fef2f2 8%);
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.06);
+  padding: 0.9rem;
+}
+
+.xell-risk-item {
+  display: grid;
+  grid-template-rows: 1fr auto;
+  gap: 0.75rem;
+  min-height: 8.2rem;
+  border: 1px solid;
+  border-radius: 1rem;
+  padding: 0.8rem;
 }
 
 .xell-commerce-row {
