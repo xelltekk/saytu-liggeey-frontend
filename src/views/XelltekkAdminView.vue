@@ -161,6 +161,37 @@
     <section class="xell-panel overflow-hidden">
       <div class="xell-panel-header">
         <div>
+          <h2 class="font-black text-[color:var(--saytu-shell-text,#0f172a)]">Supervision production</h2>
+          <p class="text-xs text-[color:var(--saytu-muted,#64748b)]">
+            Les 8 points critiques SaaS : base, isolation, emails, facturation, relances, support, sécurité et sauvegardes.
+          </p>
+        </div>
+        <span class="rounded-full px-3 py-1 text-xs font-black" :class="productionStatusClass(productionMonitoring.status)">
+          {{ productionMonitoring.status_label || 'À vérifier' }}
+        </span>
+      </div>
+
+      <div class="grid gap-2 p-4 sm:grid-cols-2 lg:grid-cols-4">
+        <article
+          v-for="check in productionChecks"
+          :key="check.key"
+          class="xell-monitor-check"
+          :class="productionCheckClass(check.state)"
+        >
+          <div class="flex items-start gap-2">
+            <span class="mt-1 h-2.5 w-2.5 shrink-0 rounded-full" :class="productionDotClass(check.state)"></span>
+            <div class="min-w-0">
+              <p class="truncate text-sm font-black">{{ check.label }}</p>
+              <p class="mt-1 line-clamp-2 text-[11px] font-semibold opacity-80">{{ check.detail }}</p>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="xell-panel overflow-hidden">
+      <div class="xell-panel-header">
+        <div>
           <h2 class="font-black text-[color:var(--saytu-shell-text,#0f172a)]">Pilotage commercial SaaS</h2>
           <p class="text-xs text-[color:var(--saytu-muted,#64748b)]">
             Abonnements, impayés, support, sécurité et sauvegardes clients depuis un seul endroit.
@@ -234,7 +265,7 @@
         </article>
       </div>
 
-      <div class="grid gap-3 px-4 pb-4 xl:grid-cols-3">
+      <div class="grid gap-3 px-4 pb-4 xl:grid-cols-4">
         <article class="xell-commerce-box">
           <div class="flex items-start justify-between gap-3">
             <div>
@@ -298,6 +329,57 @@
               </div>
             </div>
             <p v-if="!subscriptionInvoices.length" class="xell-empty-mini">Aucune facture abonnement générée.</p>
+          </div>
+        </article>
+
+        <article class="xell-commerce-box">
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <h3 class="font-black text-[color:var(--saytu-shell-text,#0f172a)]">Paiements déclarés</h3>
+              <p class="text-xs text-[color:var(--saytu-muted,#64748b)]">Validation des règlements saisis par les clients.</p>
+            </div>
+            <span class="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-black text-amber-700">
+              {{ saasCommerce.summary.payment_requests_pending_count || 0 }}
+            </span>
+          </div>
+
+          <div class="mt-3 space-y-2">
+            <div v-for="request in paymentRequests.slice(0, 5)" :key="request.id" class="xell-commerce-row">
+              <div class="min-w-0">
+                <p class="truncate text-sm font-black text-[color:var(--saytu-shell-text,#0f172a)]">{{ request.client_nom || 'Client' }}</p>
+                <p class="truncate text-[11px] font-bold text-[color:var(--saytu-muted,#64748b)]">
+                  {{ request.numero }} · {{ request.invoice_numero || 'sans facture' }}
+                </p>
+                <p class="truncate text-[10px] font-bold text-[color:var(--saytu-muted,#64748b)]">
+                  {{ request.mode_paiement }} · réf. {{ request.reference_paiement }}
+                </p>
+              </div>
+              <div class="text-right">
+                <p class="text-sm font-black text-[color:var(--saytu-shell-text,#0f172a)]">{{ money(request.montant) }}</p>
+                <span class="xell-mini-chip" :class="paymentRequestClass(request.statut)">
+                  {{ request.statut_label }}
+                </span>
+                <div v-if="request.statut === 'en_attente'" class="mt-1 flex justify-end gap-1">
+                  <button
+                    type="button"
+                    class="xell-mini-chip border-emerald-200 bg-emerald-50 text-emerald-700"
+                    :disabled="reviewingPaymentRequestId === request.id"
+                    @click="reviewPaymentRequest(request, 'validee')"
+                  >
+                    Valider
+                  </button>
+                  <button
+                    type="button"
+                    class="xell-mini-chip border-red-200 bg-red-50 text-red-700"
+                    :disabled="reviewingPaymentRequestId === request.id"
+                    @click="reviewPaymentRequest(request, 'refusee')"
+                  >
+                    Refuser
+                  </button>
+                </div>
+              </div>
+            </div>
+            <p v-if="!paymentRequests.length" class="xell-empty-mini">Aucun paiement déclaré à valider.</p>
           </div>
         </article>
 
@@ -921,6 +1003,13 @@
                 >
                   {{ licence.onboarding_status_label }} · {{ licence.onboarding_progress }}%
                 </span>
+                <span
+                  v-if="licence.is_under_suspension_notice || licence.suspension_notice_expired"
+                  class="rounded-full px-2 py-0.5 text-[11px] font-black"
+                  :class="licence.suspension_notice_expired ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'"
+                >
+                  Préavis {{ formatDate(licence.suspension_notice_until) }}
+                </span>
               </div>
               <p class="mt-1 truncate text-xs text-[color:var(--saytu-muted,#64748b)]">
                 {{ licence.numero }} · {{ licence.licence_key }}
@@ -975,6 +1064,15 @@
               </button>
               <button type="button" class="btn-secondary px-3 py-2 text-xs" @click="renewLicence(licence)">
                 +12 mois
+              </button>
+              <button
+                v-if="licence.statut !== 'suspendue'"
+                type="button"
+                class="btn-secondary px-3 py-2 text-xs text-amber-700"
+                :disabled="suspensionNoticeLoadingId === licence.id"
+                @click="sendSuspensionNotice(licence)"
+              >
+                {{ suspensionNoticeLoadingId === licence.id ? '...' : 'Préavis 7j' }}
               </button>
               <button
                 type="button"
@@ -1159,6 +1257,8 @@ const payingSubscriptionInvoiceId = ref(null)
 const sendingSubscriptionInvoiceId = ref(null)
 const remindingSubscriptionInvoiceId = ref(null)
 const updatingSupportTicketId = ref(null)
+const reviewingPaymentRequestId = ref(null)
+const suspensionNoticeLoadingId = ref(null)
 const savingEmailSettings = ref(false)
 const testingEmailSettings = ref(false)
 const search = ref('')
@@ -1186,6 +1286,7 @@ const emailSettings = reactive(emptyEmailSettings())
 const emailForm = reactive(emptyEmailForm())
 const saasHealth = reactive(emptySaasHealth())
 const saasCommerce = reactive(emptySaasCommerce())
+const productionMonitoring = reactive(emptyProductionMonitoring())
 
 const plans = computed(() => nonEmptyObject(reference.plans) ? reference.plans : DEFAULT_PLANS)
 const statuts = computed(() => nonEmptyObject(reference.statuts) ? reference.statuts : DEFAULT_STATUTS)
@@ -1202,9 +1303,11 @@ const licenceActionTotal = computed(() => licenceActionGroups.value.reduce((tota
 const saasHealthItems = computed(() => Array.isArray(saasHealth.items) ? saasHealth.items : [])
 const subscriptionInvoices = computed(() => Array.isArray(saasCommerce.invoices) ? saasCommerce.invoices : [])
 const subscriptionRisks = computed(() => Array.isArray(saasCommerce.subscription_risks) ? saasCommerce.subscription_risks : [])
+const paymentRequests = computed(() => Array.isArray(saasCommerce.payment_requests) ? saasCommerce.payment_requests : [])
 const supportTickets = computed(() => Array.isArray(saasCommerce.support_tickets) ? saasCommerce.support_tickets : [])
 const securityEvents = computed(() => Array.isArray(saasCommerce.security_events) ? saasCommerce.security_events : [])
 const tenantBackups = computed(() => Array.isArray(saasCommerce.backups) ? saasCommerce.backups : [])
+const productionChecks = computed(() => Array.isArray(productionMonitoring.checks) ? productionMonitoring.checks : [])
 
 const saasHealthCards = computed(() => [
   {
@@ -1284,6 +1387,12 @@ const saasCommerceCards = computed(() => [
     value: saasCommerce.summary.subscription_risk_count || 0,
     hint: `${saasCommerce.summary.reminders_due_count || 0} à relancer, ${saasCommerce.summary.suspension_risk_count || 0} critiques`,
     icon: ShieldCheck,
+  },
+  {
+    label: 'Paiements déclarés',
+    value: saasCommerce.summary.payment_requests_pending_count || 0,
+    hint: 'À vérifier et valider',
+    icon: CreditCard,
   },
   {
     label: 'Support ouvert',
@@ -1485,6 +1594,7 @@ function hydrate(data) {
   clients.value = Array.isArray(data.clients) ? data.clients : []
   hydrateSaasHealth(data.saas_health)
   hydrateSaasCommerce(data.saas_commerce)
+  hydrateProductionMonitoring(data.production_monitoring)
   ensureSelectableDefaults()
   hydrateEmailSettings(data.email_settings)
   if (!editingId.value && form.modules_autorises.length === 0) {
@@ -1503,11 +1613,17 @@ function hydrateSaasCommerce(payload = null) {
   Object.assign(saasCommerce.summary, normalized.summary)
   saasCommerce.invoices = normalized.invoices
   saasCommerce.subscription_risks = normalized.subscription_risks
+  saasCommerce.payment_requests = normalized.payment_requests
   saasCommerce.support_tickets = normalized.support_tickets
   saasCommerce.security_events = normalized.security_events
   saasCommerce.backups = normalized.backups
   saasCommerce.payment_methods = normalized.payment_methods
   saasCommerce.plan_limits = normalized.plan_limits
+}
+
+function hydrateProductionMonitoring(payload = null) {
+  const normalized = normalizeProductionMonitoring(payload)
+  Object.assign(productionMonitoring, normalized)
 }
 
 function hydrateEmailSettings(settings = null) {
@@ -1590,6 +1706,32 @@ async function toggleLicenceStatus(licence) {
     toast.success(data.message || 'Statut mis à jour.')
   } catch (error) {
     toast.error(error.response?.data?.message || 'Impossible de changer le statut.')
+  }
+}
+
+async function sendSuspensionNotice(licence) {
+  if (!licence?.id) return
+
+  const ok = await askConfirm({
+    title: 'Préavis de suspension',
+    message: `Envoyer un préavis de 7 jours à ${licence.client_nom || 'ce client'} avant suspension ?`,
+    confirmLabel: 'Créer le préavis',
+    tone: 'danger',
+  })
+  if (!ok) return
+
+  suspensionNoticeLoadingId.value = licence.id
+  try {
+    const { data } = await api.post(`/admin/xelltekk/licences/${licence.id}/suspension-notice`, {
+      days: 7,
+      raison: 'Préavis de suspension pour abonnement non régularisé.',
+    })
+    hydrate(data)
+    toast.success(data.message || 'Préavis de suspension créé.')
+  } catch (error) {
+    toast.error(error.response?.data?.message || 'Impossible de créer le préavis.')
+  } finally {
+    suspensionNoticeLoadingId.value = null
   }
 }
 
@@ -2047,6 +2189,35 @@ async function markSubscriptionInvoicePaid(invoice) {
   }
 }
 
+async function reviewPaymentRequest(paymentRequest, statut) {
+  if (!paymentRequest?.id) return
+
+  const isApproval = statut === 'validee'
+  const ok = await askConfirm({
+    title: isApproval ? 'Valider le paiement' : 'Refuser le paiement',
+    message: isApproval
+      ? `Valider le paiement déclaré ${paymentRequest.numero || ''} et solder la facture liée si nécessaire ?`
+      : `Refuser le paiement déclaré ${paymentRequest.numero || ''} ?`,
+    confirmLabel: isApproval ? 'Valider' : 'Refuser',
+    tone: isApproval ? 'default' : 'danger',
+  })
+  if (!ok) return
+
+  reviewingPaymentRequestId.value = paymentRequest.id
+  try {
+    const { data } = await api.put(`/admin/xelltekk/payment-requests/${paymentRequest.id}`, {
+      statut,
+      admin_notes: isApproval ? 'Paiement validé par XELLTEKK.' : 'Paiement refusé après vérification.',
+    })
+    hydrate(data)
+    toast.success(data.message || 'Demande de paiement mise à jour.')
+  } catch (error) {
+    toast.error(error.response?.data?.message || 'Impossible de traiter ce paiement déclaré.')
+  } finally {
+    reviewingPaymentRequestId.value = null
+  }
+}
+
 async function updateSupportTicketStatus(ticket, statut) {
   if (!ticket?.id) return
 
@@ -2374,17 +2545,29 @@ function emptySaasCommerce() {
       reminders_due_count: 0,
       subscription_risk_count: 0,
       suspension_risk_count: 0,
+      payment_requests_pending_count: 0,
       support_open_count: 0,
       security_alerts_count: 0,
       trial_signups_30d: 0,
     },
     invoices: [],
     subscription_risks: [],
+    payment_requests: [],
     support_tickets: [],
     security_events: [],
     backups: [],
     plan_limits: DEFAULT_PLAN_LIMITS,
     payment_methods: DEFAULT_PAYMENT_METHODS,
+  }
+}
+
+function emptyProductionMonitoring() {
+  return {
+    status: 'warning',
+    status_label: 'À vérifier',
+    warning_count: 0,
+    danger_count: 0,
+    checks: [],
   }
 }
 
@@ -2409,6 +2592,7 @@ function normalizeSaasCommerce(payload = null) {
     },
     invoices: Array.isArray(payload?.invoices) ? payload.invoices : [],
     subscription_risks: Array.isArray(payload?.subscription_risks) ? payload.subscription_risks : [],
+    payment_requests: Array.isArray(payload?.payment_requests) ? payload.payment_requests : [],
     support_tickets: Array.isArray(payload?.support_tickets) ? payload.support_tickets : [],
     security_events: Array.isArray(payload?.security_events) ? payload.security_events : [],
     backups: Array.isArray(payload?.backups) ? payload.backups : [],
@@ -2417,7 +2601,19 @@ function normalizeSaasCommerce(payload = null) {
   }
 }
 
+function normalizeProductionMonitoring(payload = null) {
+  const fallback = emptyProductionMonitoring()
+
+  return {
+    ...fallback,
+    ...(payload || {}),
+    checks: Array.isArray(payload?.checks) ? payload.checks : [],
+  }
+}
+
 function statusClass(licence) {
+  if (licence.suspension_notice_expired) return 'bg-red-100 text-red-700'
+  if (licence.is_under_suspension_notice) return 'bg-amber-100 text-amber-700'
   if (licence.statut === 'suspendue') return 'bg-red-100 text-red-700'
   if (licence.is_expired || licence.statut === 'expiree') return 'bg-amber-100 text-amber-700'
   if (licence.expires_soon) return 'bg-yellow-100 text-yellow-700'
@@ -2555,6 +2751,30 @@ function securityEventClass(severity) {
   if (severity === 'danger') return 'border-red-200 bg-red-50 text-red-700'
   if (severity === 'warning') return 'border-amber-200 bg-amber-50 text-amber-700'
   return 'border-emerald-200 bg-emerald-50 text-emerald-700'
+}
+
+function paymentRequestClass(status) {
+  if (status === 'validee') return 'border-emerald-200 bg-emerald-50 text-emerald-700'
+  if (status === 'refusee' || status === 'annulee') return 'border-red-200 bg-red-50 text-red-700'
+  return 'border-amber-200 bg-amber-50 text-amber-700'
+}
+
+function productionStatusClass(status) {
+  if (status === 'danger') return 'bg-red-100 text-red-700'
+  if (status === 'warning') return 'bg-amber-100 text-amber-700'
+  return 'bg-emerald-100 text-emerald-700'
+}
+
+function productionCheckClass(status) {
+  if (status === 'danger') return 'border-red-200 bg-red-50 text-red-800'
+  if (status === 'warning') return 'border-amber-200 bg-amber-50 text-amber-800'
+  return 'border-emerald-200 bg-emerald-50 text-emerald-800'
+}
+
+function productionDotClass(status) {
+  if (status === 'danger') return 'bg-red-500'
+  if (status === 'warning') return 'bg-amber-500'
+  return 'bg-emerald-500'
 }
 
 function visibleBusinessCounts(item) {
@@ -3047,6 +3267,12 @@ function sortByUrgency(a, b) {
   border: 1px solid;
   border-radius: 1rem;
   padding: 0.8rem;
+}
+
+.xell-monitor-check {
+  border: 1px solid;
+  border-radius: 1rem;
+  padding: 0.75rem;
 }
 
 .xell-commerce-row {

@@ -58,6 +58,154 @@
         </article>
       </section>
 
+      <section v-if="!canManageLicence && portalReady" class="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
+        <article class="licence-panel">
+          <div class="licence-panel-header">
+            <div>
+              <h2 class="font-black text-[color:var(--saytu-shell-text,#0f172a)]">Mon espace XELLTEKK</h2>
+              <p class="text-xs text-[color:var(--saytu-muted,#64748b)]">
+                Abonnement, documents, factures et limites de votre sous-domaine.
+              </p>
+            </div>
+            <span class="rounded-full px-3 py-1 text-xs font-black" :class="portal.workspace?.is_isolated ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'">
+              {{ portal.workspace?.is_isolated ? 'Isolé' : 'À vérifier' }}
+            </span>
+          </div>
+
+          <div class="grid gap-3 p-4 md:grid-cols-2">
+            <div class="rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-shell-bg,#f8fafc)] p-3">
+              <p class="licence-card-label">Abonnement</p>
+              <p class="mt-1 text-xl font-black text-[color:var(--saytu-shell-text,#0f172a)]">{{ portal.subscription?.plan_label || form.plan_label || '-' }}</p>
+              <p class="text-xs font-bold text-[color:var(--saytu-muted,#64748b)]">
+                {{ money(portal.subscription?.monthly_amount) }} {{ portal.subscription?.currency || form.devise || 'XOF' }}/mois
+              </p>
+              <p v-if="portal.suspension?.is_under_notice || portal.suspension?.notice_expired" class="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">
+                {{ portal.suspension.message }}
+              </p>
+            </div>
+
+            <div class="rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-shell-bg,#f8fafc)] p-3">
+              <p class="licence-card-label">Documents commerciaux</p>
+              <div class="mt-2 flex flex-wrap gap-2">
+                <button type="button" class="btn-secondary px-3 py-2 text-xs" :disabled="!portal.commercial_documents?.devis_pdf_url" @click="openPortalPdf(portal.commercial_documents?.devis_pdf_url)">
+                  <FileText class="h-4 w-4" />
+                  Devis
+                </button>
+                <button type="button" class="btn-secondary px-3 py-2 text-xs" :disabled="!portal.commercial_documents?.contrat_pdf_url" @click="openPortalPdf(portal.commercial_documents?.contrat_pdf_url)">
+                  <FileText class="h-4 w-4" />
+                  Contrat
+                </button>
+                <button type="button" class="btn-secondary px-3 py-2 text-xs" :disabled="!portal.commercial_documents?.last_invoice_pdf_url" @click="openPortalPdf(portal.commercial_documents?.last_invoice_pdf_url)">
+                  <Download class="h-4 w-4" />
+                  Dernière facture
+                </button>
+              </div>
+            </div>
+
+            <div class="md:col-span-2 grid gap-2 md:grid-cols-3">
+              <article v-for="limit in portalLimitRows" :key="limit.label" class="licence-limit-row">
+                <div class="flex items-center justify-between gap-2">
+                  <p class="text-xs font-black text-[color:var(--saytu-shell-text,#0f172a)]">{{ limit.label }}</p>
+                  <span class="rounded-full px-2 py-0.5 text-[10px] font-black" :class="usageClass(limit.state)">
+                    {{ limit.percent === null ? '∞' : `${limit.percent}%` }}
+                  </span>
+                </div>
+                <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-white">
+                  <span class="block h-full rounded-full bg-[color:var(--saytu-primary,#2563eb)]" :style="{ width: `${Math.min(100, limit.percent || 0)}%` }"></span>
+                </div>
+                <p class="mt-1 text-[11px] font-bold text-[color:var(--saytu-muted,#64748b)]">{{ limit.text }}</p>
+              </article>
+            </div>
+          </div>
+        </article>
+
+        <article class="licence-panel">
+          <div class="licence-panel-header">
+            <div>
+              <h2 class="font-black text-[color:var(--saytu-shell-text,#0f172a)]">Factures abonnement</h2>
+              <p class="text-xs text-[color:var(--saytu-muted,#64748b)]">
+                Reste dû : {{ money(portal.subscription?.unpaid_amount) }} {{ portal.subscription?.currency || form.devise || 'XOF' }}.
+              </p>
+            </div>
+            <CreditCard class="h-5 w-5 text-[color:var(--saytu-primary,#2563eb)]" />
+          </div>
+
+          <div class="grid gap-3 p-4 lg:grid-cols-[1fr_280px]">
+            <div class="space-y-2">
+              <article v-for="invoice in portalInvoices.slice(0, 5)" :key="invoice.id" class="licence-support-row">
+                <div class="min-w-0">
+                  <p class="truncate text-sm font-black">{{ invoice.numero }}</p>
+                  <p class="truncate text-[11px] font-bold text-[color:var(--saytu-muted,#64748b)]">
+                    {{ invoice.statut_label }} · échéance {{ formatDate(invoice.date_echeance) }} · {{ money(invoice.montant) }} {{ invoice.devise }}
+                  </p>
+                </div>
+                <div class="flex shrink-0 flex-wrap justify-end gap-1.5">
+                  <button type="button" class="licence-mini-action" @click="openPortalPdf(invoice.pdf_url)">PDF</button>
+                  <button type="button" class="licence-mini-action" :disabled="invoice.statut === 'payee'" @click="preparePaymentRequest(invoice)">Déclarer</button>
+                </div>
+              </article>
+              <p v-if="!portalInvoices.length" class="rounded-xl border border-dashed border-[color:var(--saytu-border,#e2e8f0)] p-4 text-center text-xs font-bold text-[color:var(--saytu-muted,#64748b)]">
+                Aucune facture abonnement disponible.
+              </p>
+            </div>
+
+            <form class="space-y-2 rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-shell-bg,#f8fafc)] p-3" @submit.prevent="submitPaymentRequest">
+              <h3 class="text-sm font-black text-[color:var(--saytu-shell-text,#0f172a)]">Déclarer un paiement</h3>
+              <select v-model="paymentRequestForm.invoice_id" class="input">
+                <option value="">Facture concernée</option>
+                <option v-for="invoice in portalInvoices" :key="invoice.id" :value="invoice.id">{{ invoice.numero }} · {{ money(invoice.montant) }}</option>
+              </select>
+              <select v-model="paymentRequestForm.mode_paiement" class="input" required>
+                <option value="">Mode de paiement</option>
+                <option value="virement">Virement bancaire</option>
+                <option value="wave">Wave</option>
+                <option value="especes">Espèces</option>
+                <option value="cheque">Chèque</option>
+              </select>
+              <input v-model.trim="paymentRequestForm.reference_paiement" class="input" required placeholder="Référence transaction" />
+              <input v-model="paymentRequestForm.montant" data-numeric-input data-decimals="2" class="input" placeholder="Montant payé" />
+              <textarea v-model.trim="paymentRequestForm.notes" class="input min-h-16" placeholder="Notes utiles"></textarea>
+              <button type="submit" class="btn-primary w-full" :disabled="paymentRequestSaving">
+                {{ paymentRequestSaving ? 'Envoi...' : 'Envoyer à XELLTEKK' }}
+              </button>
+            </form>
+          </div>
+
+          <div v-if="portalPaymentRequests.length" class="border-t border-[color:var(--saytu-border,#e2e8f0)] px-4 py-3">
+            <p class="licence-card-label">Paiements déclarés</p>
+            <div class="mt-2 flex flex-wrap gap-2">
+              <span v-for="request in portalPaymentRequests.slice(0, 4)" :key="request.id" class="licence-mini-chip">
+                {{ request.numero }} · {{ request.statut_label }}
+              </span>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <section v-if="!canManageLicence && portalReady" class="licence-panel">
+        <div class="licence-panel-header">
+          <div>
+            <h2 class="font-black text-[color:var(--saytu-shell-text,#0f172a)]">Sauvegarde, restauration & supervision</h2>
+            <p class="text-xs text-[color:var(--saytu-muted,#64748b)]">
+              Contrôles simples sans écraser les données : toute restauration passe par validation XELLTEKK.
+            </p>
+          </div>
+          <button type="button" class="btn-secondary px-3 py-2 text-xs" @click="requestBackupRestore">
+            <Archive class="h-4 w-4" />
+            Demander
+          </button>
+        </div>
+        <div class="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-4">
+          <article v-for="check in portalChecks" :key="check.key" class="licence-limit-row">
+            <div class="flex items-center gap-2">
+              <span class="h-2.5 w-2.5 rounded-full" :class="checkDotClass(check.state)"></span>
+              <p class="text-sm font-black text-[color:var(--saytu-shell-text,#0f172a)]">{{ check.label }}</p>
+            </div>
+            <p class="mt-1 text-xs font-bold text-[color:var(--saytu-muted,#64748b)]">{{ check.detail }}</p>
+          </article>
+        </div>
+      </section>
+
       <section v-if="!canManageLicence" class="licence-panel">
         <div class="licence-panel-header">
           <div>
@@ -86,10 +234,7 @@
             <label>
               <span class="label">Catégorie</span>
               <select v-model="supportForm.categorie" class="input">
-                <option value="support">Support</option>
-                <option value="facturation">Facturation</option>
-                <option value="licence">Licence</option>
-                <option value="technique">Technique</option>
+                <option v-for="(label, key) in supportCategories" :key="key" :value="key">{{ label }}</option>
               </select>
             </label>
 
@@ -451,11 +596,13 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import {
   AlertTriangle,
+  Archive,
   Boxes,
   CalendarDays,
   CheckCircle2,
   Copy,
   CreditCard,
+  Download,
   FileText,
   HardDrive,
   KeyRound,
@@ -482,9 +629,11 @@ const loading = ref(false)
 const saving = ref(false)
 const paiementSaving = ref(false)
 const supportSaving = ref(false)
+const paymentRequestSaving = ref(false)
 const certificateImport = ref('')
 const form = ref(null)
 const supportTickets = ref([])
+const portal = reactive(emptyPortal())
 const reference = reactive({
   plans: {},
   modules: {},
@@ -506,6 +655,15 @@ const supportForm = reactive({
   description: '',
 })
 
+const paymentRequestForm = reactive({
+  invoice_id: '',
+  montant: '',
+  devise: 'XOF',
+  mode_paiement: '',
+  reference_paiement: '',
+  notes: '',
+})
+
 const plans = computed(() => reference.plans || {})
 const statuts = computed(() => reference.statuts || {})
 const paiements = computed(() => form.value?.paiements || [])
@@ -517,6 +675,23 @@ const licenceIsSensitive = computed(() => ['expiree', 'essai_expire', 'suspendue
   || form.value?.depasse_limite_stockage
   || form.value?.depasse_limite_documents)
 const canManageLicence = computed(() => isXelltekkAdmin(auth.user))
+const portalReady = computed(() => Boolean(portal.workspace?.tenant_id || portal.workspace?.client_id || portal.subscription?.invoices?.length))
+const portalInvoices = computed(() => Array.isArray(portal.subscription?.invoices) ? portal.subscription.invoices : [])
+const portalPaymentRequests = computed(() => Array.isArray(portal.subscription?.payment_requests) ? portal.subscription.payment_requests : [])
+const portalLimitRows = computed(() => Object.values(portal.limits || {}).filter(Boolean))
+const portalChecks = computed(() => Array.isArray(portal.monitoring?.checks) ? portal.monitoring.checks : [])
+const supportCategories = computed(() => {
+  const categories = portal.support?.suggested_categories
+  return categories && Object.keys(categories).length
+    ? categories
+    : {
+        support: 'Support',
+        facturation: 'Facturation',
+        licence: 'Licence',
+        technique: 'Technique',
+        sauvegarde: 'Sauvegarde / restauration',
+      }
+})
 const shortFingerprint = computed(() => {
   const fingerprint = String(form.value?.instance_fingerprint || '')
   return fingerprint ? `${fingerprint.slice(0, 12)}…${fingerprint.slice(-8)}` : '-'
@@ -600,7 +775,13 @@ async function loadLicence() {
 function hydrate(data) {
   Object.assign(reference, data.reference || {})
   form.value = normalizeLicence(data.licence || {})
+  hydratePortal(data.portal)
   syncAuthLicence(form.value)
+}
+
+function hydratePortal(payload = null) {
+  Object.assign(portal, emptyPortal(), payload || {})
+  supportTickets.value = Array.isArray(portal.support?.tickets) ? portal.support.tickets : supportTickets.value
 }
 
 async function loadSupportTickets() {
@@ -640,6 +821,10 @@ function normalizeLicence(licence) {
     devise: 'XOF',
     notes: '',
     suspension_reason: '',
+    suspension_notice_sent_at: '',
+    suspension_notice_until: '',
+    is_under_suspension_notice: false,
+    suspension_notice_expired: false,
     numero: '',
     licence_key: '',
     licence_certificate: '',
@@ -661,6 +846,114 @@ function normalizeLicence(licence) {
     periode_essai_fin: licence.periode_essai_fin || '',
     paiements: Array.isArray(licence.paiements) ? licence.paiements : [],
   }
+}
+
+function preparePaymentRequest(invoice) {
+  if (!invoice) return
+  Object.assign(paymentRequestForm, {
+    invoice_id: invoice.id,
+    montant: invoice.montant ?? '',
+    devise: invoice.devise || form.value?.devise || 'XOF',
+    mode_paiement: '',
+    reference_paiement: '',
+    notes: '',
+  })
+}
+
+async function submitPaymentRequest() {
+  if (!paymentRequestForm.mode_paiement || !paymentRequestForm.reference_paiement.trim()) {
+    toast.error('Renseignez le mode et la référence du paiement.')
+    return
+  }
+
+  paymentRequestSaving.value = true
+  try {
+    const { data } = await api.post('/admin/licence/payment-requests', {
+      invoice_id: paymentRequestForm.invoice_id || null,
+      montant: paymentRequestForm.montant ? parseNumber(paymentRequestForm.montant) : null,
+      devise: paymentRequestForm.devise || form.value?.devise || 'XOF',
+      mode_paiement: paymentRequestForm.mode_paiement,
+      reference_paiement: paymentRequestForm.reference_paiement.trim(),
+      notes: paymentRequestForm.notes || null,
+    })
+    hydratePortal(data.portal)
+    Object.assign(paymentRequestForm, {
+      invoice_id: '',
+      montant: '',
+      devise: form.value?.devise || 'XOF',
+      mode_paiement: '',
+      reference_paiement: '',
+      notes: '',
+    })
+    toast.success(data.message || 'Paiement déclaré.')
+  } catch (error) {
+    toast.error(error.response?.data?.message || 'Impossible de déclarer le paiement.')
+  } finally {
+    paymentRequestSaving.value = false
+  }
+}
+
+async function openPortalPdf(url) {
+  if (!url) return
+
+  const endpoint = axiosApiUrl(url)
+  const reservedWindow = window.open('', '_blank')
+
+  if (reservedWindow) {
+    reservedWindow.opener = null
+    reservedWindow.document.write('<!doctype html><title>Préparation du PDF</title><p style="font-family:system-ui;padding:24px">Préparation du PDF...</p>')
+  }
+
+  try {
+    const response = await api.get(endpoint, {
+      responseType: 'blob',
+      headers: { Accept: 'application/json, application/pdf' },
+    })
+    const blob = new Blob([response.data], { type: 'application/pdf' })
+    const objectUrl = URL.createObjectURL(blob)
+
+    if (reservedWindow) {
+      reservedWindow.location.href = objectUrl
+    } else {
+      window.open(objectUrl, '_blank')
+    }
+
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 120000)
+  } catch (error) {
+    if (reservedWindow && !reservedWindow.closed) {
+      reservedWindow.close()
+    }
+    toast.error(await apiBlobErrorMessage(error, 'Impossible d’ouvrir le PDF.'))
+  }
+}
+
+function requestBackupRestore() {
+  Object.assign(supportForm, {
+    categorie: 'sauvegarde',
+    priorite: 'normale',
+    sujet: 'Demande sauvegarde / restauration',
+    description: portal.backup_restore?.message || 'Bonjour XELLTEKK, merci de nous accompagner pour une sauvegarde ou une restauration contrôlée.',
+  })
+  toast.info('La demande est prête dans le bloc support. Vérifiez puis envoyez.')
+}
+
+function axiosApiUrl(url) {
+  return String(url || '').replace(/^\/api(?=\/)/, '')
+}
+
+async function apiBlobErrorMessage(error, fallback) {
+  const payload = error?.response?.data
+  if (payload instanceof Blob) {
+    try {
+      const text = await payload.text()
+      const parsed = JSON.parse(text)
+      return parsed.message || fallback
+    } catch {
+      return fallback
+    }
+  }
+
+  return error?.response?.data?.message || fallback
 }
 
 async function saveLicence() {
@@ -764,6 +1057,10 @@ async function submitSupportTicket() {
       description: supportForm.description.trim(),
     })
     supportTickets.value = [data.ticket, ...supportTickets.value.filter(ticket => ticket.id !== data.ticket?.id)].filter(Boolean)
+    if (Array.isArray(portal.support?.tickets)) {
+      portal.support.tickets = supportTickets.value
+      portal.support.open_count = supportTickets.value.filter(ticket => ['ouvert', 'en_cours'].includes(ticket.statut)).length
+    }
     Object.assign(supportForm, {
       categorie: 'support',
       priorite: 'normale',
@@ -953,6 +1250,63 @@ function cleanPhone(value) {
   return digits.slice(0, 9) || null
 }
 
+function emptyPortal() {
+  return {
+    workspace: {
+      tenant_id: null,
+      client_id: null,
+      client_name: '',
+      domain: '',
+      url: '',
+      subdomain: '',
+      is_isolated: false,
+    },
+    subscription: {
+      monthly_amount: 0,
+      currency: 'XOF',
+      paid_amount: 0,
+      unpaid_amount: 0,
+      unpaid_count: 0,
+      overdue_count: 0,
+      invoices: [],
+      payment_requests: [],
+      payment_methods: {},
+    },
+    limits: {},
+    suspension: {},
+    support: {
+      open_count: 0,
+      tickets: [],
+      suggested_categories: {},
+    },
+    backup_restore: {
+      last_backup: null,
+      message: '',
+    },
+    monitoring: {
+      checks: [],
+    },
+    commercial_documents: {
+      devis_pdf_url: null,
+      contrat_pdf_url: null,
+      last_invoice_pdf_url: null,
+      certificate_ready: false,
+    },
+  }
+}
+
+function usageClass(state) {
+  if (state === 'danger') return 'bg-red-100 text-red-700'
+  if (state === 'warning') return 'bg-amber-100 text-amber-700'
+  return 'bg-emerald-100 text-emerald-700'
+}
+
+function checkDotClass(state) {
+  if (state === 'danger') return 'bg-red-500'
+  if (state === 'warning') return 'bg-amber-400'
+  return 'bg-emerald-500'
+}
+
 function money(value) {
   return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(Number(value || 0))
 }
@@ -1060,6 +1414,33 @@ function today() {
   background: color-mix(in srgb, var(--saytu-surface, #ffffff) 92%, var(--saytu-primary, #2563eb) 8%);
   padding: 0.65rem;
   color: var(--saytu-shell-text, #334155);
+}
+
+.licence-limit-row {
+  border: 1px solid var(--saytu-border, #e2e8f0);
+  border-radius: 0.9rem;
+  background: color-mix(in srgb, var(--saytu-surface, #ffffff) 92%, var(--saytu-primary, #2563eb) 8%);
+  padding: 0.75rem;
+  color: var(--saytu-shell-text, #334155);
+}
+
+.licence-mini-action,
+.licence-mini-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid color-mix(in srgb, var(--saytu-primary, #2563eb) 30%, var(--saytu-border, #e2e8f0));
+  border-radius: 999px;
+  background: var(--saytu-surface, #ffffff);
+  color: var(--saytu-primary, #2563eb);
+  font-size: 0.72rem;
+  font-weight: 900;
+  padding: 0.28rem 0.58rem;
+}
+
+.licence-mini-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .label {
