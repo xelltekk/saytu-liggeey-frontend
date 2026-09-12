@@ -274,9 +274,9 @@
 
               <div class="mt-2 flex flex-wrap gap-1.5">
                 <button
+                  v-if="ticket.can_reply"
                   type="button"
                   class="licence-mini-action"
-                  :disabled="!ticket.can_reply"
                   @click="toggleSupportReply(ticket)"
                 >
                   Répondre
@@ -290,6 +290,9 @@
                 >
                   {{ closingSupportTicketId === ticket.id ? '...' : 'Fermer' }}
                 </button>
+                <p v-if="!ticket.can_reply && ticket.statut === 'ferme'" class="licence-ticket-locked">
+                  Ticket fermé. Réouverture possible uniquement par XELLTEKK.
+                </p>
               </div>
 
               <form v-if="supportReplyForm.ticket_id === ticket.id" class="mt-2 grid gap-2" @submit.prevent="submitClientSupportReply(ticket)">
@@ -1566,6 +1569,15 @@ function today() {
 .licence-mini-action:disabled {
   cursor: not-allowed;
   opacity: 0.55;
+}
+
+.licence-ticket-locked {
+  border-radius: 0.9rem;
+  background: color-mix(in srgb, var(--saytu-danger, #ef4444) 10%, var(--saytu-surface, #ffffff) 90%);
+  color: var(--saytu-danger, #b91c1c);
+  font-size: 0.72rem;
+  font-weight: 900;
+  padding: 0.32rem 0.58rem;
 }
 
 .label {
