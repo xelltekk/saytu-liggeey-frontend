@@ -28,15 +28,30 @@
       class="rounded-2xl border px-4 py-3 text-sm"
       :class="statusAlertClass"
     >
-      <div class="flex items-start gap-3">
-        <AlertTriangle v-if="licenceIsSensitive" class="mt-0.5 h-4 w-4 shrink-0" />
-        <CheckCircle2 v-else class="mt-0.5 h-4 w-4 shrink-0" />
-        <div>
-          <p class="font-black">{{ licenceMessage }}</p>
-          <p v-if="form?.depasse_limite_utilisateurs" class="mt-1">
-            Utilisateurs actifs : {{ form.utilisateurs_actifs }} / {{ form.max_utilisateurs }}.
-          </p>
+      <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div class="flex items-start gap-3">
+          <AlertTriangle v-if="licenceIsSensitive" class="mt-0.5 h-4 w-4 shrink-0" />
+          <CheckCircle2 v-else class="mt-0.5 h-4 w-4 shrink-0" />
+          <div>
+            <p class="font-black">{{ licenceMessage }}</p>
+            <p v-if="form?.is_grace_period && form?.grace_until" class="mt-1 font-bold">
+              Grâce active jusqu’au {{ formatDate(form.grace_until) }}.
+            </p>
+            <p v-if="form?.depasse_limite_utilisateurs" class="mt-1">
+              Utilisateurs actifs : {{ form.utilisateurs_actifs }} / {{ form.max_utilisateurs }}.
+            </p>
+          </div>
         </div>
+        <button
+          v-if="showRenewalRequestButton"
+          type="button"
+          class="btn-primary shrink-0 px-3 py-2 text-xs"
+          :disabled="renewalRequestSaving"
+          @click="requestLicenceRenewal"
+        >
+          <LifeBuoy class="h-4 w-4" />
+          {{ renewalRequestSaving ? 'Demande...' : 'Demander renouvellement' }}
+        </button>
       </div>
     </section>
 
@@ -670,6 +685,7 @@ const supportSaving = ref(false)
 const supportReplySaving = ref(false)
 const closingSupportTicketId = ref(null)
 const paymentRequestSaving = ref(false)
+const renewalRequestSaving = ref(false)
 const certificateImport = ref('')
 const form = ref(null)
 const supportTickets = ref([])
@@ -714,13 +730,20 @@ const statuts = computed(() => reference.statuts || {})
 const paiements = computed(() => form.value?.paiements || [])
 const totalPaiements = computed(() => paiements.value.reduce((total, item) => total + Number(item.montant || 0), 0))
 const licenceMessage = computed(() => form.value?.message || '')
-const licenceIsSensitive = computed(() => ['expiree', 'essai_expire', 'suspendue'].includes(form.value?.etat)
+const licenceIsSensitive = computed(() => ['expiree', 'essai_expire', 'suspendue', 'grace'].includes(form.value?.etat)
   || form.value?.expires_soon
   || form.value?.depasse_limite_utilisateurs
   || form.value?.depasse_limite_stockage
   || form.value?.depasse_limite_documents)
 const canManageLicence = computed(() => isXelltekkAdmin(auth.user))
 const portalReady = computed(() => Boolean(portal.workspace?.tenant_id || portal.workspace?.client_id || portal.subscription?.invoices?.length))
+const showRenewalRequestButton = computed(() => {
+  if (canManageLicence.value || !form.value?.configured) return false
+  if (['expiree', 'essai_expire', 'grace'].includes(form.value?.etat)) return true
+  if (form.value?.expires_soon) return true
+
+  return Number(form.value?.days_remaining ?? 99) <= 15
+})
 const portalInvoices = computed(() => Array.isArray(portal.subscription?.invoices) ? portal.subscription.invoices : [])
 const portalPaymentRequests = computed(() => Array.isArray(portal.subscription?.payment_requests) ? portal.subscription.payment_requests : [])
 const portalLimitRows = computed(() => Object.values(portal.limits || {}).filter(Boolean))
@@ -733,6 +756,7 @@ const supportCategories = computed(() => {
         support: 'Support',
         facturation: 'Facturation',
         licence: 'Licence',
+        renouvellement: 'Renouvellement licence',
         technique: 'Technique',
         sauvegarde: 'Sauvegarde / restauration',
       }
@@ -758,7 +782,9 @@ const cards = computed(() => [
   {
     label: 'Échéance',
     value: form.value?.date_fin ? formatDate(form.value.date_fin) : 'Illimitée',
-    hint: form.value?.days_remaining === null || form.value?.days_remaining === undefined
+    hint: form.value?.is_grace_period && form.value?.grace_until
+      ? `Grâce jusqu’au ${formatDate(form.value.grace_until)}`
+      : form.value?.days_remaining === null || form.value?.days_remaining === undefined
       ? 'Pas de date de fin'
       : `${form.value.days_remaining} jour(s) restant(s)`,
     icon: CalendarDays,
@@ -870,6 +896,9 @@ function normalizeLicence(licence) {
     suspension_notice_until: '',
     is_under_suspension_notice: false,
     suspension_notice_expired: false,
+    grace_until: '',
+    grace_days_remaining: null,
+    is_grace_period: false,
     numero: '',
     licence_key: '',
     licence_certificate: '',
@@ -889,6 +918,9 @@ function normalizeLicence(licence) {
     date_debut: licence.date_debut || '',
     date_fin: licence.date_fin || '',
     periode_essai_fin: licence.periode_essai_fin || '',
+    grace_until: licence.grace_until || '',
+    grace_days_remaining: licence.grace_days_remaining ?? null,
+    is_grace_period: Boolean(licence.is_grace_period),
     paiements: Array.isArray(licence.paiements) ? licence.paiements : [],
   }
 }
@@ -980,6 +1012,58 @@ function requestBackupRestore() {
     description: portal.backup_restore?.message || 'Bonjour XELLTEKK, merci de nous accompagner pour une sauvegarde ou une restauration contrôlée.',
   })
   toast.info('La demande est prête dans le bloc support. Vérifiez puis envoyez.')
+}
+
+async function requestLicenceRenewal() {
+  if (!form.value || renewalRequestSaving.value) return
+
+  const ok = await askConfirm({
+    title: 'Demander le renouvellement',
+    message: 'Créer un ticket de renouvellement auprès de XELLTEKK ?',
+    confirmLabel: 'Créer la demande',
+  })
+  if (!ok) return
+
+  renewalRequestSaving.value = true
+  try {
+    const { data } = await api.post('/support/tickets', {
+      categorie: 'renouvellement',
+      priorite: form.value.is_blocking ? 'urgente' : 'haute',
+      sujet: 'Demande de renouvellement de licence',
+      description: renewalRequestDescription(),
+    })
+    syncSupportTicketsFromResponse(data)
+    toast.success(data.message || 'Demande de renouvellement envoyée à XELLTEKK.')
+  } catch (error) {
+    toast.error(error.response?.data?.message || 'Impossible de créer la demande de renouvellement.')
+  } finally {
+    renewalRequestSaving.value = false
+  }
+}
+
+function renewalRequestDescription() {
+  const lines = [
+    'Bonjour XELLTEKK,',
+    '',
+    'Merci de renouveler notre licence Saytu Liggéey.',
+    '',
+    `Client : ${form.value?.client_nom || portal.workspace?.client_nom || 'Non renseigné'}`,
+    `Formule : ${form.value?.plan_label || form.value?.plan || '-'}`,
+    `Statut : ${form.value?.etat_label || form.value?.statut || '-'}`,
+    `Date de fin : ${form.value?.date_fin ? formatDate(form.value.date_fin) : 'Non renseignée'}`,
+  ]
+
+  if (form.value?.is_grace_period && form.value?.grace_until) {
+    lines.push(`Grâce active jusqu’au : ${formatDate(form.value.grace_until)}`)
+  }
+
+  if (portal.subscription?.unpaid_amount) {
+    lines.push(`Reste dû abonnement : ${money(portal.subscription.unpaid_amount)} ${portal.subscription.currency || form.value?.devise || 'XOF'}`)
+  }
+
+  lines.push('', 'Cordialement.')
+
+  return lines.join('\n')
 }
 
 function toggleSupportReply(ticket) {
