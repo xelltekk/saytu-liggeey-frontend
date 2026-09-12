@@ -697,7 +697,8 @@ const tousLesMenus = [
     label: 'Licence & abonnement',
     icon: KeyRound,
     permission: 'licence.view',
-    roles: ['admin']
+    roles: ['admin'],
+    tenantOnly: true
   },
 
   {

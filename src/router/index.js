@@ -364,6 +364,10 @@ router.beforeEach(async (to, from, next) => {
 
   // 3) Vérification du rôle pour cette route
   const role = auth.user?.role
+  if (to.name === 'licence' && isXelltekkAdmin(auth.user)) {
+    return next({ name: 'xelltekk-admin' })
+  }
+
   if (to.path.startsWith('/xelltekk-admin') && !isXelltekkAdmin(auth.user)) {
     return next({ name: role === 'caissier' ? 'caisse' : 'dashboard' })
   }
