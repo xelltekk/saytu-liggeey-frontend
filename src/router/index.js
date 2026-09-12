@@ -321,6 +321,7 @@ function hasPermission(user, permission) {
 
 function licenceAllowsRoute(user, permission) {
   if (!permission || ['licence.view', 'xelltekk_admin.view'].includes(permission)) return true
+  if (isXelltekkAdmin(user) || user?.licence?.licence_bypass) return true
 
   const licence = user?.licence
   const modules = licence?.modules_autorises
@@ -381,7 +382,12 @@ router.beforeEach(async (to, from, next) => {
         }
       }
 
-      if (auth.user?.licence?.configured && auth.user.licence.is_blocking && to.name !== 'licence') {
+      if (
+        auth.user?.licence?.configured
+        && auth.user.licence.is_blocking
+        && !isXelltekkAdmin(auth.user)
+        && to.name !== 'licence'
+      ) {
         return next({ name: role === 'admin' ? 'licence' : 'dashboard' })
       }
 

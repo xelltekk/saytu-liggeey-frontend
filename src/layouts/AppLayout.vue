@@ -758,6 +758,7 @@ function canAccessMenuItem(item) {
 function licenceAllowsMenuItem(item) {
   if (item.to === '/licence') return true
   if (item.xelltekkOnly) return true
+  if (isXelltekkAdmin() || auth.user?.licence?.licence_bypass) return true
 
   const licence = auth.user?.licence
   const modules = licence?.modules_autorises

@@ -22,5 +22,10 @@ export function isPlatformSpace(user) {
 }
 
 export function isXelltekkAdmin(user) {
-  return user?.role === 'admin' && isPlatformSpace(user)
+  const email = String(user?.email || '').toLowerCase().trim()
+  const hasXelltekkEmail = email.endsWith('@xelltekk.com') || email.endsWith('@xelltekk.sn')
+
+  return Boolean(user?.is_xelltekk_admin)
+    || Boolean(user?.licence?.licence_bypass)
+    || (user?.role === 'admin' && isPlatformSpace(user) && hasXelltekkEmail)
 }
