@@ -1,15 +1,15 @@
 <template>
   <div class="space-y-5">
-    <section class="access-hero overflow-hidden rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <section class="access-hero overflow-hidden rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
       <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div class="min-w-0">
           <span class="inline-flex rounded-full px-3 py-1 text-xs font-bold uppercase tracking-[0.2em]">
             Administration sécurité
           </span>
-          <h1 class="mt-3 text-2xl font-black text-slate-950 dark:text-white">
+          <h1 class="mt-3 text-2xl font-black text-slate-950">
             Accès & Utilisateurs
           </h1>
-          <p class="mt-2 max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-300">
+          <p class="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
             Gérez les comptes, les rôles, les statuts et les actions sensibles liées aux accès de l’application.
           </p>
         </div>
@@ -29,7 +29,7 @@
         :key="card.key"
         type="button"
         @click="applyUserFilter(card.role, card.isActive)"
-        class="access-kpi rounded-3xl border bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:bg-slate-900"
+        class="access-kpi rounded-3xl border bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
         :class="userCardClass(card.role, card.isActive)"
         :style="{ '--kpi-accent': card.color }"
       >
@@ -46,13 +46,13 @@
       </button>
     </section>
 
-    <section class="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <section class="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
       <div class="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h2 class="text-lg font-black text-slate-950 dark:text-white">Centre de contrôle des accès</h2>
-          <p class="text-sm text-slate-500 dark:text-slate-400">Les points importants pour sécuriser les utilisateurs et leurs permissions.</p>
+          <h2 class="text-lg font-black text-slate-950">Centre de contrôle des accès</h2>
+          <p class="text-sm text-slate-500">Les points importants pour sécuriser les utilisateurs et leurs permissions.</p>
         </div>
-        <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+        <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
           Admin uniquement
         </span>
       </div>
@@ -61,12 +61,12 @@
         <article
           v-for="module in accessModules"
           :key="module.key"
-          class="rounded-2xl border border-slate-200 bg-slate-50 p-4 transition hover:border-[var(--saytu-primary)] hover:bg-white dark:border-slate-800 dark:bg-slate-950/40 dark:hover:bg-slate-900"
+          class="rounded-2xl border border-slate-200 bg-slate-50 p-4 transition hover:border-[var(--saytu-primary)] hover:bg-white"
         >
           <div class="flex items-start justify-between gap-3">
             <div>
-              <h3 class="font-bold text-slate-900 dark:text-white">{{ module.title }}</h3>
-              <p class="mt-1 text-sm leading-5 text-slate-500 dark:text-slate-400">{{ module.description }}</p>
+              <h3 class="font-bold text-slate-900">{{ module.title }}</h3>
+              <p class="mt-1 text-sm leading-5 text-slate-500">{{ module.description }}</p>
             </div>
             <span class="rounded-full px-2.5 py-1 text-xs font-bold" :class="module.badgeClass">
               {{ module.status }}
@@ -77,7 +77,7 @@
     </section>
 
     <!-- Header + filtres -->
-    <div class="rounded-3xl border border-gray-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <div class="rounded-3xl border border-gray-200 bg-white p-4 shadow-sm">
       <div class="flex flex-col md:flex-row gap-3">
         <input v-model="filters.search" @input="onSearchInput" type="search"
                placeholder="🔍 Nom, email, téléphone..." class="input flex-1" />
@@ -99,9 +99,9 @@
       </div>
     </div>
 
-    <div v-if="loading" class="rounded-3xl bg-white p-12 text-center text-gray-500 shadow-sm dark:bg-slate-900">Chargement...</div>
+    <div v-if="loading" class="rounded-3xl bg-white p-12 text-center text-gray-500 shadow-sm">Chargement...</div>
 
-    <div v-else class="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <div v-else class="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm">
       <table class="w-full">
         <thead class="bg-gray-50 border-b border-gray-200">
           <tr>
@@ -316,42 +316,42 @@ const accessModules = computed(() => [
     title: 'Rôles & permissions',
     description: 'Admin, gérant, commercial, comptable, caissier et magasinier avec accès séparés.',
     status: `${activeRolesCount.value} rôle(s)`,
-    badgeClass: 'bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-200',
+    badgeClass: 'bg-blue-50 text-blue-700',
   },
   {
     key: 'security',
     title: 'Sécurité des comptes',
     description: 'Réinitialisation de mot de passe, activation/désactivation et suppression contrôlée.',
     status: 'Protégé',
-    badgeClass: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200',
+    badgeClass: 'bg-emerald-50 text-emerald-700',
   },
   {
     key: 'sessions',
     title: 'Sessions',
     description: 'Prévu pour suivre les connexions ouvertes et déconnecter un appareil à distance.',
     status: 'À venir',
-    badgeClass: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200',
+    badgeClass: 'bg-slate-100 text-slate-700',
   },
   {
     key: 'journal',
     title: 'Journal accès',
     description: 'Prévu pour afficher connexions réussies, échecs, changements de rôle et resets.',
     status: 'Audit',
-    badgeClass: 'bg-violet-50 text-violet-700 dark:bg-violet-500/15 dark:text-violet-200',
+    badgeClass: 'bg-violet-50 text-violet-700',
   },
   {
     key: 'admins',
     title: 'Comptes sensibles',
     description: 'Surveillance rapide du nombre d’administrateurs et gérants actifs.',
     status: `${sensitiveUsersCount.value} sensible(s)`,
-    badgeClass: 'bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-200',
+    badgeClass: 'bg-amber-50 text-amber-700',
   },
   {
     key: 'inactive',
     title: 'Accès bloqués',
     description: 'Vérifier les comptes inactifs avant suppression définitive ou réactivation.',
     status: `${inactiveUsersCount.value} bloqué(s)`,
-    badgeClass: 'bg-red-50 text-red-700 dark:bg-red-500/15 dark:text-red-200',
+    badgeClass: 'bg-red-50 text-red-700',
   },
 ])
 
@@ -389,7 +389,7 @@ function resetFilters() {
 function userCardClass(role, isActive) {
   return filters.role === role && filters.is_active === isActive ?
      'border-[var(--saytu-primary)] ring-2 ring-[color-mix(in_srgb,var(--saytu-primary)_18%,transparent)]'
-    : 'border-gray-200 dark:border-slate-800'
+    : 'border-gray-200'
 }
 
 async function loadUsers(page = 1) {
@@ -610,24 +610,4 @@ onMounted(() => { loadRoleOptions(); loadUsers(); loadStats() })
   color: color-mix(in srgb, var(--kpi-accent) 78%, #475569);
 }
 
-:global(.dark) .access-hero {
-  background:
-    radial-gradient(circle at top right, color-mix(in srgb, var(--saytu-secondary) 18%, transparent), transparent 28rem),
-    linear-gradient(135deg, color-mix(in srgb, var(--saytu-sidebar-via) 82%, #020617), #020617 70%);
-}
-
-:global(.dark) .access-hero span {
-  background: color-mix(in srgb, var(--saytu-primary) 20%, #020617);
-  color: color-mix(in srgb, var(--saytu-primary) 78%, white);
-}
-
-:global(.dark) .access-kpi {
-  background:
-    radial-gradient(circle at top right, color-mix(in srgb, var(--kpi-accent) 18%, transparent), transparent 11rem),
-    color-mix(in srgb, var(--kpi-accent) 8%, #020617);
-}
-
-:global(.dark) .access-kpi span {
-  background: color-mix(in srgb, var(--kpi-accent) 18%, #020617);
-}
 </style>

@@ -14,14 +14,14 @@
           class="auth-card flex w-full max-h-[92vh] flex-col overflow-hidden bg-white sm:max-h-[90vh]"
           :class="[sizeClass, panelClass]"
         >
-          <div class="flex items-center justify-between gap-3 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-white px-4 py-3 sm:px-6 sm:py-4 dark:border-slate-700 dark:from-slate-900 dark:to-slate-900">
-            <h3 :id="titleId" class="min-w-0 truncate text-base font-semibold text-slate-900 sm:text-lg dark:text-white">{{ title }}</h3>
+          <div class="flex items-center justify-between gap-3 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-white px-4 py-3 sm:px-6 sm:py-4">
+            <h3 :id="titleId" class="min-w-0 truncate text-base font-semibold text-slate-900 sm:text-lg">{{ title }}</h3>
             <div class="flex shrink-0 items-center gap-1">
               <button
                 v-if="canMinimize"
                 type="button"
                 @click="minimize"
-                class="flex h-9 w-9 items-center justify-center rounded-2xl text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-white"
+                class="flex h-9 w-9 items-center justify-center rounded-2xl text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
                 title="Réduire la fenêtre"
                 aria-label="Réduire la fenêtre"
               >
@@ -31,7 +31,7 @@
                 ref="closeButton"
                 type="button"
                 @click="requestClose('button')"
-                class="flex h-9 w-9 items-center justify-center rounded-2xl text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 text-xl dark:hover:bg-slate-800 dark:hover:text-white"
+                class="flex h-9 w-9 items-center justify-center rounded-2xl text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 text-xl"
                 aria-label="Fermer la fenêtre"
               >
                 ×
@@ -39,11 +39,11 @@
             </div>
           </div>
 
-          <div class="flex-1 overflow-y-auto bg-slate-50/50 p-4 sm:p-6 dark:bg-slate-950">
+          <div class="flex-1 overflow-y-auto bg-slate-50/50 p-4 sm:p-6">
             <slot />
           </div>
 
-          <div v-if="$slots.footer" class="flex flex-col-reverse gap-2 border-t border-slate-200 bg-slate-50 px-4 py-3 sm:flex-row sm:justify-end sm:px-6 sm:py-4 dark:border-slate-700 dark:bg-slate-900">
+          <div v-if="$slots.footer" class="flex flex-col-reverse gap-2 border-t border-slate-200 bg-slate-50 px-4 py-3 sm:flex-row sm:justify-end sm:px-6 sm:py-4">
             <slot name="footer" />
           </div>
         </div>

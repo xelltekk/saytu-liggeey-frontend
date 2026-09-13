@@ -6,20 +6,20 @@
           <p class="text-xs font-bold uppercase tracking-[0.18em] text-[color:var(--saytu-primary,#2563eb)]">
             Assistant de démarrage
           </p>
-          <h1 class="mt-1 text-2xl font-black text-slate-950 dark:text-white">
+          <h1 class="mt-1 text-2xl font-black text-slate-950">
             Préparer {{ onboarding.societe?.nom || 'votre espace client' }}
           </h1>
-          <p class="mt-1 max-w-3xl text-sm text-slate-600 dark:text-slate-300">
+          <p class="mt-1 max-w-3xl text-sm text-slate-600">
             Quelques contrôles rapides pour démarrer proprement : sécurité, identité entreprise, stock, caisse et équipe.
           </p>
         </div>
 
-        <div class="min-w-[220px] rounded-2xl border border-white/70 bg-white/75 p-3 dark:border-slate-700 dark:bg-slate-900/75">
+        <div class="min-w-[220px] rounded-2xl border border-white/70 bg-white/75 p-3">
           <div class="flex items-center justify-between text-sm">
-            <span class="font-semibold text-slate-700 dark:text-slate-200">Progression</span>
+            <span class="font-semibold text-slate-700">Progression</span>
             <strong class="text-lg text-[color:var(--saytu-primary,#2563eb)]">{{ onboarding.progress || 0 }}%</strong>
           </div>
-          <div class="mt-2 h-2 rounded-full bg-slate-200 dark:bg-slate-800">
+          <div class="mt-2 h-2 rounded-full bg-slate-200">
             <div class="h-full rounded-full bg-gradient-to-r from-blue-600 to-cyan-400 transition-all" :style="{ width: `${onboarding.progress || 0}%` }"></div>
           </div>
           <p v-if="onboarding.completed" class="mt-2 text-xs font-semibold text-emerald-600">Démarrage terminé.</p>
@@ -29,14 +29,14 @@
     </section>
 
     <div v-if="loading" class="grid gap-3 lg:grid-cols-2">
-      <div v-for="i in 4" :key="i" class="h-32 animate-pulse rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900"></div>
+      <div v-for="i in 4" :key="i" class="h-32 animate-pulse rounded-2xl border border-slate-200 bg-white"></div>
     </div>
 
     <template v-else>
       <section
         v-if="onboarding.must_change_password"
         id="mot-de-passe"
-        class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-900 dark:border-amber-500/30 dark:bg-amber-950/30 dark:text-amber-100"
+        class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-900"
       >
         <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div>
@@ -48,7 +48,7 @@
           </button>
         </div>
 
-        <form v-if="showPasswordForm" class="mt-4 grid gap-3 rounded-2xl bg-white/70 p-3 dark:bg-slate-950/40 md:grid-cols-3" @submit.prevent="changePassword">
+        <form v-if="showPasswordForm" class="mt-4 grid gap-3 rounded-2xl bg-white/70 p-3 md:grid-cols-3" @submit.prevent="changePassword">
           <label class="field-label">
             Mot de passe actuel
             <input v-model="passwordForm.current_password" type="password" class="input mt-1" autocomplete="current-password" required />
@@ -69,11 +69,11 @@
         </form>
       </section>
 
-      <section id="societe" class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+      <section id="societe" class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h2 class="text-lg font-black text-slate-950 dark:text-white">Identité de l’entreprise</h2>
-            <p class="text-sm text-slate-500 dark:text-slate-400">Ces informations apparaissent sur les devis, factures et reçus.</p>
+            <h2 class="text-lg font-black text-slate-950">Identité de l’entreprise</h2>
+            <p class="text-sm text-slate-500">Ces informations apparaissent sur les devis, factures et reçus.</p>
           </div>
           <RouterLink to="/parametres" class="btn-secondary inline-flex justify-center">Paramètres complets</RouterLink>
         </div>
@@ -116,7 +116,7 @@
       </section>
 
       <section class="grid gap-3 lg:grid-cols-2 xl:grid-cols-3">
-        <article v-for="step in onboarding.steps" :key="step.key" class="onboarding-card rounded-2xl border bg-white p-4 shadow-sm dark:bg-slate-900" :class="cardClass(step)">
+        <article v-for="step in onboarding.steps" :key="step.key" class="onboarding-card rounded-2xl border bg-white p-4 shadow-sm" :class="cardClass(step)">
           <div class="flex items-start gap-3">
             <span class="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl" :class="iconClass(step)">
               <CheckCircle2 v-if="step.status === 'done'" class="h-5 w-5" />
@@ -125,12 +125,12 @@
             </span>
             <div class="min-w-0 flex-1">
               <div class="flex items-start justify-between gap-2">
-                <h3 class="font-black text-slate-950 dark:text-white">{{ step.title }}</h3>
+                <h3 class="font-black text-slate-950">{{ step.title }}</h3>
                 <span class="rounded-full px-2 py-1 text-[11px] font-bold" :class="statusClass(step)">
                   {{ statusLabel(step) }}
                 </span>
               </div>
-              <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">{{ step.description }}</p>
+              <p class="mt-1 text-sm text-slate-500">{{ step.description }}</p>
               <p v-if="step.key === 'stock'" class="mt-2 text-xs text-slate-500">
                 {{ onboarding.counts?.entrepots || 0 }} entrepôt(s), {{ onboarding.counts?.categories || 0 }} catégorie(s)
               </p>
@@ -169,7 +169,7 @@
             <button
               v-if="step.manual && ['done', 'skipped'].includes(step.status) && !step.auto_done"
               type="button"
-              class="text-xs font-bold text-slate-500 underline-offset-4 hover:underline dark:text-slate-300"
+              class="text-xs font-bold text-slate-500 underline-offset-4 hover:underline"
               @click="updateStep(step.key, 'todo')"
             >
               Réouvrir
@@ -178,10 +178,10 @@
         </article>
       </section>
 
-      <section class="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:flex-row sm:items-center sm:justify-between">
+      <section class="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 class="font-black text-slate-950 dark:text-white">Prêt à travailler ?</h2>
-          <p class="text-sm text-slate-500 dark:text-slate-400">Vous pouvez clôturer l’assistant dès que les étapes obligatoires sont terminées.</p>
+          <h2 class="font-black text-slate-950">Prêt à travailler ?</h2>
+          <p class="text-sm text-slate-500">Vous pouvez clôturer l’assistant dès que les étapes obligatoires sont terminées.</p>
         </div>
         <div class="flex flex-wrap justify-end gap-2">
           <RouterLink to="/" class="btn-secondary">Continuer vers l’application</RouterLink>
@@ -356,23 +356,23 @@ function statusLabel(step) {
 }
 
 function statusClass(step) {
-  if (step.status === 'done') return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200'
-  if (step.status === 'skipped') return 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
-  if (step.required) return 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-200'
-  return 'bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-200'
+  if (step.status === 'done') return 'bg-emerald-100 text-emerald-700'
+  if (step.status === 'skipped') return 'bg-slate-100 text-slate-600'
+  if (step.required) return 'bg-amber-100 text-amber-700'
+  return 'bg-blue-100 text-blue-700'
 }
 
 function iconClass(step) {
-  if (step.status === 'done') return 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-200'
-  if (step.status === 'skipped') return 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300'
-  return 'bg-blue-100 text-[color:var(--saytu-primary,#2563eb)] dark:bg-blue-500/15'
+  if (step.status === 'done') return 'bg-emerald-100 text-emerald-600'
+  if (step.status === 'skipped') return 'bg-slate-100 text-slate-500'
+  return 'bg-blue-100 text-[color:var(--saytu-primary,#2563eb)]'
 }
 
 function cardClass(step) {
-  if (step.status === 'done') return 'border-emerald-200 dark:border-emerald-500/30'
-  if (step.status === 'skipped') return 'border-slate-200 dark:border-slate-700'
-  if (step.required) return 'border-amber-200 dark:border-amber-500/30'
-  return 'border-slate-200 dark:border-slate-700'
+  if (step.status === 'done') return 'border-emerald-200'
+  if (step.status === 'skipped') return 'border-slate-200'
+  if (step.required) return 'border-amber-200'
+  return 'border-slate-200'
 }
 
 onMounted(loadOnboarding)
@@ -402,13 +402,4 @@ onMounted(loadOnboarding)
   color: rgb(51 65 85);
 }
 
-:global(.dark) .onboarding-hero {
-  background:
-    radial-gradient(circle at top right, color-mix(in srgb, var(--saytu-secondary, #22d3ee) 18%, transparent), transparent 28rem),
-    linear-gradient(135deg, color-mix(in srgb, var(--saytu-sidebar-via, #0f172a) 82%, #020617), #020617 72%);
-}
-
-:global(.dark) .field-label {
-  color: rgb(226 232 240);
-}
 </style>

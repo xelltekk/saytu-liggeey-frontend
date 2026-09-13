@@ -13,10 +13,6 @@
     @apply overflow-x-hidden font-sans antialiased text-gray-800 bg-gray-50;
   }
 
-  html.dark body {
-    @apply bg-slate-950 text-slate-200;
-  }
-
   #app {
     @apply min-h-screen;
   }
@@ -39,78 +35,7 @@
     min-width: auto;
   }
 
-  html[data-theme='saytu-light'] {
-    --saytu-shell-bg: #f4f7fb;
-    --saytu-shell-text: #334155;
-    --saytu-surface: #ffffff;
-    --saytu-topbar: rgb(255 255 255 / 0.82);
-    --saytu-border: #e2e8f0;
-    --saytu-topbar-title: #0f172a;
-    --saytu-topbar-subtitle: #64748b;
-    --saytu-sidebar-from: #0f172a;
-    --saytu-sidebar-via: #1e293b;
-    --saytu-sidebar-to: #0f172a;
-    --saytu-brand-from: #3b82f6;
-    --saytu-brand-to: #22d3ee;
-    --saytu-primary: #2563eb;
-    --saytu-primary-hover: #1d4ed8;
-    --saytu-focus: #0284c7;
-  }
-
-  html[data-theme='saytu-dark'] {
-    --saytu-shell-bg: #020617;
-    --saytu-shell-text: #e2e8f0;
-    --saytu-surface: #0f172a;
-    --saytu-topbar: rgb(15 23 42 / 0.9);
-    --saytu-border: #334155;
-    --saytu-topbar-title: #f8fafc;
-    --saytu-topbar-subtitle: #94a3b8;
-    --saytu-sidebar-from: #020617;
-    --saytu-sidebar-via: #0f172a;
-    --saytu-sidebar-to: #020617;
-    --saytu-brand-from: #2563eb;
-    --saytu-brand-to: #06b6d4;
-    --saytu-primary: #2563eb;
-    --saytu-primary-hover: #1d4ed8;
-    --saytu-focus: #38bdf8;
-  }
-
-  html[data-theme='blue-pro'] {
-    --saytu-shell-bg: #eaf4ff;
-    --saytu-shell-text: #0f2740;
-    --saytu-surface: #ffffff;
-    --saytu-topbar: rgb(239 248 255 / 0.92);
-    --saytu-border: #bfdbfe;
-    --saytu-topbar-title: #082f49;
-    --saytu-topbar-subtitle: #52677e;
-    --saytu-sidebar-from: #082f49;
-    --saytu-sidebar-via: #0c4a6e;
-    --saytu-sidebar-to: #082f49;
-    --saytu-brand-from: #0284c7;
-    --saytu-brand-to: #38bdf8;
-    --saytu-primary: #0284c7;
-    --saytu-primary-hover: #0369a1;
-    --saytu-focus: #0369a1;
-  }
-
-  html[data-theme='cashier'] {
-    --saytu-shell-bg: #07130f;
-    --saytu-shell-text: #f8fafc;
-    --saytu-surface: #0f1f19;
-    --saytu-topbar: rgb(15 31 25 / 0.94);
-    --saytu-border: #1f4b3b;
-    --saytu-topbar-title: #f8fafc;
-    --saytu-topbar-subtitle: #a7f3d0;
-    --saytu-sidebar-from: #04110c;
-    --saytu-sidebar-via: #0a251b;
-    --saytu-sidebar-to: #04110c;
-    --saytu-brand-from: #10b981;
-    --saytu-brand-to: #22c55e;
-    --saytu-primary: #10b981;
-    --saytu-primary-hover: #059669;
-    --saytu-focus: #34d399;
-  }
-
+  html,
   html[data-theme='login-aqua'] {
     --saytu-shell-bg: #14384a;
     --saytu-shell-text: #e0f2fe;
@@ -129,86 +54,6 @@
     --saytu-focus: #22d3ee;
     --saytu-shell-glow-a: rgb(34 211 238 / 0.28);
     --saytu-shell-glow-b: rgb(14 165 233 / 0.22);
-  }
-
-  html[data-theme='ocean-business'] {
-    --saytu-shell-bg: #e0f7ff;
-    --saytu-shell-text: #0f3442;
-    --saytu-surface: #ffffff;
-    --saytu-topbar: rgb(240 253 255 / 0.92);
-    --saytu-border: #a5f3fc;
-    --saytu-topbar-title: #0f3a4a;
-    --saytu-topbar-subtitle: #3f6470;
-    --saytu-sidebar-from: #0f3a4a;
-    --saytu-sidebar-via: #0e7490;
-    --saytu-sidebar-to: #075985;
-    --saytu-brand-from: #0284c7;
-    --saytu-brand-to: #06b6d4;
-    --saytu-primary: #0891b2;
-    --saytu-primary-hover: #0e7490;
-    --saytu-focus: #06b6d4;
-    --saytu-shell-glow-a: rgb(6 182 212 / 0.2);
-    --saytu-shell-glow-b: rgb(14 116 144 / 0.14);
-  }
-
-  html[data-theme='emerald-finance'] {
-    --saytu-shell-bg: #ecfdf5;
-    --saytu-shell-text: #064e3b;
-    --saytu-surface: #ffffff;
-    --saytu-topbar: rgb(240 253 244 / 0.92);
-    --saytu-border: #bbf7d0;
-    --saytu-topbar-title: #064e3b;
-    --saytu-topbar-subtitle: #34745c;
-    --saytu-sidebar-from: #052e16;
-    --saytu-sidebar-via: #064e3b;
-    --saytu-sidebar-to: #065f46;
-    --saytu-brand-from: #10b981;
-    --saytu-brand-to: #84cc16;
-    --saytu-primary: #059669;
-    --saytu-primary-hover: #047857;
-    --saytu-focus: #10b981;
-    --saytu-shell-glow-a: rgb(16 185 129 / 0.18);
-    --saytu-shell-glow-b: rgb(132 204 22 / 0.14);
-  }
-
-  html[data-theme='amber-premium'] {
-    --saytu-shell-bg: #fff7ed;
-    --saytu-shell-text: #431407;
-    --saytu-surface: #ffffff;
-    --saytu-topbar: rgb(255 247 237 / 0.94);
-    --saytu-border: #fed7aa;
-    --saytu-topbar-title: #7c2d12;
-    --saytu-topbar-subtitle: #9a4b1d;
-    --saytu-sidebar-from: #431407;
-    --saytu-sidebar-via: #7c2d12;
-    --saytu-sidebar-to: #9a3412;
-    --saytu-brand-from: #f97316;
-    --saytu-brand-to: #facc15;
-    --saytu-primary: #ea580c;
-    --saytu-primary-hover: #c2410c;
-    --saytu-focus: #f97316;
-    --saytu-shell-glow-a: rgb(249 115 22 / 0.18);
-    --saytu-shell-glow-b: rgb(250 204 21 / 0.16);
-  }
-
-  html[data-theme='violet-direction'] {
-    --saytu-shell-bg: #f5f3ff;
-    --saytu-shell-text: #2e1065;
-    --saytu-surface: #ffffff;
-    --saytu-topbar: rgb(250 245 255 / 0.92);
-    --saytu-border: #ddd6fe;
-    --saytu-topbar-title: #2e1065;
-    --saytu-topbar-subtitle: #65459d;
-    --saytu-sidebar-from: #2e1065;
-    --saytu-sidebar-via: #4c1d95;
-    --saytu-sidebar-to: #6d28d9;
-    --saytu-brand-from: #7c3aed;
-    --saytu-brand-to: #22d3ee;
-    --saytu-primary: #7c3aed;
-    --saytu-primary-hover: #6d28d9;
-    --saytu-focus: #8b5cf6;
-    --saytu-shell-glow-a: rgb(124 58 237 / 0.18);
-    --saytu-shell-glow-b: rgb(34 211 238 / 0.14);
   }
 }
 
@@ -467,13 +312,7 @@
     font-size: 0.78rem;
     opacity: 0.75;
   }
-  html[data-theme='saytu-light'] .app-surface,
-  html[data-theme='blue-pro'] .app-surface,
-  html[data-theme='login-aqua'] .app-surface,
-  html[data-theme='ocean-business'] .app-surface,
-  html[data-theme='emerald-finance'] .app-surface,
-  html[data-theme='amber-premium'] .app-surface,
-  html[data-theme='violet-direction'] .app-surface {
+  html[data-theme='login-aqua'] .app-surface {
     color: #0f172a;
   }
   html[data-theme] .btn-primary {
@@ -491,9 +330,6 @@
   }
   .btn-secondary {
     @apply btn bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300;
-  }
-  .dark .btn-secondary {
-    @apply border-slate-700 bg-slate-900 text-slate-100 hover:bg-slate-800;
   }
   .btn-danger {
     @apply btn bg-red-600 text-white hover:bg-red-700;
@@ -651,25 +487,11 @@
     background-color: #ffffff;
     color: #111827;
   }
-  .dark .input {
-    @apply border-slate-600 bg-slate-900 text-slate-100;
-  }
-  .dark .input::placeholder {
-    color: rgb(100 116 139);
-  }
-  .dark select.input,
-  .dark select.input option {
-    background-color: rgb(15 23 42);
-    color: rgb(241 245 249);
-  }
   .badge {
     @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
   }
   .loading-skeleton {
     @apply animate-pulse rounded-md bg-slate-200;
-  }
-  .dark .loading-skeleton {
-    @apply bg-slate-700;
   }
   .stat-grid {
     @apply gap-2 sm:gap-3;
@@ -819,167 +641,6 @@
     background-color: color-mix(in srgb, var(--saytu-surface, #ffffff) 68%, var(--saytu-primary, #2563eb) 32%) !important;
   }
 
-  .dark .bg-white,
-  .dark .bg-white\/80 {
-    background-color: rgb(15 23 42 / 0.96) !important;
-  }
-
-  .dark .bg-\[\#f4f7fb\],
-  .dark .bg-gray-50,
-  .dark .bg-slate-50 {
-    background-color: rgb(30 41 59) !important;
-  }
-
-  .dark .bg-gray-100,
-  .dark .bg-slate-100 {
-    background-color: rgb(51 65 85) !important;
-  }
-
-  .dark .bg-xelltekk-50,
-  .dark .bg-blue-50,
-  .dark .bg-cyan-50 {
-    background-color: rgb(23 37 84) !important;
-  }
-
-  .dark .bg-green-50,
-  .dark .bg-emerald-50 {
-    background-color: rgb(6 78 59) !important;
-  }
-
-  .dark .bg-orange-50,
-  .dark .bg-yellow-50 {
-    background-color: rgb(120 53 15) !important;
-  }
-
-  .dark .bg-red-50 {
-    background-color: rgb(127 29 29) !important;
-  }
-
-  .dark .bg-purple-50,
-  .dark .bg-indigo-50 {
-    background-color: rgb(59 7 100) !important;
-  }
-
-  .dark .bg-blue-100,
-  .dark .bg-cyan-100,
-  .dark .bg-xelltekk-100 {
-    background-color: rgb(30 64 175) !important;
-  }
-
-  .dark .bg-green-100,
-  .dark .bg-emerald-100 {
-    background-color: rgb(6 95 70) !important;
-  }
-
-  .dark .bg-yellow-100,
-  .dark .bg-orange-100 {
-    background-color: rgb(146 64 14) !important;
-  }
-
-  .dark .bg-red-100,
-  .dark .bg-red-200 {
-    background-color: rgb(153 27 27) !important;
-  }
-
-  .dark .bg-purple-100,
-  .dark .bg-indigo-100 {
-    background-color: rgb(91 33 182) !important;
-  }
-
-  .dark .border-gray-100,
-  .dark .border-gray-200,
-  .dark .border-gray-300,
-  .dark .border-slate-100,
-  .dark .border-slate-200,
-  .dark .border-slate-300,
-  .dark .border-xelltekk-100 {
-    border-color: rgb(51 65 85) !important;
-  }
-
-  .dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]),
-  .dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]) {
-    border-color: rgb(51 65 85) !important;
-  }
-
-  .dark .text-gray-400,
-  .dark .text-slate-400 {
-    color: rgb(148 163 184) !important;
-  }
-
-  .dark .text-gray-500,
-  .dark .text-gray-600,
-  .dark .text-slate-500,
-  .dark .text-slate-600 {
-    color: rgb(203 213 225) !important;
-  }
-
-  .dark .text-gray-700,
-  .dark .text-gray-800,
-  .dark .text-gray-900,
-  .dark .text-slate-700,
-  .dark .text-slate-800,
-  .dark .text-slate-900 {
-    color: rgb(241 245 249) !important;
-  }
-
-  .dark .text-blue-600,
-  .dark .text-blue-700,
-  .dark .text-blue-800,
-  .dark .text-cyan-600,
-  .dark .text-cyan-700,
-  .dark .text-cyan-800,
-  .dark .text-xelltekk-600,
-  .dark .text-xelltekk-700,
-  .dark .text-xelltekk-800 {
-    color: rgb(147 197 253) !important;
-  }
-
-  .dark .text-green-600,
-  .dark .text-green-700,
-  .dark .text-green-800,
-  .dark .text-emerald-600,
-  .dark .text-emerald-700,
-  .dark .text-emerald-800 {
-    color: rgb(110 231 183) !important;
-  }
-
-  .dark .text-orange-600,
-  .dark .text-orange-700,
-  .dark .text-orange-800,
-  .dark .text-yellow-600,
-  .dark .text-yellow-700,
-  .dark .text-yellow-800 {
-    color: rgb(253 186 116) !important;
-  }
-
-  .dark .text-red-600,
-  .dark .text-red-700,
-  .dark .text-red-800 {
-    color: rgb(252 165 165) !important;
-  }
-
-  .dark .text-purple-600,
-  .dark .text-purple-700,
-  .dark .text-purple-800,
-  .dark .text-indigo-600,
-  .dark .text-indigo-700,
-  .dark .text-indigo-800 {
-    color: rgb(196 181 253) !important;
-  }
-
-  .dark .shadow-sm,
-  .dark .shadow-lg,
-  .dark .shadow-2xl {
-    box-shadow: 0 18px 45px rgb(0 0 0 / 0.28) !important;
-  }
-
-  .dark .hover\:bg-gray-50:hover,
-  .dark .hover\:bg-gray-100:hover,
-  .dark .hover\:bg-slate-50:hover,
-  .dark .hover\:bg-slate-100:hover {
-    background-color: rgb(51 65 85) !important;
-  }
-
   .overflow-x-auto {
     -webkit-overflow-scrolling: touch;
     scrollbar-width: thin;
@@ -1107,7 +768,7 @@
   }
 
   .soft-card {
-    @apply rounded-2xl border border-slate-200 bg-white/90 shadow-sm backdrop-blur-sm dark:border-slate-700 dark:bg-slate-900/90;
+    @apply rounded-2xl border border-slate-200 bg-white/90 shadow-sm backdrop-blur-sm;
   }
 
   .device-mobile .app-topbar,

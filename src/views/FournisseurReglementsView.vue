@@ -3,7 +3,7 @@
     <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
       <button type="button" @click="setFactureFilter('')" class="stat-card" :class="activeFactureStatut === '' ? activeCardClass : ''">
         <span class="stat-label">Factures fournisseurs</span>
-        <strong class="stat-value text-slate-900 dark:text-white">{{ stats.total_factures || 0 }}</strong>
+        <strong class="stat-value text-slate-900">{{ stats.total_factures || 0 }}</strong>
       </button>
       <button type="button" @click="setFactureFilter('impayees')" class="stat-card" :class="activeFactureStatut === 'impayees' ? activeCardClass : ''">
         <span class="stat-label">Impayées</span>
@@ -15,15 +15,15 @@
       </button>
       <div class="stat-card">
         <span class="stat-label">Dette fournisseurs</span>
-        <strong class="stat-value text-blue-700 dark:text-blue-300">{{ formatPrice(stats.dette_total) }}</strong>
+        <strong class="stat-value text-blue-700">{{ formatPrice(stats.dette_total) }}</strong>
       </div>
       <div class="stat-card">
         <span class="stat-label">Réglé ce mois</span>
-        <strong class="stat-value text-emerald-700 dark:text-emerald-300">{{ formatPrice(stats.reglements_mois) }}</strong>
+        <strong class="stat-value text-emerald-700">{{ formatPrice(stats.reglements_mois) }}</strong>
       </div>
     </div>
 
-    <div class="flex flex-col gap-3 border-b border-slate-200 dark:border-slate-700 sm:flex-row sm:items-center sm:justify-between">
+    <div class="flex flex-col gap-3 border-b border-slate-200 sm:flex-row sm:items-center sm:justify-between">
       <div class="flex gap-2">
         <button type="button" @click="activeTab = 'factures'" class="tab-button" :class="activeTab === 'factures' ? 'tab-active' : ''">
           Factures fournisseurs
@@ -46,7 +46,7 @@
     </div>
 
     <section v-show="activeTab === 'factures'" class="space-y-4">
-      <div class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+      <div class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
         <div class="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_220px_180px]">
           <input v-model="factureFilters.search" @input="onFactureSearch" type="search" class="input" placeholder="Rechercher numéro, fournisseur, référence..." />
           <select v-model="factureFilters.fournisseur_id" @change="loadFactures(1)" class="input">
@@ -64,10 +64,10 @@
         </div>
       </div>
 
-      <div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
+      <div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <div class="overflow-x-auto">
           <table class="w-full min-w-[1080px]">
-            <thead class="border-b border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/70">
+            <thead class="border-b border-slate-200 bg-slate-50">
               <tr>
                 <th class="th">N°</th>
                 <th class="th">Fournisseur</th>
@@ -82,23 +82,23 @@
                 <th class="th text-right">Actions</th>
               </tr>
             </thead>
-            <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
-              <tr v-for="facture in factures" :key="facture.id" class="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                <td class="td font-mono text-slate-600 dark:text-slate-300">{{ facture.numero }}</td>
+            <tbody class="divide-y divide-slate-100">
+              <tr v-for="facture in factures" :key="facture.id" class="hover:bg-slate-50">
+                <td class="td font-mono text-slate-600">{{ facture.numero }}</td>
                 <td class="td">
-                  <div class="font-medium text-slate-900 dark:text-white">{{ facture.fournisseur?.nom || 'Fournisseur' }}</div>
-                  <div class="text-xs text-slate-500 dark:text-slate-400">{{ facture.fournisseur?.code || '–' }}</div>
+                  <div class="font-medium text-slate-900">{{ facture.fournisseur?.nom || 'Fournisseur' }}</div>
+                  <div class="text-xs text-slate-500">{{ facture.fournisseur?.code || '–' }}</div>
                 </td>
-                <td class="td text-slate-600 dark:text-slate-300">{{ facture.reference_fournisseur || '-' }}</td>
+                <td class="td text-slate-600">{{ facture.reference_fournisseur || '-' }}</td>
                 <td class="td">
-                  <span v-if="facture.commande_achat" class="font-mono text-violet-700 dark:text-violet-300">{{ facture.commande_achat.numero }}</span>
+                  <span v-if="facture.commande_achat" class="font-mono text-violet-700">{{ facture.commande_achat.numero }}</span>
                   <span v-else class="text-slate-400">-</span>
                 </td>
-                <td class="td text-slate-700 dark:text-slate-200">{{ facture.objet }}</td>
-                <td class="td text-center text-slate-600 dark:text-slate-300">{{ formatDate(facture.date_echeance) }}</td>
+                <td class="td text-slate-700">{{ facture.objet }}</td>
+                <td class="td text-center text-slate-600">{{ formatDate(facture.date_echeance) }}</td>
                 <td class="td text-right font-mono font-semibold">{{ formatPrice(facture.total_ttc) }}</td>
-                <td class="td text-right font-mono text-emerald-700 dark:text-emerald-300">{{ formatPrice(facture.montant_paye) }}</td>
-                <td class="td text-right font-mono text-orange-700 dark:text-orange-300">{{ formatPrice(facture.reste_a_payer) }}</td>
+                <td class="td text-right font-mono text-emerald-700">{{ formatPrice(facture.montant_paye) }}</td>
+                <td class="td text-right font-mono text-orange-700">{{ formatPrice(facture.reste_a_payer) }}</td>
                 <td class="td text-center"><span class="badge" :class="statutBadge(facture.statut)">{{ statutLabel(facture.statut) }}</span></td>
                 <td class="td">
                   <div class="flex justify-end gap-2">
@@ -108,10 +108,10 @@
                 </td>
               </tr>
               <tr v-if="!factureLoading && factures.length === 0">
-                <td colspan="11" class="px-4 py-10 text-center text-sm text-slate-500 dark:text-slate-400">Aucune facture fournisseur</td>
+                <td colspan="11" class="px-4 py-10 text-center text-sm text-slate-500">Aucune facture fournisseur</td>
               </tr>
               <tr v-if="factureLoading">
-                <td colspan="11" class="px-4 py-10 text-center text-sm text-slate-500 dark:text-slate-400">Chargement...</td>
+                <td colspan="11" class="px-4 py-10 text-center text-sm text-slate-500">Chargement...</td>
               </tr>
             </tbody>
           </table>
@@ -121,7 +121,7 @@
     </section>
 
     <section v-show="activeTab === 'reglements'" class="space-y-4">
-      <div class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+      <div class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
         <div class="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_220px_180px]">
           <input v-model="reglementFilters.search" @input="onReglementSearch" type="search" class="input" placeholder="Rechercher règlement, fournisseur, facture..." />
           <select v-model="reglementFilters.fournisseur_id" @change="loadReglements(1)" class="input">
@@ -138,10 +138,10 @@
         </div>
       </div>
 
-      <div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
+      <div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <div class="overflow-x-auto">
           <table class="w-full min-w-[900px]">
-            <thead class="border-b border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/70">
+            <thead class="border-b border-slate-200 bg-slate-50">
               <tr>
                 <th class="th">Référence</th>
                 <th class="th">Fournisseur</th>
@@ -154,18 +154,18 @@
                 <th class="th text-right">Actions</th>
               </tr>
             </thead>
-            <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
-              <tr v-for="reglement in reglements" :key="reglement.id" class="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                <td class="td font-mono text-slate-600 dark:text-slate-300">{{ reglement.reference }}</td>
+            <tbody class="divide-y divide-slate-100">
+              <tr v-for="reglement in reglements" :key="reglement.id" class="hover:bg-slate-50">
+                <td class="td font-mono text-slate-600">{{ reglement.reference }}</td>
                 <td class="td">
-                  <div class="font-medium text-slate-900 dark:text-white">{{ reglement.fournisseur?.nom || 'Fournisseur' }}</div>
-                  <div class="text-xs text-slate-500 dark:text-slate-400">{{ reglement.fournisseur?.code || '–' }}</div>
+                  <div class="font-medium text-slate-900">{{ reglement.fournisseur?.nom || 'Fournisseur' }}</div>
+                  <div class="text-xs text-slate-500">{{ reglement.fournisseur?.code || '–' }}</div>
                 </td>
-                <td class="td text-center text-slate-600 dark:text-slate-300">{{ formatDate(reglement.date_reglement) }}</td>
-                <td class="td text-right font-mono font-semibold text-red-700 dark:text-red-300">{{ formatPrice(reglement.montant) }}</td>
-                <td class="td text-right font-mono text-blue-700 dark:text-blue-300">{{ formatPrice(reglement.montant_affecte) }}</td>
-                <td class="td text-center"><span class="badge bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-100">{{ modeLabel(reglement.mode_paiement) }}</span></td>
-                <td class="td text-xs text-slate-600 dark:text-slate-300">
+                <td class="td text-center text-slate-600">{{ formatDate(reglement.date_reglement) }}</td>
+                <td class="td text-right font-mono font-semibold text-red-700">{{ formatPrice(reglement.montant) }}</td>
+                <td class="td text-right font-mono text-blue-700">{{ formatPrice(reglement.montant_affecte) }}</td>
+                <td class="td text-center"><span class="badge bg-slate-100 text-slate-700">{{ modeLabel(reglement.mode_paiement) }}</span></td>
+                <td class="td text-xs text-slate-600">
                   <div v-if="reglement.factures.length" class="space-y-1">
                     <div v-for="facture in reglement.factures" :key="facture.id">
                       <span class="font-mono">{{ facture.numero }}</span>
@@ -180,10 +180,10 @@
                 </td>
               </tr>
               <tr v-if="!reglementLoading && reglements.length === 0">
-                <td colspan="9" class="px-4 py-10 text-center text-sm text-slate-500 dark:text-slate-400">Aucun règlement fournisseur</td>
+                <td colspan="9" class="px-4 py-10 text-center text-sm text-slate-500">Aucun règlement fournisseur</td>
               </tr>
               <tr v-if="reglementLoading">
-                <td colspan="9" class="px-4 py-10 text-center text-sm text-slate-500 dark:text-slate-400">Chargement...</td>
+                <td colspan="9" class="px-4 py-10 text-center text-sm text-slate-500">Chargement...</td>
               </tr>
             </tbody>
           </table>
@@ -194,7 +194,7 @@
 
     <AppModal v-model="showFactureModal" :title="editingFacture ? 'Modifier facture fournisseur' : 'Nouvelle facture fournisseur'" size="lg">
       <form class="space-y-4" @submit.prevent="saveFacture">
-        <div v-if="editingFacture?.commande_achat" class="rounded-lg border border-violet-200 bg-violet-50 p-3 text-sm text-violet-900 dark:border-violet-800 dark:bg-violet-950/30 dark:text-violet-200">
+        <div v-if="editingFacture?.commande_achat" class="rounded-lg border border-violet-200 bg-violet-50 p-3 text-sm text-violet-900">
           Facture générée depuis la commande <strong class="font-mono">{{ editingFacture.commande_achat.numero }}</strong>. Le fournisseur et les montants restent synchronisés avec cette commande.
         </div>
         <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -239,7 +239,7 @@
           </label>
           <label class="field-label">
             Total TTC
-            <input :value="formatPrice(totalFactureForm)" type="text" readonly class="input mt-1 bg-slate-50 dark:bg-slate-800" />
+            <input :value="formatPrice(totalFactureForm)" type="text" readonly class="input mt-1 bg-slate-50" />
           </label>
           <label class="field-label md:col-span-2">
             Notes
@@ -247,7 +247,7 @@
           </label>
         </div>
 
-        <div class="flex justify-end gap-2 border-t border-slate-200 pt-4 dark:border-slate-700">
+        <div class="flex justify-end gap-2 border-t border-slate-200 pt-4">
           <button type="button" @click="showFactureModal = false" class="btn-secondary">Annuler</button>
           <button type="submit" :disabled="savingFacture" class="btn-primary">{{ savingFacture ? 'Enregistrement...' : 'Enregistrer' }}</button>
         </div>
@@ -295,16 +295,16 @@
           </label>
         </div>
 
-        <div class="rounded-xl border border-slate-200 dark:border-slate-700">
-          <div class="border-b border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
+        <div class="rounded-xl border border-slate-200">
+          <div class="border-b border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700">
             Factures à régler
           </div>
-          <div v-if="facturesImpayees.length" class="max-h-72 divide-y divide-slate-100 overflow-y-auto dark:divide-slate-800">
-            <label v-for="facture in facturesImpayees" :key="facture.id" class="grid cursor-pointer grid-cols-1 gap-2 px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800 sm:grid-cols-[28px_1fr_170px] sm:items-center">
+          <div v-if="facturesImpayees.length" class="max-h-72 divide-y divide-slate-100 overflow-y-auto">
+            <label v-for="facture in facturesImpayees" :key="facture.id" class="grid cursor-pointer grid-cols-1 gap-2 px-4 py-3 hover:bg-slate-50 sm:grid-cols-[28px_1fr_170px] sm:items-center">
               <input type="checkbox" :checked="isFactureSelected(facture.id)" class="h-4 w-4" @change="toggleFacture(facture)" />
               <div>
-                <div class="font-mono text-sm font-semibold text-slate-800 dark:text-white">{{ facture.numero }}</div>
-                <div class="text-xs text-slate-500 dark:text-slate-400">Reste: {{ formatPrice(facture.reste_a_payer) }} - Échéance: {{ formatDate(facture.date_echeance) }}</div>
+                <div class="font-mono text-sm font-semibold text-slate-800">{{ facture.numero }}</div>
+                <div class="text-xs text-slate-500">Reste: {{ formatPrice(facture.reste_a_payer) }} - Échéance: {{ formatDate(facture.date_echeance) }}</div>
               </div>
               <input
                 :disabled="!isFactureSelected(facture.id)"
@@ -317,7 +317,7 @@
               />
             </label>
           </div>
-          <div v-else class="px-4 py-8 text-center text-sm text-slate-500 dark:text-slate-400">
+          <div v-else class="px-4 py-8 text-center text-sm text-slate-500">
             Sélectionnez un fournisseur avec des factures impayées.
           </div>
         </div>
@@ -327,7 +327,7 @@
           <textarea v-model="reglementForm.notes" rows="3" class="input mt-1"></textarea>
         </label>
 
-        <div class="flex justify-end gap-2 border-t border-slate-200 pt-4 dark:border-slate-700">
+        <div class="flex justify-end gap-2 border-t border-slate-200 pt-4">
           <button type="button" @click="showReglementModal = false" class="btn-secondary">Annuler</button>
           <button type="submit" :disabled="savingReglement" class="btn-primary">{{ savingReglement ? 'Enregistrement...' : 'Enregistrer le règlement' }}</button>
         </div>
@@ -350,11 +350,11 @@ const PaginationBar = defineComponent({
   emits: ['page'],
   setup(props, { emit }) {
     return () => props.meta.total > 0
-      ? h('div', { class: 'flex flex-col gap-3 border-t border-slate-200 px-4 py-3 text-sm dark:border-slate-700 sm:flex-row sm:items-center sm:justify-between' }, [
-        h('div', { class: 'text-slate-600 dark:text-slate-300' }, `${props.meta.from || 0}-${props.meta.to || 0} sur ${props.meta.total || 0}`),
+      ? h('div', { class: 'flex flex-col gap-3 border-t border-slate-200 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between' }, [
+        h('div', { class: 'text-slate-600' }, `${props.meta.from || 0}-${props.meta.to || 0} sur ${props.meta.total || 0}`),
         h('div', { class: 'flex gap-2' }, [
           h('button', { class: 'btn-secondary px-3 py-1.5 disabled:opacity-40', disabled: props.meta.current_page <= 1, onClick: () => emit('page', props.meta.current_page - 1) }, '<'),
-          h('span', { class: 'px-3 py-1.5 text-slate-600 dark:text-slate-300' }, `${props.meta.current_page || 1} / ${props.meta.last_page || 1}`),
+          h('span', { class: 'px-3 py-1.5 text-slate-600' }, `${props.meta.current_page || 1} / ${props.meta.last_page || 1}`),
           h('button', { class: 'btn-secondary px-3 py-1.5 disabled:opacity-40', disabled: props.meta.current_page >= props.meta.last_page, onClick: () => emit('page', props.meta.current_page + 1) }, '>'),
         ]),
       ])
@@ -367,7 +367,7 @@ const route = useRoute()
 const { confirm: askConfirm } = useConfirm()
 const activeTab = ref('factures')
 const activeFactureStatut = ref('')
-const activeCardClass = 'border-blue-500 bg-blue-50 ring-2 ring-blue-100 dark:bg-blue-950/30 dark:ring-blue-900/60'
+const activeCardClass = 'border-blue-500 bg-blue-50 ring-2 ring-blue-100'
 
 const fournisseurs = ref([])
 const factures = ref([])
@@ -757,11 +757,11 @@ function statutLabel(statut) {
 
 function statutBadge(statut) {
   return {
-    brouillon: 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-100',
-    validee: 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-200',
-    partiellement_payee: 'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-200',
-    payee: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-200',
-    annulee: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-200',
+    brouillon: 'bg-slate-100 text-slate-700',
+    validee: 'bg-blue-100 text-blue-700',
+    partiellement_payee: 'bg-orange-100 text-orange-700',
+    payee: 'bg-emerald-100 text-emerald-700',
+    annulee: 'bg-red-100 text-red-700',
   }[statut] || 'bg-slate-100 text-slate-700'
 }
 
@@ -776,10 +776,10 @@ function reglementLabel(statut) {
 
 function reglementBadge(statut) {
   return {
-    valide: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-200',
-    en_attente: 'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-200',
-    rejete: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-200',
-    annule: 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-100',
+    valide: 'bg-emerald-100 text-emerald-700',
+    en_attente: 'bg-orange-100 text-orange-700',
+    rejete: 'bg-red-100 text-red-700',
+    annule: 'bg-slate-100 text-slate-700',
   }[statut] || 'bg-slate-100 text-slate-700'
 }
 
@@ -809,11 +809,11 @@ onMounted(() => {
 
 <style scoped>
 .stat-card {
-  @apply rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md dark:border-slate-700 dark:bg-slate-900;
+  @apply rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md;
 }
 
 .stat-label {
-  @apply block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400;
+  @apply block text-xs font-semibold uppercase tracking-wide text-slate-500;
 }
 
 .stat-value {
@@ -821,15 +821,15 @@ onMounted(() => {
 }
 
 .tab-button {
-  @apply border-b-2 border-transparent px-4 py-3 text-sm font-medium text-slate-500 transition hover:text-blue-600 dark:text-slate-300;
+  @apply border-b-2 border-transparent px-4 py-3 text-sm font-medium text-slate-500 transition hover:text-blue-600;
 }
 
 .tab-active {
-  @apply border-blue-600 text-blue-600 dark:text-blue-300;
+  @apply border-blue-600 text-blue-600;
 }
 
 .th {
-  @apply px-4 py-3 text-left text-xs font-semibold uppercase text-slate-600 dark:text-slate-300;
+  @apply px-4 py-3 text-left text-xs font-semibold uppercase text-slate-600;
 }
 
 .td {
@@ -841,14 +841,14 @@ onMounted(() => {
 }
 
 .table-action {
-  @apply rounded-lg px-2 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-50 dark:text-blue-300 dark:hover:bg-blue-950;
+  @apply rounded-lg px-2 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-50;
 }
 
 .table-danger {
-  @apply rounded-lg px-2 py-1 text-xs font-semibold text-red-700 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-950;
+  @apply rounded-lg px-2 py-1 text-xs font-semibold text-red-700 hover:bg-red-50;
 }
 
 .field-label {
-  @apply text-sm font-medium text-slate-700 dark:text-slate-200;
+  @apply text-sm font-medium text-slate-700;
 }
 </style>

@@ -135,13 +135,13 @@
       <form class="space-y-4" @submit.prevent="saveCategory">
         <div class="grid gap-4 sm:grid-cols-2">
           <div>
-            <label class="mb-1 block text-sm font-semibold text-slate-700 dark:text-slate-200">Libellé *</label>
+            <label class="mb-1 block text-sm font-semibold text-slate-700">Libellé *</label>
             <input v-model="form.libelle" class="input" required placeholder="Ex : Imprimantes" @input="syncCodeFromLabel" />
             <p v-if="errors.libelle" class="mt-1 text-xs text-red-600">{{ errors.libelle }}</p>
           </div>
 
           <div>
-            <label class="mb-1 block text-sm font-semibold text-slate-700 dark:text-slate-200">Code *</label>
+            <label class="mb-1 block text-sm font-semibold text-slate-700">Code *</label>
             <input v-model="form.code" class="input font-mono uppercase" required placeholder="EX : IMPRIMANTES" @input="codeTouched = true" />
             <p v-if="errors.code" class="mt-1 text-xs text-red-600">{{ errors.code }}</p>
           </div>
@@ -149,7 +149,7 @@
 
         <div class="grid gap-4 sm:grid-cols-2">
           <div>
-            <label class="mb-1 block text-sm font-semibold text-slate-700 dark:text-slate-200">Catégorie parent</label>
+            <label class="mb-1 block text-sm font-semibold text-slate-700">Catégorie parent</label>
             <select v-model="form.parent_id" class="input">
               <option value="">Aucun parent</option>
               <option
@@ -164,7 +164,7 @@
           </div>
 
           <div>
-            <label class="mb-1 block text-sm font-semibold text-slate-700 dark:text-slate-200">Statut</label>
+            <label class="mb-1 block text-sm font-semibold text-slate-700">Statut</label>
             <select v-model="form.is_active" class="input">
               <option :value="true">Actif</option>
               <option :value="false">Inactif</option>
@@ -173,7 +173,7 @@
         </div>
 
         <div>
-          <label class="mb-1 block text-sm font-semibold text-slate-700 dark:text-slate-200">Description</label>
+          <label class="mb-1 block text-sm font-semibold text-slate-700">Description</label>
           <textarea v-model="form.description" class="input min-h-[96px]" placeholder="Description optionnelle"></textarea>
         </div>
       </form>
@@ -187,7 +187,7 @@
     </AppModal>
 
     <AppModal v-model="showDeleteModal" title="Supprimer la catégorie" size="sm" stack="confirm">
-      <p class="text-sm text-slate-700 dark:text-slate-200">
+      <p class="text-sm text-slate-700">
         Supprimer <strong>{{ categoryToDelete?.libelle }}</strong> ?
       </p>
       <p class="mt-2 text-xs text-slate-500">

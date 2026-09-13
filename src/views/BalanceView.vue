@@ -30,8 +30,8 @@
     <div v-if="loading" class="bg-white rounded-lg p-12 text-center text-gray-500">Chargement...</div>
 
     <div v-else-if="data" class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-      <div class="p-4 bg-gradient-to-r from-xelltekk-50 to-blue-50 border-b border-gray-200 dark:from-slate-900 dark:to-blue-950">
-        <h3 class="text-lg font-bold text-black dark:text-white">Balance générale</h3>
+      <div class="p-4 bg-gradient-to-r from-xelltekk-50 to-blue-50 border-b border-gray-200">
+        <h3 class="text-lg font-bold text-black">Balance générale</h3>
         <p class="text-sm text-gray-600">
           Du {{ formatDate(data.periode.from) }} au {{ formatDate(data.periode.to) }}
           — <strong>{{ data.comptes.length }}</strong> comptes

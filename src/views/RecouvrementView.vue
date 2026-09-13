@@ -4,8 +4,8 @@
       <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <p class="text-xs font-bold uppercase tracking-wide text-[color:var(--saytu-primary,#2563eb)]">Suivi paiements clients</p>
-          <h1 class="mt-1 text-xl font-black text-slate-950 dark:text-white">Recouvrement clients</h1>
-          <p class="mt-1 text-sm text-slate-500 dark:text-slate-300">
+          <h1 class="mt-1 text-xl font-black text-slate-950">Recouvrement clients</h1>
+          <p class="mt-1 text-sm text-slate-500">
             Factures non soldées, relances, promesses de paiement et litiges.
           </p>
         </div>
@@ -33,8 +33,8 @@
         <div class="flex items-start justify-between gap-3">
           <div>
             <p class="text-xs font-bold uppercase tracking-wide" :class="card.textClass">{{ card.label }}</p>
-            <p class="mt-2 text-2xl font-black text-slate-950 dark:text-white">{{ card.value }}</p>
-            <p class="mt-1 text-xs text-slate-500 dark:text-slate-300">{{ card.sub }}</p>
+            <p class="mt-2 text-2xl font-black text-slate-950">{{ card.value }}</p>
+            <p class="mt-1 text-xs text-slate-500">{{ card.sub }}</p>
           </div>
           <span class="flex h-10 w-10 items-center justify-center rounded-2xl bg-[color:var(--saytu-soft,#eef6ff)] text-[color:var(--saytu-primary,#2563eb)]">
             <component :is="card.icon" class="h-5 w-5" />
@@ -73,7 +73,7 @@
     <section class="overflow-hidden rounded-3xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-surface,#ffffff)] shadow-sm">
       <div class="flex flex-col gap-2 border-b border-[color:var(--saytu-border,#e2e8f0)] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 class="text-base font-black text-slate-950 dark:text-white">Factures à suivre</h2>
+          <h2 class="text-base font-black text-slate-950">Factures à suivre</h2>
           <p class="amount-unit-note mt-1">{{ amountNoteText }}</p>
         </div>
         <span class="rounded-full bg-[color:var(--saytu-soft,#eef6ff)] px-3 py-1 text-xs font-bold text-[color:var(--saytu-primary,#2563eb)]">
@@ -83,7 +83,7 @@
 
       <div class="overflow-x-auto">
         <table class="w-full min-w-[1120px]">
-          <thead class="bg-slate-50/80 text-left text-[11px] font-bold uppercase tracking-wide text-slate-500 dark:bg-slate-900/70 dark:text-slate-300">
+          <thead class="bg-slate-50/80 text-left text-[11px] font-bold uppercase tracking-wide text-slate-500">
             <tr>
               <th class="px-4 py-3">Client / facture</th>
               <th class="px-4 py-3">Échéance</th>
@@ -112,14 +112,14 @@
                 <button type="button" class="font-mono text-xs font-bold text-[color:var(--saytu-primary,#2563eb)] hover:underline" @click="openFacture(facture)">
                   {{ facture.numero }}
                 </button>
-                <div class="mt-1 font-bold text-slate-950 dark:text-white">{{ facture.client?.nom || 'Client non renseigné' }}</div>
-                <div class="mt-0.5 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500 dark:text-slate-300">
+                <div class="mt-1 font-bold text-slate-950">{{ facture.client?.nom || 'Client non renseigné' }}</div>
+                <div class="mt-0.5 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500">
                   <a v-if="facture.client?.email" :href="buildMailtoUrl({ to: facture.client.email })" target="_blank" rel="noopener noreferrer" class="hover:underline">{{ facture.client.email }}</a>
                   <span v-if="facture.client?.telephone">{{ facture.client.telephone }}</span>
                   <span v-if="facture.commercial?.name">Com. {{ facture.commercial.name }}</span>
                 </div>
               </td>
-              <td class="px-4 py-3 align-top text-slate-600 dark:text-slate-300">
+              <td class="px-4 py-3 align-top text-slate-600">
                 <div>{{ formatDate(facture.date_echeance) }}</div>
                 <div class="text-xs text-slate-400">Facturée le {{ formatDate(facture.date_facture) }}</div>
               </td>
@@ -128,8 +128,8 @@
                   {{ facture.jours_retard > 0 ? `${facture.jours_retard} j` : 'À jour' }}
                 </span>
               </td>
-              <td class="px-4 py-3 text-right align-top font-mono text-slate-600 dark:text-slate-300">{{ formatPrice(facture.total_ttc) }}</td>
-              <td class="px-4 py-3 text-right align-top font-mono text-emerald-700 dark:text-emerald-300">{{ formatPrice(facture.montant_paye) }}</td>
+              <td class="px-4 py-3 text-right align-top font-mono text-slate-600">{{ formatPrice(facture.total_ttc) }}</td>
+              <td class="px-4 py-3 text-right align-top font-mono text-emerald-700">{{ formatPrice(facture.montant_paye) }}</td>
               <td class="px-4 py-3 text-right align-top font-mono text-base font-black text-[color:var(--saytu-primary,#2563eb)]">{{ formatPrice(facture.reste_a_payer) }}</td>
               <td class="px-4 py-3 align-top">
                 <div class="flex flex-wrap items-center gap-2">
@@ -138,7 +138,7 @@
                   </span>
                   <span class="text-xs text-slate-400">{{ facture.recouvrement?.suivis_count || 0 }} action(s)</span>
                 </div>
-                <p v-if="facture.recouvrement?.dernier_suivi" class="mt-1 max-w-[260px] truncate text-xs text-slate-500 dark:text-slate-300">
+                <p v-if="facture.recouvrement?.dernier_suivi" class="mt-1 max-w-[260px] truncate text-xs text-slate-500">
                   {{ typeActionLabel(facture.recouvrement.dernier_suivi.type_action) }}
                   <span v-if="facture.recouvrement.dernier_suivi.user?.name"> · {{ facture.recouvrement.dernier_suivi.user.name }}</span>
                 </p>
@@ -158,7 +158,7 @@
       </div>
 
       <div v-if="meta.total > 0" class="flex flex-col gap-3 border-t border-[color:var(--saytu-border,#e2e8f0)] px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
-        <div class="text-slate-500 dark:text-slate-300">
+        <div class="text-slate-500">
           {{ meta.from || 0 }}–{{ meta.to || 0 }} sur {{ meta.total || 0 }}
         </div>
         <div class="flex items-center gap-2">
@@ -170,19 +170,19 @@
     </section>
 
     <section v-if="stats.dernieres_actions?.length" class="rounded-3xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-surface,#ffffff)] p-4 shadow-sm">
-      <h2 class="text-base font-black text-slate-950 dark:text-white">Dernières actions</h2>
+      <h2 class="text-base font-black text-slate-950">Dernières actions</h2>
       <div class="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
         <div v-for="action in stats.dernieres_actions" :key="action.id" class="rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-soft,#eef6ff)]/35 p-3">
           <div class="flex items-start justify-between gap-3">
             <div>
-              <p class="text-sm font-bold text-slate-900 dark:text-white">{{ typeActionLabel(action.type_action) }}</p>
-              <p class="text-xs text-slate-500 dark:text-slate-300">
+              <p class="text-sm font-bold text-slate-900">{{ typeActionLabel(action.type_action) }}</p>
+              <p class="text-xs text-slate-500">
                 {{ action.facture?.numero || 'Facture' }} · {{ action.facture?.client?.nom || 'Client' }}
               </p>
             </div>
             <span class="text-[11px] text-slate-400">{{ formatDateTime(action.date_action) }}</span>
           </div>
-          <p v-if="action.commentaire" class="mt-2 line-clamp-2 text-xs text-slate-600 dark:text-slate-300">{{ action.commentaire }}</p>
+          <p v-if="action.commentaire" class="mt-2 line-clamp-2 text-xs text-slate-600">{{ action.commentaire }}</p>
         </div>
       </div>
     </section>
@@ -190,15 +190,15 @@
     <AppModal v-model="showSuiviModal" :title="selectedFacture ? `Suivi ${selectedFacture.numero}` : 'Suivi recouvrement'" size="md" centered>
       <form class="space-y-4" @submit.prevent="saveSuivi">
         <div v-if="selectedFacture" class="rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-soft,#eef6ff)] p-3 text-sm">
-          <div class="font-bold text-slate-950 dark:text-white">{{ selectedFacture.client?.nom }}</div>
-          <div class="mt-1 text-slate-500 dark:text-slate-300">
+          <div class="font-bold text-slate-950">{{ selectedFacture.client?.nom }}</div>
+          <div class="mt-1 text-slate-500">
             Reste à payer : <strong>{{ formatPrice(selectedFacture.reste_a_payer) }}</strong>
             · Échéance : {{ formatDate(selectedFacture.date_echeance) }}
           </div>
         </div>
 
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <label class="text-sm font-semibold text-slate-700 dark:text-slate-200">
+          <label class="text-sm font-semibold text-slate-700">
             Statut recouvrement
             <select v-model="suiviForm.statut" class="input mt-1 rounded-2xl" required>
               <option value="a_surveiller">À surveiller</option>
@@ -209,7 +209,7 @@
               <option value="paye">Payé / clôturé</option>
             </select>
           </label>
-          <label class="text-sm font-semibold text-slate-700 dark:text-slate-200">
+          <label class="text-sm font-semibold text-slate-700">
             Type d’action
             <select v-model="suiviForm.type_action" class="input mt-1 rounded-2xl" required>
               <option value="note">Note</option>
@@ -222,17 +222,17 @@
               <option value="cloture">Clôture</option>
             </select>
           </label>
-          <label class="text-sm font-semibold text-slate-700 dark:text-slate-200">
+          <label class="text-sm font-semibold text-slate-700">
             Date promise
             <input v-model="suiviForm.date_promesse" type="date" class="input mt-1 rounded-2xl" />
           </label>
-          <label class="text-sm font-semibold text-slate-700 dark:text-slate-200">
+          <label class="text-sm font-semibold text-slate-700">
             Prochain rappel
             <input v-model="suiviForm.prochain_rappel" type="date" class="input mt-1 rounded-2xl" />
           </label>
         </div>
 
-        <label class="text-sm font-semibold text-slate-700 dark:text-slate-200">
+        <label class="text-sm font-semibold text-slate-700">
           Commentaire
           <textarea v-model="suiviForm.commentaire" rows="4" class="input mt-1 rounded-2xl" placeholder="Ex : client relancé, promesse de virement vendredi, litige sur BL..."></textarea>
         </label>
@@ -252,7 +252,7 @@
         <div v-if="history.facture" class="grid grid-cols-1 gap-3 rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-soft,#eef6ff)] p-3 text-sm sm:grid-cols-3">
           <div>
             <p class="text-xs text-slate-500">Client</p>
-            <p class="font-bold text-slate-950 dark:text-white">{{ history.facture.client?.nom || '-' }}</p>
+            <p class="font-bold text-slate-950">{{ history.facture.client?.nom || '-' }}</p>
           </div>
           <div>
             <p class="text-xs text-slate-500">Reste à payer</p>
@@ -260,7 +260,7 @@
           </div>
           <div class="sm:text-right">
             <p class="text-xs text-slate-500">Échéance</p>
-            <p class="font-bold text-slate-950 dark:text-white">{{ formatDate(history.facture.date_echeance) }}</p>
+            <p class="font-bold text-slate-950">{{ formatDate(history.facture.date_echeance) }}</p>
           </div>
         </div>
 
@@ -274,12 +274,12 @@
               <div v-for="suivi in history.suivis" :key="suivi.id" class="rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] p-3">
                 <div class="flex items-start justify-between gap-3">
                   <div>
-                    <p class="font-bold text-slate-950 dark:text-white">{{ typeActionLabel(suivi.type_action) }}</p>
+                    <p class="font-bold text-slate-950">{{ typeActionLabel(suivi.type_action) }}</p>
                     <p class="text-xs text-slate-500">{{ statusLabel(suivi.statut) }} · {{ suivi.user?.name || 'Utilisateur' }}</p>
                   </div>
                   <span class="text-xs text-slate-400">{{ formatDateTime(suivi.date_action) }}</span>
                 </div>
-                <p v-if="suivi.commentaire" class="mt-2 text-sm text-slate-600 dark:text-slate-300">{{ suivi.commentaire }}</p>
+                <p v-if="suivi.commentaire" class="mt-2 text-sm text-slate-600">{{ suivi.commentaire }}</p>
                 <div v-if="suivi.date_promesse || suivi.prochain_rappel" class="mt-2 flex flex-wrap gap-2 text-xs">
                   <span v-if="suivi.date_promesse" class="rounded-full bg-emerald-50 px-2 py-1 font-semibold text-emerald-700">Promesse : {{ formatDate(suivi.date_promesse) }}</span>
                   <span v-if="suivi.prochain_rappel" class="rounded-full bg-amber-50 px-2 py-1 font-semibold text-amber-700">Rappel : {{ formatDate(suivi.prochain_rappel) }}</span>
@@ -297,7 +297,7 @@
               <div v-for="paiement in history.paiements" :key="paiement.id" class="rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] p-3">
                 <div class="flex items-start justify-between gap-3">
                   <div>
-                    <p class="font-mono font-bold text-slate-950 dark:text-white">{{ paiement.reference }}</p>
+                    <p class="font-mono font-bold text-slate-950">{{ paiement.reference }}</p>
                     <p class="text-xs text-slate-500">{{ modePaiementLabel(paiement.mode_paiement) }} · {{ formatDate(paiement.date_paiement) }}</p>
                   </div>
                   <span class="font-mono font-black text-emerald-700">{{ formatPrice(paiement.montant_affecte || paiement.montant) }}</span>
@@ -396,7 +396,7 @@ const summaryCards = computed(() => [
     sub: `${stats.en_retard || 0} facture(s) dépassée(s)`,
     quick: 'retard',
     icon: AlertTriangle,
-    textClass: 'text-rose-600 dark:text-rose-300',
+    textClass: 'text-rose-600',
   },
   {
     key: 'partiels',
@@ -405,7 +405,7 @@ const summaryCards = computed(() => [
     sub: 'Clients ayant déjà versé une partie',
     quick: 'partiel',
     icon: FileWarning,
-    textClass: 'text-amber-600 dark:text-amber-300',
+    textClass: 'text-amber-600',
   },
   {
     key: 'relances',
@@ -414,7 +414,7 @@ const summaryCards = computed(() => [
     sub: `${stats.promesses || 0} promesse(s), ${stats.litiges || 0} litige(s)`,
     quick: 'a_relancer',
     icon: CalendarClock,
-    textClass: 'text-cyan-600 dark:text-cyan-300',
+    textClass: 'text-cyan-600',
   },
 ])
 
@@ -495,24 +495,24 @@ function modePaiementLabel(mode) {
 
 function riskBadge(level) {
   return {
-    critique: 'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-200',
-    retard: 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-200',
-    promesse: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-500/20 dark:text-cyan-200',
-    litige: 'bg-purple-100 text-purple-700 dark:bg-purple-500/20 dark:text-purple-200',
-    partiel: 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-200',
-    normal: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200',
-  }[level] || 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-200'
+    critique: 'bg-rose-100 text-rose-700',
+    retard: 'bg-amber-100 text-amber-700',
+    promesse: 'bg-cyan-100 text-cyan-700',
+    litige: 'bg-purple-100 text-purple-700',
+    partiel: 'bg-blue-100 text-blue-700',
+    normal: 'bg-emerald-100 text-emerald-700',
+  }[level] || 'bg-slate-100 text-slate-600'
 }
 
 function statusBadge(status) {
   return {
-    a_surveiller: 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200',
-    a_relancer: 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-200',
-    relance: 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-200',
-    promesse_paiement: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200',
-    litige: 'bg-purple-100 text-purple-700 dark:bg-purple-500/20 dark:text-purple-200',
-    paye: 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-200',
-  }[status] || 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200'
+    a_surveiller: 'bg-slate-100 text-slate-700',
+    a_relancer: 'bg-amber-100 text-amber-700',
+    relance: 'bg-blue-100 text-blue-700',
+    promesse_paiement: 'bg-emerald-100 text-emerald-700',
+    litige: 'bg-purple-100 text-purple-700',
+    paye: 'bg-green-100 text-green-700',
+  }[status] || 'bg-slate-100 text-slate-700'
 }
 
 function apiParams(page = 1) {

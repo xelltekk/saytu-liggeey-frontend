@@ -1,6 +1,6 @@
 <template>
   <div
-    class="app-shell min-h-screen bg-[#f4f7fb] text-slate-700 transition-colors dark:bg-slate-950 dark:text-slate-200 lg:flex"
+    class="app-shell min-h-screen bg-[#f4f7fb] text-slate-700 transition-colors lg:flex"
     :class="viewportClass"
     :data-device="deviceType"
   >
@@ -196,7 +196,7 @@
 
       <!-- ================= HEADER ================= -->
       <header
-        class="app-topbar min-h-20 bg-white/80 backdrop-blur-xl border-b border-slate-200 px-4 py-3 sm:px-6 flex flex-col gap-3 shadow-sm transition-colors dark:border-slate-700 dark:bg-slate-900/85 md:flex-row md:items-center md:justify-between"
+        class="app-topbar min-h-20 bg-white/80 backdrop-blur-xl border-b border-slate-200 px-4 py-3 sm:px-6 flex flex-col gap-3 shadow-sm transition-colors md:flex-row md:items-center md:justify-between"
       >
         <!-- Left -->
         <div class="flex min-w-0 items-center gap-3 sm:gap-4">
@@ -204,7 +204,7 @@
           <button
             type="button"
             @click="toggleSidebar"
-            class="w-11 h-11 rounded-xl border border-slate-200 flex items-center justify-center hover:bg-slate-100 transition dark:border-slate-700 dark:hover:bg-slate-800"
+            class="w-11 h-11 rounded-xl border border-slate-200 flex items-center justify-center hover:bg-slate-100 transition"
             title="Menu"
             aria-label="Ouvrir ou réduire le menu principal"
             aria-controls="main-sidebar"
@@ -216,11 +216,11 @@
 
           <!-- Page title -->
           <div class="min-w-0">
-            <h2 class="app-page-title truncate text-lg font-bold text-slate-800 dark:text-slate-100 sm:text-xl">
+            <h2 class="app-page-title truncate text-lg font-bold text-slate-800 sm:text-xl">
               {{ pageTitle }}
             </h2>
 
-            <p class="app-page-subtitle hidden text-xs text-slate-500 dark:text-slate-400 sm:block">
+            <p class="app-page-subtitle hidden text-xs text-slate-500 sm:block">
               Bienvenue sur Saytu Liggéey 2.0
             </p>
           </div>
@@ -233,13 +233,13 @@
           <button
             type="button"
             @click="showCommandPalette = true"
-            class="relative hidden xl:flex items-center w-64 2xl:w-80 rounded-2xl border border-slate-200 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-400 hover:border-cyan-400 hover:text-slate-600 transition focus:outline-none focus:ring-2 focus:ring-cyan-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
+            class="relative hidden xl:flex items-center w-64 2xl:w-80 rounded-2xl border border-slate-200 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-400 hover:border-cyan-400 hover:text-slate-600 transition focus:outline-none focus:ring-2 focus:ring-cyan-400"
             title="Recherche globale"
             aria-label="Ouvrir la recherche globale"
           >
             <Search class="absolute left-3 top-3 w-4 h-4 text-slate-400" />
             <span class="flex-1 text-left">Rechercher...</span>
-            <kbd class="px-1.5 py-0.5 text-[10px] bg-slate-100 rounded border border-slate-300 font-mono text-slate-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300">
+            <kbd class="px-1.5 py-0.5 text-[10px] bg-slate-100 rounded border border-slate-300 font-mono text-slate-500">
               {{ isMac ? '⌘K' : 'Ctrl+K' }}
             </kbd>
           </button>
@@ -248,23 +248,11 @@
           <button
             type="button"
             @click="showCommandPalette = true"
-            class="w-11 h-11 xl:hidden rounded-xl border border-slate-200 flex items-center justify-center hover:bg-slate-100 transition dark:border-slate-700 dark:hover:bg-slate-800"
+            class="w-11 h-11 xl:hidden rounded-xl border border-slate-200 flex items-center justify-center hover:bg-slate-100 transition"
             title="Recherche (Ctrl+K)"
             aria-label="Ouvrir la recherche globale"
           >
             <Search class="w-5 h-5" />
-          </button>
-
-          <!-- Theme -->
-          <button
-            type="button"
-            @click="toggleThemeMode"
-            class="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
-            :title="isDark ? 'Passer en mode clair' : 'Passer en mode sombre'"
-            :aria-label="isDark ? 'Passer en mode clair' : 'Passer en mode sombre'"
-          >
-            <Sun v-if="isDark" class="h-5 w-5" />
-            <Moon v-else class="h-5 w-5" />
           </button>
 
           <!-- Notifications -->
@@ -273,7 +261,7 @@
           </div>
 
           <!-- Date -->
-          <div class="hidden lg:block text-sm text-slate-500 dark:text-slate-400">
+          <div class="hidden lg:block text-sm text-slate-500">
             {{ today }}
           </div>
 
@@ -304,7 +292,7 @@
       <main class="flex-1 overflow-y-auto p-3 sm:p-4 lg:p-6">
         <!-- Dynamic Page -->
         <div
-          class="app-surface min-w-0 bg-white rounded-2xl lg:rounded-3xl border border-slate-100 shadow-sm p-3 transition-colors dark:border-slate-800 dark:bg-slate-900 sm:p-4 lg:p-6"
+          class="app-surface min-w-0 bg-white rounded-2xl lg:rounded-3xl border border-slate-100 shadow-sm p-3 transition-colors sm:p-4 lg:p-6"
         >
           <router-view v-slot="{ Component, route: viewRoute }">
             <KeepAlive :max="18">
@@ -322,7 +310,7 @@
 
     <div
       v-if="minimizedWindows.length"
-      class="fixed bottom-4 right-4 z-[100] w-[min(24rem,calc(100vw-2rem))] rounded-3xl border border-[var(--theme-border,#bfdbfe)] bg-white/95 p-3 shadow-2xl backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/95"
+      class="fixed bottom-4 right-4 z-[100] w-[min(24rem,calc(100vw-2rem))] rounded-3xl border border-[var(--theme-border,#bfdbfe)] bg-white/95 p-3 shadow-2xl backdrop-blur-xl"
     >
       <div class="mb-2 flex items-center justify-between gap-2 px-1">
         <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-[var(--theme-primary,#2563eb)]">
@@ -338,15 +326,15 @@
         <div
           v-for="windowItem in minimizedWindows"
           :key="windowItem.id"
-          class="flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm shadow-sm transition hover:border-[var(--theme-primary,#2563eb)] hover:bg-white dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-slate-800/80"
+          class="flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm shadow-sm transition hover:border-[var(--theme-primary,#2563eb)] hover:bg-white"
         >
           <button
             type="button"
             class="min-w-0 flex-1 text-left"
             @click="restoreMinimizedWindow(windowItem)"
           >
-            <span class="block truncate font-semibold text-slate-800 dark:text-slate-100">{{ windowItem.title }}</span>
-            <span class="block truncate text-xs text-slate-500 dark:text-slate-400">Cliquez pour reprendre la saisie</span>
+            <span class="block truncate font-semibold text-slate-800">{{ windowItem.title }}</span>
+            <span class="block truncate text-xs text-slate-500">Cliquez pour reprendre la saisie</span>
           </button>
 
           <button
@@ -425,8 +413,6 @@ import {
   Maximize,
   LogOut,
   RotateCcw,
-  Moon,
-  Sun,
   X
 } from 'lucide-vue-next'
 
@@ -441,7 +427,7 @@ const sidebarOpen = ref(true)
 const mobileSidebarOpen = ref(false)
 const showCommandPalette = ref(false)
 const isFullscreen = ref(false)
-const { isDark, applyTheme, toggleThemeMode } = useTheme()
+const { applyTheme } = useTheme()
 const { isDesktop, isMobile, deviceType, viewportClass } = useViewport()
 const logoVersion = ref(Date.now())
 const hideUserPhoto = ref(false)

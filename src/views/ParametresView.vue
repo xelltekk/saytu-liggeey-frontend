@@ -19,40 +19,6 @@
         </div>
       </div>
 
-      <!-- ===== APPARENCE ===== -->
-      <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-        <div class="px-5 py-3 bg-gray-50 border-b border-gray-200">
-          <h3 class="font-semibold text-gray-900">Apparence</h3>
-        </div>
-        <div class="p-5">
-          <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-            <button
-              v-for="theme in themes"
-              :key="theme.id"
-              type="button"
-              @click="choisirTheme(theme.id)"
-              class="flex items-center justify-between gap-4 rounded-lg border p-4 text-left transition"
-              :class="themeId === theme.id
-                ? 'border-xelltekk-500 bg-xelltekk-50 ring-2 ring-xelltekk-100'
-                : 'border-gray-200 bg-white hover:border-xelltekk-300 hover:bg-gray-50'"
-            >
-              <span class="min-w-0">
-                <span class="block text-sm font-semibold text-gray-900">{{ theme.name }}</span>
-                <span class="block text-xs text-gray-500">{{ theme.description }}</span>
-              </span>
-              <span class="flex shrink-0 items-center gap-1.5">
-                <span
-                  v-for="swatch in theme.swatches"
-                  :key="swatch"
-                  class="h-6 w-6 rounded-full border border-white shadow-sm ring-1 ring-gray-200"
-                  :style="{ backgroundColor: swatch }"
-                ></span>
-              </span>
-            </button>
-          </div>
-        </div>
-      </div>
-
       <!-- ===== SECTION 1 : INFORMATIONS LÉGALES ===== -->
       <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         <div class="px-5 py-3 bg-gray-50 border-b border-gray-200">
@@ -314,7 +280,6 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import api from '@/services/api'
 import { useToast } from '@/composables/useToast'
-import { useTheme } from '@/composables/useTheme'
 import { useConfirm } from '@/composables/useConfirm'
 
 const toast = useToast()
@@ -325,7 +290,6 @@ const saving = ref(false)
 const uploadingLogo = ref(false)
 const lastSaved = ref(null)
 const fileInput = ref(null)
-const { themes, themeId, setTheme } = useTheme()
 
 const societe = reactive({
   id: null,
@@ -357,10 +321,6 @@ function notifierIdentiteSociete() {
       devise_defaut: societe.devise_defaut,
     },
   }))
-}
-
-function choisirTheme(value) {
-  setTheme(value)
 }
 
 async function charger() {

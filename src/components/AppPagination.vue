@@ -1,7 +1,7 @@
 <template>
-  <div class="border-t border-slate-200 bg-white/80 px-4 py-3 dark:border-slate-700 dark:bg-slate-900/90">
+  <div class="border-t border-slate-200 bg-white/80 px-4 py-3">
     <div class="flex flex-col gap-3 text-sm sm:flex-row sm:items-center sm:justify-between">
-      <div class="text-slate-600 dark:text-slate-300">
+      <div class="text-slate-600">
         <strong>{{ meta.from || 0 }}</strong>-<strong>{{ meta.to || 0 }}</strong>
         sur <strong>{{ meta.total || 0 }}</strong>{{ label ? ` ${label}` : '' }}
       </div>
@@ -16,7 +16,7 @@
           <span class="sm:hidden">Prec.</span>
           <span class="hidden sm:inline">Précédent</span>
         </button>
-        <span class="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-center text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+        <span class="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-center text-slate-600">
           Page {{ currentPage }} / {{ lastPage }}
         </span>
         <button

@@ -1,6 +1,6 @@
 <template>
   <div>
-    <div v-if="loading" class="rounded-lg bg-white p-12 text-center text-gray-500 dark:bg-slate-900 dark:text-slate-300">
+    <div v-if="loading" class="rounded-lg bg-white p-12 text-center text-gray-500">
       Chargement du tableau de bord...
     </div>
 
@@ -30,7 +30,7 @@
         Glissez un bloc ou utilisez Monter / Descendre pour personnaliser votre tableau de bord. L’ordre est sauvegardé sur ce navigateur.
       </div>
 
-      <section v-if="annonces.length" class="dashboard-block rounded-lg border border-blue-100 bg-blue-50 p-4 shadow-sm dark:border-blue-500/30 dark:bg-blue-950/30 sm:p-5" v-bind="dashboardBlockAttrs('annonces')">
+      <section v-if="annonces.length" class="dashboard-block rounded-lg border border-blue-100 bg-blue-50 p-4 shadow-sm sm:p-5" v-bind="dashboardBlockAttrs('annonces')">
         <DashboardBlockControls
           v-if="isCustomizingDashboard"
           block-id="annonces"
@@ -41,16 +41,16 @@
         />
         <div class="mb-3 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h3 class="font-semibold text-blue-950 dark:text-blue-100">Annonces internes</h3>
-            <p class="text-xs text-blue-700 dark:text-blue-200">Messages visibles par tous les utilisateurs.</p>
+            <h3 class="font-semibold text-blue-950">Annonces internes</h3>
+            <p class="text-xs text-blue-700">Messages visibles par tous les utilisateurs.</p>
           </div>
-          <span class="text-xs font-semibold uppercase text-blue-700 dark:text-blue-200">{{ annonces.length }} annonce(s)</span>
+          <span class="text-xs font-semibold uppercase text-blue-700">{{ annonces.length }} annonce(s)</span>
         </div>
         <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          <article v-for="annonce in annonces" :key="annonce.id" class="rounded-lg border border-blue-100 bg-white p-3 dark:border-blue-500/20 dark:bg-slate-900">
-            <h4 class="font-semibold text-gray-900 dark:text-white">{{ annonce.titre }}</h4>
-            <p class="mt-1 text-sm text-gray-600 dark:text-slate-300">{{ annonce.contenu }}</p>
-            <p class="mt-2 text-xs text-gray-400 dark:text-slate-500">{{ formatDateTime(annonce.publie_le) }} · {{ annonce.auteur?.name || 'RH' }}</p>
+          <article v-for="annonce in annonces" :key="annonce.id" class="rounded-lg border border-blue-100 bg-white p-3">
+            <h4 class="font-semibold text-gray-900">{{ annonce.titre }}</h4>
+            <p class="mt-1 text-sm text-gray-600">{{ annonce.contenu }}</p>
+            <p class="mt-2 text-xs text-gray-400">{{ formatDateTime(annonce.publie_le) }} · {{ annonce.auteur?.name || 'RH' }}</p>
           </article>
         </div>
       </section>
@@ -78,7 +78,7 @@
         <KpiCard v-if="isStockManager" to="/stock" label="Valeur stock" :value="formatPrice(kpi.valeur_stock)" icon="VS" :icon-component="Wallet" color="blue" />
       </div>
 
-      <section v-else class="dashboard-block rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900" v-bind="dashboardBlockAttrs('empty')">
+      <section v-else class="dashboard-block rounded-lg border border-gray-200 bg-white p-5 shadow-sm" v-bind="dashboardBlockAttrs('empty')">
         <DashboardBlockControls
           v-if="isCustomizingDashboard"
           block-id="empty"
@@ -87,8 +87,8 @@
           :can-down="canMoveDashboardBlock('empty', 'down')"
           @move="moveDashboardBlock"
         />
-        <h3 class="font-semibold text-gray-900 dark:text-white">Tableau de bord</h3>
-        <p class="mt-1 text-sm text-gray-500 dark:text-slate-400">
+        <h3 class="font-semibold text-gray-900">Tableau de bord</h3>
+        <p class="mt-1 text-sm text-gray-500">
           Votre profil est bien connecte. Aucun indicateur specifique n'est encore configure pour ce role.
         </p>
       </section>
@@ -102,58 +102,58 @@
           :can-down="canMoveDashboardBlock('stock', 'down')"
           @move="moveDashboardBlock"
         />
-        <section class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+        <section class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
           <div class="mb-4 flex items-center justify-between">
-            <h3 class="font-semibold text-gray-900 dark:text-white">Produits en alerte</h3>
-            <router-link to="/stock" class="text-xs text-xelltekk-600 hover:underline dark:text-cyan-300">Voir le stock</router-link>
+            <h3 class="font-semibold text-gray-900">Produits en alerte</h3>
+            <router-link to="/stock" class="text-xs text-xelltekk-600 hover:underline">Voir le stock</router-link>
           </div>
           <div v-if="stockAlertes.length" class="space-y-2">
             <router-link
               v-for="produit in stockAlertes"
               :key="produit.id"
               to="/stock"
-              class="flex items-center justify-between gap-3 rounded-lg border border-orange-100 bg-orange-50 p-3 transition hover:bg-orange-100 dark:border-orange-500/30 dark:bg-orange-950/30 dark:hover:bg-orange-950/50"
+              class="flex items-center justify-between gap-3 rounded-lg border border-orange-100 bg-orange-50 p-3 transition hover:bg-orange-100"
             >
               <div class="min-w-0">
-                <div class="truncate text-sm font-semibold text-gray-900 dark:text-white">{{ produit.libelle }}</div>
-                <div class="text-xs text-gray-500 dark:text-slate-400">{{ produit.reference || 'Sans reference' }}</div>
+                <div class="truncate text-sm font-semibold text-gray-900">{{ produit.libelle }}</div>
+                <div class="text-xs text-gray-500">{{ produit.reference || 'Sans reference' }}</div>
               </div>
               <div class="text-right">
-                <div class="font-mono text-sm font-bold text-orange-700 dark:text-orange-300">{{ formatQty(produit.stock_total) }}</div>
-                <div class="text-[10px] text-gray-500 dark:text-slate-400">seuil {{ produit.stock_alerte || 0 }}</div>
+                <div class="font-mono text-sm font-bold text-orange-700">{{ formatQty(produit.stock_total) }}</div>
+                <div class="text-[10px] text-gray-500">seuil {{ produit.stock_alerte || 0 }}</div>
               </div>
             </router-link>
           </div>
-          <div v-else class="py-8 text-center text-sm text-green-600 dark:text-green-300">
+          <div v-else class="py-8 text-center text-sm text-green-600">
             Aucun produit en alerte.
           </div>
         </section>
 
-        <section class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+        <section class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
           <div class="mb-4 flex items-center justify-between">
-            <h3 class="font-semibold text-gray-900 dark:text-white">Derniers mouvements de stock</h3>
-            <router-link to="/stock" class="text-xs text-xelltekk-600 hover:underline dark:text-cyan-300">Voir tout</router-link>
+            <h3 class="font-semibold text-gray-900">Derniers mouvements de stock</h3>
+            <router-link to="/stock" class="text-xs text-xelltekk-600 hover:underline">Voir tout</router-link>
           </div>
           <div v-if="derniersMouvementsStock.length" class="space-y-2">
             <router-link
               v-for="mouvement in derniersMouvementsStock"
               :key="mouvement.id"
               to="/stock"
-              class="block rounded-lg border border-gray-200 p-3 transition hover:bg-gray-50 dark:border-slate-700 dark:hover:bg-slate-800"
+              class="block rounded-lg border border-gray-200 p-3 transition hover:bg-gray-50"
             >
               <div class="flex items-start justify-between gap-3">
                 <div class="min-w-0">
-                  <div class="truncate text-sm font-semibold text-gray-900 dark:text-white">{{ mouvement.produit?.libelle || 'Produit' }}</div>
-                  <div class="text-xs text-gray-500 dark:text-slate-400">
+                  <div class="truncate text-sm font-semibold text-gray-900">{{ mouvement.produit?.libelle || 'Produit' }}</div>
+                  <div class="text-xs text-gray-500">
                     {{ mouvement.produit?.reference || 'Sans référence' }} - {{ mouvement.entrepot?.libelle || mouvement.entrepot?.code || 'Entrepôt' }}
                   </div>
-                  <div class="mt-1 text-xs text-gray-500 dark:text-slate-400">{{ mouvement.motif || mouvement.type }}</div>
+                  <div class="mt-1 text-xs text-gray-500">{{ mouvement.motif || mouvement.type }}</div>
                 </div>
                 <div class="text-right">
                   <div class="font-mono text-sm font-bold" :class="mouvementTypeClass(mouvement.type)">
                     {{ mouvement.type }} {{ formatQty(mouvement.quantite) }}
                   </div>
-                  <div class="text-[10px] text-gray-500 dark:text-slate-400">{{ formatDate(mouvement.date_mouvement) }}</div>
+                  <div class="text-[10px] text-gray-500">{{ formatDate(mouvement.date_mouvement) }}</div>
                 </div>
               </div>
             </router-link>
@@ -164,7 +164,7 @@
         </section>
       </div>
 
-      <section v-if="isBusinessDashboard" class="dashboard-block rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900" v-bind="dashboardBlockAttrs('tresorerie')">
+      <section v-if="isBusinessDashboard" class="dashboard-block rounded-lg border border-gray-200 bg-white p-5 shadow-sm" v-bind="dashboardBlockAttrs('tresorerie')">
         <DashboardBlockControls
           v-if="isCustomizingDashboard"
           block-id="tresorerie"
@@ -174,8 +174,8 @@
           @move="moveDashboardBlock"
         />
         <div class="mb-4 flex items-center justify-between">
-          <h3 class="font-semibold text-gray-900 dark:text-white">Soldes de trésorerie</h3>
-          <span class="text-xs text-gray-500 dark:text-slate-400">Temps réel</span>
+          <h3 class="font-semibold text-gray-900">Soldes de trésorerie</h3>
+          <span class="text-xs text-gray-500">Temps réel</span>
         </div>
         <div v-if="soldesTresorerieComptes.length" class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
           <KpiCard
@@ -215,10 +215,10 @@
           :can-down="canMoveDashboardBlock('ca', 'down')"
           @move="moveDashboardBlock"
         />
-        <section class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+        <section class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
           <div class="mb-4 flex items-center justify-between">
-            <h3 class="font-semibold text-gray-900 dark:text-white">Chiffre d'affaires mensuel</h3>
-            <span class="text-xs text-gray-500 dark:text-slate-400">12 derniers mois</span>
+            <h3 class="font-semibold text-gray-900">Chiffre d'affaires mensuel</h3>
+            <span class="text-xs text-gray-500">12 derniers mois</span>
           </div>
           <div class="h-64">
             <Line v-if="caChartData" :data="caChartData" :options="caChartOptions" />
@@ -235,26 +235,26 @@
           :can-down="canMoveDashboardBlock('tops', 'down')"
           @move="moveDashboardBlock"
         />
-        <section class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+        <section class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
           <div class="mb-4 flex items-center justify-between">
-            <h3 class="font-semibold text-gray-900 dark:text-white">Top 10 clients</h3>
-            <span class="text-xs text-gray-500 dark:text-slate-400">Année en cours</span>
+            <h3 class="font-semibold text-gray-900">Top 10 clients</h3>
+            <span class="text-xs text-gray-500">Année en cours</span>
           </div>
           <div v-if="topClients.length" class="space-y-2">
             <router-link
               v-for="(client, index) in topClients"
               :key="client.id"
               :to="{ path: '/clients', query: { open: client.id } }"
-              class="flex items-center gap-3 rounded p-2 transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-xelltekk-400 dark:hover:bg-slate-800"
+              class="flex items-center gap-3 rounded p-2 transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-xelltekk-400"
             >
               <div class="flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold" :class="rangColor(index)">
                 {{ index + 1 }}
               </div>
               <div class="min-w-0 flex-1">
-                <div class="truncate text-sm font-medium text-gray-900 dark:text-white">{{ client.nom }}</div>
-                <div class="text-xs text-gray-500 dark:text-slate-400">{{ client.nb_factures }} facture(s) - {{ client.code }}</div>
+                <div class="truncate text-sm font-medium text-gray-900">{{ client.nom }}</div>
+                <div class="text-xs text-gray-500">{{ client.nb_factures }} facture(s) - {{ client.code }}</div>
               </div>
-              <div class="whitespace-nowrap font-mono text-sm font-semibold text-xelltekk-700 dark:text-cyan-300">
+              <div class="whitespace-nowrap font-mono text-sm font-semibold text-xelltekk-700">
                 {{ formatPrice(client.ca_total) }}
               </div>
             </router-link>
@@ -264,28 +264,28 @@
           </div>
         </section>
 
-        <section class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+        <section class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
           <div class="mb-4 flex items-center justify-between">
-            <h3 class="font-semibold text-gray-900 dark:text-white">Top 10 produits vendus</h3>
-            <span class="text-xs text-gray-500 dark:text-slate-400">Année en cours</span>
+            <h3 class="font-semibold text-gray-900">Top 10 produits vendus</h3>
+            <span class="text-xs text-gray-500">Année en cours</span>
           </div>
           <div v-if="topProduits.length" class="space-y-2">
             <router-link
               v-for="(produit, index) in topProduits"
               :key="produit.id"
               :to="{ path: '/produits', query: { open: produit.id } }"
-              class="flex items-center gap-3 rounded p-2 transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-xelltekk-400 dark:hover:bg-slate-800"
+              class="flex items-center gap-3 rounded p-2 transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-xelltekk-400"
             >
               <div class="flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold" :class="rangColor(index)">
                 {{ index + 1 }}
               </div>
               <div class="min-w-0 flex-1">
-                <div class="truncate text-sm font-medium text-gray-900 dark:text-white">{{ produit.libelle }}</div>
-                <div class="text-xs text-gray-500 dark:text-slate-400">
+                <div class="truncate text-sm font-medium text-gray-900">{{ produit.libelle }}</div>
+                <div class="text-xs text-gray-500">
                   {{ produit.reference || 'Sans référence' }} - Qté {{ formatQty(produit.quantite_vendue) }} - {{ produit.nb_factures }} facture(s)
                 </div>
               </div>
-              <div class="whitespace-nowrap font-mono text-sm font-semibold text-green-700 dark:text-green-300">
+              <div class="whitespace-nowrap font-mono text-sm font-semibold text-green-700">
                 {{ formatPrice(produit.ca_total) }}
               </div>
             </router-link>
@@ -296,7 +296,7 @@
         </section>
       </div>
 
-      <section v-if="isBusinessDashboard" class="dashboard-block rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900" v-bind="dashboardBlockAttrs('factures')">
+      <section v-if="isBusinessDashboard" class="dashboard-block rounded-lg border border-gray-200 bg-white p-5 shadow-sm" v-bind="dashboardBlockAttrs('factures')">
         <DashboardBlockControls
           v-if="isCustomizingDashboard"
           block-id="factures"
@@ -306,33 +306,33 @@
           @move="moveDashboardBlock"
         />
         <div class="mb-4 flex items-center justify-between">
-          <h3 class="font-semibold text-gray-900 dark:text-white">Factures en retard</h3>
-          <router-link :to="{ path: '/factures', query: { quick: 'en_retard' } }" class="text-xs text-xelltekk-600 hover:underline dark:text-cyan-300">Voir tout</router-link>
+          <h3 class="font-semibold text-gray-900">Factures en retard</h3>
+          <router-link :to="{ path: '/factures', query: { quick: 'en_retard' } }" class="text-xs text-xelltekk-600 hover:underline">Voir tout</router-link>
         </div>
         <div v-if="facturesRetard.length" class="grid grid-cols-1 gap-3 lg:grid-cols-2">
           <router-link
             v-for="facture in facturesRetard"
             :key="facture.id"
             :to="{ path: '/factures', query: { open: facture.id } }"
-            class="block rounded-lg border border-red-100 bg-red-50 p-3 transition-colors hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-300 dark:border-red-500/30 dark:bg-red-950/30"
+            class="block rounded-lg border border-red-100 bg-red-50 p-3 transition-colors hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-300"
           >
             <div class="flex items-start justify-between gap-2">
               <div class="min-w-0 flex-1">
                 <div class="flex items-center gap-2">
-                  <span class="font-mono text-xs font-semibold text-gray-700 dark:text-slate-200">{{ facture.numero }}</span>
+                  <span class="font-mono text-xs font-semibold text-gray-700">{{ facture.numero }}</span>
                   <span class="badge bg-red-200 text-[10px] text-red-800">{{ facture.jours_retard }} j</span>
                 </div>
-                <div class="mt-1 truncate text-sm font-medium text-gray-900 dark:text-white">{{ facture.client?.nom || 'Client' }}</div>
-                <div class="text-xs text-gray-500 dark:text-slate-400">Echu le {{ formatDate(facture.date_echeance) }}</div>
+                <div class="mt-1 truncate text-sm font-medium text-gray-900">{{ facture.client?.nom || 'Client' }}</div>
+                <div class="text-xs text-gray-500">Echu le {{ formatDate(facture.date_echeance) }}</div>
               </div>
               <div class="whitespace-nowrap text-right">
-                <div class="font-mono font-bold text-red-700 dark:text-red-300">{{ formatPrice(facture.reste_a_payer) }}</div>
+                <div class="font-mono font-bold text-red-700">{{ formatPrice(facture.reste_a_payer) }}</div>
 
               </div>
             </div>
           </router-link>
         </div>
-        <div v-else class="py-8 text-center text-sm text-green-600 dark:text-green-300">
+        <div v-else class="py-8 text-center text-sm text-green-600">
           Aucune facture en retard.
         </div>
       </section>
@@ -345,23 +345,23 @@
           :can-down="canMoveDashboardBlock('suivis', 'down')"
           @move="moveDashboardBlock"
         />
-        <section v-if="isBusinessDashboard" class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+        <section v-if="isBusinessDashboard" class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
           <div class="mb-4 flex items-center justify-between">
-            <h3 class="font-semibold text-gray-900 dark:text-white">Derniers paiements</h3>
-            <router-link to="/paiements" class="text-xs text-xelltekk-600 hover:underline dark:text-cyan-300">Voir tout</router-link>
+            <h3 class="font-semibold text-gray-900">Derniers paiements</h3>
+            <router-link to="/paiements" class="text-xs text-xelltekk-600 hover:underline">Voir tout</router-link>
           </div>
           <div v-if="derniersPaiements.length" class="space-y-2">
             <router-link
               v-for="paiement in derniersPaiements"
               :key="paiement.id"
               to="/paiements"
-              class="flex items-center gap-3 rounded p-2 transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-xelltekk-400 dark:hover:bg-slate-800"
+              class="flex items-center gap-3 rounded p-2 transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-xelltekk-400"
             >
               <div class="min-w-0 flex-1">
-                <div class="truncate text-sm font-medium text-gray-900 dark:text-white">{{ paiement.client?.nom || 'Client' }}</div>
-                <div class="text-xs text-gray-500 dark:text-slate-400">{{ formatDate(paiement.date_paiement) }} - {{ paiement.reference }}</div>
+                <div class="truncate text-sm font-medium text-gray-900">{{ paiement.client?.nom || 'Client' }}</div>
+                <div class="text-xs text-gray-500">{{ formatDate(paiement.date_paiement) }} - {{ paiement.reference }}</div>
               </div>
-              <div class="whitespace-nowrap font-mono font-bold text-green-700 dark:text-green-300">
+              <div class="whitespace-nowrap font-mono font-bold text-green-700">
                 +{{ formatPrice(paiement.montant) }}
               </div>
             </router-link>
@@ -371,31 +371,31 @@
           </div>
         </section>
 
-        <section class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+        <section class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
           <div class="mb-4 flex items-center justify-between">
-            <h3 class="font-semibold text-gray-900 dark:text-white">Devis en attente</h3>
-            <router-link :to="{ path: '/devis', query: { statut: 'envoye' } }" class="text-xs text-xelltekk-600 hover:underline dark:text-cyan-300">Voir tout</router-link>
+            <h3 class="font-semibold text-gray-900">Devis en attente</h3>
+            <router-link :to="{ path: '/devis', query: { statut: 'envoye' } }" class="text-xs text-xelltekk-600 hover:underline">Voir tout</router-link>
           </div>
           <div v-if="devisEnAttente.length" class="space-y-2">
             <router-link
               v-for="devis in devisEnAttente"
               :key="devis.id"
               :to="{ path: '/devis', query: { open: devis.id } }"
-              class="block rounded-lg border border-gray-200 p-3 transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-xelltekk-400 dark:border-slate-700 dark:hover:bg-slate-800"
+              class="block rounded-lg border border-gray-200 p-3 transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-xelltekk-400"
             >
               <div class="flex items-start justify-between gap-2">
                 <div class="min-w-0 flex-1">
                   <div class="flex items-center gap-2">
-                    <span class="font-mono text-xs font-semibold text-gray-700 dark:text-slate-200">{{ devis.numero }}</span>
+                    <span class="font-mono text-xs font-semibold text-gray-700">{{ devis.numero }}</span>
                     <span class="badge text-[10px]" :class="devis.statut === 'brouillon' ? 'bg-gray-100 text-gray-700' : 'bg-blue-100 text-blue-800'">
                       {{ devis.statut }}
                     </span>
                   </div>
-                  <div class="mt-1 truncate text-sm font-medium text-gray-900 dark:text-white">{{ devis.client?.nom || 'Client' }}</div>
-                  <div class="text-xs text-gray-500 dark:text-slate-400">Validité : {{ formatDate(devis.date_validite) }}</div>
+                  <div class="mt-1 truncate text-sm font-medium text-gray-900">{{ devis.client?.nom || 'Client' }}</div>
+                  <div class="text-xs text-gray-500">Validité : {{ formatDate(devis.date_validite) }}</div>
                 </div>
                 <div class="whitespace-nowrap text-right">
-                  <div class="font-mono font-bold text-gray-900 dark:text-white">{{ formatPrice(devis.total_ttc) }}</div>
+                  <div class="font-mono font-bold text-gray-900">{{ formatPrice(devis.total_ttc) }}</div>
 
                 </div>
               </div>
@@ -406,7 +406,7 @@
           </div>
         </section>
       </div>
-      <section v-if="isManagerDashboard" class="dashboard-block rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:p-5" v-bind="dashboardBlockAttrs('commerciaux')">
+      <section v-if="isManagerDashboard" class="dashboard-block rounded-lg border border-gray-200 bg-white p-4 shadow-sm sm:p-5" v-bind="dashboardBlockAttrs('commerciaux')">
         <DashboardBlockControls
           v-if="isCustomizingDashboard"
           block-id="commerciaux"
@@ -417,8 +417,8 @@
         />
         <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h3 class="font-semibold text-gray-900 dark:text-white">Avancement des commerciaux</h3>
-            <p class="mt-0.5 text-xs text-gray-500 dark:text-slate-400">Objectifs actifs et réalisations sur leur période en cours.</p>
+            <h3 class="font-semibold text-gray-900">Avancement des commerciaux</h3>
+            <p class="mt-0.5 text-xs text-gray-500">Objectifs actifs et réalisations sur leur période en cours.</p>
           </div>
           <div class="flex flex-wrap gap-2">
             <router-link to="/prospection" class="btn-secondary px-3 py-1.5 text-xs">Voir le suivi</router-link>
@@ -430,22 +430,22 @@
 
         <div v-if="avancementCommerciaux.length" class="overflow-x-auto">
           <table class="w-full">
-            <thead class="border-b border-gray-200 bg-gray-50 dark:border-slate-700 dark:bg-slate-800">
+            <thead class="border-b border-gray-200 bg-gray-50">
               <tr>
-                <th class="px-3 py-2 text-left text-xs font-semibold uppercase text-gray-600 dark:text-slate-300">Commercial</th>
-                <th class="px-3 py-2 text-left text-xs font-semibold uppercase text-gray-600 dark:text-slate-300">Score global</th>
-                <th class="px-3 py-2 text-left text-xs font-semibold uppercase text-gray-600 dark:text-slate-300">Prospects</th>
-                <th class="px-3 py-2 text-left text-xs font-semibold uppercase text-gray-600 dark:text-slate-300">Actions</th>
-                <th class="px-3 py-2 text-left text-xs font-semibold uppercase text-gray-600 dark:text-slate-300">Devis</th>
-                <th class="px-3 py-2 text-left text-xs font-semibold uppercase text-gray-600 dark:text-slate-300">CA</th>
+                <th class="px-3 py-2 text-left text-xs font-semibold uppercase text-gray-600">Commercial</th>
+                <th class="px-3 py-2 text-left text-xs font-semibold uppercase text-gray-600">Score global</th>
+                <th class="px-3 py-2 text-left text-xs font-semibold uppercase text-gray-600">Prospects</th>
+                <th class="px-3 py-2 text-left text-xs font-semibold uppercase text-gray-600">Actions</th>
+                <th class="px-3 py-2 text-left text-xs font-semibold uppercase text-gray-600">Devis</th>
+                <th class="px-3 py-2 text-left text-xs font-semibold uppercase text-gray-600">CA</th>
               </tr>
             </thead>
-            <tbody class="divide-y divide-gray-100 dark:divide-slate-700">
-              <tr v-for="ligne in avancementCommerciaux" :key="ligne.commercial?.id || ligne.commercial_id || ligne.id" class="hover:bg-gray-50 dark:hover:bg-slate-800">
+            <tbody class="divide-y divide-gray-100">
+              <tr v-for="ligne in avancementCommerciaux" :key="ligne.commercial?.id || ligne.commercial_id || ligne.id" class="hover:bg-gray-50">
                 <td class="px-3 py-3">
-                  <div class="font-medium text-gray-900 dark:text-white">{{ ligne.commercial?.name || 'Commercial' }}</div>
-                  <div class="text-xs text-gray-500 dark:text-slate-400">{{ formatDate(ligne.periode_debut) }} - {{ formatDate(ligne.periode_fin) }}</div>
-                  <div v-if="!ligne.has_objectif" class="mt-1 text-[11px] font-medium text-orange-700 dark:text-orange-300">Aucun objectif actif</div>
+                  <div class="font-medium text-gray-900">{{ ligne.commercial?.name || 'Commercial' }}</div>
+                  <div class="text-xs text-gray-500">{{ formatDate(ligne.periode_debut) }} - {{ formatDate(ligne.periode_fin) }}</div>
+                  <div v-if="!ligne.has_objectif" class="mt-1 text-[11px] font-medium text-orange-700">Aucun objectif actif</div>
                 </td>
                 <td class="px-3 py-3"><CommercialProgress :percent="ligne.score_global" score /></td>
                 <td class="px-3 py-3"><CommercialProgress :value="ligne.realisation.prospects" :target="ligne.targets.prospects" :percent="ligne.percentages.prospects" /></td>
@@ -456,7 +456,7 @@
             </tbody>
           </table>
         </div>
-        <div v-else class="rounded-lg border border-dashed border-gray-300 px-4 py-8 text-center text-sm text-gray-500 dark:border-slate-700 dark:text-slate-400">
+        <div v-else class="rounded-lg border border-dashed border-gray-300 px-4 py-8 text-center text-sm text-gray-500">
           Aucun objectif commercial actif. Créez les objectifs depuis la rubrique Prospection.
         </div>
       </section>
@@ -673,10 +673,10 @@ const CommercialProgress = {
 
       return h('div', { class: 'min-w-28' }, [
         h('div', { class: 'mb-1 flex items-center justify-between gap-2 text-xs' }, [
-          h('span', { class: 'font-semibold text-gray-800 dark:text-slate-100' }, value),
+          h('span', { class: 'font-semibold text-gray-800' }, value),
           props.score ? null : h('span', { class: color.text }, percent === null ? '-' : `${percent}%`),
         ]),
-        h('div', { class: 'h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-slate-700' }, [
+        h('div', { class: 'h-2 overflow-hidden rounded-full bg-gray-200' }, [
           h('div', { class: `h-full rounded-full ${color.bar}`, style: { width: `${width}%` } }),
         ]),
       ])

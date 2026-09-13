@@ -1,12 +1,12 @@
 <template>
   <div class="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
-    <section class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+    <section class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
       <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h3 class="font-bold text-slate-900 dark:text-white">Types de conges</h3>
-          <p class="text-sm text-slate-500 dark:text-slate-400">Parametrez les quotas, justificatifs et couleurs.</p>
+          <h3 class="font-bold text-slate-900">Types de conges</h3>
+          <p class="text-sm text-slate-500">Parametrez les quotas, justificatifs et couleurs.</p>
         </div>
-        <button v-if="typeForm.id" type="button" class="text-sm text-slate-600 hover:text-slate-900 dark:text-slate-300" @click="resetType">Annuler</button>
+        <button v-if="typeForm.id" type="button" class="text-sm text-slate-600 hover:text-slate-900" @click="resetType">Annuler</button>
       </div>
 
       <form class="mt-3 grid gap-2 sm:grid-cols-2" @submit.prevent="saveType">
@@ -29,31 +29,31 @@
         <button type="button" class="btn-secondary" @click="load">Actualiser</button>
       </div>
 
-      <div class="mt-4 divide-y divide-slate-100 dark:divide-slate-800">
+      <div class="mt-4 divide-y divide-slate-100">
         <div v-for="t in data.types_conges" :key="t.id" class="flex flex-wrap items-center gap-3 py-3 text-sm">
           <span class="h-3 w-3 rounded-full" :style="{ backgroundColor: t.couleur }"></span>
           <div class="min-w-0 flex-1">
-            <strong class="text-slate-900 dark:text-white">{{ t.libelle }}</strong>
-            <p class="text-xs text-slate-500 dark:text-slate-400">{{ t.code }} - {{ formatJours(t.jours_annuels) }} jours - {{ t.justificatif_requis ? 'justificatif requis' : 'sans justificatif obligatoire' }}</p>
+            <strong class="text-slate-900">{{ t.libelle }}</strong>
+            <p class="text-xs text-slate-500">{{ t.code }} - {{ formatJours(t.jours_annuels) }} jours - {{ t.justificatif_requis ? 'justificatif requis' : 'sans justificatif obligatoire' }}</p>
           </div>
           <span class="badge" :class="t.is_active ? 'bg-green-100 text-green-800' : 'bg-slate-100 text-slate-600'">{{ t.is_active ? 'Actif' : 'Inactif' }}</span>
-          <button type="button" class="text-blue-700 hover:underline dark:text-blue-300" @click="editType(t)">Modifier</button>
-          <button v-if="t.is_active" type="button" class="text-red-700 hover:underline dark:text-red-300" @click="disableType(t)">Desactiver</button>
+          <button type="button" class="text-blue-700 hover:underline" @click="editType(t)">Modifier</button>
+          <button v-if="t.is_active" type="button" class="text-red-700 hover:underline" @click="disableType(t)">Desactiver</button>
         </div>
         <p v-if="!data.types_conges.length" class="empty">Aucun type de conge.</p>
       </div>
     </section>
 
-    <section class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+    <section class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
       <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h3 class="font-bold text-slate-900 dark:text-white">Annonces internes</h3>
-          <p class="text-sm text-slate-500 dark:text-slate-400">Publiez les messages visibles sur le tableau de bord de tous les utilisateurs.</p>
+          <h3 class="font-bold text-slate-900">Annonces internes</h3>
+          <p class="text-sm text-slate-500">Publiez les messages visibles sur le tableau de bord de tous les utilisateurs.</p>
         </div>
-        <button v-if="annonceForm.id" type="button" class="text-sm text-slate-600 hover:text-slate-900 dark:text-slate-300" @click="resetAnnonce">Nouvelle annonce</button>
+        <button v-if="annonceForm.id" type="button" class="text-sm text-slate-600 hover:text-slate-900" @click="resetAnnonce">Nouvelle annonce</button>
       </div>
 
-      <form class="mt-3 rounded-lg border border-slate-100 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-950" @submit.prevent="saveAnnonce">
+      <form class="mt-3 rounded-lg border border-slate-100 bg-slate-50 p-3" @submit.prevent="saveAnnonce">
         <div class="grid gap-3">
           <input v-model="annonceForm.titre" class="input" placeholder="Titre de l'annonce" required />
           <textarea v-model="annonceForm.contenu" rows="4" class="input" placeholder="Message destine aux utilisateurs" required></textarea>
@@ -69,10 +69,10 @@
         </div>
       </form>
 
-      <div v-if="annoncePreview" class="mt-3 rounded-lg border border-blue-100 bg-blue-50 p-3 dark:border-blue-500/30 dark:bg-blue-950/30">
-        <p class="text-xs font-semibold uppercase text-blue-700 dark:text-blue-200">Apercu dashboard</p>
-        <h4 class="mt-1 font-semibold text-slate-900 dark:text-white">{{ annonceForm.titre }}</h4>
-        <p class="mt-1 whitespace-pre-line text-sm text-slate-600 dark:text-slate-300">{{ annonceForm.contenu }}</p>
+      <div v-if="annoncePreview" class="mt-3 rounded-lg border border-blue-100 bg-blue-50 p-3">
+        <p class="text-xs font-semibold uppercase text-blue-700">Apercu dashboard</p>
+        <h4 class="mt-1 font-semibold text-slate-900">{{ annonceForm.titre }}</h4>
+        <p class="mt-1 whitespace-pre-line text-sm text-slate-600">{{ annonceForm.contenu }}</p>
       </div>
 
       <div class="mt-4 grid gap-2 lg:grid-cols-[1fr_170px_auto]">
@@ -88,24 +88,24 @@
       </div>
 
       <div class="mt-4 space-y-3">
-        <article v-for="a in data.annonces" :key="a.id" class="rounded-lg border border-slate-200 p-3 text-sm dark:border-slate-700">
+        <article v-for="a in data.annonces" :key="a.id" class="rounded-lg border border-slate-200 p-3 text-sm">
           <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <div class="min-w-0 flex-1">
               <div class="flex flex-wrap items-center gap-2">
-                <strong class="text-slate-900 dark:text-white">{{ a.titre }}</strong>
+                <strong class="text-slate-900">{{ a.titre }}</strong>
                 <span class="badge" :class="statusMeta(a).class">{{ statusMeta(a).label }}</span>
               </div>
-              <p class="mt-1 whitespace-pre-line text-slate-600 dark:text-slate-300">{{ a.contenu }}</p>
-              <p class="mt-2 text-xs text-slate-400 dark:text-slate-500">
+              <p class="mt-1 whitespace-pre-line text-slate-600">{{ a.contenu }}</p>
+              <p class="mt-2 text-xs text-slate-400">
                 Publiee : {{ date(a.publie_le) }} - Auteur : {{ a.auteur?.name || 'RH' }}
                 <span v-if="a.expire_le"> - Expire : {{ date(a.expire_le) }}</span>
               </p>
             </div>
           </div>
-          <div class="mt-3 flex flex-wrap gap-3 border-t border-slate-100 pt-3 dark:border-slate-800">
-            <button type="button" class="text-blue-700 hover:underline dark:text-blue-300" @click="editAnnonce(a)">Modifier</button>
-            <button v-if="a.is_active" type="button" class="text-red-700 hover:underline dark:text-red-300" @click="disableAnnonce(a)">Masquer</button>
-            <button v-else type="button" class="text-green-700 hover:underline dark:text-green-300" @click="reactivateAnnonce(a)">Republier</button>
+          <div class="mt-3 flex flex-wrap gap-3 border-t border-slate-100 pt-3">
+            <button type="button" class="text-blue-700 hover:underline" @click="editAnnonce(a)">Modifier</button>
+            <button v-if="a.is_active" type="button" class="text-red-700 hover:underline" @click="disableAnnonce(a)">Masquer</button>
+            <button v-else type="button" class="text-green-700 hover:underline" @click="reactivateAnnonce(a)">Republier</button>
           </div>
         </article>
         <p v-if="!data.annonces.length" class="empty">Aucune annonce pour ces filtres.</p>
@@ -146,13 +146,13 @@ function formatJours(value) {
 }
 
 function statusMeta(annonce) {
-  if (!annonce.is_active) return { label: 'Masquee', class: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300' }
+  if (!annonce.is_active) return { label: 'Masquee', class: 'bg-slate-100 text-slate-600' }
   const now = Date.now()
   const publishedAt = annonce.publie_le ? new Date(annonce.publie_le).getTime() : null
   const expiresAt = annonce.expire_le ? new Date(annonce.expire_le).getTime() : null
-  if (publishedAt && publishedAt > now) return { label: 'Programmee', class: 'bg-blue-100 text-blue-800 dark:bg-blue-950/40 dark:text-blue-200' }
-  if (expiresAt && expiresAt < now) return { label: 'Expiree', class: 'bg-orange-100 text-orange-800 dark:bg-orange-950/40 dark:text-orange-200' }
-  return { label: 'Visible', class: 'bg-green-100 text-green-800 dark:bg-green-950/40 dark:text-green-200' }
+  if (publishedAt && publishedAt > now) return { label: 'Programmee', class: 'bg-blue-100 text-blue-800' }
+  if (expiresAt && expiresAt < now) return { label: 'Expiree', class: 'bg-orange-100 text-orange-800' }
+  return { label: 'Visible', class: 'bg-green-100 text-green-800' }
 }
 
 function payloadAnnonce(source = annonceForm) {
@@ -234,8 +234,8 @@ onMounted(load)
 </script>
 
 <style scoped>
-.label { @apply space-y-1 text-sm font-medium text-slate-700 dark:text-slate-200; }
-.check { @apply flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200; }
+.label { @apply space-y-1 text-sm font-medium text-slate-700; }
+.check { @apply flex items-center gap-2 text-sm text-slate-700; }
 .badge { @apply rounded px-2 py-1 text-xs font-semibold; }
-.empty { @apply rounded-lg border border-dashed border-slate-300 py-10 text-center text-sm text-slate-400 dark:border-slate-700; }
+.empty { @apply rounded-lg border border-dashed border-slate-300 py-10 text-center text-sm text-slate-400; }
 </style>
