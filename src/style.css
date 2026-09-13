@@ -48,7 +48,7 @@
     --saytu-sidebar-via: #0f4c81;
     --saytu-sidebar-to: #0e7490;
     --saytu-brand-from: #0ea5e9;
-    --saytu-brand-to: #2dd4bf;
+    --saytu-brand-to: #22d3ee;
     --saytu-primary: #0ea5e9;
     --saytu-primary-hover: #0284c7;
     --saytu-focus: #22d3ee;
@@ -196,9 +196,19 @@
     box-shadow: 0 16px 50px rgb(15 23 42 / 0.06);
   }
   .dashboard-page {
-    --dashboard-tone-1: var(--saytu-brand-from, #2563eb);
-    --dashboard-tone-2: var(--saytu-brand-to, #22d3ee);
-    --dashboard-tone-3: var(--saytu-sidebar-from, #0f172a);
+    --dashboard-tone-1: var(--saytu-primary, #0ea5e9);
+    --dashboard-tone-2: var(--saytu-focus, #22d3ee);
+    --dashboard-tone-3: var(--saytu-primary-hover, #0284c7);
+    --dashboard-panel-bg: linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--saytu-focus, #22d3ee) 13%, #ffffff),
+      color-mix(in srgb, var(--saytu-primary, #0ea5e9) 7%, #ffffff)
+    );
+    --dashboard-panel-border: color-mix(in srgb, var(--saytu-primary, #0ea5e9) 30%, var(--saytu-border, #bae6fd));
+    --dashboard-row-bg: color-mix(in srgb, var(--saytu-focus, #22d3ee) 10%, #ffffff);
+    --dashboard-row-hover: color-mix(in srgb, var(--saytu-primary, #0ea5e9) 13%, #ffffff);
+    --dashboard-text-main: var(--saytu-topbar-title, #082f49);
+    --dashboard-text-muted: var(--saytu-topbar-subtitle, #0f6f8f);
   }
   .theme-hero,
   .dashboard-hero {
@@ -269,6 +279,52 @@
   }
   .dashboard-kpi-value {
     color: var(--dashboard-card-color);
+  }
+  .dashboard-page .bg-white,
+  .dashboard-page .bg-gray-50,
+  .dashboard-page .bg-blue-50,
+  .dashboard-page .bg-orange-50,
+  .dashboard-page .bg-red-50 {
+    background: var(--dashboard-panel-bg) !important;
+  }
+  .dashboard-page .border-gray-200,
+  .dashboard-page .border-gray-300,
+  .dashboard-page .border-blue-100,
+  .dashboard-page .border-orange-100,
+  .dashboard-page .border-red-100 {
+    border-color: var(--dashboard-panel-border) !important;
+  }
+  .dashboard-page .text-gray-900,
+  .dashboard-page .text-gray-800,
+  .dashboard-page .text-gray-700,
+  .dashboard-page .text-blue-950 {
+    color: var(--dashboard-text-main) !important;
+  }
+  .dashboard-page .text-gray-600,
+  .dashboard-page .text-gray-500,
+  .dashboard-page .text-gray-400,
+  .dashboard-page .text-blue-700 {
+    color: var(--dashboard-text-muted) !important;
+  }
+  .dashboard-page .text-green-600,
+  .dashboard-page .text-green-700,
+  .dashboard-page .text-orange-700,
+  .dashboard-page .text-red-700,
+  .dashboard-page .text-red-800,
+  .dashboard-page .text-blue-800,
+  .dashboard-page .text-xelltekk-600,
+  .dashboard-page .text-xelltekk-700 {
+    color: var(--dashboard-tone-3) !important;
+  }
+  .dashboard-page .bg-gray-100,
+  .dashboard-page .bg-blue-100,
+  .dashboard-page .bg-red-200,
+  .dashboard-page .badge {
+    background-color: color-mix(in srgb, var(--saytu-focus, #22d3ee) 18%, #ffffff) !important;
+    color: var(--dashboard-tone-3) !important;
+  }
+  .dashboard-page .divide-y > :not([hidden]) ~ :not([hidden]) {
+    border-color: var(--dashboard-panel-border) !important;
   }
   .dashboard-rank {
     background: color-mix(in srgb, var(--dashboard-card-color) 16%, var(--saytu-surface, #ffffff));

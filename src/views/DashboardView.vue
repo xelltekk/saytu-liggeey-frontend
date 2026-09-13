@@ -112,7 +112,7 @@
               v-for="produit in stockAlertes"
               :key="produit.id"
               to="/stock"
-              class="flex items-center justify-between gap-3 rounded-lg border border-orange-100 bg-orange-50 p-3 transition hover:bg-orange-100"
+              class="flex items-center justify-between gap-3 rounded-lg border border-orange-100 bg-orange-50 p-3 transition hover:bg-cyan-100"
             >
               <div class="min-w-0">
                 <div class="truncate text-sm font-semibold text-gray-900">{{ produit.libelle }}</div>
@@ -139,7 +139,7 @@
               v-for="mouvement in derniersMouvementsStock"
               :key="mouvement.id"
               to="/stock"
-              class="block rounded-lg border border-gray-200 p-3 transition hover:bg-gray-50"
+              class="block rounded-lg border border-gray-200 p-3 transition hover:bg-cyan-50"
             >
               <div class="flex items-start justify-between gap-3">
                 <div class="min-w-0">
@@ -245,7 +245,7 @@
               v-for="(client, index) in topClients"
               :key="client.id"
               :to="{ path: '/clients', query: { open: client.id } }"
-              class="flex items-center gap-3 rounded p-2 transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-xelltekk-400"
+              class="flex items-center gap-3 rounded p-2 transition hover:bg-cyan-50 focus:outline-none focus:ring-2 focus:ring-cyan-300"
             >
               <div class="flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold" :class="rangColor(index)">
                 {{ index + 1 }}
@@ -274,7 +274,7 @@
               v-for="(produit, index) in topProduits"
               :key="produit.id"
               :to="{ path: '/produits', query: { open: produit.id } }"
-              class="flex items-center gap-3 rounded p-2 transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-xelltekk-400"
+              class="flex items-center gap-3 rounded p-2 transition hover:bg-cyan-50 focus:outline-none focus:ring-2 focus:ring-cyan-300"
             >
               <div class="flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold" :class="rangColor(index)">
                 {{ index + 1 }}
@@ -314,7 +314,7 @@
             v-for="facture in facturesRetard"
             :key="facture.id"
             :to="{ path: '/factures', query: { open: facture.id } }"
-            class="block rounded-lg border border-red-100 bg-red-50 p-3 transition-colors hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-300"
+            class="block rounded-lg border border-red-100 bg-red-50 p-3 transition-colors hover:bg-cyan-100 focus:outline-none focus:ring-2 focus:ring-cyan-300"
           >
             <div class="flex items-start justify-between gap-2">
               <div class="min-w-0 flex-1">
@@ -355,7 +355,7 @@
               v-for="paiement in derniersPaiements"
               :key="paiement.id"
               to="/paiements"
-              class="flex items-center gap-3 rounded p-2 transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-xelltekk-400"
+              class="flex items-center gap-3 rounded p-2 transition hover:bg-cyan-50 focus:outline-none focus:ring-2 focus:ring-cyan-300"
             >
               <div class="min-w-0 flex-1">
                 <div class="truncate text-sm font-medium text-gray-900">{{ paiement.client?.nom || 'Client' }}</div>
@@ -381,7 +381,7 @@
               v-for="devis in devisEnAttente"
               :key="devis.id"
               :to="{ path: '/devis', query: { open: devis.id } }"
-              class="block rounded-lg border border-gray-200 p-3 transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-xelltekk-400"
+              class="block rounded-lg border border-gray-200 p-3 transition hover:bg-cyan-50 focus:outline-none focus:ring-2 focus:ring-cyan-300"
             >
               <div class="flex items-start justify-between gap-2">
                 <div class="min-w-0 flex-1">
@@ -441,7 +441,7 @@
               </tr>
             </thead>
             <tbody class="divide-y divide-gray-100">
-              <tr v-for="ligne in avancementCommerciaux" :key="ligne.commercial?.id || ligne.commercial_id || ligne.id" class="hover:bg-gray-50">
+              <tr v-for="ligne in avancementCommerciaux" :key="ligne.commercial?.id || ligne.commercial_id || ligne.id" class="hover:bg-cyan-50">
                 <td class="px-3 py-3">
                   <div class="font-medium text-gray-900">{{ ligne.commercial?.name || 'Commercial' }}</div>
                   <div class="text-xs text-gray-500">{{ formatDate(ligne.periode_debut) }} - {{ formatDate(ligne.periode_fin) }}</div>
@@ -653,7 +653,7 @@ const KpiCard = {
       props.to ? RouterLink : 'div',
       {
         ...(props.to ? { to: props.to } : {}),
-        class: `dashboard-kpi-card ${toneClass} block rounded-lg border p-3 transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-xelltekk-400`,
+        class: `dashboard-kpi-card ${toneClass} block rounded-lg border p-3 transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-cyan-300`,
       },
       props.to ? { default: children } : children()
     )
