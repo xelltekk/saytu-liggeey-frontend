@@ -601,6 +601,9 @@
     --saytu-border-themed: color-mix(in srgb, var(--saytu-border, #e2e8f0) 72%, var(--saytu-primary, #2563eb) 28%);
     --saytu-text-themed: var(--saytu-topbar-title, #0f172a);
     --saytu-muted-themed: color-mix(in srgb, var(--saytu-topbar-subtitle, #64748b) 84%, var(--saytu-primary, #2563eb));
+    --saytu-shell-text: var(--saytu-topbar-title, #082f49);
+    --saytu-muted: var(--saytu-topbar-subtitle, #0f6f8f);
+    --saytu-primary-soft: color-mix(in srgb, var(--saytu-surface, #ffffff) 72%, var(--saytu-focus, #22d3ee) 28%);
   }
 
   html[data-theme] .auth-card {
@@ -610,6 +613,9 @@
     --saytu-border-themed: color-mix(in srgb, var(--saytu-border, #e2e8f0) 72%, var(--saytu-primary, #2563eb) 28%);
     --saytu-text-themed: var(--saytu-topbar-title, #0f172a);
     --saytu-muted-themed: color-mix(in srgb, var(--saytu-topbar-subtitle, #64748b) 84%, var(--saytu-primary, #2563eb));
+    --saytu-shell-text: var(--saytu-topbar-title, #082f49);
+    --saytu-muted: var(--saytu-topbar-subtitle, #0f6f8f);
+    --saytu-primary-soft: color-mix(in srgb, var(--saytu-surface, #ffffff) 72%, var(--saytu-focus, #22d3ee) 28%);
     background:
       radial-gradient(circle at top right, color-mix(in srgb, var(--saytu-brand-to, #22d3ee) 10%, transparent), transparent 30%),
       var(--saytu-surface-tinted) !important;
