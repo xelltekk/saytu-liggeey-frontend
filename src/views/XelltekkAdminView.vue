@@ -35,9 +35,25 @@
       </article>
     </section>
 
-    <section class="xell-panel overflow-hidden">
+    <nav class="xell-admin-nav" aria-label="Navigation XELLTEKK Admin">
+      <a
+        v-for="block in adminBlocks"
+        :key="block.id"
+        :href="`#${block.id}`"
+        class="xell-admin-nav-card"
+      >
+        <span class="xell-admin-nav-index">{{ block.index }}</span>
+        <span class="min-w-0">
+          <span class="block truncate text-sm font-black">{{ block.label }}</span>
+          <span class="block truncate text-[11px] font-bold opacity-80">{{ block.value }}</span>
+        </span>
+      </a>
+    </nav>
+
+    <section id="sante-saas" class="xell-panel xell-section-anchor overflow-hidden">
       <div class="xell-panel-header">
-        <div>
+        <div class="xell-panel-title">
+          <span class="xell-section-kicker">Étape 1</span>
           <h2 class="font-black text-[color:var(--saytu-shell-text,#0f172a)]">Santé SaaS</h2>
           <p class="text-xs text-[color:var(--saytu-muted,#64748b)]">
             Contrôle rapide de l’isolation, des sous-domaines, licences, utilisateurs et fichiers par client.
@@ -158,9 +174,10 @@
       </div>
     </section>
 
-    <section class="xell-panel overflow-hidden">
+    <section id="supervision-production" class="xell-panel xell-section-anchor overflow-hidden">
       <div class="xell-panel-header">
-        <div>
+        <div class="xell-panel-title">
+          <span class="xell-section-kicker">Étape 2</span>
           <h2 class="font-black text-[color:var(--saytu-shell-text,#0f172a)]">Supervision production</h2>
           <p class="text-xs text-[color:var(--saytu-muted,#64748b)]">
             Les 8 points critiques SaaS : base, isolation, emails, facturation, relances, support, sécurité et sauvegardes.
@@ -189,9 +206,10 @@
       </div>
     </section>
 
-    <section class="xell-panel overflow-hidden">
+    <section id="pilotage-commercial" class="xell-panel xell-section-anchor overflow-hidden">
       <div class="xell-panel-header">
-        <div>
+        <div class="xell-panel-title">
+          <span class="xell-section-kicker">Étape 3</span>
           <h2 class="font-black text-[color:var(--saytu-shell-text,#0f172a)]">Pilotage commercial SaaS</h2>
           <p class="text-xs text-[color:var(--saytu-muted,#64748b)]">
             Abonnements, impayés, support, sécurité et sauvegardes clients depuis un seul endroit.
@@ -512,9 +530,10 @@
       </div>
     </section>
 
-    <section v-if="licenceActionGroups.length" class="xell-panel overflow-hidden">
+    <section id="centre-actions" class="xell-panel xell-section-anchor overflow-hidden">
       <div class="xell-panel-header">
-        <div>
+        <div class="xell-panel-title">
+          <span class="xell-section-kicker">Étape 4</span>
           <h2 class="font-black text-[color:var(--saytu-shell-text,#0f172a)]">Centre d’action licences</h2>
           <p class="text-xs text-[color:var(--saytu-muted,#64748b)]">
             Les dossiers à traiter en priorité pour garder les clients actifs et relancer vite.
@@ -594,12 +613,17 @@
             </p>
           </div>
         </article>
+
+        <div v-if="!licenceActionGroups.length" class="xell-empty-state xl:col-span-4">
+          Aucune action urgente : les licences actives, renouvellements et onboardings sont à jour.
+        </div>
       </div>
     </section>
 
-    <section v-if="demoRequests.length" class="xell-panel overflow-hidden">
+    <section id="demandes-demo" class="xell-panel xell-section-anchor overflow-hidden">
       <div class="xell-panel-header">
-        <div>
+        <div class="xell-panel-title">
+          <span class="xell-section-kicker">Étape 5</span>
           <h2 class="font-black text-[color:var(--saytu-shell-text,#0f172a)]">Demandes démo</h2>
           <p class="text-xs text-[color:var(--saytu-muted,#64748b)]">
             Prospects captés depuis la page publique.
@@ -636,12 +660,17 @@
             Préparer licence
           </button>
         </article>
+
+        <div v-if="!demoRequests.length" class="xell-empty-state lg:col-span-2">
+          Aucune demande démo en attente. Les nouveaux prospects apparaîtront ici pour créer une licence rapidement.
+        </div>
       </div>
     </section>
 
-    <section class="xell-panel overflow-hidden">
+    <section id="configuration-email" class="xell-panel xell-section-anchor overflow-hidden">
       <div class="xell-panel-header">
-        <div>
+        <div class="xell-panel-title">
+          <span class="xell-section-kicker">Étape 6</span>
           <h2 class="font-black text-[color:var(--saytu-shell-text,#0f172a)]">Configuration email</h2>
           <p class="text-xs text-[color:var(--saytu-muted,#64748b)]">
             Envoi serveur des offres XELLTEKK avec devis et contrat PDF en pièces jointes.
@@ -681,7 +710,7 @@
 
           <label>
             <span class="label">Sécurité</span>
-            <select v-model="emailForm.scheme" class="input">
+            <select v-model="emailForm.scheme" class="input xell-select">
               <option value="smtp">STARTTLS / 587</option>
               <option value="smtps">SSL / 465</option>
             </select>
@@ -727,9 +756,10 @@
       </div>
     </section>
 
-    <section class="xell-panel overflow-hidden">
+    <section id="onboarding-client" class="xell-panel xell-section-anchor overflow-hidden">
       <div class="xell-panel-header">
-        <div>
+        <div class="xell-panel-title">
+          <span class="xell-section-kicker">Étape 7</span>
           <h2 class="font-black text-[color:var(--saytu-shell-text,#0f172a)]">Assistant onboarding client</h2>
           <p class="text-xs text-[color:var(--saytu-muted,#64748b)]">
             Un parcours court : client, offre, documents commerciaux, puis licence d’activation.
@@ -799,10 +829,11 @@
       Chargement de l’espace XELLTEKK Admin...
     </section>
 
-    <section v-else class="grid gap-4 xl:grid-cols-[480px_1fr]">
+    <section v-else id="formulaire-licence" class="xell-section-anchor grid gap-4 xl:grid-cols-[480px_1fr]">
       <form class="xell-panel overflow-hidden" @submit.prevent="saveLicence">
         <div class="xell-panel-header">
-          <div>
+          <div class="xell-panel-title">
+            <span class="xell-section-kicker">Étape 8</span>
             <h2 class="font-black text-[color:var(--saytu-shell-text,#0f172a)]">
               {{ editingId ? 'Modifier une licence' : 'Créer une licence' }}
             </h2>
@@ -899,7 +930,7 @@
 
             <label>
               <span class="label">Devise</span>
-              <select v-model="form.devise" class="input">
+              <select v-model="form.devise" class="input xell-select">
                 <option value="XOF">XOF</option>
                 <option value="EUR">EUR</option>
                 <option value="USD">USD</option>
@@ -928,7 +959,7 @@
             <div class="grid gap-3 md:grid-cols-2">
               <label>
                 <span class="label">Périodicité</span>
-                <select v-model="form.billing_cycle" class="input" @change="applyPaymentTermsForCycle(true)">
+                <select v-model="form.billing_cycle" class="input xell-select" @change="applyPaymentTermsForCycle(true)">
                   <option v-for="(label, key) in billingCycles" :key="key" :value="key">{{ label }}</option>
                 </select>
               </label>
@@ -945,9 +976,10 @@
 
               <label>
                 <span class="label">Support</span>
-                <select v-model="form.support_level" class="input">
-                  <option v-for="(label, key) in supportLevels" :key="key" :value="label">{{ supportLabel(key) }}</option>
+                <select v-model="form.support_level" class="input xell-select">
+                  <option v-for="(description, key) in supportLevels" :key="key" :value="description">{{ supportLabel(key) }}</option>
                 </select>
+                <p class="mt-1 text-[11px] font-semibold text-[color:var(--saytu-muted,#64748b)]">{{ form.support_level }}</p>
               </label>
 
               <label class="md:col-span-2">
@@ -1383,6 +1415,56 @@ const supportTickets = computed(() => Array.isArray(saasCommerce.support_tickets
 const securityEvents = computed(() => Array.isArray(saasCommerce.security_events) ? saasCommerce.security_events : [])
 const tenantBackups = computed(() => Array.isArray(saasCommerce.backups) ? saasCommerce.backups : [])
 const productionChecks = computed(() => Array.isArray(productionMonitoring.checks) ? productionMonitoring.checks : [])
+const adminBlocks = computed(() => [
+  {
+    index: 1,
+    id: 'sante-saas',
+    label: 'Santé SaaS',
+    value: `${saasHealth.summary.ready_clients || 0}/${saasHealth.summary.total_clients || 0} prêt(s)`,
+  },
+  {
+    index: 2,
+    id: 'supervision-production',
+    label: 'Supervision',
+    value: productionMonitoring.status_label || 'À vérifier',
+  },
+  {
+    index: 3,
+    id: 'pilotage-commercial',
+    label: 'Commercial',
+    value: `${saasCommerce.summary.unpaid_count || 0} impayé(s)`,
+  },
+  {
+    index: 4,
+    id: 'centre-actions',
+    label: 'Actions licences',
+    value: `${licenceActionTotal.value || 0} action(s)`,
+  },
+  {
+    index: 5,
+    id: 'demandes-demo',
+    label: 'Demandes démo',
+    value: `${demoRequests.value.length} prospect(s)`,
+  },
+  {
+    index: 6,
+    id: 'configuration-email',
+    label: 'Email SMTP',
+    value: emailSettings.configured ? 'SMTP prêt' : 'À configurer',
+  },
+  {
+    index: 7,
+    id: 'onboarding-client',
+    label: 'Onboarding',
+    value: activeOnboarding.value ? `${activeOnboarding.value.progress || 0}%` : 'Pack client',
+  },
+  {
+    index: 8,
+    id: 'formulaire-licence',
+    label: 'Formulaire',
+    value: editingId.value ? 'Édition licence' : 'Nouvelle licence',
+  },
+])
 
 const saasHealthCards = computed(() => [
   {
@@ -3028,6 +3110,74 @@ function sortByUrgency(a, b) {
   border-radius: 1rem;
 }
 
+.xell-section-anchor {
+  scroll-margin-top: 6rem;
+}
+
+.xell-admin-nav {
+  display: grid;
+  gap: 0.65rem;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+}
+
+.xell-admin-nav-card {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 0;
+  border: 1px solid var(--saytu-border, #e2e8f0);
+  border-radius: 1rem;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--saytu-surface, #ffffff) 88%, var(--saytu-focus, #22d3ee) 12%),
+    color-mix(in srgb, var(--saytu-surface, #ffffff) 96%, var(--saytu-primary, #0ea5e9) 4%)
+  );
+  color: var(--saytu-shell-text, #082f49);
+  padding: 0.65rem 0.75rem;
+  text-decoration: none;
+  transition: 160ms ease;
+}
+
+.xell-admin-nav-card:hover {
+  border-color: color-mix(in srgb, var(--saytu-primary, #0ea5e9) 55%, var(--saytu-border, #bae6fd));
+  transform: translateY(-1px);
+  box-shadow: 0 12px 28px rgb(14 165 233 / 0.12);
+}
+
+.xell-admin-nav-index,
+.xell-section-kicker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 1px solid color-mix(in srgb, var(--saytu-primary, #0ea5e9) 45%, var(--saytu-border, #bae6fd));
+  background: color-mix(in srgb, var(--saytu-focus, #22d3ee) 18%, var(--saytu-surface, #ffffff));
+  color: var(--saytu-primary-hover, #0284c7);
+  font-weight: 900;
+}
+
+.xell-admin-nav-index {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.8rem;
+  font-size: 0.78rem;
+}
+
+.xell-panel-title {
+  min-width: 0;
+}
+
+.xell-section-kicker {
+  width: max-content;
+  margin-bottom: 0.35rem;
+  border-radius: 999px;
+  padding: 0.18rem 0.55rem;
+  font-size: 0.65rem;
+  letter-spacing: 0.12em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
 .xell-select {
   color: var(--saytu-shell-text, #0f172a) !important;
   background-color: color-mix(in srgb, var(--saytu-surface, #ffffff) 92%, var(--saytu-primary, #2563eb) 8%) !important;
@@ -3508,6 +3658,17 @@ function sortByUrgency(a, b) {
   text-align: center;
   color: var(--saytu-muted, #64748b);
   font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.xell-empty-state {
+  border: 1px dashed color-mix(in srgb, var(--saytu-primary, #0ea5e9) 38%, var(--saytu-border, #bae6fd));
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--saytu-surface, #ffffff) 86%, var(--saytu-focus, #22d3ee) 14%);
+  color: var(--saytu-muted, #64748b);
+  padding: 1rem;
+  text-align: center;
+  font-size: 0.85rem;
   font-weight: 800;
 }
 
