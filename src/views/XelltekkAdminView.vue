@@ -693,6 +693,11 @@
             <input v-model="emailForm.from_name" class="input" placeholder="XELLTEKK" />
           </label>
 
+          <label>
+            <span class="label">Destinataire demandes démo</span>
+            <input v-model="emailForm.demo_notification_to" type="email" class="input" placeholder="xelltekk@xelltekk.com" />
+          </label>
+
           <label class="flex items-end gap-2 rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-shell-bg,#f8fafc)] px-3 py-2">
             <input v-model="emailForm.is_active" type="checkbox" class="h-4 w-4 accent-[color:var(--saytu-primary,#2563eb)]" />
             <span class="pb-1 text-sm font-bold text-[color:var(--saytu-shell-text,#0f172a)]">Envoi serveur actif</span>
@@ -732,6 +737,9 @@
           <p class="mt-2 text-sm font-bold text-[color:var(--saytu-shell-text,#0f172a)]">{{ emailSettings.status_message }}</p>
           <p class="mt-1 text-xs text-[color:var(--saytu-muted,#64748b)]">
             Mot de passe : {{ emailSettings.password_configured ? 'configuré et chiffré' : 'non renseigné' }}
+          </p>
+          <p class="mt-1 text-xs text-[color:var(--saytu-muted,#64748b)]">
+            Alertes démo : {{ emailSettings.demo_notification_to || emailSettings.from_address }}
           </p>
           <p v-if="emailSettings.last_tested_at" class="mt-1 text-xs text-[color:var(--saytu-muted,#64748b)]">
             Dernier test : {{ formatDateTime(emailSettings.last_tested_at) }}
@@ -1798,6 +1806,7 @@ function hydrateEmailSettings(settings = null) {
     username: normalized.username || 'xelltekk@xelltekk.com',
     from_address: normalized.from_address || 'xelltekk@xelltekk.com',
     from_name: normalized.from_name || 'XELLTEKK',
+    demo_notification_to: normalized.demo_notification_to || normalized.from_address || 'xelltekk@xelltekk.com',
     test_to: emailForm.test_to || normalized.from_address || 'xelltekk@xelltekk.com',
   })
 }
@@ -2549,6 +2558,7 @@ async function saveEmailSettings(showToast = true) {
       username: emailForm.username || emailForm.from_address || 'xelltekk@xelltekk.com',
       from_address: emailForm.from_address || emailForm.username || 'xelltekk@xelltekk.com',
       from_name: emailForm.from_name || 'XELLTEKK',
+      demo_notification_to: emailForm.demo_notification_to || emailForm.from_address || 'xelltekk@xelltekk.com',
     }
     if (emailForm.password) payload.password = emailForm.password
 
@@ -2739,6 +2749,7 @@ function emptyEmailSettings() {
     username: 'xelltekk@xelltekk.com',
     from_address: 'xelltekk@xelltekk.com',
     from_name: 'XELLTEKK',
+    demo_notification_to: 'xelltekk@xelltekk.com',
     password_configured: false,
     configured: false,
     status_message: 'Mot de passe SMTP manquant : saisissez-le dans la configuration email XELLTEKK.',
@@ -2757,6 +2768,7 @@ function emptyEmailForm() {
     password: '',
     from_address: 'xelltekk@xelltekk.com',
     from_name: 'XELLTEKK',
+    demo_notification_to: 'xelltekk@xelltekk.com',
     test_to: 'xelltekk@xelltekk.com',
   }
 }
