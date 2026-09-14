@@ -1080,50 +1080,78 @@
             </div>
 
             <div class="xell-licence-actions">
-              <button type="button" class="btn-secondary px-3 py-2 text-xs" @click="editLicence(licence)">
-                Modifier
-              </button>
-              <button type="button" class="btn-secondary px-3 py-2 text-xs" @click="copyText(licence.licence_certificate, 'Certificat copié.')">
-                <Copy class="h-4 w-4" />
-                Certificat
-              </button>
-              <button type="button" class="btn-secondary px-3 py-2 text-xs" @click="openDocument(licence, 'devis')">
-                Devis
-              </button>
-              <button type="button" class="btn-secondary px-3 py-2 text-xs" @click="openDocument(licence, 'contrat')">
-                Contrat
-              </button>
-              <button type="button" class="btn-secondary px-3 py-2 text-xs" @click="prepareOnboardingEmail(licence)">
-                Email
-              </button>
-              <button type="button" class="btn-secondary px-3 py-2 text-xs" :disabled="resetAdminAccessLoadingId === licence.id" @click="resetTenantAdminAccess(licence)">
-                <KeyRound class="h-4 w-4" />
-                {{ resetAdminAccessLoadingId === licence.id ? '...' : 'Réinitialiser accès' }}
-              </button>
-              <button type="button" class="btn-secondary px-3 py-2 text-xs" :disabled="sendingEmailId === licence.id" @click="sendOnboardingEmail(licence)">
-                <Send class="h-4 w-4" />
-                {{ sendingEmailId === licence.id ? '...' : 'Envoyer' }}
-              </button>
-              <button type="button" class="btn-secondary px-3 py-2 text-xs" @click="renewLicence(licence)">
-                +12 mois
-              </button>
-              <button
-                v-if="licence.statut !== 'suspendue'"
-                type="button"
-                class="btn-secondary px-3 py-2 text-xs text-amber-700"
-                :disabled="suspensionNoticeLoadingId === licence.id"
-                @click="sendSuspensionNotice(licence)"
-              >
-                {{ suspensionNoticeLoadingId === licence.id ? '...' : 'Préavis 7j' }}
-              </button>
-              <button
-                type="button"
-                class="btn-secondary px-3 py-2 text-xs"
-                :class="licence.statut === 'suspendue' ? 'text-emerald-700' : 'text-red-700'"
-                @click="toggleLicenceStatus(licence)"
-              >
-                {{ licence.statut === 'suspendue' ? 'Réactiver' : 'Suspendre' }}
-              </button>
+              <div class="xell-licence-action-group">
+                <span class="xell-licence-action-title">Licence</span>
+                <div class="xell-licence-action-buttons">
+                  <button type="button" class="btn-secondary px-3 py-2 text-xs" @click="editLicence(licence)">
+                    Modifier
+                  </button>
+                  <button
+                    type="button"
+                    class="btn-secondary px-3 py-2 text-xs"
+                    :disabled="!licence.licence_certificate"
+                    @click="copyText(licence.licence_certificate, 'Certificat copié.')"
+                  >
+                    <Copy class="h-4 w-4" />
+                    Certificat
+                  </button>
+                </div>
+              </div>
+
+              <div class="xell-licence-action-group">
+                <span class="xell-licence-action-title">Documents</span>
+                <div class="xell-licence-action-buttons">
+                  <button type="button" class="btn-secondary px-3 py-2 text-xs" @click="openDocument(licence, 'devis')">
+                    Devis
+                  </button>
+                  <button type="button" class="btn-secondary px-3 py-2 text-xs" @click="openDocument(licence, 'contrat')">
+                    Contrat
+                  </button>
+                  <button type="button" class="btn-secondary px-3 py-2 text-xs" @click="prepareOnboardingEmail(licence)">
+                    Email
+                  </button>
+                  <button type="button" class="btn-secondary px-3 py-2 text-xs" :disabled="sendingEmailId === licence.id" @click="sendOnboardingEmail(licence)">
+                    <Send class="h-4 w-4" />
+                    {{ sendingEmailId === licence.id ? '...' : 'Envoyer' }}
+                  </button>
+                </div>
+              </div>
+
+              <div class="xell-licence-action-group">
+                <span class="xell-licence-action-title">Abonnement</span>
+                <div class="xell-licence-action-buttons">
+                  <button type="button" class="btn-secondary px-3 py-2 text-xs" @click="renewLicence(licence)">
+                    +12 mois
+                  </button>
+                  <button
+                    v-if="licence.statut !== 'suspendue'"
+                    type="button"
+                    class="btn-secondary px-3 py-2 text-xs text-amber-700"
+                    :disabled="suspensionNoticeLoadingId === licence.id"
+                    @click="sendSuspensionNotice(licence)"
+                  >
+                    {{ suspensionNoticeLoadingId === licence.id ? '...' : 'Préavis 7j' }}
+                  </button>
+                  <button
+                    type="button"
+                    class="btn-secondary px-3 py-2 text-xs"
+                    :class="licence.statut === 'suspendue' ? 'text-emerald-700' : 'text-red-700'"
+                    @click="toggleLicenceStatus(licence)"
+                  >
+                    {{ licence.statut === 'suspendue' ? 'Réactiver' : 'Suspendre' }}
+                  </button>
+                </div>
+              </div>
+
+              <div class="xell-licence-action-group">
+                <span class="xell-licence-action-title">Accès</span>
+                <div class="xell-licence-action-buttons">
+                  <button type="button" class="btn-secondary px-3 py-2 text-xs" :disabled="resetAdminAccessLoadingId === licence.id" @click="resetTenantAdminAccess(licence)">
+                    <KeyRound class="h-4 w-4" />
+                    {{ resetAdminAccessLoadingId === licence.id ? '...' : 'Réinitialiser accès' }}
+                  </button>
+                </div>
+              </div>
             </div>
           </article>
 
@@ -3228,17 +3256,43 @@ function sortByUrgency(a, b) {
 }
 
 .xell-licence-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr));
+  gap: 0.55rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.xell-licence-action-group {
+  min-width: 0;
+  border: 1px solid color-mix(in srgb, var(--saytu-border, #e2e8f0) 82%, transparent);
+  border-radius: 0.95rem;
+  background: color-mix(in srgb, var(--saytu-surface, #ffffff) 90%, var(--saytu-primary, #2563eb) 10%);
+  padding: 0.48rem;
+}
+
+.xell-licence-action-title {
+  display: block;
+  margin-bottom: 0.35rem;
+  color: var(--saytu-muted, #64748b);
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.xell-licence-action-buttons {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 0.45rem;
-  min-width: 0;
+  gap: 0.35rem;
 }
 
 .xell-licence-actions .btn-secondary {
   max-width: 100%;
-  min-height: 2.15rem;
+  min-height: 1.95rem;
+  padding: 0.42rem 0.62rem;
+  font-size: 0.72rem;
   white-space: nowrap;
 }
 
@@ -3467,7 +3521,13 @@ function sortByUrgency(a, b) {
 
 @media (min-width: 1024px) {
   .xell-licence-actions {
-    justify-content: flex-end;
+    grid-template-columns: repeat(auto-fit, minmax(10rem, max-content));
+    justify-content: end;
+  }
+
+  .xell-licence-action-group {
+    width: max-content;
+    max-width: 100%;
   }
 }
 
@@ -3486,6 +3546,25 @@ function sortByUrgency(a, b) {
   .xell-licence-row {
     gap: 0.7rem;
     padding: 0.75rem;
+  }
+
+  .xell-licence-actions,
+  .xell-saas-actions,
+  .xell-licence-action-buttons {
+    justify-content: flex-start;
+  }
+
+  .xell-saas-row,
+  .xell-lead-row,
+  .xell-commerce-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .xell-subscription-actions {
+    justify-items: start;
+    min-width: 0;
+    text-align: left;
   }
 }
 
