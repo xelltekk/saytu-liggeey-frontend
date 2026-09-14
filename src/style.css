@@ -154,12 +154,12 @@
     color: #ffffff !important;
   }
   .app-topbar > div:last-child > button[aria-label='Se déconnecter'] {
-    background-color: rgb(248 113 113 / 0.14) !important;
-    border-color: rgb(252 165 165 / 0.28) !important;
-    color: #fecaca !important;
+    background-color: color-mix(in srgb, var(--saytu-brand-to, #22d3ee) 18%, transparent) !important;
+    border-color: color-mix(in srgb, var(--saytu-brand-to, #22d3ee) 36%, transparent) !important;
+    color: rgb(207 250 254 / 0.94) !important;
   }
   .app-topbar > div:last-child > button[aria-label='Se déconnecter']:hover {
-    background-color: rgb(248 113 113 / 0.22) !important;
+    background-color: color-mix(in srgb, var(--saytu-brand-to, #22d3ee) 26%, transparent) !important;
     color: #ffffff !important;
   }
   .app-topbar .relative.hidden.xl\:flex {
@@ -665,11 +665,11 @@
     color: var(--saytu-muted-themed) !important;
   }
 
-  html[data-theme] .app-surface :where(.text-gray-700, .text-gray-800, .text-gray-900, .text-slate-700, .text-slate-800, .text-slate-900) {
+  html[data-theme] .app-surface :where(.text-gray-700, .text-gray-800, .text-gray-900, .text-gray-950, .text-slate-700, .text-slate-800, .text-slate-900, .text-slate-950) {
     color: var(--saytu-text-themed) !important;
   }
 
-  html[data-theme] .auth-card :where(.text-gray-700, .text-gray-800, .text-gray-900, .text-slate-700, .text-slate-800, .text-slate-900) {
+  html[data-theme] .auth-card :where(.text-gray-700, .text-gray-800, .text-gray-900, .text-gray-950, .text-slate-700, .text-slate-800, .text-slate-900, .text-slate-950) {
     color: var(--saytu-text-themed) !important;
   }
 
@@ -695,6 +695,449 @@
 
   html[data-theme] .app-surface :where(.bg-xelltekk-100, .bg-blue-100, .bg-cyan-100) {
     background-color: color-mix(in srgb, var(--saytu-surface, #ffffff) 68%, var(--saytu-primary, #2563eb) 32%) !important;
+  }
+
+  html[data-theme] :where(.app-surface, .auth-card) {
+    --saytu-aqua-panel: linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--saytu-focus, #22d3ee) 12%, #ffffff),
+      color-mix(in srgb, var(--saytu-primary, #0ea5e9) 6%, #ffffff)
+    );
+    --saytu-aqua-panel-soft: color-mix(in srgb, #ffffff 84%, var(--saytu-focus, #22d3ee) 16%);
+    --saytu-aqua-chip: color-mix(in srgb, #ffffff 70%, var(--saytu-focus, #22d3ee) 30%);
+    --saytu-aqua-border: color-mix(in srgb, var(--saytu-primary, #0ea5e9) 34%, var(--saytu-border, #bae6fd));
+    --saytu-aqua-text: var(--saytu-topbar-title, #082f49);
+    --saytu-aqua-muted: var(--saytu-topbar-subtitle, #0f6f8f);
+    --saytu-aqua-accent: var(--saytu-primary-hover, #0284c7);
+  }
+
+  html[data-theme] :where(.app-surface, .auth-card) :where(
+    [class^="bg-xelltekk-"],
+    [class*=" bg-xelltekk-"],
+    [class^="bg-gray-"],
+    [class*=" bg-gray-"],
+    [class^="bg-slate-"],
+    [class*=" bg-slate-"],
+    [class^="bg-blue-"],
+    [class*=" bg-blue-"],
+    [class^="bg-sky-"],
+    [class*=" bg-sky-"],
+    [class^="bg-cyan-"],
+    [class*=" bg-cyan-"],
+    [class^="bg-teal-"],
+    [class*=" bg-teal-"],
+    [class^="bg-emerald-"],
+    [class*=" bg-emerald-"],
+    [class^="bg-green-"],
+    [class*=" bg-green-"],
+    [class^="bg-indigo-"],
+    [class*=" bg-indigo-"],
+    [class^="bg-violet-"],
+    [class*=" bg-violet-"],
+    [class^="bg-purple-"],
+    [class*=" bg-purple-"],
+    [class^="bg-amber-"],
+    [class*=" bg-amber-"],
+    [class^="bg-yellow-"],
+    [class*=" bg-yellow-"],
+    [class^="bg-orange-"],
+    [class*=" bg-orange-"],
+    [class^="bg-red-"],
+    [class*=" bg-red-"],
+    [class^="bg-rose-"],
+    [class*=" bg-rose-"]
+  ) {
+    background-color: var(--saytu-aqua-panel-soft) !important;
+    color: var(--saytu-aqua-accent) !important;
+  }
+
+  html[data-theme] :where(.app-surface, .auth-card) :where(
+    .bg-xelltekk-400,
+    .bg-xelltekk-500,
+    .bg-xelltekk-600,
+    .bg-xelltekk-700,
+    .bg-xelltekk-800,
+    .bg-xelltekk-900,
+    .bg-gray-400,
+    .bg-gray-500,
+    .bg-gray-600,
+    .bg-gray-700,
+    .bg-gray-800,
+    .bg-gray-900,
+    .bg-slate-400,
+    .bg-slate-500,
+    .bg-slate-600,
+    .bg-slate-700,
+    .bg-slate-800,
+    .bg-slate-900,
+    .bg-blue-400,
+    .bg-blue-500,
+    .bg-blue-600,
+    .bg-blue-700,
+    .bg-blue-800,
+    .bg-sky-400,
+    .bg-sky-500,
+    .bg-sky-600,
+    .bg-sky-700,
+    .bg-cyan-400,
+    .bg-cyan-500,
+    .bg-cyan-600,
+    .bg-cyan-700,
+    .bg-teal-400,
+    .bg-teal-500,
+    .bg-teal-600,
+    .bg-teal-700,
+    .bg-emerald-400,
+    .bg-emerald-500,
+    .bg-emerald-600,
+    .bg-emerald-700,
+    .bg-green-400,
+    .bg-green-500,
+    .bg-green-600,
+    .bg-green-700,
+    .bg-indigo-400,
+    .bg-indigo-500,
+    .bg-indigo-600,
+    .bg-indigo-700,
+    .bg-violet-400,
+    .bg-violet-500,
+    .bg-violet-600,
+    .bg-violet-700,
+    .bg-purple-400,
+    .bg-purple-500,
+    .bg-purple-600,
+    .bg-purple-700,
+    .bg-amber-400,
+    .bg-amber-500,
+    .bg-amber-600,
+    .bg-amber-700,
+    .bg-yellow-400,
+    .bg-yellow-500,
+    .bg-yellow-600,
+    .bg-yellow-700,
+    .bg-orange-400,
+    .bg-orange-500,
+    .bg-orange-600,
+    .bg-orange-700,
+    .bg-red-400,
+    .bg-red-500,
+    .bg-red-600,
+    .bg-red-700,
+    .bg-rose-400,
+    .bg-rose-500,
+    .bg-rose-600,
+    .bg-rose-700
+  ) {
+    background-color: var(--saytu-primary, #0ea5e9) !important;
+    color: #ffffff !important;
+  }
+
+  html[data-theme] :where(.app-surface, .auth-card) :where(
+    .bg-white,
+    .bg-white\/80,
+    .bg-white\/90,
+    .bg-white\/95,
+    .bg-gray-50,
+    .bg-slate-50,
+    .bg-gray-100,
+    .bg-slate-100,
+    .bg-gray-200,
+    .bg-slate-200,
+    .bg-xelltekk-50,
+    .bg-xelltekk-100,
+    .bg-xelltekk-200,
+    .bg-blue-50,
+    .bg-sky-50,
+    .bg-cyan-50,
+    .bg-teal-50,
+    .bg-emerald-50,
+    .bg-green-50,
+    .bg-indigo-50,
+    .bg-violet-50,
+    .bg-purple-50,
+    .bg-amber-50,
+    .bg-yellow-50,
+    .bg-orange-50,
+    .bg-red-50,
+    .bg-rose-50,
+    .bg-blue-100,
+    .bg-sky-100,
+    .bg-cyan-100,
+    .bg-teal-100,
+    .bg-emerald-100,
+    .bg-green-100,
+    .bg-indigo-100,
+    .bg-violet-100,
+    .bg-purple-100,
+    .bg-amber-100,
+    .bg-yellow-100,
+    .bg-orange-100,
+    .bg-red-100,
+    .bg-rose-100,
+    [class~="bg-white/80"],
+    [class~="bg-white/90"],
+    [class~="bg-white/95"],
+    [class~="bg-slate-50/50"],
+    [class~="bg-blue-500/10"],
+    [class~="bg-blue-500/15"],
+    [class~="bg-emerald-500/10"],
+    [class~="bg-emerald-500/15"],
+    [class~="bg-red-500/10"],
+    [class~="bg-red-500/15"],
+    [class~="bg-amber-500/10"],
+    [class~="bg-amber-500/15"],
+    [class~="bg-indigo-500/10"],
+    [class~="bg-indigo-500/15"],
+    [class~="bg-violet-500/10"],
+    [class~="bg-violet-500/15"]
+  ) {
+    background: var(--saytu-aqua-panel) !important;
+    color: var(--saytu-aqua-text) !important;
+  }
+
+  html[data-theme] :where(.app-surface, .auth-card) :where(
+    [class^="text-blue-"],
+    [class*=" text-blue-"],
+    [class^="text-sky-"],
+    [class*=" text-sky-"],
+    [class^="text-cyan-"],
+    [class*=" text-cyan-"],
+    [class^="text-teal-"],
+    [class*=" text-teal-"],
+    [class^="text-emerald-"],
+    [class*=" text-emerald-"],
+    [class^="text-green-"],
+    [class*=" text-green-"],
+    [class^="text-indigo-"],
+    [class*=" text-indigo-"],
+    [class^="text-violet-"],
+    [class*=" text-violet-"],
+    [class^="text-purple-"],
+    [class*=" text-purple-"],
+    [class^="text-amber-"],
+    [class*=" text-amber-"],
+    [class^="text-yellow-"],
+    [class*=" text-yellow-"],
+    [class^="text-orange-"],
+    [class*=" text-orange-"],
+    [class^="text-red-"],
+    [class*=" text-red-"],
+    [class^="text-rose-"],
+    [class*=" text-rose-"],
+    [class^="text-xelltekk-"],
+    [class*=" text-xelltekk-"],
+    .text-black
+  ) {
+    color: var(--saytu-aqua-accent) !important;
+  }
+
+  html[data-theme] :where(.app-surface, .auth-card) :where(
+    [class^="border-xelltekk-"],
+    [class*=" border-xelltekk-"],
+    [class^="border-gray-"],
+    [class*=" border-gray-"],
+    [class^="border-slate-"],
+    [class*=" border-slate-"],
+    [class^="border-blue-"],
+    [class*=" border-blue-"],
+    [class^="border-sky-"],
+    [class*=" border-sky-"],
+    [class^="border-cyan-"],
+    [class*=" border-cyan-"],
+    [class^="border-teal-"],
+    [class*=" border-teal-"],
+    [class^="border-emerald-"],
+    [class*=" border-emerald-"],
+    [class^="border-green-"],
+    [class*=" border-green-"],
+    [class^="border-indigo-"],
+    [class*=" border-indigo-"],
+    [class^="border-violet-"],
+    [class*=" border-violet-"],
+    [class^="border-purple-"],
+    [class*=" border-purple-"],
+    [class^="border-amber-"],
+    [class*=" border-amber-"],
+    [class^="border-yellow-"],
+    [class*=" border-yellow-"],
+    [class^="border-orange-"],
+    [class*=" border-orange-"],
+    [class^="border-red-"],
+    [class*=" border-red-"],
+    [class^="border-rose-"],
+    [class*=" border-rose-"]
+  ) {
+    border-color: var(--saytu-aqua-border) !important;
+  }
+
+  html[data-theme] :where(.app-surface, .auth-card) :where(
+    [class^="ring-xelltekk-"],
+    [class*=" ring-xelltekk-"],
+    [class^="ring-blue-"],
+    [class*=" ring-blue-"],
+    [class^="ring-cyan-"],
+    [class*=" ring-cyan-"],
+    [class^="ring-emerald-"],
+    [class*=" ring-emerald-"],
+    [class^="ring-green-"],
+    [class*=" ring-green-"],
+    [class^="ring-amber-"],
+    [class*=" ring-amber-"],
+    [class^="ring-orange-"],
+    [class*=" ring-orange-"],
+    [class^="ring-red-"],
+    [class*=" ring-red-"],
+    [class^="ring-violet-"],
+    [class*=" ring-violet-"],
+    [class^="ring-purple-"],
+    [class*=" ring-purple-"]
+  ) {
+    --tw-ring-color: color-mix(in srgb, var(--saytu-focus, #22d3ee) 60%, transparent) !important;
+  }
+
+  html[data-theme] :where(.app-surface, .auth-card) :where(
+    [class^="from-xelltekk-"],
+    [class*=" from-xelltekk-"],
+    [class^="from-gray-"],
+    [class*=" from-gray-"],
+    [class^="from-slate-"],
+    [class*=" from-slate-"],
+    [class^="from-blue-"],
+    [class*=" from-blue-"],
+    [class^="from-sky-"],
+    [class*=" from-sky-"],
+    [class^="from-cyan-"],
+    [class*=" from-cyan-"],
+    [class^="from-teal-"],
+    [class*=" from-teal-"],
+    [class^="from-emerald-"],
+    [class*=" from-emerald-"],
+    [class^="from-green-"],
+    [class*=" from-green-"],
+    [class^="from-indigo-"],
+    [class*=" from-indigo-"],
+    [class^="from-violet-"],
+    [class*=" from-violet-"],
+    [class^="from-purple-"],
+    [class*=" from-purple-"],
+    [class^="from-amber-"],
+    [class*=" from-amber-"],
+    [class^="from-yellow-"],
+    [class*=" from-yellow-"],
+    [class^="from-orange-"],
+    [class*=" from-orange-"],
+    [class^="from-red-"],
+    [class*=" from-red-"],
+    [class^="from-rose-"],
+    [class*=" from-rose-"]
+  ) {
+    --tw-gradient-from: var(--saytu-brand-from, #0ea5e9) var(--tw-gradient-from-position) !important;
+    --tw-gradient-to: rgb(14 165 233 / 0) var(--tw-gradient-to-position) !important;
+    --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+  }
+
+  html[data-theme] :where(.app-surface, .auth-card) :where(
+    [class^="via-xelltekk-"],
+    [class*=" via-xelltekk-"],
+    [class^="via-gray-"],
+    [class*=" via-gray-"],
+    [class^="via-slate-"],
+    [class*=" via-slate-"],
+    [class^="via-blue-"],
+    [class*=" via-blue-"],
+    [class^="via-sky-"],
+    [class*=" via-sky-"],
+    [class^="via-cyan-"],
+    [class*=" via-cyan-"],
+    [class^="via-teal-"],
+    [class*=" via-teal-"],
+    [class^="via-emerald-"],
+    [class*=" via-emerald-"],
+    [class^="via-green-"],
+    [class*=" via-green-"],
+    [class^="via-indigo-"],
+    [class*=" via-indigo-"],
+    [class^="via-violet-"],
+    [class*=" via-violet-"],
+    [class^="via-purple-"],
+    [class*=" via-purple-"],
+    [class^="via-amber-"],
+    [class*=" via-amber-"],
+    [class^="via-yellow-"],
+    [class*=" via-yellow-"],
+    [class^="via-orange-"],
+    [class*=" via-orange-"],
+    [class^="via-red-"],
+    [class*=" via-red-"],
+    [class^="via-rose-"],
+    [class*=" via-rose-"]
+  ) {
+    --tw-gradient-stops: var(--tw-gradient-from), var(--saytu-focus, #22d3ee) var(--tw-gradient-via-position), var(--tw-gradient-to) !important;
+  }
+
+  html[data-theme] :where(.app-surface, .auth-card) :where(
+    [class^="to-xelltekk-"],
+    [class*=" to-xelltekk-"],
+    [class^="to-gray-"],
+    [class*=" to-gray-"],
+    [class^="to-slate-"],
+    [class*=" to-slate-"],
+    [class^="to-blue-"],
+    [class*=" to-blue-"],
+    [class^="to-sky-"],
+    [class*=" to-sky-"],
+    [class^="to-cyan-"],
+    [class*=" to-cyan-"],
+    [class^="to-teal-"],
+    [class*=" to-teal-"],
+    [class^="to-emerald-"],
+    [class*=" to-emerald-"],
+    [class^="to-green-"],
+    [class*=" to-green-"],
+    [class^="to-indigo-"],
+    [class*=" to-indigo-"],
+    [class^="to-violet-"],
+    [class*=" to-violet-"],
+    [class^="to-purple-"],
+    [class*=" to-purple-"],
+    [class^="to-amber-"],
+    [class*=" to-amber-"],
+    [class^="to-yellow-"],
+    [class*=" to-yellow-"],
+    [class^="to-orange-"],
+    [class*=" to-orange-"],
+    [class^="to-red-"],
+    [class*=" to-red-"],
+    [class^="to-rose-"],
+    [class*=" to-rose-"]
+  ) {
+    --tw-gradient-to: var(--saytu-brand-to, #22d3ee) var(--tw-gradient-to-position) !important;
+  }
+
+  html[data-theme] :where(.app-surface, .auth-card) :where(.badge, .xell-mini-chip) {
+    background: var(--saytu-aqua-chip) !important;
+    border-color: var(--saytu-aqua-border) !important;
+    color: var(--saytu-aqua-accent) !important;
+  }
+
+  html[data-theme] :where(.app-surface, .auth-card) :where([class*="hover:bg-"]):hover {
+    background: color-mix(in srgb, #ffffff 72%, var(--saytu-focus, #22d3ee) 28%) !important;
+  }
+
+  html[data-theme] :where(.app-surface, .auth-card) :where([class*="hover:text-"]):hover {
+    color: var(--saytu-primary-hover, #0284c7) !important;
+  }
+
+  html[data-theme] :where(.app-surface, .auth-card) :where([class*="hover:border-"]):hover {
+    border-color: color-mix(in srgb, var(--saytu-primary, #0ea5e9) 52%, var(--saytu-border, #bae6fd)) !important;
+  }
+
+  html[data-theme] .btn-danger,
+  html[data-theme] :where(.app-surface, .auth-card) .btn-danger {
+    background-color: var(--saytu-primary, #0ea5e9) !important;
+    background-image: linear-gradient(to right, var(--saytu-brand-from, #0ea5e9), var(--saytu-brand-to, #22d3ee)) !important;
+    border-color: color-mix(in srgb, var(--saytu-primary, #0ea5e9) 52%, var(--saytu-border, #bae6fd)) !important;
+    color: #ffffff !important;
   }
 
   .overflow-x-auto {
@@ -779,9 +1222,9 @@
     overflow: hidden;
     min-height: 100vh;
     background:
-      radial-gradient(circle at top left, rgb(14 165 233 / 0.28), transparent 30%),
-      radial-gradient(circle at bottom right, rgb(37 99 235 / 0.22), transparent 32%),
-      linear-gradient(135deg, #0f172a 0%, #1d4ed8 45%, #0f172a 100%);
+      radial-gradient(circle at top left, rgb(34 211 238 / 0.28), transparent 30%),
+      radial-gradient(circle at bottom right, rgb(14 165 233 / 0.24), transparent 32%),
+      linear-gradient(135deg, #14384a 0%, #0f4c81 48%, #0e7490 100%);
   }
 
   .auth-shell::before,
@@ -819,7 +1262,7 @@
 
   .auth-hero {
     background:
-      linear-gradient(135deg, rgb(15 23 42 / 0.95), rgb(30 64 175 / 0.92)),
+      linear-gradient(135deg, rgb(20 56 74 / 0.96), rgb(15 76 129 / 0.92)),
       radial-gradient(circle at top right, rgb(34 211 238 / 0.28), transparent 36%);
   }
 

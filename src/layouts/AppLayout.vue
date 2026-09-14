@@ -278,7 +278,7 @@
           <!-- Logout -->
           <button
             @click="handleLogout"
-            class="inline-flex h-11 items-center gap-2 rounded-xl border border-red-100 bg-red-50 px-3 text-sm font-medium text-red-600 transition hover:bg-red-100 hover:text-red-700"
+            class="inline-flex h-11 items-center gap-2 rounded-xl border border-cyan-100 bg-cyan-50 px-3 text-sm font-medium text-cyan-700 transition hover:bg-cyan-100 hover:text-cyan-800"
             title="Déconnexion"
             aria-label="Se déconnecter"
           >
@@ -349,7 +349,7 @@
 
           <button
             type="button"
-            class="inline-flex h-8 w-8 items-center justify-center rounded-xl text-slate-400 transition hover:bg-red-50 hover:text-red-600"
+            class="inline-flex h-8 w-8 items-center justify-center rounded-xl text-slate-400 transition hover:bg-cyan-50 hover:text-cyan-700"
             title="Fermer"
             aria-label="Fermer la fenêtre réduite"
             @click="closeMinimizedWindow(windowItem)"
@@ -955,7 +955,7 @@ function groupBadgeColor(group) {
     .filter(item => getBadgeCount(item.to) > 0)
     .map(item => getBadgeColor(item.to))
 
-  return colors[0] || 'bg-slate-500 text-white'
+  return colors[0] || 'bg-cyan-500 text-white'
 }
 
 function getBadgeCount(to) {
@@ -970,12 +970,12 @@ function getBadgeCount(to) {
 
 function getBadgeColor(to) {
   const path = menuTarget(to).path
-  if (path === '/factures') return 'bg-red-500 text-white'
-  if (path === '/devis') return 'bg-yellow-500 text-white'
-  if (path === '/stock') return 'bg-orange-500 text-white'
-  if (path === '/depenses') return 'bg-blue-500 text-white'
+  if (path === '/factures') return 'bg-cyan-500 text-white'
+  if (path === '/devis') return 'bg-sky-500 text-white'
+  if (path === '/stock') return 'bg-blue-500 text-white'
+  if (path === '/depenses') return 'bg-cyan-600 text-white'
 
-  return 'bg-slate-500 text-white'
+  return 'bg-cyan-500 text-white'
 }
 
 const pageTitle = computed(() => {
