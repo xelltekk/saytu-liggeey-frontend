@@ -148,6 +148,7 @@
                   v-if="Number(summary(client).reste_a_payer || 0) > 0 && client.email"
                   :draft="relanceDraftForClient(client)"
                   :filename="`relance-client-${client.code || client.id}`"
+                  dialog
                   compact
                 />
                 <button v-if="isAdmin" @click="openAssignClient(client)" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium mr-2">
@@ -259,6 +260,7 @@
                 v-if="client360.email"
                 :draft="relanceDraftForClient(client360)"
                 :filename="`relance-client-${client360.code || client360.id}`"
+                dialog
                 class="col-span-2 sm:col-span-3"
               />
               <button v-else type="button" class="quick-client-btn" @click="relancerClient(client360)">Relancer</button>

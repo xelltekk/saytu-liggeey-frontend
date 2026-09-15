@@ -125,6 +125,7 @@
                     v-if="devi.client?.email"
                     :draft="relanceEmailDraft(devi)"
                     :filename="`relance-devis-${devi.numero || devi.id}`"
+                    dialog
                     compact
                   />
                   <button

@@ -106,6 +106,7 @@
                   v-if="canRelancer(f)"
                   :draft="relanceFactureEmailDraft(f)"
                   :filename="`relance-facture-${f.numero || f.id}`"
+                  dialog
                   compact
                 />
                 <button @click="ouvrirPdf(f)" class="text-xelltekk-600 hover:text-xelltekk-800 mr-2" title="PDF">📄</button>

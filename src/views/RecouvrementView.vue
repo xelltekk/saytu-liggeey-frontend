@@ -147,21 +147,22 @@
                 <div class="flex flex-wrap justify-end gap-2">
                   <button type="button" class="btn-secondary rounded-full px-3 py-1.5 text-xs" @click="openHistory(facture)">Historique</button>
                   <button type="button" class="btn-secondary rounded-full px-3 py-1.5 text-xs" @click="openSuivi(facture)">Suivi</button>
+                  <EmailActionButtons
+                    v-if="facture.client?.email"
+                    :draft="relanceEmailDraft(facture)"
+                    :filename="`relance-facture-${facture.numero || facture.id}`"
+                    dialog
+                    compact
+                    @sent="recordRelance(facture, 'send')"
+                    @outlook="recordRelance(facture, 'outlook')"
+                  />
                   <button
-                    type="button"
-                    class="btn-primary rounded-full px-3 py-1.5 text-xs"
-                    :disabled="relanceLoading === `send-${facture.id}`"
-                    @click="prepareRelance(facture, 'send')"
-                  >
-                    {{ relanceLoading === `send-${facture.id}` ? '...' : 'Envoyer depuis Saytu' }}
-                  </button>
-                  <button
+                    v-else
                     type="button"
                     class="btn-secondary rounded-full px-3 py-1.5 text-xs"
-                    :disabled="relanceLoading === `outlook-${facture.id}`"
-                    @click="prepareRelance(facture, 'outlook')"
+                    @click="prepareRelance(facture)"
                   >
-                    {{ relanceLoading === `outlook-${facture.id}` ? '...' : 'Ouvrir dans Outlook' }}
+                    Relancer
                   </button>
                 </div>
               </td>
@@ -335,6 +336,7 @@ import { useRouter } from 'vue-router'
 import { AlertTriangle, CalendarClock, CreditCard, FileWarning } from 'lucide-vue-next'
 import api from '@/services/api'
 import AppModal from '@/components/AppModal.vue'
+import EmailActionButtons from '@/components/EmailActionButtons.vue'
 import { useCurrency } from '@/composables/useCurrency'
 import { useToast } from '@/composables/useToast'
 import { buildEmailDraft, downloadOutlookEml } from '@/utils/emailComposer'
@@ -648,6 +650,24 @@ function relanceEmailDraft(facture) {
     context_type: 'recouvrement',
     context_id: facture.id,
   })
+}
+
+async function recordRelance(facture, mode = 'send') {
+  if (!facture?.id) return
+
+  try {
+    await api.post(`/recouvrement/factures/${facture.id}/suivis`, {
+      statut: 'relance',
+      type_action: 'relance_email',
+      prochain_rappel: datePlus(7),
+      commentaire: mode === 'send'
+        ? 'Relance email envoyée depuis Saytu.'
+        : 'Relance email préparée en fichier Outlook depuis le module recouvrement.',
+    })
+    await reloadAll()
+  } catch (error) {
+    toast.error(error.response?.data?.message || 'Email traité, mais le suivi de relance n’a pas pu être enregistré.')
+  }
 }
 
 async function prepareRelance(facture, mode = 'send') {

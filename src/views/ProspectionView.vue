@@ -116,6 +116,7 @@
                     v-if="p.email"
                     :draft="relanceEmailDraft(p, latestAction(p))"
                     :filename="`relance-prospect-${p.code || p.id}`"
+                    dialog
                     compact
                   />
                   <button type="button" @click="creerDevis(p)" class="text-sm font-medium text-xelltekk-600 hover:text-xelltekk-800">+ Devis</button>
