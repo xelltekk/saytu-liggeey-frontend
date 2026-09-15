@@ -1015,7 +1015,7 @@ async function reload(page = 1) {
       stockSummary.value = normalizeStockSummary(data)
       Object.assign(meta, { current_page: 1, last_page: 1, total: 0, from: 0, to: 0 })
     } else if (tab === 'valorisation') {
-      const { data } = await api.get('/stocks/valorisation', { params: valuationFilterParams() })
+      const { data } = await api.get('/stocks/summary', { params: valuationFilterParams() })
       if (requestId !== reloadRequestId || tab !== onglet.value) return
       stockValuation.value = normalizeStockValuation(data)
       Object.assign(meta, { current_page: 1, last_page: 1, total: 0, from: 0, to: 0 })
@@ -1319,6 +1319,7 @@ function transferFilterParams() {
 
 function valuationFilterParams() {
   return {
+    mode: 'valorisation',
     search: filters.search || undefined,
     entrepot_id: filters.entrepot_id || undefined,
     dormant_days: filters.dormant_days || 90,
