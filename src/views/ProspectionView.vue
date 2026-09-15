@@ -112,7 +112,12 @@
               <td class="px-4 py-3 text-center"><span class="badge" :class="p.statut === 'actif' ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-700'">{{ p.statut }}</span></td>
               <td class="px-4 py-3 text-right">
                 <div class="flex flex-wrap justify-end gap-2">
-                  <a v-if="p.email" :href="relanceEmailHref(p, latestAction(p))" class="text-sm font-medium text-xelltekk-600 hover:text-xelltekk-800">Email</a>
+                  <EmailActionButtons
+                    v-if="p.email"
+                    :draft="relanceEmailDraft(p, latestAction(p))"
+                    :filename="`relance-prospect-${p.code || p.id}`"
+                    compact
+                  />
                   <button type="button" @click="creerDevis(p)" class="text-sm font-medium text-xelltekk-600 hover:text-xelltekk-800">+ Devis</button>
                   <button @click="openAction(p)" class="text-sm font-medium text-xelltekk-600 hover:text-xelltekk-800">+ Action</button>
                   <button v-if="isAdmin" @click="openAssignProspect(p)" class="text-sm font-medium text-indigo-600 hover:text-indigo-800">Affecter</button>
@@ -425,6 +430,7 @@ import api from '@/services/api'
 import AppModal from '@/components/AppModal.vue'
 import AppPagination from '@/components/AppPagination.vue'
 import AssignCommercialModal from '@/components/AssignCommercialModal.vue'
+import EmailActionButtons from '@/components/EmailActionButtons.vue'
 import SortableTh from '@/components/SortableTh.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useConfirm } from '@/composables/useConfirm'
@@ -432,7 +438,7 @@ import { useToast } from '@/composables/useToast'
 import { useTableSort } from '@/composables/useTableSort'
 import { telechargerCSV } from '@/services/exports'
 import { ouvrirPDF } from '@/services/pdf'
-import { buildOutlookComposeUrl } from '@/utils/emailComposer'
+import { buildEmailDraft } from '@/utils/emailComposer'
 
 const auth = useAuthStore()
 const toast = useToast()
@@ -1121,9 +1127,9 @@ function creerDevis(prospect) {
   router.push({ path: '/devis', query: { create_client: id } })
 }
 
-function relanceEmailHref(prospect, action = null) {
+function relanceEmailDraft(prospect, action = null) {
   const email = prospect?.email
-  if (!email) return '#'
+  if (!email) return buildEmailDraft()
   const nom = prospect?.nom || 'client'
   const subject = `Relance commerciale - ${nom}`
   const objet = action?.objet ? ` concernant ${action.objet}` : ''
@@ -1134,7 +1140,13 @@ function relanceEmailHref(prospect, action = null) {
     `${potentiel > 0 ? `\nMontant/opportunité estimée : ${formatPrice(potentiel)} Francs CFA BCEAO.\n` : ''}` +
     `\nCordialement,\n${auth.user?.name || 'L’équipe commerciale'}\nXELLTEKK`
 
-  return buildOutlookComposeUrl({ to: email, subject, body })
+  return buildEmailDraft({
+    to: email,
+    subject,
+    body,
+    context_type: 'prospection',
+    context_id: prospect.id,
+  })
 }
 
 function phoneHref(prospect) {

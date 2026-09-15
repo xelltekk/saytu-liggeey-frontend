@@ -83,9 +83,9 @@
                 </div>
                 <div class="compact-row-meta">
                   <span>{{ f.client?.code || '–' }}</span>
-                  <a v-if="f.client?.email" :href="relanceFactureEmailHref(f)" class="text-xelltekk-700 hover:underline">
+                  <span v-if="f.client?.email" class="text-xelltekk-700">
                     {{ f.client.email }}
-                  </a>
+                  </span>
                   <span class="text-blue-600">Commercial : {{ f.commercial?.name || 'Non affecté' }}</span>
                 </div>
               </td>
@@ -102,14 +102,12 @@
               </td>
               <td class="px-3 py-3 text-right">
                 <div class="flex flex-wrap justify-end gap-2">
-                <a
+                <EmailActionButtons
                   v-if="canRelancer(f)"
-                  :href="relanceFactureEmailHref(f)"
-                  class="rounded-full border border-orange-200 px-2 py-1 text-xs font-semibold text-orange-700 hover:bg-orange-50"
-                  title="Préparer un email de relance"
-                >
-                  Relancer
-                </a>
+                  :draft="relanceFactureEmailDraft(f)"
+                  :filename="`relance-facture-${f.numero || f.id}`"
+                  compact
+                />
                 <button @click="ouvrirPdf(f)" class="text-xelltekk-600 hover:text-xelltekk-800 mr-2" title="PDF">📄</button>
                 <button
                   v-if="canManagePayments && f.type !== 'avoir' && !['payee','annulee'].includes(f.statut)"
@@ -375,11 +373,12 @@ import AppModal from '@/components/AppModal.vue'
 import AppConfirmModal from '@/components/AppConfirmModal.vue'
 import FactureForm from '@/components/FactureForm.vue'
 import AssignCommercialModal from '@/components/AssignCommercialModal.vue'
+import EmailActionButtons from '@/components/EmailActionButtons.vue'
 import SortableTh from '@/components/SortableTh.vue'
 import { useToast } from '@/composables/useToast'
 import { useTableSort } from '@/composables/useTableSort'
 import { useAuthStore } from '@/stores/auth'
-import { buildOutlookComposeUrl } from '@/utils/emailComposer'
+import { buildEmailDraft } from '@/utils/emailComposer'
 
 const toast = useToast()
 const auth = useAuthStore()
@@ -825,9 +824,9 @@ function canRelancer(f) {
     && parseFloat(f.reste_a_payer || 0) > 0
 }
 
-function relanceFactureEmailHref(f) {
+function relanceFactureEmailDraft(f) {
   const client = f.client || {}
-  if (!client.email) return '#'
+  if (!client.email) return buildEmailDraft()
 
   const subject = `Relance facture ${f.numero || ''} - ${client.nom || ''}`.trim()
   const reste = parseFloat(f.reste_a_payer || 0)
@@ -846,10 +845,12 @@ function relanceFactureEmailHref(f) {
     auth.user?.name || 'XELLTEKK',
   ].filter(Boolean)
 
-  return buildOutlookComposeUrl({
+  return buildEmailDraft({
     to: client.email,
     subject,
     body: bodyLines.join('\n'),
+    context_type: 'facture',
+    context_id: f.id,
   })
 }
 

@@ -74,13 +74,14 @@
         </div>
         <div class="terms-actions">
           <RouterLink to="/offres" class="terms-secondary">Comparer les offres</RouterLink>
-          <a
-            href="mailto:xelltekk%40xelltekk.com?subject=Demande%20contrat%20Saytu%20Ligg%C3%A9ey"
+          <button
+            type="button"
             class="terms-primary"
+            @click="downloadContractEmail"
           >
-            Écrire à XELLTEKK
+            Ouvrir dans Outlook
             <ArrowRight class="h-5 w-5" />
-          </a>
+          </button>
         </div>
       </section>
     </section>
@@ -101,6 +102,22 @@ import {
   RotateCcw,
   ShieldCheck,
 } from 'lucide-vue-next'
+import { buildEmailDraft, downloadOutlookEml } from '@/utils/emailComposer'
+
+function downloadContractEmail() {
+  downloadOutlookEml(buildEmailDraft({
+    to: 'xelltekk@xelltekk.com',
+    subject: 'Demande contrat Saytu Liggéey',
+    body: [
+      'Bonjour XELLTEKK,',
+      '',
+      'Je souhaite recevoir un contrat personnalisé pour Saytu Liggéey.',
+      '',
+      'Cordialement,',
+    ].join('\n'),
+    context_type: 'marketing_terms',
+  }), 'demande-contrat-saytu')
+}
 
 const included = [
   'Accès à l’application selon la formule choisie.',

@@ -98,9 +98,9 @@
                 </div>
                 <div class="compact-row-meta">
                   <span>{{ devi.client?.code || '–' }}</span>
-                  <a v-if="devi.client?.email" :href="relanceEmailHref(devi)" class="text-xelltekk-700 hover:underline">
+                  <span v-if="devi.client?.email" class="text-xelltekk-700">
                     {{ devi.client.email }}
-                  </a>
+                  </span>
                   <span class="text-blue-600">Commercial : {{ devi.commercial?.name || 'Non affecté' }}</span>
                 </div>
               </td>
@@ -121,14 +121,12 @@
               </td>
               <td class="px-4 py-3 text-right">
                 <div class="flex flex-wrap justify-end gap-2">
-                  <a
+                  <EmailActionButtons
                     v-if="devi.client?.email"
-                    :href="relanceEmailHref(devi)"
-                    class="rounded-full border border-gray-200 px-2 py-1 text-xs font-semibold text-xelltekk-700 hover:border-xelltekk-300 hover:bg-xelltekk-50"
-                    title="Préparer un email de relance"
-                  >
-                    Relancer
-                  </a>
+                    :draft="relanceEmailDraft(devi)"
+                    :filename="`relance-devis-${devi.numero || devi.id}`"
+                    compact
+                  />
                   <button
                     v-if="canAccepter(devi)"
                     @click="changeStatutDevis(devi, 'accepter')"
@@ -281,12 +279,13 @@ import AppModal from '@/components/AppModal.vue'
 import AppConfirmModal from '@/components/AppConfirmModal.vue'
 import DevisForm from '@/components/DevisForm.vue'
 import AssignCommercialModal from '@/components/AssignCommercialModal.vue'
+import EmailActionButtons from '@/components/EmailActionButtons.vue'
 import SortableTh from '@/components/SortableTh.vue'
 import { useToast } from '@/composables/useToast'
 import { useTableSort } from '@/composables/useTableSort'
 import { useAuthStore } from '@/stores/auth'
 import { telechargerCSV } from '@/services/exports'
-import { buildOutlookComposeUrl } from '@/utils/emailComposer'
+import { buildEmailDraft } from '@/utils/emailComposer'
 
 const toast = useToast()
 const route = useRoute()
@@ -672,9 +671,9 @@ function statutBadge(statut) {
   }[statut] || 'bg-gray-100'
 }
 
-function relanceEmailHref(devi) {
+function relanceEmailDraft(devi) {
   const client = devi.client || {}
-  if (!client.email) return '#'
+  if (!client.email) return buildEmailDraft()
   const subject = `Relance devis ${devi.numero || ''} - ${client.nom || ''}`.trim()
   const bodyLines = [
     `Bonjour${client.nom ? ` ${client.nom}` : ''},`,
@@ -688,10 +687,12 @@ function relanceEmailHref(devi) {
     'Cordialement,',
     auth.user?.name || 'XELLTEKK',
   ].filter(Boolean)
-  return buildOutlookComposeUrl({
+  return buildEmailDraft({
     to: client.email,
     subject,
     body: bodyLines.join('\n'),
+    context_type: 'devis',
+    context_id: devi.id,
   })
 }
 

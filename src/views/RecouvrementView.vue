@@ -114,7 +114,7 @@
                 </button>
                 <div class="mt-1 font-bold text-slate-950">{{ facture.client?.nom || 'Client non renseigné' }}</div>
                 <div class="mt-0.5 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500">
-                  <a v-if="facture.client?.email" :href="buildMailtoUrl({ to: facture.client.email })" class="hover:underline">{{ facture.client.email }}</a>
+                  <span v-if="facture.client?.email">{{ facture.client.email }}</span>
                   <span v-if="facture.client?.telephone">{{ facture.client.telephone }}</span>
                   <span v-if="facture.commercial?.name">Com. {{ facture.commercial.name }}</span>
                 </div>
@@ -147,8 +147,21 @@
                 <div class="flex flex-wrap justify-end gap-2">
                   <button type="button" class="btn-secondary rounded-full px-3 py-1.5 text-xs" @click="openHistory(facture)">Historique</button>
                   <button type="button" class="btn-secondary rounded-full px-3 py-1.5 text-xs" @click="openSuivi(facture)">Suivi</button>
-                  <button type="button" class="btn-primary rounded-full px-3 py-1.5 text-xs" :disabled="relanceLoading === facture.id" @click="prepareRelance(facture)">
-                    {{ relanceLoading === facture.id ? '...' : 'Relancer' }}
+                  <button
+                    type="button"
+                    class="btn-primary rounded-full px-3 py-1.5 text-xs"
+                    :disabled="relanceLoading === `send-${facture.id}`"
+                    @click="prepareRelance(facture, 'send')"
+                  >
+                    {{ relanceLoading === `send-${facture.id}` ? '...' : 'Envoyer depuis Saytu' }}
+                  </button>
+                  <button
+                    type="button"
+                    class="btn-secondary rounded-full px-3 py-1.5 text-xs"
+                    :disabled="relanceLoading === `outlook-${facture.id}`"
+                    @click="prepareRelance(facture, 'outlook')"
+                  >
+                    {{ relanceLoading === `outlook-${facture.id}` ? '...' : 'Ouvrir dans Outlook' }}
                   </button>
                 </div>
               </td>
@@ -324,7 +337,7 @@ import api from '@/services/api'
 import AppModal from '@/components/AppModal.vue'
 import { useCurrency } from '@/composables/useCurrency'
 import { useToast } from '@/composables/useToast'
-import { buildMailtoUrl, closeReservedEmailComposerWindow, openEmailComposer, reserveEmailComposerWindow } from '@/utils/emailComposer'
+import { buildEmailDraft, downloadOutlookEml } from '@/utils/emailComposer'
 
 const router = useRouter()
 const toast = useToast()
@@ -625,17 +638,19 @@ async function saveSuivi() {
   }
 }
 
-function mailtoHref(facture) {
+function relanceEmailDraft(facture) {
   const relance = facture?.email_relance || {}
-  if (!relance.to) return ''
-  return buildMailtoUrl({
+  if (!relance.to) return buildEmailDraft()
+  return buildEmailDraft({
     to: relance.to,
     subject: relance.subject || 'Relance facture',
     body: relance.body || '',
+    context_type: 'recouvrement',
+    context_id: facture.id,
   })
 }
 
-async function prepareRelance(facture) {
+async function prepareRelance(facture, mode = 'send') {
   if (!facture?.client?.email) {
     openSuivi(facture, {
       statut: 'a_relancer',
@@ -647,24 +662,26 @@ async function prepareRelance(facture) {
     return
   }
 
-  relanceLoading.value = facture.id
-  const emailWindow = reserveEmailComposerWindow()
+  const draft = relanceEmailDraft(facture)
+  relanceLoading.value = `${mode}-${facture.id}`
   try {
+    if (mode === 'send') {
+      await api.post('/emails/send', draft)
+    } else if (!downloadOutlookEml(draft, `relance-facture-${facture.numero || facture.id}`)) {
+      throw new Error('eml_generation_failed')
+    }
+
     await api.post(`/recouvrement/factures/${facture.id}/suivis`, {
       statut: 'relance',
       type_action: 'relance_email',
       prochain_rappel: datePlus(7),
-      commentaire: 'Relance email préparée depuis le module recouvrement.',
+      commentaire: mode === 'send'
+        ? 'Relance email envoyée depuis Saytu.'
+        : 'Relance email préparée en fichier Outlook depuis le module recouvrement.',
     })
     await reloadAll()
-    const href = mailtoHref(facture)
-    if (href) {
-      openEmailComposer(href, emailWindow)
-    } else {
-      closeReservedEmailComposerWindow(emailWindow)
-    }
+    toast.success(mode === 'send' ? 'Relance envoyée depuis Saytu.' : 'Fichier .eml téléchargé pour Outlook classique.')
   } catch (error) {
-    closeReservedEmailComposerWindow(emailWindow)
     toast.error(error.response?.data?.message || 'Relance impossible.')
   } finally {
     relanceLoading.value = null

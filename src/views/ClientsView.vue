@@ -111,14 +111,12 @@
               </td>
               <td class="px-4 py-2.5 text-sm">
                 <div class="flex flex-col gap-0.5">
-                  <a
+                  <span
                     v-if="client.email"
-                    :href="emailHref(client.email)"
-                    class="max-w-[240px] truncate font-medium text-xelltekk-700 hover:text-xelltekk-900 hover:underline"
-                    @click.stop
+                    class="max-w-[240px] truncate font-medium text-xelltekk-700"
                   >
                     {{ client.email }}
-                  </a>
+                  </span>
                   <span v-if="client.telephone || client.mobile" class="text-xs text-gray-500">{{ client.telephone || client.mobile }}</span>
                   <span v-if="!client.email && !client.telephone && !client.mobile" class="text-xs text-gray-400">–</span>
                 </div>
@@ -146,9 +144,12 @@
                 <button v-if="canSellTo(client)" @click="creerFacture(client)" class="text-blue-600 hover:text-blue-800 text-sm font-medium mr-2">
                   + Facture
                 </button>
-                <button v-if="Number(summary(client).reste_a_payer || 0) > 0" @click="relancerClient(client)" class="text-amber-700 hover:text-amber-900 text-sm font-medium mr-2">
-                  Relancer
-                </button>
+                <EmailActionButtons
+                  v-if="Number(summary(client).reste_a_payer || 0) > 0 && client.email"
+                  :draft="relanceDraftForClient(client)"
+                  :filename="`relance-client-${client.code || client.id}`"
+                  compact
+                />
                 <button v-if="isAdmin" @click="openAssignClient(client)" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium mr-2">
                   Affecter
                 </button>
@@ -254,7 +255,13 @@
               <button type="button" class="quick-client-btn" @click="creerPaiement(client360)">+ Paiement</button>
               <button type="button" class="quick-client-btn" @click="creerRdv(client360)">+ Rendez-vous</button>
               <button type="button" class="quick-client-btn" @click="creerIntervention(client360)">+ Intervention</button>
-              <button type="button" class="quick-client-btn" @click="relancerClient(client360)">Relancer</button>
+              <EmailActionButtons
+                v-if="client360.email"
+                :draft="relanceDraftForClient(client360)"
+                :filename="`relance-client-${client360.code || client360.id}`"
+                class="col-span-2 sm:col-span-3"
+              />
+              <button v-else type="button" class="quick-client-btn" @click="relancerClient(client360)">Relancer</button>
               <button type="button" class="quick-client-btn" @click="ouvrirSituationClientPdf(client360)">Situation PDF</button>
             </div>
           </div>
@@ -448,6 +455,7 @@ import AppModal from '@/components/AppModal.vue'
 import ClientForm from '@/components/ClientForm.vue'
 import Client360List from '@/components/Client360List.vue'
 import AssignCommercialModal from '@/components/AssignCommercialModal.vue'
+import EmailActionButtons from '@/components/EmailActionButtons.vue'
 import SortableTh from '@/components/SortableTh.vue'
 import { useToast } from '@/composables/useToast'
 import { telechargerCSV } from '@/services/exports'
@@ -455,7 +463,7 @@ import { useTableSort } from '@/composables/useTableSort'
 import { useAuthStore } from '@/stores/auth'
 import { useCurrency } from '@/composables/useCurrency'
 import { ouvrirPDF } from '@/services/pdf'
-import { buildMailtoUrl, closeReservedEmailComposerWindow, openEmailComposer, reserveEmailComposerWindow } from '@/utils/emailComposer'
+import { buildEmailDraft } from '@/utils/emailComposer'
 
 const toast = useToast()
 const route = useRoute()
@@ -667,23 +675,6 @@ async function ouvrirSituationClientPdf(client) {
   }
 }
 
-function emailHref(email) {
-  return buildMailtoUrl({ to: email })
-}
-
-async function loadClientForRelance(client) {
-  if (client?.alertes && client?.historique) {
-    return client
-  }
-
-  try {
-    const { data } = await api.get(`/clients/${client.id}`)
-    return data
-  } catch (e) {
-    return client
-  }
-}
-
 function uniqueInvoicesForRelance(client) {
   const invoices = [
     ...(client.alertes?.factures_en_retard || []),
@@ -736,22 +727,26 @@ function buildRelanceEmail(client) {
 }
 
 async function relancerClient(client) {
-  const emailWindow = reserveEmailComposerWindow()
-  const fullClient = await loadClientForRelance(client)
-  const { subject, body } = buildRelanceEmail(fullClient)
-
-  if (fullClient.email) {
-    openEmailComposer(buildMailtoUrl({ to: fullClient.email, subject, body }), emailWindow)
-    return
-  }
-
-  closeReservedEmailComposerWindow(emailWindow)
   try {
+    const { subject, body } = buildRelanceEmail(client)
     await navigator.clipboard?.writeText(`${subject}\n\n${body}`)
     toast.success('Email de relance copié, aucun email client renseigné')
   } catch (e) {
     toast.info('Aucun email renseigné pour ce client')
   }
+}
+
+function relanceDraftForClient(client) {
+  if (!client?.email) return buildEmailDraft()
+  const { subject, body } = buildRelanceEmail(client)
+
+  return buildEmailDraft({
+    to: client.email,
+    subject,
+    body,
+    context_type: 'client',
+    context_id: client.id,
+  })
 }
 
 async function openFromRoute(id) {

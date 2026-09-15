@@ -580,7 +580,7 @@
                 :disabled="sendingEmailId === licence.id"
                 @click="sendOnboardingEmail(licence)"
               >
-                Envoyer
+                Envoyer depuis Saytu
               </button>
               <button
                 v-else-if="group.key === 'expirees' || group.key === 'a_renouveler'"
@@ -810,7 +810,7 @@
             </button>
             <button type="button" class="btn-secondary col-span-2 px-3 py-2 text-xs" :disabled="!activeLicence || sendingEmailId === activeLicence?.id" @click="sendOnboardingEmail(activeLicence)">
               <Send class="h-4 w-4" />
-              {{ sendingEmailId === activeLicence?.id ? 'Envoi...' : 'Envoyer offre + PDF' }}
+              {{ sendingEmailId === activeLicence?.id ? 'Envoi...' : 'Envoyer depuis Saytu' }}
             </button>
             <button type="button" class="btn-secondary px-3 py-2 text-xs" :disabled="!activeLicence" @click="openDocument(activeLicence, 'devis')">
               <FileText class="h-4 w-4" />
@@ -822,7 +822,7 @@
             </button>
             <button type="button" class="btn-secondary px-3 py-2 text-xs" :disabled="!activeLicence" @click="prepareOnboardingEmail(activeLicence)">
               <Mail class="h-4 w-4" />
-              Email
+              Ouvrir dans Outlook
             </button>
             <button type="button" class="btn-secondary px-3 py-2 text-xs" :disabled="!activeLicence?.licence_certificate" @click="copyText(activeLicence?.licence_certificate, 'Certificat copié.')">
               <Copy class="h-4 w-4" />
@@ -1148,11 +1148,11 @@
                     Contrat
                   </button>
                   <button type="button" class="btn-secondary px-3 py-2 text-xs" @click="prepareOnboardingEmail(licence)">
-                    Email
+                    Outlook
                   </button>
                   <button type="button" class="btn-secondary px-3 py-2 text-xs" :disabled="sendingEmailId === licence.id" @click="sendOnboardingEmail(licence)">
                     <Send class="h-4 w-4" />
-                    {{ sendingEmailId === licence.id ? '...' : 'Envoyer' }}
+                    {{ sendingEmailId === licence.id ? '...' : 'Envoyer depuis Saytu' }}
                   </button>
                 </div>
               </div>
@@ -1234,7 +1234,7 @@ import {
 import api from '@/services/api'
 import { useConfirm } from '@/composables/useConfirm'
 import { useToast } from '@/composables/useToast'
-import { buildMailtoUrl, closeReservedEmailComposerWindow, openEmailComposer, reserveEmailComposerWindow } from '@/utils/emailComposer'
+import { buildEmailDraft, downloadOutlookEml } from '@/utils/emailComposer'
 
 const DEFAULT_MODULES = {
   dashboard: { label: 'Tableau de bord', group: 'Pilotage' },
@@ -2487,29 +2487,27 @@ async function reopenAdminSupportTicket(ticket) {
 async function prepareOnboardingEmail(licence) {
   if (!licence?.id) return
 
-  const reservedWindow = reserveEmailComposerWindow()
   try {
     const { data } = await api.get(axiosApiUrl(licence.email_onboarding_url || `/admin/xelltekk/licences/${licence.id}/email-onboarding`))
-    const mailto = buildMailtoUrl({
+    const draft = buildEmailDraft({
       to: data.to,
       subject: data.subject,
       body: data.body,
+      context_type: 'xelltekk_licence',
+      context_id: licence.id,
     })
 
     if (!data.to) {
-      closeReservedEmailComposerWindow(reservedWindow)
       await copyText(data.body, 'Email copié : aucun email client renseigné.')
       return
     }
 
-    if (openEmailComposer(mailto, reservedWindow)) {
-      toast.success('Email préparé. Pensez à joindre le devis et le contrat PDF.')
+    if (downloadOutlookEml(draft, `offre-saytu-${licence.numero || licence.id}`)) {
+      toast.success('Fichier .eml téléchargé. Ouvrez-le avec Outlook classique et joignez les PDF si besoin.')
     } else {
-      closeReservedEmailComposerWindow(reservedWindow)
       await copyText(data.body, 'Email copié.')
     }
   } catch (error) {
-    closeReservedEmailComposerWindow(reservedWindow)
     toast.error(error.response?.data?.message || 'Impossible de préparer l’email.')
   }
 }
