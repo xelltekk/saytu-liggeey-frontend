@@ -10,6 +10,38 @@ export function buildMailtoUrl({ to, subject = '', body = '' }) {
   return `mailto:${encodeURIComponent(email)}${query ? `?${query}` : ''}`
 }
 
+const EMAIL_COMPOSER_WINDOW_MARKER = 'saytuEmailComposerWindow'
+const EMAIL_COMPOSER_CLEANUP_DELAYS = [2500, 8000, 15000]
+
+function markReservedEmailWindow(popup) {
+  try {
+    popup.document.documentElement.dataset.saytuEmailComposerWindow = EMAIL_COMPOSER_WINDOW_MARKER
+  } catch (error) {
+    // Ignore browser restrictions.
+  }
+}
+
+function closeIfStillReservedEmailWindow(popup) {
+  try {
+    if (!popup || popup.closed) return
+
+    const marker = popup.document?.documentElement?.dataset?.saytuEmailComposerWindow
+    if (marker === EMAIL_COMPOSER_WINDOW_MARKER) {
+      popup.close()
+    }
+  } catch (error) {
+    // Cross-origin means a webmail handler likely took over the tab. Keep it open.
+  }
+}
+
+function scheduleReservedEmailWindowCleanup(popup) {
+  if (typeof window === 'undefined' || !popup) return
+
+  EMAIL_COMPOSER_CLEANUP_DELAYS.forEach((delay) => {
+    window.setTimeout(() => closeIfStillReservedEmailWindow(popup), delay)
+  })
+}
+
 export function reserveEmailComposerWindow() {
   if (typeof window === 'undefined') return null
 
@@ -54,6 +86,7 @@ export function reserveEmailComposerWindow() {
       </html>
     `)
     popup.document.close()
+    markReservedEmailWindow(popup)
     popup.opener = null
 
     return popup
@@ -81,6 +114,7 @@ export function openEmailComposer(mailtoUrl, reservedWindow = null) {
   if (reservedWindow && !reservedWindow.closed) {
     try {
       reservedWindow.location.replace(composerUrl)
+      scheduleReservedEmailWindowCleanup(reservedWindow)
       return true
     } catch (error) {
       closeReservedEmailComposerWindow(reservedWindow)
@@ -91,6 +125,7 @@ export function openEmailComposer(mailtoUrl, reservedWindow = null) {
     const popup = reserveEmailComposerWindow()
     if (popup) {
       popup.location.replace(composerUrl)
+      scheduleReservedEmailWindowCleanup(popup)
       return true
     }
   } catch (error) {
