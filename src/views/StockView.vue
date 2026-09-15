@@ -7,6 +7,10 @@
                 :class="onglet === 'overview' ? 'text-xelltekk-700 border-b-2 border-xelltekk-700' : 'text-gray-500 hover:text-gray-700'">
           📊 Vue d’ensemble
         </button>
+        <button @click="onglet = 'valorisation'" class="px-6 py-3 text-sm font-medium transition-colors"
+                :class="onglet === 'valorisation' ? 'text-xelltekk-700 border-b-2 border-xelltekk-700' : 'text-gray-500 hover:text-gray-700'">
+          💰 Valorisation
+        </button>
         <button @click="onglet = 'stock'" class="px-6 py-3 text-sm font-medium transition-colors"
                 :class="onglet === 'stock' ? 'text-xelltekk-700 border-b-2 border-xelltekk-700' : 'text-gray-500 hover:text-gray-700'">
           📦 Stock par emplacement
@@ -79,6 +83,12 @@
           <option value="rupture">Ruptures</option>
           <option value="critique">Critiques</option>
           <option value="alerte">À réapprovisionner</option>
+        </select>
+        <select v-if="onglet === 'valorisation'" v-model="filters.dormant_days" @change="reload(1)" class="input md:w-52">
+          <option :value="60">Dormants depuis 60 jours</option>
+          <option :value="90">Dormants depuis 90 jours</option>
+          <option :value="180">Dormants depuis 180 jours</option>
+          <option :value="365">Dormants depuis 365 jours</option>
         </select>
       </div>
 
@@ -218,6 +228,148 @@
         </div>
         <p v-else class="rounded-xl bg-emerald-50 p-5 text-center text-sm font-bold text-emerald-700">Aucune alerte critique actuellement.</p>
       </section>
+    </div>
+
+    <!-- TAB: Valorisation -->
+    <div v-else-if="onglet === 'valorisation'" class="space-y-4">
+      <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div class="rounded-2xl border border-cyan-200 bg-cyan-50/80 p-4 shadow-sm">
+          <p class="text-xs font-black uppercase tracking-[0.16em] text-cyan-700">Valeur stock</p>
+          <p class="mt-3 text-2xl font-black text-slate-900">{{ formatPrice(stockValuation.kpis.valeur_stock) }}</p>
+          <p class="mt-1 text-xs text-cyan-800">{{ formatQte(stockValuation.kpis.quantite_totale) }} unité(s)</p>
+        </div>
+        <div class="rounded-2xl border border-sky-200 bg-sky-50/80 p-4 shadow-sm">
+          <p class="text-xs font-black uppercase tracking-[0.16em] text-sky-700">Produits valorisés</p>
+          <p class="mt-3 text-2xl font-black text-slate-900">{{ stockValuation.kpis.produits_valorises }}</p>
+          <p class="mt-1 text-xs text-sky-800">{{ stockValuation.kpis.lignes_stock }} ligne(s) de stock</p>
+        </div>
+        <div class="rounded-2xl border border-teal-200 bg-teal-50/80 p-4 shadow-sm">
+          <p class="text-xs font-black uppercase tracking-[0.16em] text-teal-700">PMP moyen</p>
+          <p class="mt-3 text-2xl font-black text-slate-900">{{ formatPrice(stockValuation.kpis.pmp_moyen) }}</p>
+          <p class="mt-1 text-xs text-teal-800">Prix moyen pondéré</p>
+        </div>
+        <div class="rounded-2xl border border-cyan-200 bg-white p-4 shadow-sm">
+          <p class="text-xs font-black uppercase tracking-[0.16em] text-cyan-700">Produits dormants</p>
+          <p class="mt-3 text-2xl font-black text-slate-900">{{ stockValuation.produits_dormants.length }}</p>
+          <p class="mt-1 text-xs text-cyan-800">Sans mouvement ≥ {{ stockValuation.kpis.dormant_days }} jours</p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
+        <section class="rounded-2xl border border-sky-200 bg-white p-4 shadow-sm">
+          <div class="mb-3 flex items-center justify-between gap-3">
+            <div>
+              <h2 class="text-base font-black text-slate-900">Valeur par entrepôt</h2>
+              <p class="text-xs text-slate-500">Répartition de l’argent immobilisé par dépôt ou boutique.</p>
+            </div>
+          </div>
+          <div v-if="stockValuation.par_entrepot.length" class="space-y-2">
+            <article v-for="entrepot in stockValuation.par_entrepot" :key="entrepot.id" class="rounded-xl border border-cyan-100 bg-cyan-50/60 px-3 py-2">
+              <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                  <p class="truncate font-bold text-slate-900">{{ entrepot.libelle }}</p>
+                  <p class="text-xs text-slate-500">{{ entrepot.produits }} produit(s) · {{ entrepot.lignes_stock }} ligne(s)</p>
+                </div>
+                <div class="text-right">
+                  <p class="font-mono text-sm font-black text-cyan-700">{{ formatPrice(entrepot.valeur) }}</p>
+                  <p class="text-xs text-slate-500">{{ formatQte(entrepot.quantite) }} unité(s)</p>
+                </div>
+              </div>
+            </article>
+          </div>
+          <p v-else class="rounded-xl bg-slate-50 p-5 text-center text-sm text-slate-500">Aucune valorisation par entrepôt.</p>
+        </section>
+
+        <section class="rounded-2xl border border-sky-200 bg-white p-4 shadow-sm">
+          <div class="mb-3">
+            <h2 class="text-base font-black text-slate-900">Valeur par catégorie</h2>
+            <p class="text-xs text-slate-500">Identifiez les familles qui concentrent le plus de stock.</p>
+          </div>
+          <div v-if="stockValuation.par_categorie.length" class="space-y-2">
+            <article v-for="categorie in stockValuation.par_categorie" :key="categorie.id || 'none'" class="rounded-xl border border-sky-100 bg-sky-50/60 px-3 py-2">
+              <div class="flex items-start justify-between gap-3">
+                <div>
+                  <p class="font-bold text-slate-900">{{ categorie.libelle }}</p>
+                  <p class="text-xs text-slate-500">{{ categorie.produits }} produit(s)</p>
+                </div>
+                <div class="text-right">
+                  <p class="font-mono text-sm font-black text-cyan-700">{{ formatPrice(categorie.valeur) }}</p>
+                  <p class="text-xs text-slate-500">{{ formatQte(categorie.quantite) }} unité(s)</p>
+                </div>
+              </div>
+            </article>
+          </div>
+          <p v-else class="rounded-xl bg-slate-50 p-5 text-center text-sm text-slate-500">Aucune valorisation par catégorie.</p>
+        </section>
+      </div>
+
+      <div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
+        <section class="rounded-2xl border border-sky-200 bg-white p-4 shadow-sm">
+          <div class="mb-3">
+            <h2 class="text-base font-black text-slate-900">Top produits immobilisés</h2>
+            <p class="text-xs text-slate-500">Les produits qui représentent le plus de valeur en stock.</p>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead class="border-b border-cyan-100 bg-cyan-50 text-xs uppercase text-cyan-700">
+                <tr>
+                  <th class="px-3 py-2 text-left">Produit</th>
+                  <th class="px-3 py-2 text-right">Qté</th>
+                  <th class="px-3 py-2 text-right">PMP</th>
+                  <th class="px-3 py-2 text-right">Valeur</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-cyan-50">
+                <tr v-for="produit in stockValuation.top_produits" :key="produit.id" class="hover:bg-cyan-50/40">
+                  <td class="px-3 py-3">
+                    <p class="font-bold text-slate-900">{{ produit.libelle }}</p>
+                    <p class="text-xs font-mono text-slate-500">{{ produit.reference || '-' }} · {{ produit.entrepots }} entrepôt(s)</p>
+                  </td>
+                  <td class="px-3 py-3 text-right font-mono">{{ formatQte(produit.quantite) }}</td>
+                  <td class="px-3 py-3 text-right font-mono">{{ formatPrice(produit.pmp_moyen) }}</td>
+                  <td class="px-3 py-3 text-right font-mono font-black text-cyan-700">{{ formatPrice(produit.valeur) }}</td>
+                </tr>
+                <tr v-if="stockValuation.top_produits.length === 0">
+                  <td colspan="4" class="px-3 py-8 text-center text-slate-400">Aucun produit valorisé.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="rounded-2xl border border-sky-200 bg-white p-4 shadow-sm">
+          <div class="mb-3">
+            <h2 class="text-base font-black text-slate-900">Produits dormants</h2>
+            <p class="text-xs text-slate-500">Stock encore présent sans mouvement récent.</p>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead class="border-b border-cyan-100 bg-cyan-50 text-xs uppercase text-cyan-700">
+                <tr>
+                  <th class="px-3 py-2 text-left">Produit</th>
+                  <th class="px-3 py-2 text-right">Dernier mouvement</th>
+                  <th class="px-3 py-2 text-right">Qté</th>
+                  <th class="px-3 py-2 text-right">Valeur</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-cyan-50">
+                <tr v-for="produit in stockValuation.produits_dormants" :key="produit.id" class="hover:bg-cyan-50/40">
+                  <td class="px-3 py-3">
+                    <p class="font-bold text-slate-900">{{ produit.libelle }}</p>
+                    <p class="text-xs font-mono text-slate-500">{{ produit.reference || '-' }}</p>
+                  </td>
+                  <td class="px-3 py-3 text-right text-xs text-slate-500">{{ produit.dernier_mouvement ? formatDateTime(produit.dernier_mouvement) : 'Jamais' }}</td>
+                  <td class="px-3 py-3 text-right font-mono">{{ formatQte(produit.quantite) }}</td>
+                  <td class="px-3 py-3 text-right font-mono font-black text-cyan-700">{{ formatPrice(produit.valeur) }}</td>
+                </tr>
+                <tr v-if="stockValuation.produits_dormants.length === 0">
+                  <td colspan="4" class="px-3 py-8 text-center text-emerald-600">Aucun produit dormant sur la période choisie.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
     </div>
 
     <!-- TAB: Stock -->
@@ -713,6 +865,7 @@ const mouvements = ref([])
 const transferts = ref([])
 const alertes = ref([])
 const stockSummary = ref(emptyStockSummary())
+const stockValuation = ref(emptyStockValuation())
 const movementResume = ref(emptyMovementResume())
 const transferResume = ref(emptyTransferResume())
 const alertResume = ref(emptyAlertResume())
@@ -745,7 +898,7 @@ const entrepots = ref([])
 const loading = ref(false)
 const exportLoading = ref(false)
 const meta = reactive({ current_page: 1, last_page: 1, total: 0, from: 0, to: 0 })
-const filters = reactive({ search: '', entrepot_id: '', type: '', document_type: '', transfer_statut: '', alert_niveau: '', date_from: '', date_to: '' })
+const filters = reactive({ search: '', entrepot_id: '', type: '', document_type: '', transfer_statut: '', alert_niveau: '', dormant_days: 90, date_from: '', date_to: '' })
 const inventoryDrafts = reactive({})
 const inventorySavingId = ref(null)
 const transferActionId = ref(null)
@@ -861,6 +1014,11 @@ async function reload(page = 1) {
       if (requestId !== reloadRequestId || tab !== onglet.value) return
       stockSummary.value = normalizeStockSummary(data)
       Object.assign(meta, { current_page: 1, last_page: 1, total: 0, from: 0, to: 0 })
+    } else if (tab === 'valorisation') {
+      const { data } = await api.get('/stocks/valorisation', { params: valuationFilterParams() })
+      if (requestId !== reloadRequestId || tab !== onglet.value) return
+      stockValuation.value = normalizeStockValuation(data)
+      Object.assign(meta, { current_page: 1, last_page: 1, total: 0, from: 0, to: 0 })
     } else if (tab === 'stock' || tab === 'inventaire') {
       const { data } = await api.get('/stocks', { params: { page, per_page: 25, search: filters.search || undefined, entrepot_id: filters.entrepot_id || undefined } })
       if (requestId !== reloadRequestId || tab !== onglet.value) return
@@ -948,6 +1106,9 @@ function onMouvementSaved() {
   reload()
   if (onglet.value !== 'overview') {
     stockSummary.value = emptyStockSummary()
+  }
+  if (onglet.value !== 'valorisation') {
+    stockValuation.value = emptyStockValuation()
   }
 }
 
@@ -1153,6 +1314,14 @@ function transferFilterParams() {
     search: filters.search || undefined,
     entrepot_id: filters.entrepot_id || undefined,
     statut: filters.transfer_statut || undefined,
+  }
+}
+
+function valuationFilterParams() {
+  return {
+    search: filters.search || undefined,
+    entrepot_id: filters.entrepot_id || undefined,
+    dormant_days: filters.dormant_days || 90,
   }
 }
 
@@ -1403,6 +1572,34 @@ function normalizeStockSummary(data) {
   }
 }
 
+function emptyStockValuation() {
+  return {
+    kpis: {
+      valeur_stock: 0,
+      quantite_totale: 0,
+      produits_valorises: 0,
+      lignes_stock: 0,
+      pmp_moyen: 0,
+      dormant_days: 90,
+    },
+    par_entrepot: [],
+    par_categorie: [],
+    top_produits: [],
+    produits_dormants: [],
+  }
+}
+
+function normalizeStockValuation(data) {
+  const fallback = emptyStockValuation()
+  return {
+    kpis: { ...fallback.kpis, ...(data?.kpis || {}) },
+    par_entrepot: Array.isArray(data?.par_entrepot) ? data.par_entrepot : [],
+    par_categorie: Array.isArray(data?.par_categorie) ? data.par_categorie : [],
+    top_produits: Array.isArray(data?.top_produits) ? data.top_produits : [],
+    produits_dormants: Array.isArray(data?.produits_dormants) ? data.produits_dormants : [],
+  }
+}
+
 function defaultInventoryMotif() {
   return `Inventaire physique du ${new Date().toLocaleDateString('fr-FR')}`
 }
@@ -1519,6 +1716,9 @@ watch(onglet, () => {
   if (onglet.value !== 'transferts') {
     filters.transfer_statut = ''
     transferResume.value = emptyTransferResume()
+  }
+  if (onglet.value !== 'valorisation') {
+    stockValuation.value = emptyStockValuation()
   }
   if (onglet.value !== 'alertes') {
     filters.alert_niveau = ''
