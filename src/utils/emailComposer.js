@@ -10,6 +10,44 @@ export function buildMailtoUrl({ to, subject = '', body = '' }) {
   return `mailto:${encodeURIComponent(email)}${query ? `?${query}` : ''}`
 }
 
+function safeDecodeMailtoValue(value) {
+  try {
+    return decodeURIComponent(String(value || '').replace(/\+/g, '%20'))
+  } catch (error) {
+    return String(value || '')
+  }
+}
+
+export function buildEmailComposerUrl(mailtoUrl) {
+  const rawUrl = String(mailtoUrl || '').trim()
+  if (!rawUrl || !rawUrl.toLowerCase().startsWith('mailto:')) return rawUrl
+
+  const mailtoBody = rawUrl.slice(rawUrl.indexOf(':') + 1)
+  const questionIndex = mailtoBody.indexOf('?')
+  const rawRecipients = questionIndex >= 0 ? mailtoBody.slice(0, questionIndex) : mailtoBody
+  const rawQuery = questionIndex >= 0 ? mailtoBody.slice(questionIndex + 1) : ''
+  const mailtoParams = new URLSearchParams(rawQuery)
+
+  const composerParams = new URLSearchParams({
+    view: 'cm',
+    fs: '1',
+  })
+
+  const to = mailtoParams.get('to') || safeDecodeMailtoValue(rawRecipients)
+  const cc = mailtoParams.get('cc')
+  const bcc = mailtoParams.get('bcc')
+  const subject = mailtoParams.get('subject') || mailtoParams.get('su')
+  const body = mailtoParams.get('body')
+
+  if (to) composerParams.set('to', to)
+  if (cc) composerParams.set('cc', cc)
+  if (bcc) composerParams.set('bcc', bcc)
+  if (subject) composerParams.set('su', subject)
+  if (body) composerParams.set('body', body)
+
+  return `https://mail.google.com/mail/?${composerParams.toString()}`
+}
+
 export function reserveEmailComposerWindow() {
   if (typeof window === 'undefined') return null
 
@@ -76,9 +114,11 @@ export function openEmailComposer(mailtoUrl, reservedWindow = null) {
     return false
   }
 
+  const composerUrl = buildEmailComposerUrl(mailtoUrl)
+
   if (reservedWindow && !reservedWindow.closed) {
     try {
-      reservedWindow.location.replace(mailtoUrl)
+      reservedWindow.location.replace(composerUrl)
       return true
     } catch (error) {
       closeReservedEmailComposerWindow(reservedWindow)
@@ -86,7 +126,7 @@ export function openEmailComposer(mailtoUrl, reservedWindow = null) {
   }
 
   try {
-    const popup = window.open(mailtoUrl, '_blank')
+    const popup = window.open(composerUrl, '_blank', 'noopener,noreferrer')
     if (popup) {
       popup.opener = null
       return true
@@ -97,7 +137,7 @@ export function openEmailComposer(mailtoUrl, reservedWindow = null) {
 
   try {
     const link = document.createElement('a')
-    link.href = mailtoUrl
+    link.href = composerUrl
     link.target = '_blank'
     link.rel = 'noopener noreferrer'
     link.style.display = 'none'
