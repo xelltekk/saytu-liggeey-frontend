@@ -139,7 +139,7 @@
     <fieldset v-if="form.type === 'produit'" class="border border-gray-200 rounded-lg p-4">
       <legend class="px-2 text-sm font-semibold text-gray-700">Stock</legend>
 
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div class="flex items-center pt-7">
           <input v-model="form.gere_stock" type="checkbox" id="gere_stock" class="mr-2 h-4 w-4" />
           <label for="gere_stock" class="text-sm">Gérer le stock</label>
@@ -153,6 +153,12 @@
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Stock d'alerte</label>
           <input v-model.number="form.stock_alerte" type="number" class="input" min="0" />
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Stock de sécurité</label>
+          <input v-model.number="form.stock_securite" type="number" class="input" min="0" />
+          <p class="mt-1 text-xs text-gray-500">Réserve minimale à conserver.</p>
         </div>
       </div>
 
@@ -296,6 +302,7 @@ const defaultForm = () => ({
   taux_tva: 18,
   gere_stock: true,
   stock_alerte: 0,
+  stock_securite: 0,
   unite: 'pièce',
   marque: '',
   modele: '',
@@ -336,6 +343,7 @@ const errorLabels = {
   prix_vente_ht: 'Prix de vente HT',
   taux_tva: 'TVA',
   stock_alerte: "Stock d'alerte",
+  stock_securite: 'Stock de sécurité',
   unite: 'Unité',
   garantie_mois: 'Garantie',
   image: 'Photo produit',

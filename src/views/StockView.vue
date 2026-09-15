@@ -74,6 +74,12 @@
           <option value="recu">Reçus</option>
           <option value="annule">Annulés</option>
         </select>
+        <select v-if="onglet === 'alertes'" v-model="filters.alert_niveau" @change="reload(1)" class="input md:w-48">
+          <option value="">Toutes urgences</option>
+          <option value="rupture">Ruptures</option>
+          <option value="critique">Critiques</option>
+          <option value="alerte">À réapprovisionner</option>
+        </select>
       </div>
 
       <div v-if="onglet === 'mouvements'" class="mt-3 space-y-3 border-t border-cyan-100 pt-3">
@@ -198,12 +204,16 @@
         </div>
         <div v-if="stockSummary.alertes.length" class="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
           <article v-for="a in stockSummary.alertes" :key="a.id" class="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
-            <p class="font-bold text-slate-900">{{ a.libelle }}</p>
+            <div class="flex items-start justify-between gap-2">
+              <p class="font-bold text-slate-900">{{ a.libelle }}</p>
+              <span class="badge text-xs" :class="alertLevelBadge(a.niveau)">{{ alertLevelLabel(a.niveau) }}</span>
+            </div>
             <p class="text-xs font-mono text-slate-500">{{ a.reference || '-' }}</p>
             <p class="mt-2 text-sm">
               Stock : <strong class="text-red-700">{{ formatQte(a.stock_total) }}</strong>
-              <span class="text-slate-500"> / seuil {{ a.stock_alerte }}</span>
+              <span class="text-slate-500"> / seuil {{ a.seuil_pilotage ?? a.stock_alerte }}</span>
             </p>
+            <p class="mt-1 text-xs font-bold text-cyan-800">À recommander : {{ formatQte(a.quantite_recommandee) }} {{ a.unite || '' }}</p>
           </article>
         </div>
         <p v-else class="rounded-xl bg-emerald-50 p-5 text-center text-sm font-bold text-emerald-700">Aucune alerte critique actuellement.</p>
@@ -503,30 +513,81 @@
 
     <!-- TAB: Alertes -->
     <div v-else-if="onglet === 'alertes'" class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+      <div class="border-b border-cyan-100 bg-cyan-50 px-4 py-3">
+        <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <h2 class="text-base font-black text-slate-900">Alertes de réapprovisionnement</h2>
+            <p class="text-xs text-cyan-800">
+              Priorisez les ruptures, les stocks critiques et les quantités à recommander.
+            </p>
+          </div>
+          <div class="grid grid-cols-2 gap-2 sm:grid-cols-5">
+            <button type="button" class="rounded-xl border px-3 py-2 text-right" :class="alertChipClass('')" @click="setAlertLevel('')">
+              <p class="text-[10px] font-black uppercase tracking-[0.14em]">Total</p>
+              <p class="font-mono text-lg font-black">{{ alertResume.total }}</p>
+            </button>
+            <button type="button" class="rounded-xl border px-3 py-2 text-right" :class="alertChipClass('rupture')" @click="setAlertLevel('rupture')">
+              <p class="text-[10px] font-black uppercase tracking-[0.14em]">Ruptures</p>
+              <p class="font-mono text-lg font-black">{{ alertResume.rupture }}</p>
+            </button>
+            <button type="button" class="rounded-xl border px-3 py-2 text-right" :class="alertChipClass('critique')" @click="setAlertLevel('critique')">
+              <p class="text-[10px] font-black uppercase tracking-[0.14em]">Critiques</p>
+              <p class="font-mono text-lg font-black">{{ alertResume.critique }}</p>
+            </button>
+            <div class="rounded-xl border border-cyan-200 bg-white px-3 py-2 text-right">
+              <p class="text-[10px] font-black uppercase tracking-[0.14em] text-cyan-700">Qté reco.</p>
+              <p class="font-mono text-lg font-black text-slate-900">{{ formatQte(alertResume.quantite_recommandee) }}</p>
+            </div>
+            <div class="rounded-xl border border-cyan-200 bg-white px-3 py-2 text-right">
+              <p class="text-[10px] font-black uppercase tracking-[0.14em] text-cyan-700">Budget estimé</p>
+              <p class="font-mono text-lg font-black text-slate-900">{{ formatPrice(alertResume.valeur_estimee) }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
       <div class="overflow-x-auto">
       <table class="w-full">
         <thead class="bg-gray-50 border-b border-gray-200">
           <tr>
             <SortableTh column="reference" :active="alerteSort.key === 'reference'" :icon="alerteSortIcon('reference')" @sort="toggleAlerteSort">Référence</SortableTh>
             <SortableTh column="produit" :active="alerteSort.key === 'produit'" :icon="alerteSortIcon('produit')" @sort="toggleAlerteSort">Produit</SortableTh>
+            <SortableTh column="niveau" :active="alerteSort.key === 'niveau'" :icon="alerteSortIcon('niveau')" align="center" @sort="toggleAlerteSort">Urgence</SortableTh>
             <SortableTh column="stock" :active="alerteSort.key === 'stock'" :icon="alerteSortIcon('stock')" align="right" @sort="toggleAlerteSort">Stock actuel</SortableTh>
-            <SortableTh column="seuil" :active="alerteSort.key === 'seuil'" :icon="alerteSortIcon('seuil')" align="right" @sort="toggleAlerteSort">Seuil d'alerte</SortableTh>
-            <SortableTh column="statut" :active="alerteSort.key === 'statut'" :icon="alerteSortIcon('statut')" align="center" @sort="toggleAlerteSort">Statut</SortableTh>
+            <SortableTh column="seuil" :active="alerteSort.key === 'seuil'" :icon="alerteSortIcon('seuil')" align="right" @sort="toggleAlerteSort">Seuils</SortableTh>
+            <SortableTh column="recommande" :active="alerteSort.key === 'recommande'" :icon="alerteSortIcon('recommande')" align="right" @sort="toggleAlerteSort">À recommander</SortableTh>
+            <th class="px-4 py-3 text-right text-xs font-semibold uppercase text-gray-500">Action</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-100">
-          <tr v-for="a in sortedAlertes" :key="a.id" class="hover:bg-gray-50">
+          <tr v-for="a in sortedAlertes" :key="a.id" class="hover:bg-gray-50" :class="alertRowClass(a)">
             <td class="px-4 py-3 text-sm font-mono text-gray-600">{{ a.reference }}</td>
-            <td class="px-4 py-3 text-sm font-medium">{{ a.libelle }}</td>
-            <td class="px-4 py-3 text-sm text-right font-mono font-bold text-red-600">{{ formatQte(a.stock_total) }}</td>
-            <td class="px-4 py-3 text-sm text-right font-mono text-gray-600">{{ a.stock_alerte }}</td>
             <td class="px-4 py-3 text-center">
-              <span v-if="parseFloat(a.stock_total) === 0" class="badge bg-red-100 text-red-800">RUPTURE</span>
-              <span v-else class="badge bg-orange-100 text-orange-800">ALERTE</span>
+              <div class="text-left text-sm font-medium text-slate-900">{{ a.libelle }}</div>
+              <div class="text-left text-xs text-slate-500">{{ a.unite || 'pièce' }}</div>
+            </td>
+            <td class="px-4 py-3 text-center">
+              <span class="badge text-xs" :class="alertLevelBadge(a.niveau)">{{ alertLevelLabel(a.niveau) }}</span>
+            </td>
+            <td class="px-4 py-3 text-sm text-right font-mono font-bold" :class="a.niveau === 'rupture' ? 'text-red-700' : 'text-orange-700'">
+              {{ formatQte(a.stock_total) }}
+            </td>
+            <td class="px-4 py-3 text-right text-xs text-gray-600">
+              <div>Alerte : <strong class="font-mono">{{ a.stock_alerte }}</strong></div>
+              <div>Sécurité : <strong class="font-mono">{{ a.stock_securite }}</strong></div>
+              <div class="text-cyan-700">Pilotage : <strong class="font-mono">{{ a.seuil_pilotage }}</strong></div>
+            </td>
+            <td class="px-4 py-3 text-right">
+              <div class="font-mono text-sm font-black text-cyan-700">{{ formatQte(a.quantite_recommandee) }} {{ a.unite || '' }}</div>
+              <div class="text-xs text-slate-500">≈ {{ formatPrice(a.valeur_estimee) }}</div>
+            </td>
+            <td class="px-4 py-3 text-right">
+              <button class="btn-secondary px-3 py-1.5 text-xs" @click="openProduitFromAlert(a)">
+                Ajuster seuil
+              </button>
             </td>
           </tr>
           <tr v-if="alertes.length === 0">
-            <td colspan="5" class="px-4 py-12 text-center text-green-600 text-sm">
+            <td colspan="7" class="px-4 py-12 text-center text-green-600 text-sm">
               ✅ Aucun produit en alerte de stock !
             </td>
           </tr>
@@ -635,6 +696,7 @@
 
 <script setup>
 import { ref, reactive, onMounted, onUnmounted, computed, h, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import api from '@/services/api'
 import AppModal from '@/components/AppModal.vue'
 import MouvementForm from '@/components/MouvementForm.vue'
@@ -644,6 +706,7 @@ import { useTableSort } from '@/composables/useTableSort'
 import { telechargerCSV } from '@/services/exports'
 
 const toast = useToast()
+const router = useRouter()
 const onglet = ref('overview')
 const stocks = ref([])
 const mouvements = ref([])
@@ -652,6 +715,7 @@ const alertes = ref([])
 const stockSummary = ref(emptyStockSummary())
 const movementResume = ref(emptyMovementResume())
 const transferResume = ref(emptyTransferResume())
+const alertResume = ref(emptyAlertResume())
 const mouvementTypeOptions = [
   { value: '', label: 'Tous les mouvements', shortLabel: 'Tous' },
   { value: 'entree', label: 'Entrées', shortLabel: 'Entrées' },
@@ -681,7 +745,7 @@ const entrepots = ref([])
 const loading = ref(false)
 const exportLoading = ref(false)
 const meta = reactive({ current_page: 1, last_page: 1, total: 0, from: 0, to: 0 })
-const filters = reactive({ search: '', entrepot_id: '', type: '', document_type: '', transfer_statut: '', date_from: '', date_to: '' })
+const filters = reactive({ search: '', entrepot_id: '', type: '', document_type: '', transfer_statut: '', alert_niveau: '', date_from: '', date_to: '' })
 const inventoryDrafts = reactive({})
 const inventorySavingId = ref(null)
 const transferActionId = ref(null)
@@ -737,9 +801,10 @@ const sortedMouvements = computed(() => sortedMouvementRows(mouvements.value, {
 const sortedAlertes = computed(() => sortedAlerteRows(alertes.value, {
   reference: 'reference',
   produit: 'libelle',
+  niveau: (alerte) => alertLevelRank(alerte.niveau),
   stock: (alerte) => parseFloat(alerte.stock_total || 0),
-  seuil: (alerte) => parseFloat(alerte.stock_alerte || 0),
-  statut: (alerte) => (parseFloat(alerte.stock_total || 0) === 0 ? 'rupture' : 'alerte'),
+  seuil: (alerte) => parseFloat(alerte.seuil_pilotage || alerte.stock_alerte || 0),
+  recommande: (alerte) => parseFloat(alerte.quantite_recommandee || 0),
 }))
 
 const entrepotsDestination = computed(() => {
@@ -817,9 +882,10 @@ async function reload(page = 1) {
       transferResume.value = normalizeTransferResume(data.resume)
       Object.assign(meta, { current_page: data.current_page, last_page: data.last_page, total: data.total, from: data.from || 0, to: data.to || 0 })
     } else if (tab === 'alertes') {
-      const { data } = await api.get('/stocks/alerts', { params: { search: filters.search || undefined } })
+      const { data } = await api.get('/stocks/alerts', { params: alertFilterParams() })
       if (requestId !== reloadRequestId || tab !== onglet.value) return
-      alertes.value = data
+      alertes.value = Array.isArray(data) ? data : data.data || []
+      alertResume.value = normalizeAlertResume(data?.resume)
     }
   } catch (e) {
     toast.error('Erreur de chargement')
@@ -1090,6 +1156,13 @@ function transferFilterParams() {
   }
 }
 
+function alertFilterParams() {
+  return {
+    search: filters.search || undefined,
+    niveau: filters.alert_niveau || undefined,
+  }
+}
+
 function setMouvementType(type) {
   filters.type = type
   reload(1)
@@ -1155,6 +1228,78 @@ function normalizeTransferResume(data) {
     recu: Number(data?.recu || 0),
     annule: Number(data?.annule || 0),
   }
+}
+
+function emptyAlertResume() {
+  return {
+    total: 0,
+    rupture: 0,
+    critique: 0,
+    alerte: 0,
+    quantite_recommandee: 0,
+    valeur_estimee: 0,
+  }
+}
+
+function normalizeAlertResume(data) {
+  return {
+    total: Number(data?.total || 0),
+    rupture: Number(data?.rupture || 0),
+    critique: Number(data?.critique || 0),
+    alerte: Number(data?.alerte || 0),
+    quantite_recommandee: Number(data?.quantite_recommandee || 0),
+    valeur_estimee: Number(data?.valeur_estimee || 0),
+  }
+}
+
+function setAlertLevel(niveau) {
+  filters.alert_niveau = niveau
+  reload(1)
+}
+
+function alertLevelLabel(niveau) {
+  return {
+    rupture: 'Rupture',
+    critique: 'Critique',
+    alerte: 'À commander',
+  }[niveau] || 'Alerte'
+}
+
+function alertLevelRank(niveau) {
+  return {
+    rupture: 0,
+    critique: 1,
+    alerte: 2,
+  }[niveau] ?? 9
+}
+
+function alertLevelBadge(niveau) {
+  return {
+    rupture: 'bg-red-100 text-red-800',
+    critique: 'bg-orange-100 text-orange-800',
+    alerte: 'bg-amber-100 text-amber-800',
+  }[niveau] || 'bg-gray-100 text-gray-700'
+}
+
+function alertChipClass(niveau) {
+  if (filters.alert_niveau === niveau) {
+    return 'border-cyan-500 bg-cyan-100 text-cyan-900'
+  }
+
+  return 'border-cyan-200 bg-white text-slate-700 hover:border-cyan-400'
+}
+
+function alertRowClass(alerte) {
+  return {
+    rupture: 'bg-red-50/40',
+    critique: 'bg-orange-50/40',
+    alerte: '',
+  }[alerte?.niveau] || ''
+}
+
+function openProduitFromAlert(alerte) {
+  if (!alerte?.id) return
+  router.push({ path: '/produits', query: { open: alerte.id } })
 }
 
 function setTransferStatus(statut) {
@@ -1374,6 +1519,10 @@ watch(onglet, () => {
   if (onglet.value !== 'transferts') {
     filters.transfer_statut = ''
     transferResume.value = emptyTransferResume()
+  }
+  if (onglet.value !== 'alertes') {
+    filters.alert_niveau = ''
+    alertResume.value = emptyAlertResume()
   }
   reload(1)
 })
