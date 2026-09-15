@@ -30,6 +30,26 @@
               {{ email.subject }}
             </p>
 
+            <button type="button" class="email-history-toggle" :disabled="historyLoading" @click="toggleHistory">
+              {{ historyOpen ? 'Masquer l’historique' : 'Voir l’historique des relances' }}
+            </button>
+
+            <div v-if="historyOpen" class="email-history-panel">
+              <p v-if="historyLoading" class="email-history-empty">Chargement de l’historique...</p>
+              <p v-else-if="historyError" class="email-history-empty email-history-error">{{ historyError }}</p>
+              <p v-else-if="historyItems.length === 0" class="email-history-empty">Aucune relance enregistrée pour le moment.</p>
+              <template v-else>
+                <article v-for="item in historyItems" :key="item.id" class="email-history-item">
+                  <div class="email-history-item-head">
+                    <span :class="historyStatusClass(item.status)">{{ historyStatusLabel(item.status) }}</span>
+                    <time>{{ formatHistoryDate(item.created_at) }}</time>
+                  </div>
+                  <p>{{ item.subject || 'Sans sujet' }}</p>
+                  <small>{{ item.user?.name || 'Utilisateur' }} · {{ item.to }}</small>
+                </article>
+              </template>
+            </div>
+
             <div class="email-choice-actions">
               <button
                 type="button"
@@ -98,6 +118,11 @@ const emit = defineEmits(['sent', 'error', 'outlook'])
 const toast = useToast()
 const sending = ref(false)
 const dialogOpen = ref(false)
+const historyOpen = ref(false)
+const historyLoading = ref(false)
+const historyLoaded = ref(false)
+const historyError = ref('')
+const historyItems = ref([])
 
 const email = computed(() => buildEmailDraft(props.draft))
 const hasRecipient = computed(() => Boolean(email.value.to))
@@ -109,6 +134,10 @@ function openDialog() {
     toast.error('Aucun email destinataire renseigné.')
     return
   }
+  historyOpen.value = false
+  historyLoaded.value = false
+  historyError.value = ''
+  historyItems.value = []
   dialogOpen.value = true
 }
 
@@ -137,19 +166,82 @@ async function sendFromSaytu() {
   }
 }
 
-function openInOutlook() {
+async function openInOutlook() {
   if (!hasRecipient.value) {
     toast.error('Aucun email destinataire renseigné.')
     return
   }
 
   if (downloadOutlookEml(email.value, props.filename)) {
+    try {
+      await api.post('/emails/prepared-outlook', email.value)
+    } catch (error) {
+      // La génération Outlook a réussi : ne pas bloquer l'utilisateur si seule la trace échoue.
+    }
+
     toast.success('Fichier .eml téléchargé. Ouvrez-le avec Outlook classique.')
     emit('outlook', email.value)
     dialogOpen.value = false
   } else {
     toast.error('Impossible de générer le fichier Outlook.')
   }
+}
+
+async function toggleHistory() {
+  historyOpen.value = !historyOpen.value
+  if (historyOpen.value && !historyLoaded.value) {
+    await loadHistory()
+  }
+}
+
+async function loadHistory() {
+  historyLoading.value = true
+  historyError.value = ''
+
+  try {
+    const params = {
+      per_page: 5,
+      context_type: email.value.context_type || undefined,
+      context_id: email.value.context_id || undefined,
+      to: email.value.context_type && email.value.context_id ? undefined : email.value.to || undefined,
+    }
+    const { data } = await api.get('/emails/history', { params })
+    historyItems.value = data.data || []
+    historyLoaded.value = true
+  } catch (error) {
+    historyError.value = error.response?.data?.message || 'Historique indisponible pour le moment.'
+  } finally {
+    historyLoading.value = false
+  }
+}
+
+function historyStatusLabel(status) {
+  return {
+    sent: 'Envoyé Saytu',
+    outlook_prepared: 'Préparé Outlook',
+    failed: 'Échec',
+  }[status] || 'Relance'
+}
+
+function historyStatusClass(status) {
+  return {
+    sent: 'email-history-status email-history-status-sent',
+    outlook_prepared: 'email-history-status email-history-status-outlook',
+    failed: 'email-history-status email-history-status-failed',
+  }[status] || 'email-history-status'
+}
+
+function formatHistoryDate(value) {
+  if (!value) return '—'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '—'
+  return new Intl.DateTimeFormat('fr-FR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date)
 }
 </script>
 
@@ -318,6 +410,96 @@ function openInOutlook() {
   display: grid;
   gap: 0.6rem;
   margin-top: 1rem;
+}
+
+.email-history-toggle {
+  color: #0369a1;
+  font-size: 0.78rem;
+  font-weight: 900;
+  margin-top: 0.85rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.email-history-toggle:disabled {
+  opacity: 0.55;
+}
+
+.email-history-panel {
+  background: rgb(255 255 255 / 86%);
+  border: 1px solid #bae6fd;
+  border-radius: 1rem;
+  display: grid;
+  gap: 0.45rem;
+  margin-top: 0.65rem;
+  max-height: 210px;
+  overflow-y: auto;
+  padding: 0.65rem;
+}
+
+.email-history-empty {
+  color: #475569;
+  font-size: 0.78rem;
+  margin: 0;
+}
+
+.email-history-error {
+  color: #be123c;
+}
+
+.email-history-item {
+  border-bottom: 1px solid #e0f2fe;
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.45rem 0;
+}
+
+.email-history-item:last-child {
+  border-bottom: 0;
+}
+
+.email-history-item-head {
+  align-items: center;
+  display: flex;
+  gap: 0.5rem;
+  justify-content: space-between;
+}
+
+.email-history-item p {
+  color: #0f172a;
+  font-size: 0.8rem;
+  font-weight: 850;
+  line-height: 1.25;
+  margin: 0;
+}
+
+.email-history-item small,
+.email-history-item time {
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 650;
+}
+
+.email-history-status {
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 900;
+  padding: 0.18rem 0.48rem;
+}
+
+.email-history-status-sent {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.email-history-status-outlook {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.email-history-status-failed {
+  background: #ffe4e6;
+  color: #be123c;
 }
 
 .email-choice-actions .email-action-btn {
