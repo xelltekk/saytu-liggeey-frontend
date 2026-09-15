@@ -15,6 +15,10 @@
                 :class="onglet === 'inventaire' ? 'text-xelltekk-700 border-b-2 border-xelltekk-700' : 'text-gray-500 hover:text-gray-700'">
           🧮 Inventaire rapide
         </button>
+        <button @click="onglet = 'transferts'" class="px-6 py-3 text-sm font-medium transition-colors"
+                :class="onglet === 'transferts' ? 'text-xelltekk-700 border-b-2 border-xelltekk-700' : 'text-gray-500 hover:text-gray-700'">
+          🚚 Transferts
+        </button>
         <button @click="onglet = 'mouvements'" class="px-6 py-3 text-sm font-medium transition-colors"
                 :class="onglet === 'mouvements' ? 'text-xelltekk-700 border-b-2 border-xelltekk-700' : 'text-gray-500 hover:text-gray-700'">
           🔄 Mouvements
@@ -60,6 +64,15 @@
           <option value="achat">Achats</option>
           <option value="reception">Réceptions</option>
           <option value="retour_fournisseur">Retours fournisseur</option>
+          <option value="stock_transfer_sent">Transferts envoyés</option>
+          <option value="stock_transfer_received">Transferts reçus</option>
+          <option value="stock_transfer_cancelled">Transferts annulés</option>
+        </select>
+        <select v-if="onglet === 'transferts'" v-model="filters.transfer_statut" @change="reload(1)" class="input md:w-48">
+          <option value="">Tous statuts</option>
+          <option value="envoye">En transit</option>
+          <option value="recu">Reçus</option>
+          <option value="annule">Annulés</option>
         </select>
       </div>
 
@@ -327,6 +340,89 @@
       <Pagination v-if="meta.total > 0" :meta="meta" @page="reload" />
     </div>
 
+    <!-- TAB: Transferts -->
+    <div v-else-if="onglet === 'transferts'" class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+      <div class="border-b border-cyan-100 bg-cyan-50 px-4 py-3">
+        <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <h2 class="text-base font-black text-slate-900">Transferts inter-entrepôts</h2>
+            <p class="text-xs text-cyan-800">
+              Un transfert envoyé reste en transit jusqu’à sa réception par l’entrepôt destination.
+            </p>
+          </div>
+          <div class="grid grid-cols-3 gap-2 text-right">
+            <button type="button" class="rounded-xl border px-3 py-2" :class="transferStatusChipClass('envoye')" @click="setTransferStatus('envoye')">
+              <p class="text-[10px] font-black uppercase tracking-[0.14em]">En transit</p>
+              <p class="font-mono text-lg font-black">{{ transferResume.envoye }}</p>
+            </button>
+            <button type="button" class="rounded-xl border px-3 py-2" :class="transferStatusChipClass('recu')" @click="setTransferStatus('recu')">
+              <p class="text-[10px] font-black uppercase tracking-[0.14em]">Reçus</p>
+              <p class="font-mono text-lg font-black">{{ transferResume.recu }}</p>
+            </button>
+            <button type="button" class="rounded-xl border px-3 py-2" :class="transferStatusChipClass('annule')" @click="setTransferStatus('annule')">
+              <p class="text-[10px] font-black uppercase tracking-[0.14em]">Annulés</p>
+              <p class="font-mono text-lg font-black">{{ transferResume.annule }}</p>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full">
+          <thead class="bg-gray-50 border-b border-gray-200">
+            <tr>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500">Référence</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500">Produit</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500">Trajet</th>
+              <th class="px-4 py-3 text-right text-xs font-semibold uppercase text-gray-500">Quantité</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500">Statut</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500">Dates</th>
+              <th class="px-4 py-3 text-right text-xs font-semibold uppercase text-gray-500">Action</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-100">
+            <tr v-for="transfer in transferts" :key="transfer.id" class="hover:bg-gray-50">
+              <td class="px-4 py-3 text-sm">
+                <div class="font-mono font-black text-slate-900">{{ transfer.reference }}</div>
+                <div class="text-xs text-slate-500">{{ transfer.motif || 'Transfert inter-entrepôts' }}</div>
+              </td>
+              <td class="px-4 py-3 text-sm">
+                <div class="font-medium text-slate-900">{{ transfer.produit?.libelle || 'Produit' }}</div>
+                <div class="text-xs font-mono text-gray-500">{{ transfer.produit?.reference || '-' }}</div>
+              </td>
+              <td class="px-4 py-3 text-sm text-gray-600">
+                <div class="font-bold text-slate-800">{{ transferEntrepotLabel(transfer) }}</div>
+                <div class="text-xs text-slate-500">{{ transferEmplacementLabel(transfer) }}</div>
+              </td>
+              <td class="px-4 py-3 text-right text-sm font-mono font-black text-cyan-700">
+                {{ formatQte(transfer.quantite) }} {{ transfer.produit?.unite || '' }}
+              </td>
+              <td class="px-4 py-3">
+                <span class="badge text-xs" :class="transferStatusBadge(transfer.statut)">{{ transferStatusLabel(transfer.statut) }}</span>
+              </td>
+              <td class="px-4 py-3 text-xs text-gray-600">
+                <div>Envoyé : {{ formatDateTime(transfer.sent_at) }}</div>
+                <div v-if="transfer.received_at">Reçu : {{ formatDateTime(transfer.received_at) }}</div>
+                <div v-if="transfer.cancelled_at">Annulé : {{ formatDateTime(transfer.cancelled_at) }}</div>
+              </td>
+              <td class="px-4 py-3 text-right">
+                <div v-if="transfer.statut === 'envoye'" class="flex flex-wrap justify-end gap-2">
+                  <button class="btn-primary px-3 py-1.5 text-xs" :disabled="transferActionId === transfer.id" @click="recevoirTransfert(transfer)">Recevoir</button>
+                  <button class="btn-secondary px-3 py-1.5 text-xs" :disabled="transferActionId === transfer.id" @click="annulerTransfert(transfer)">Annuler</button>
+                </div>
+                <span v-else class="text-xs text-slate-400">Aucune action</span>
+              </td>
+            </tr>
+            <tr v-if="transferts.length === 0">
+              <td colspan="7" class="px-4 py-12 text-center text-gray-400 text-sm">
+                Aucun transfert avec ces filtres.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <Pagination v-if="meta.total > 0" :meta="meta" @page="reload" />
+    </div>
+
     <!-- TAB: Mouvements -->
     <div v-else-if="onglet === 'mouvements'" class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
       <div class="border-b border-cyan-100 bg-cyan-50 px-4 py-3">
@@ -469,12 +565,13 @@
       </form>
     </AppModal>
 
-    <AppModal v-model="showTransfertModal" title="Transférer vers un autre entrepôt" size="md">
+    <AppModal v-model="showTransfertModal" title="Envoyer vers un autre entrepôt" size="md">
       <form class="space-y-4" @submit.prevent="transfererStock">
         <div class="rounded-lg bg-blue-50 p-3 text-sm text-blue-800">
           <strong>{{ stockATransferer?.produit?.reference || '' }} — {{ stockATransferer?.produit?.libelle || 'Produit' }}</strong>
           <p class="mt-1">Source : {{ stockATransferer?.entrepot?.libelle || '-' }} · {{ emplacementLabel(stockATransferer?.emplacement) }}</p>
           <p>Disponible : {{ formatQte(transfertDisponible) }} {{ stockATransferer?.produit?.unite || '' }}</p>
+          <p class="mt-2 text-xs font-bold">Le stock destination sera augmenté seulement après réception du transfert.</p>
         </div>
 
         <div>
@@ -528,7 +625,7 @@
         <div class="flex justify-end gap-2 border-t border-gray-200 pt-3">
           <button type="button" class="btn-secondary" @click="showTransfertModal = false">Annuler</button>
           <button class="btn-primary" :disabled="transfertSaving || !transfertForm.destination_entrepot_id">
-            {{ transfertSaving ? 'Transfert...' : 'Valider le transfert' }}
+            {{ transfertSaving ? 'Envoi...' : 'Envoyer le transfert' }}
           </button>
         </div>
       </form>
@@ -550,9 +647,11 @@ const toast = useToast()
 const onglet = ref('overview')
 const stocks = ref([])
 const mouvements = ref([])
+const transferts = ref([])
 const alertes = ref([])
 const stockSummary = ref(emptyStockSummary())
 const movementResume = ref(emptyMovementResume())
+const transferResume = ref(emptyTransferResume())
 const mouvementTypeOptions = [
   { value: '', label: 'Tous les mouvements', shortLabel: 'Tous' },
   { value: 'entree', label: 'Entrées', shortLabel: 'Entrées' },
@@ -582,9 +681,10 @@ const entrepots = ref([])
 const loading = ref(false)
 const exportLoading = ref(false)
 const meta = reactive({ current_page: 1, last_page: 1, total: 0, from: 0, to: 0 })
-const filters = reactive({ search: '', entrepot_id: '', type: '', document_type: '', date_from: '', date_to: '' })
+const filters = reactive({ search: '', entrepot_id: '', type: '', document_type: '', transfer_statut: '', date_from: '', date_to: '' })
 const inventoryDrafts = reactive({})
 const inventorySavingId = ref(null)
+const transferActionId = ref(null)
 
 const showMouvementModal = ref(false)
 const mouvementType = ref('entree')
@@ -710,6 +810,12 @@ async function reload(page = 1) {
       mouvements.value = data.data
       movementResume.value = normalizeMovementResume(data.resume)
       Object.assign(meta, { current_page: data.current_page, last_page: data.last_page, total: data.total, from: data.from || 0, to: data.to || 0 })
+    } else if (tab === 'transferts') {
+      const { data } = await api.get('/stocks/transferts', { params: { page, per_page: 25, ...transferFilterParams() } })
+      if (requestId !== reloadRequestId || tab !== onglet.value) return
+      transferts.value = data.data || []
+      transferResume.value = normalizeTransferResume(data.resume)
+      Object.assign(meta, { current_page: data.current_page, last_page: data.last_page, total: data.total, from: data.from || 0, to: data.to || 0 })
     } else if (tab === 'alertes') {
       const { data } = await api.get('/stocks/alerts', { params: { search: filters.search || undefined } })
       if (requestId !== reloadRequestId || tab !== onglet.value) return
@@ -735,6 +841,22 @@ async function exporterCSV() {
     if (onglet.value === 'mouvements') {
       await telechargerCSV('/exports/stocks-mouvements', movementFilterParams(), 'mouvements_stock_saytu.csv')
       toast.success('Export des mouvements de stock téléchargé.')
+      return
+    }
+
+    if (onglet.value === 'transferts') {
+      const transferDocumentType = {
+        envoye: 'stock_transfer_sent',
+        recu: 'stock_transfer_received',
+        annule: 'stock_transfer_cancelled',
+      }[filters.transfer_statut] || undefined
+      await telechargerCSV('/exports/stocks-mouvements', {
+        search: filters.search || undefined,
+        entrepot_id: filters.entrepot_id || undefined,
+        document_type: transferDocumentType,
+        type: 'transfert',
+      }, 'transferts_stock_saytu.csv')
+      toast.success('Export des transferts de stock téléchargé.')
       return
     }
 
@@ -884,9 +1006,13 @@ async function transfererStock() {
   transfertSaving.value = true
   try {
     await api.post(`/stocks/${stockATransferer.value.id}/transferer`, transfertForm)
-    toast.success('Transfert inter-entrepôts enregistré.')
+    toast.success('Transfert envoyé. Il reste en attente de réception à destination.')
     showTransfertModal.value = false
-    await reload(meta.current_page)
+    if (onglet.value !== 'transferts') {
+      onglet.value = 'transferts'
+    } else {
+      await reload(1)
+    }
   } catch (e) {
     const errors = e.response?.data?.errors || {}
     toast.error(
@@ -898,6 +1024,40 @@ async function transfererStock() {
     )
   } finally {
     transfertSaving.value = false
+  }
+}
+
+async function recevoirTransfert(transfer) {
+  if (!transfer?.id) return
+  transferActionId.value = transfer.id
+  try {
+    await api.post(`/stocks/transferts/${transfer.id}/recevoir`)
+    toast.success('Transfert réceptionné. Le stock destination est maintenant disponible.')
+    await reload(meta.current_page)
+  } catch (e) {
+    const errors = e.response?.data?.errors || {}
+    toast.error(errors.statut?.[0] || e.response?.data?.message || 'Réception impossible.')
+  } finally {
+    transferActionId.value = null
+  }
+}
+
+async function annulerTransfert(transfer) {
+  if (!transfer?.id) return
+
+  const motif = window.prompt(`Motif d’annulation du transfert ${transfer.reference}`, 'Annulation transfert')
+  if (motif === null) return
+
+  transferActionId.value = transfer.id
+  try {
+    await api.post(`/stocks/transferts/${transfer.id}/annuler`, { motif })
+    toast.success('Transfert annulé. La quantité est retournée à la source.')
+    await reload(meta.current_page)
+  } catch (e) {
+    const errors = e.response?.data?.errors || {}
+    toast.error(errors.statut?.[0] || e.response?.data?.message || 'Annulation impossible.')
+  } finally {
+    transferActionId.value = null
   }
 }
 
@@ -919,6 +1079,14 @@ function movementFilterParams() {
     document_type: filters.document_type || undefined,
     date_from: filters.date_from || undefined,
     date_to: filters.date_to || undefined,
+  }
+}
+
+function transferFilterParams() {
+  return {
+    search: filters.search || undefined,
+    entrepot_id: filters.entrepot_id || undefined,
+    statut: filters.transfer_statut || undefined,
   }
 }
 
@@ -966,8 +1134,64 @@ function documentTypeLabel(type) {
     reception: 'Réception',
     retour_fournisseur: 'Retour fournisseur',
     transfert: 'Transfert',
+    stock_transfer_sent: 'Transfert envoyé',
+    stock_transfer_received: 'Transfert reçu',
+    stock_transfer_cancelled: 'Transfert annulé',
     ajustement: 'Ajustement',
   }[type || 'manuel'] || String(type).replaceAll('_', ' ')
+}
+
+function emptyTransferResume() {
+  return {
+    envoye: 0,
+    recu: 0,
+    annule: 0,
+  }
+}
+
+function normalizeTransferResume(data) {
+  return {
+    envoye: Number(data?.envoye || 0),
+    recu: Number(data?.recu || 0),
+    annule: Number(data?.annule || 0),
+  }
+}
+
+function setTransferStatus(statut) {
+  filters.transfer_statut = filters.transfer_statut === statut ? '' : statut
+  reload(1)
+}
+
+function transferStatusLabel(statut) {
+  return {
+    envoye: 'En transit',
+    recu: 'Reçu',
+    annule: 'Annulé',
+  }[statut] || statut
+}
+
+function transferStatusBadge(statut) {
+  return {
+    envoye: 'bg-amber-100 text-amber-800',
+    recu: 'bg-green-100 text-green-800',
+    annule: 'bg-slate-100 text-slate-700',
+  }[statut] || 'bg-gray-100 text-gray-700'
+}
+
+function transferStatusChipClass(statut) {
+  if (filters.transfer_statut === statut) {
+    return 'border-cyan-500 bg-cyan-100 text-cyan-900'
+  }
+
+  return 'border-cyan-200 bg-white text-slate-700 hover:border-cyan-400'
+}
+
+function transferEntrepotLabel(transfer) {
+  return `${transfer?.source_entrepot?.libelle || 'Source'} → ${transfer?.destination_entrepot?.libelle || 'Destination'}`
+}
+
+function transferEmplacementLabel(transfer) {
+  return `${emplacementLabel(transfer?.source_emplacement)} → ${emplacementLabel(transfer?.destination_emplacement)}`
 }
 
 function isoDate(date) {
@@ -1146,6 +1370,10 @@ watch(onglet, () => {
     filters.date_from = ''
     filters.date_to = ''
     movementResume.value = emptyMovementResume()
+  }
+  if (onglet.value !== 'transferts') {
+    filters.transfer_statut = ''
+    transferResume.value = emptyTransferResume()
   }
   reload(1)
 })
