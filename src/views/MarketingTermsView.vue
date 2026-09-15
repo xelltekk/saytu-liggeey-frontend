@@ -74,7 +74,12 @@
         </div>
         <div class="terms-actions">
           <RouterLink to="/offres" class="terms-secondary">Comparer les offres</RouterLink>
-          <a href="mailto:xelltekk@xelltekk.com?subject=Demande%20contrat%20Saytu%20Ligg%C3%A9ey" class="terms-primary">
+          <a
+            href="mailto:xelltekk@xelltekk.com?subject=Demande%20contrat%20Saytu%20Ligg%C3%A9ey"
+            class="terms-primary"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
             Écrire à XELLTEKK
             <ArrowRight class="h-5 w-5" />
           </a>
