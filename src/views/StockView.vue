@@ -3,9 +3,17 @@
     <!-- Onglets -->
     <div class="bg-white rounded-lg shadow-sm border border-gray-200 mb-4">
       <div class="flex overflow-x-auto border-b border-gray-200">
+        <button @click="onglet = 'overview'" class="px-6 py-3 text-sm font-medium transition-colors"
+                :class="onglet === 'overview' ? 'text-xelltekk-700 border-b-2 border-xelltekk-700' : 'text-gray-500 hover:text-gray-700'">
+          📊 Vue d’ensemble
+        </button>
         <button @click="onglet = 'stock'" class="px-6 py-3 text-sm font-medium transition-colors"
                 :class="onglet === 'stock' ? 'text-xelltekk-700 border-b-2 border-xelltekk-700' : 'text-gray-500 hover:text-gray-700'">
           📦 Stock par emplacement
+        </button>
+        <button @click="onglet = 'inventaire'" class="px-6 py-3 text-sm font-medium transition-colors"
+                :class="onglet === 'inventaire' ? 'text-xelltekk-700 border-b-2 border-xelltekk-700' : 'text-gray-500 hover:text-gray-700'">
+          🧮 Inventaire rapide
         </button>
         <button @click="onglet = 'mouvements'" class="px-6 py-3 text-sm font-medium transition-colors"
                 :class="onglet === 'mouvements' ? 'text-xelltekk-700 border-b-2 border-xelltekk-700' : 'text-gray-500 hover:text-gray-700'">
@@ -23,6 +31,7 @@
       <button @click="openMouvement('entree')" class="btn-secondary text-sm">📥 Entrée stock</button>
       <button @click="openMouvement('sortie')" class="btn-secondary text-sm">📤 Sortie stock</button>
       <button @click="openMouvement('ajustement')" class="btn-secondary text-sm">⚙️ Ajustement</button>
+      <button @click="onglet = 'inventaire'" class="btn-secondary text-sm">🧮 Faire inventaire</button>
       <button @click="exporterCSV" :disabled="exportLoading" class="btn-secondary text-sm">
         {{ exportLoading ? 'Export...' : 'Exporter CSV' }}
       </button>
@@ -47,6 +56,108 @@
     </div>
 
     <div v-if="loading" class="bg-white rounded-lg p-12 text-center text-gray-500">Chargement...</div>
+
+    <!-- TAB: Vue d'ensemble -->
+    <div v-else-if="onglet === 'overview'" class="space-y-4">
+      <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div class="rounded-2xl border border-cyan-200 bg-cyan-50/80 p-4 shadow-sm">
+          <p class="text-xs font-black uppercase tracking-[0.16em] text-cyan-700">Valeur stock</p>
+          <p class="mt-3 text-2xl font-black text-slate-900">{{ formatPrice(stockSummary.kpis.valeur_stock) }}</p>
+          <p class="mt-1 text-xs text-cyan-800">{{ formatQte(stockSummary.kpis.quantite_totale) }} unité(s) au total</p>
+        </div>
+        <div class="rounded-2xl border border-sky-200 bg-sky-50/80 p-4 shadow-sm">
+          <p class="text-xs font-black uppercase tracking-[0.16em] text-sky-700">Produits suivis</p>
+          <p class="mt-3 text-2xl font-black text-slate-900">{{ stockSummary.kpis.produits_geres }}</p>
+          <p class="mt-1 text-xs text-sky-800">{{ stockSummary.kpis.produits_en_stock }} avec stock disponible</p>
+        </div>
+        <div class="rounded-2xl border border-amber-200 bg-amber-50/80 p-4 shadow-sm">
+          <p class="text-xs font-black uppercase tracking-[0.16em] text-amber-700">Alertes</p>
+          <p class="mt-3 text-2xl font-black text-slate-900">{{ stockSummary.kpis.alertes }}</p>
+          <p class="mt-1 text-xs text-amber-800">{{ stockSummary.kpis.ruptures }} rupture(s)</p>
+        </div>
+        <div class="rounded-2xl border border-teal-200 bg-teal-50/80 p-4 shadow-sm">
+          <p class="text-xs font-black uppercase tracking-[0.16em] text-teal-700">Activité du jour</p>
+          <p class="mt-3 text-2xl font-black text-slate-900">{{ stockSummary.kpis.mouvements_aujourdhui }}</p>
+          <p class="mt-1 text-xs text-teal-800">{{ stockSummary.kpis.entrepots_actifs }} entrepôt(s) actif(s)</p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
+        <section class="rounded-2xl border border-sky-200 bg-white p-4 shadow-sm">
+          <div class="mb-3 flex items-center justify-between gap-3">
+            <div>
+              <h2 class="text-base font-black text-slate-900">Stock par entrepôt</h2>
+              <p class="text-xs text-slate-500">Valeur et volume par dépôt/boutique.</p>
+            </div>
+            <button class="btn-secondary px-3 py-1.5 text-xs" @click="onglet = 'stock'">Voir détail</button>
+          </div>
+          <div v-if="stockSummary.stock_par_entrepot.length" class="space-y-2">
+            <article v-for="entrepot in stockSummary.stock_par_entrepot" :key="entrepot.id" class="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
+              <div class="flex items-start justify-between gap-3">
+                <div>
+                  <p class="font-bold text-slate-900">{{ entrepot.libelle }}</p>
+                  <p class="text-xs text-slate-500">{{ entrepot.produits }} produit(s) · {{ entrepot.lignes_stock }} ligne(s)</p>
+                </div>
+                <div class="text-right">
+                  <p class="font-mono text-sm font-black text-cyan-700">{{ formatPrice(entrepot.valeur) }}</p>
+                  <p class="text-xs text-slate-500">{{ formatQte(entrepot.quantite) }} unité(s)</p>
+                </div>
+              </div>
+            </article>
+          </div>
+          <p v-else class="rounded-xl bg-slate-50 p-5 text-center text-sm text-slate-500">Aucun stock par entrepôt pour le moment.</p>
+        </section>
+
+        <section class="rounded-2xl border border-sky-200 bg-white p-4 shadow-sm">
+          <div class="mb-3 flex items-center justify-between gap-3">
+            <div>
+              <h2 class="text-base font-black text-slate-900">Derniers mouvements</h2>
+              <p class="text-xs text-slate-500">Traçabilité récente des entrées, sorties et transferts.</p>
+            </div>
+            <button class="btn-secondary px-3 py-1.5 text-xs" @click="onglet = 'mouvements'">Historique</button>
+          </div>
+          <div v-if="stockSummary.derniers_mouvements.length" class="space-y-2">
+            <article v-for="m in stockSummary.derniers_mouvements" :key="m.id" class="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
+              <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                  <p class="truncate font-bold text-slate-900">{{ m.produit?.libelle || 'Produit' }}</p>
+                  <p class="text-xs text-slate-500">{{ m.produit?.reference || '-' }} · {{ mouvementEntrepotLabel(m) }}</p>
+                  <p class="mt-1 text-xs text-slate-500">{{ m.motif || typeLabel(m.type) }}</p>
+                </div>
+                <div class="text-right">
+                  <span class="badge text-xs" :class="typeBadge(m.type)">{{ typeLabel(m.type) }}</span>
+                  <p class="mt-1 font-mono text-sm font-black" :class="m.type === 'sortie' ? 'text-red-600' : 'text-cyan-700'">
+                    {{ m.type === 'sortie' ? '-' : '+' }}{{ formatQte(Math.abs(m.quantite)) }}
+                  </p>
+                </div>
+              </div>
+            </article>
+          </div>
+          <p v-else class="rounded-xl bg-slate-50 p-5 text-center text-sm text-slate-500">Aucun mouvement récent.</p>
+        </section>
+      </div>
+
+      <section class="rounded-2xl border border-sky-200 bg-white p-4 shadow-sm">
+        <div class="mb-3 flex items-center justify-between gap-3">
+          <div>
+            <h2 class="text-base font-black text-slate-900">Alertes prioritaires</h2>
+            <p class="text-xs text-slate-500">Produits à réapprovisionner en priorité.</p>
+          </div>
+          <button class="btn-secondary px-3 py-1.5 text-xs" @click="onglet = 'alertes'">Voir alertes</button>
+        </div>
+        <div v-if="stockSummary.alertes.length" class="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
+          <article v-for="a in stockSummary.alertes" :key="a.id" class="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
+            <p class="font-bold text-slate-900">{{ a.libelle }}</p>
+            <p class="text-xs font-mono text-slate-500">{{ a.reference || '-' }}</p>
+            <p class="mt-2 text-sm">
+              Stock : <strong class="text-red-700">{{ formatQte(a.stock_total) }}</strong>
+              <span class="text-slate-500"> / seuil {{ a.stock_alerte }}</span>
+            </p>
+          </article>
+        </div>
+        <p v-else class="rounded-xl bg-emerald-50 p-5 text-center text-sm font-bold text-emerald-700">Aucune alerte critique actuellement.</p>
+      </section>
+    </div>
 
     <!-- TAB: Stock -->
     <div v-else-if="onglet === 'stock'" class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
@@ -101,6 +212,75 @@
             <tr v-if="stocks.length === 0">
               <td colspan="9" class="px-4 py-12 text-center text-gray-400 text-sm">
                 Aucun stock. Faites une entrée pour commencer.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <Pagination v-if="meta.total > 0" :meta="meta" @page="reload" />
+    </div>
+
+    <!-- TAB: Inventaire -->
+    <div v-else-if="onglet === 'inventaire'" class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+      <div class="border-b border-cyan-100 bg-cyan-50 px-4 py-3 text-sm text-cyan-900">
+        Saisissez la quantité réellement comptée. Saytu calcule l’écart et enregistre un mouvement d’ajustement avec justification.
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full">
+          <thead class="bg-gray-50 border-b border-gray-200">
+            <tr>
+              <SortableTh column="reference" :active="stockSort.key === 'reference'" :icon="stockSortIcon('reference')" @sort="toggleStockSort">Référence</SortableTh>
+              <SortableTh column="produit" :active="stockSort.key === 'produit'" :icon="stockSortIcon('produit')" @sort="toggleStockSort">Produit</SortableTh>
+              <SortableTh column="entrepot" :active="stockSort.key === 'entrepot'" :icon="stockSortIcon('entrepot')" @sort="toggleStockSort">Localisation</SortableTh>
+              <SortableTh column="quantite" :active="stockSort.key === 'quantite'" :icon="stockSortIcon('quantite')" align="right" @sort="toggleStockSort">Théorique</SortableTh>
+              <th class="px-4 py-3 text-right text-xs font-semibold uppercase text-gray-500">Compté réel</th>
+              <th class="px-4 py-3 text-right text-xs font-semibold uppercase text-gray-500">Écart</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500">Justification</th>
+              <th class="px-4 py-3 text-right text-xs font-semibold uppercase text-gray-500">Action</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-100">
+            <tr v-for="s in sortedStocks" :key="s.id" class="hover:bg-gray-50">
+              <td class="px-4 py-3 text-sm font-mono text-gray-600">{{ s.produit?.reference || '-' }}</td>
+              <td class="px-4 py-3 text-sm font-medium">{{ s.produit?.libelle || 'Produit' }}</td>
+              <td class="px-4 py-3 text-xs text-gray-600">
+                <div class="font-medium text-gray-900">{{ s.entrepot?.libelle || 'Entrepôt' }}</div>
+                <div>{{ emplacementLabel(s.emplacement) }}</div>
+              </td>
+              <td class="px-4 py-3 text-right text-sm font-mono font-bold text-slate-900">
+                {{ formatQte(s.quantite) }} {{ s.produit?.unite || '' }}
+              </td>
+              <td class="px-4 py-3 text-right">
+                <input
+                  type="number"
+                  step="0.001"
+                  min="0"
+                  class="input w-32 text-right font-mono"
+                  :value="inventoryDrafts[s.id]?.nouvelle_quantite ?? ''"
+                  placeholder="Qté"
+                  @input="setInventoryCount(s, $event.target.value)"
+                />
+              </td>
+              <td class="px-4 py-3 text-right text-sm font-mono font-black" :class="inventoryDeltaClass(s)">
+                {{ formatInventoryDelta(s) }}
+              </td>
+              <td class="px-4 py-3">
+                <input
+                  class="input min-w-56 text-sm"
+                  :value="inventoryDrafts[s.id]?.motif ?? ''"
+                  placeholder="Inventaire physique, casse, erreur saisie..."
+                  @input="setInventoryMotif(s, $event.target.value)"
+                />
+              </td>
+              <td class="px-4 py-3 text-right">
+                <button class="btn-primary px-3 py-1.5 text-xs" :disabled="inventorySavingId === s.id" @click="submitInventoryLine(s)">
+                  {{ inventorySavingId === s.id ? 'Validation...' : 'Valider' }}
+                </button>
+              </td>
+            </tr>
+            <tr v-if="stocks.length === 0">
+              <td colspan="8" class="px-4 py-12 text-center text-gray-400 text-sm">
+                Aucun stock à inventorier avec ces filtres.
               </td>
             </tr>
           </tbody>
@@ -295,10 +475,11 @@ import { useTableSort } from '@/composables/useTableSort'
 import { telechargerCSV } from '@/services/exports'
 
 const toast = useToast()
-const onglet = ref('stock')
+const onglet = ref('overview')
 const stocks = ref([])
 const mouvements = ref([])
 const alertes = ref([])
+const stockSummary = ref(emptyStockSummary())
 const {
   sort: stockSort,
   toggleSort: toggleStockSort,
@@ -322,6 +503,8 @@ const loading = ref(false)
 const exportLoading = ref(false)
 const meta = reactive({ current_page: 1, last_page: 1, total: 0, from: 0, to: 0 })
 const filters = reactive({ search: '', entrepot_id: '', type: '' })
+const inventoryDrafts = reactive({})
+const inventorySavingId = ref(null)
 
 const showMouvementModal = ref(false)
 const mouvementType = ref('entree')
@@ -427,10 +610,18 @@ async function reload(page = 1) {
   const tab = onglet.value
   loading.value = true
   try {
-    if (tab === 'stock') {
+    if (tab === 'overview') {
+      const { data } = await api.get('/stocks/summary')
+      if (requestId !== reloadRequestId || tab !== onglet.value) return
+      stockSummary.value = normalizeStockSummary(data)
+      Object.assign(meta, { current_page: 1, last_page: 1, total: 0, from: 0, to: 0 })
+    } else if (tab === 'stock' || tab === 'inventaire') {
       const { data } = await api.get('/stocks', { params: { page, per_page: 25, search: filters.search || undefined, entrepot_id: filters.entrepot_id || undefined } })
       if (requestId !== reloadRequestId || tab !== onglet.value) return
       stocks.value = data.data
+      if (tab === 'inventaire') {
+        prepareInventoryDrafts(stocks.value)
+      }
       Object.assign(meta, { current_page: data.current_page, last_page: data.last_page, total: data.total, from: data.from || 0, to: data.to || 0 })
     } else if (tab === 'mouvements') {
       const { data } = await api.get('/stocks/mouvements', { params: { page, per_page: 25, search: filters.search || undefined, entrepot_id: filters.entrepot_id || undefined, type: filters.type || undefined } })
@@ -489,6 +680,9 @@ function openMouvement(type) {
 function onMouvementSaved() {
   showMouvementModal.value = false
   reload()
+  if (onglet.value !== 'overview') {
+    stockSummary.value = emptyStockSummary()
+  }
 }
 
 function formatQte(n) { return parseFloat(n || 0).toLocaleString('fr-FR', { maximumFractionDigits: 3 }) }
@@ -639,7 +833,148 @@ function typeBadge(t) {
   }[t] || 'bg-gray-100'
 }
 
-watch(onglet, () => reload(1))
+function emptyStockSummary() {
+  return {
+    kpis: {
+      produits_geres: 0,
+      produits_en_stock: 0,
+      lignes_stock: 0,
+      quantite_totale: 0,
+      valeur_stock: 0,
+      alertes: 0,
+      ruptures: 0,
+      entrepots_actifs: 0,
+      mouvements_aujourdhui: 0,
+    },
+    stock_par_entrepot: [],
+    mouvements_par_type: {},
+    derniers_mouvements: [],
+    alertes: [],
+  }
+}
+
+function normalizeStockSummary(data) {
+  const fallback = emptyStockSummary()
+  return {
+    kpis: { ...fallback.kpis, ...(data?.kpis || {}) },
+    stock_par_entrepot: Array.isArray(data?.stock_par_entrepot) ? data.stock_par_entrepot : [],
+    mouvements_par_type: data?.mouvements_par_type || {},
+    derniers_mouvements: Array.isArray(data?.derniers_mouvements) ? data.derniers_mouvements : [],
+    alertes: Array.isArray(data?.alertes) ? data.alertes : [],
+  }
+}
+
+function defaultInventoryMotif() {
+  return `Inventaire physique du ${new Date().toLocaleDateString('fr-FR')}`
+}
+
+function ensureInventoryDraft(stock) {
+  if (!inventoryDrafts[stock.id]) {
+    inventoryDrafts[stock.id] = {
+      nouvelle_quantite: '',
+      motif: defaultInventoryMotif(),
+    }
+  }
+
+  return inventoryDrafts[stock.id]
+}
+
+function prepareInventoryDrafts(rows) {
+  rows.forEach((stock) => ensureInventoryDraft(stock))
+}
+
+function setInventoryCount(stock, value) {
+  ensureInventoryDraft(stock).nouvelle_quantite = value
+}
+
+function setInventoryMotif(stock, value) {
+  ensureInventoryDraft(stock).motif = value
+}
+
+function inventoryDelta(stock) {
+  const value = inventoryDrafts[stock.id]?.nouvelle_quantite
+  if (value === '' || value === null || value === undefined) {
+    return null
+  }
+
+  return Number(value) - Number(stock.quantite || 0)
+}
+
+function formatInventoryDelta(stock) {
+  const delta = inventoryDelta(stock)
+  if (delta === null || Number.isNaN(delta)) return '—'
+  if (Math.abs(delta) < 0.0001) return '0'
+
+  return `${delta > 0 ? '+' : '-'}${formatQte(Math.abs(delta))}`
+}
+
+function inventoryDeltaClass(stock) {
+  const delta = inventoryDelta(stock)
+  if (delta === null || Number.isNaN(delta) || Math.abs(delta) < 0.0001) {
+    return 'text-slate-500'
+  }
+
+  return delta > 0 ? 'text-emerald-700' : 'text-red-700'
+}
+
+async function submitInventoryLine(stock) {
+  const draft = ensureInventoryDraft(stock)
+  const quantite = Number(draft.nouvelle_quantite)
+  const delta = inventoryDelta(stock)
+
+  if (draft.nouvelle_quantite === '' || Number.isNaN(quantite) || quantite < 0) {
+    toast.error('Saisissez une quantité réelle valide.')
+    return
+  }
+
+  if (delta === null || Number.isNaN(delta)) {
+    toast.error('Impossible de calculer l’écart.')
+    return
+  }
+
+  if (Math.abs(delta) < 0.0001) {
+    toast.success('Aucun écart à corriger pour cette ligne.')
+    draft.nouvelle_quantite = ''
+    return
+  }
+
+  if (!String(draft.motif || '').trim()) {
+    toast.error('Indiquez une justification pour valider l’écart.')
+    return
+  }
+
+  inventorySavingId.value = stock.id
+  try {
+    await api.post('/stocks/ajustement', {
+      produit_id: stock.produit_id,
+      entrepot_id: stock.entrepot_id,
+      emplacement_id: stock.emplacement_id || null,
+      nouvelle_quantite: quantite,
+      motif: draft.motif,
+    })
+    toast.success('Écart d’inventaire validé et stock corrigé.')
+    delete inventoryDrafts[stock.id]
+    await reload(meta.current_page)
+  } catch (e) {
+    const errors = e.response?.data?.errors || {}
+    toast.error(
+      errors.nouvelle_quantite?.[0]
+        || errors.emplacement_id?.[0]
+        || errors.produit_id?.[0]
+        || e.response?.data?.message
+        || 'Validation inventaire impossible.'
+    )
+  } finally {
+    inventorySavingId.value = null
+  }
+}
+
+watch(onglet, () => {
+  if (onglet.value !== 'mouvements') {
+    filters.type = ''
+  }
+  reload(1)
+})
 
 onUnmounted(() => {
   clearTimeout(searchTimeout)
