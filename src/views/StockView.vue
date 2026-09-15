@@ -39,7 +39,7 @@
 
     <!-- Filtres -->
     <div class="bg-white rounded-lg border border-gray-200 p-3 mb-4">
-      <div class="flex flex-col gap-2 md:flex-row">
+      <div class="flex flex-col gap-2 md:flex-row md:flex-wrap">
         <input v-model="filters.search" @input="onSearchInput" type="search" placeholder="🔍 Rechercher un produit..." class="input flex-1" />
         <select v-model="filters.entrepot_id" @change="reload" class="input md:w-48">
           <option value="">Tous entrepôts</option>
@@ -52,6 +52,44 @@
           <option value="transfert">Transferts</option>
           <option value="ajustement">Ajustements</option>
         </select>
+        <select v-if="onglet === 'mouvements'" v-model="filters.document_type" @change="reload" class="input md:w-48">
+          <option value="">Tous documents</option>
+          <option value="manuel">Manuels</option>
+          <option value="facture">Factures</option>
+          <option value="facture_annulation">Annulations facture</option>
+          <option value="achat">Achats</option>
+          <option value="reception">Réceptions</option>
+          <option value="retour_fournisseur">Retours fournisseur</option>
+        </select>
+      </div>
+
+      <div v-if="onglet === 'mouvements'" class="mt-3 space-y-3 border-t border-cyan-100 pt-3">
+        <div class="flex flex-wrap gap-2">
+          <button
+            v-for="option in mouvementTypeOptions"
+            :key="option.value || 'all'"
+            type="button"
+            class="rounded-full border px-3 py-1.5 text-xs font-black transition"
+            :class="filters.type === option.value ? 'border-cyan-500 bg-cyan-100 text-cyan-800' : 'border-slate-200 bg-white text-slate-600 hover:border-cyan-300'"
+            @click="setMouvementType(option.value)"
+          >
+            {{ option.label }}
+            <span v-if="option.value" class="ml-1 rounded-full bg-white/70 px-1.5">{{ movementTypeCount(option.value) }}</span>
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 gap-2 md:grid-cols-[auto_auto_auto_1fr] md:items-center">
+          <div class="flex flex-wrap gap-2">
+            <button type="button" class="btn-secondary px-3 py-1.5 text-xs" @click="setMovementPeriod('today')">Aujourd’hui</button>
+            <button type="button" class="btn-secondary px-3 py-1.5 text-xs" @click="setMovementPeriod('7d')">7 jours</button>
+            <button type="button" class="btn-secondary px-3 py-1.5 text-xs" @click="setMovementPeriod('30d')">30 jours</button>
+          </div>
+          <input v-model="filters.date_from" type="date" class="input" @change="reload(1)" />
+          <input v-model="filters.date_to" type="date" class="input" @change="reload(1)" />
+          <div class="flex justify-end">
+            <button type="button" class="btn-secondary px-3 py-1.5 text-xs" @click="resetMovementFilters">Réinitialiser mouvements</button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -291,6 +329,35 @@
 
     <!-- TAB: Mouvements -->
     <div v-else-if="onglet === 'mouvements'" class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+      <div class="border-b border-cyan-100 bg-cyan-50 px-4 py-3">
+        <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <h2 class="text-base font-black text-slate-900">Historique des mouvements</h2>
+            <p class="text-xs text-cyan-800">
+              {{ movementResume.total }} mouvement(s) dans le périmètre filtré.
+            </p>
+          </div>
+          <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <div v-for="option in mouvementTypeOptions.filter(item => item.value)" :key="option.value" class="rounded-xl border border-cyan-200 bg-white px-3 py-2 text-right">
+              <p class="text-[10px] font-black uppercase tracking-[0.14em] text-cyan-700">{{ option.shortLabel }}</p>
+              <p class="font-mono text-lg font-black text-slate-900">{{ movementTypeCount(option.value) }}</p>
+              <p class="text-[10px] text-slate-500">{{ formatQte(movementTypeQuantity(option.value)) }} unité(s)</p>
+            </div>
+          </div>
+        </div>
+        <div v-if="movementResume.documents.length" class="mt-3 flex flex-wrap gap-2">
+          <button
+            v-for="document in movementResume.documents"
+            :key="document.document_type"
+            type="button"
+            class="rounded-full border px-3 py-1 text-xs font-bold"
+            :class="filters.document_type === document.document_type ? 'border-sky-500 bg-sky-100 text-sky-800' : 'border-slate-200 bg-white text-slate-600'"
+            @click="setMovementDocumentType(document.document_type)"
+          >
+            {{ document.label }} · {{ document.total }}
+          </button>
+        </div>
+      </div>
       <div class="overflow-x-auto">
       <table class="w-full">
         <thead class="bg-gray-50 border-b border-gray-200">
@@ -302,6 +369,7 @@
             <SortableTh column="emplacement" :active="mouvementSort.key === 'emplacement'" :icon="mouvementSortIcon('emplacement')" @sort="toggleMouvementSort">Emplacement</SortableTh>
             <SortableTh column="quantite" :active="mouvementSort.key === 'quantite'" :icon="mouvementSortIcon('quantite')" align="right" @sort="toggleMouvementSort">Quantité</SortableTh>
             <SortableTh column="motif" :active="mouvementSort.key === 'motif'" :icon="mouvementSortIcon('motif')" @sort="toggleMouvementSort">Motif</SortableTh>
+            <SortableTh column="document" :active="mouvementSort.key === 'document'" :icon="mouvementSortIcon('document')" @sort="toggleMouvementSort">Document</SortableTh>
             <SortableTh column="user" :active="mouvementSort.key === 'user'" :icon="mouvementSortIcon('user')" @sort="toggleMouvementSort">Par</SortableTh>
           </tr>
         </thead>
@@ -322,10 +390,14 @@
               {{ m.type === 'transfert' ? '→ ' : ['sortie'].includes(m.type) ? '-' : (parseFloat(m.quantite) > 0 ? '+' : '') }}{{ formatQte(Math.abs(m.quantite)) }}
             </td>
             <td class="px-4 py-3 text-xs text-gray-600">{{ m.motif || '–' }}</td>
+            <td class="px-4 py-3 text-xs text-gray-600">
+              <span class="badge bg-slate-100 text-slate-700">{{ documentTypeLabel(m.document_type) }}</span>
+              <div v-if="m.document_id" class="mt-1 font-mono text-[11px] text-slate-400">#{{ m.document_id }}</div>
+            </td>
             <td class="px-4 py-3 text-xs text-gray-500">{{ m.user?.name || 'Utilisateur' }}</td>
           </tr>
           <tr v-if="mouvements.length === 0">
-            <td colspan="8" class="px-4 py-12 text-center text-gray-400 text-sm">Aucun mouvement</td>
+            <td colspan="9" class="px-4 py-12 text-center text-gray-400 text-sm">Aucun mouvement</td>
           </tr>
         </tbody>
       </table>
@@ -480,6 +552,14 @@ const stocks = ref([])
 const mouvements = ref([])
 const alertes = ref([])
 const stockSummary = ref(emptyStockSummary())
+const movementResume = ref(emptyMovementResume())
+const mouvementTypeOptions = [
+  { value: '', label: 'Tous les mouvements', shortLabel: 'Tous' },
+  { value: 'entree', label: 'Entrées', shortLabel: 'Entrées' },
+  { value: 'sortie', label: 'Sorties', shortLabel: 'Sorties' },
+  { value: 'transfert', label: 'Transferts', shortLabel: 'Transferts' },
+  { value: 'ajustement', label: 'Ajustements', shortLabel: 'Ajust.' },
+]
 const {
   sort: stockSort,
   toggleSort: toggleStockSort,
@@ -502,7 +582,7 @@ const entrepots = ref([])
 const loading = ref(false)
 const exportLoading = ref(false)
 const meta = reactive({ current_page: 1, last_page: 1, total: 0, from: 0, to: 0 })
-const filters = reactive({ search: '', entrepot_id: '', type: '' })
+const filters = reactive({ search: '', entrepot_id: '', type: '', document_type: '', date_from: '', date_to: '' })
 const inventoryDrafts = reactive({})
 const inventorySavingId = ref(null)
 
@@ -550,6 +630,7 @@ const sortedMouvements = computed(() => sortedMouvementRows(mouvements.value, {
   emplacement: (mouvement) => mouvementEmplacementLabel(mouvement),
   quantite: (mouvement) => parseFloat(mouvement.quantite || 0),
   motif: 'motif',
+  document: (mouvement) => documentTypeLabel(mouvement.document_type),
   user: (mouvement) => mouvement.user?.name || '',
 }))
 
@@ -624,9 +705,10 @@ async function reload(page = 1) {
       }
       Object.assign(meta, { current_page: data.current_page, last_page: data.last_page, total: data.total, from: data.from || 0, to: data.to || 0 })
     } else if (tab === 'mouvements') {
-      const { data } = await api.get('/stocks/mouvements', { params: { page, per_page: 25, search: filters.search || undefined, entrepot_id: filters.entrepot_id || undefined, type: filters.type || undefined } })
+      const { data } = await api.get('/stocks/mouvements', { params: { page, per_page: 25, ...movementFilterParams() } })
       if (requestId !== reloadRequestId || tab !== onglet.value) return
       mouvements.value = data.data
+      movementResume.value = normalizeMovementResume(data.resume)
       Object.assign(meta, { current_page: data.current_page, last_page: data.last_page, total: data.total, from: data.from || 0, to: data.to || 0 })
     } else if (tab === 'alertes') {
       const { data } = await api.get('/stocks/alerts', { params: { search: filters.search || undefined } })
@@ -651,11 +733,7 @@ async function exporterCSV() {
   exportLoading.value = true
   try {
     if (onglet.value === 'mouvements') {
-      await telechargerCSV('/exports/stocks-mouvements', {
-        search: filters.search || undefined,
-        entrepot_id: filters.entrepot_id || undefined,
-        type: filters.type || undefined,
-      }, 'mouvements_stock_saytu.csv')
+      await telechargerCSV('/exports/stocks-mouvements', movementFilterParams(), 'mouvements_stock_saytu.csv')
       toast.success('Export des mouvements de stock téléchargé.')
       return
     }
@@ -833,6 +911,98 @@ function typeBadge(t) {
   }[t] || 'bg-gray-100'
 }
 
+function movementFilterParams() {
+  return {
+    search: filters.search || undefined,
+    entrepot_id: filters.entrepot_id || undefined,
+    type: filters.type || undefined,
+    document_type: filters.document_type || undefined,
+    date_from: filters.date_from || undefined,
+    date_to: filters.date_to || undefined,
+  }
+}
+
+function setMouvementType(type) {
+  filters.type = type
+  reload(1)
+}
+
+function setMovementDocumentType(type) {
+  filters.document_type = filters.document_type === type ? '' : type
+  reload(1)
+}
+
+function movementTypeCount(type) {
+  return Number(movementResume.value.types?.[type]?.total || 0)
+}
+
+function movementTypeQuantity(type) {
+  return Number(movementResume.value.types?.[type]?.quantite || 0)
+}
+
+function emptyMovementResume() {
+  return {
+    total: 0,
+    types: {},
+    documents: [],
+  }
+}
+
+function normalizeMovementResume(data) {
+  return {
+    total: Number(data?.total || 0),
+    types: data?.types || {},
+    documents: Array.isArray(data?.documents) ? data.documents : [],
+  }
+}
+
+function documentTypeLabel(type) {
+  return {
+    null: 'Manuel',
+    manuel: 'Manuel',
+    facture: 'Facture',
+    facture_annulation: 'Annulation facture',
+    achat: 'Achat',
+    reception: 'Réception',
+    retour_fournisseur: 'Retour fournisseur',
+    transfert: 'Transfert',
+    ajustement: 'Ajustement',
+  }[type || 'manuel'] || String(type).replaceAll('_', ' ')
+}
+
+function isoDate(date) {
+  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000)
+  return localDate.toISOString().slice(0, 10)
+}
+
+function setMovementPeriod(period) {
+  const today = new Date()
+  const from = new Date(today)
+
+  if (period === 'today') {
+    filters.date_from = isoDate(today)
+    filters.date_to = isoDate(today)
+  } else if (period === '7d') {
+    from.setDate(today.getDate() - 6)
+    filters.date_from = isoDate(from)
+    filters.date_to = isoDate(today)
+  } else if (period === '30d') {
+    from.setDate(today.getDate() - 29)
+    filters.date_from = isoDate(from)
+    filters.date_to = isoDate(today)
+  }
+
+  reload(1)
+}
+
+function resetMovementFilters() {
+  filters.type = ''
+  filters.document_type = ''
+  filters.date_from = ''
+  filters.date_to = ''
+  reload(1)
+}
+
 function emptyStockSummary() {
   return {
     kpis: {
@@ -972,6 +1142,10 @@ async function submitInventoryLine(stock) {
 watch(onglet, () => {
   if (onglet.value !== 'mouvements') {
     filters.type = ''
+    filters.document_type = ''
+    filters.date_from = ''
+    filters.date_to = ''
+    movementResume.value = emptyMovementResume()
   }
   reload(1)
 })

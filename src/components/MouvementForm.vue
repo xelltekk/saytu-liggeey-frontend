@@ -61,8 +61,23 @@
       </div>
 
       <div class="md:col-span-2">
-        <label class="block text-sm font-medium text-gray-700 mb-1">Motif</label>
-        <input v-model="form.motif" type="text" class="input" :placeholder="motifPlaceholder" />
+        <label class="block text-sm font-medium text-gray-700 mb-1">
+          Motif <span v-if="motifRequired" class="text-red-500">*</span>
+        </label>
+        <select class="input mb-2" :value="selectedMotif" @change="applyMotifSuggestion($event.target.value)">
+          <option value="">— Choisir un motif rapide —</option>
+          <option v-for="motif in motifOptions" :key="motif" :value="motif">{{ motif }}</option>
+        </select>
+        <input
+          v-model.trim="form.motif"
+          type="text"
+          class="input"
+          :required="motifRequired"
+          :placeholder="motifPlaceholder"
+        />
+        <p class="mt-1 text-xs" :class="motifRequired ? 'text-orange-700' : 'text-gray-500'">
+          {{ motifRequired ? 'Obligatoire pour garder une trace claire des écarts et sorties.' : 'Optionnel mais recommandé pour l’historique.' }}
+        </p>
       </div>
     </div>
 
@@ -138,6 +153,32 @@ const motifPlaceholder = computed(() => ({
   ajustement: 'Inventaire physique du XX/XX',
 }[props.type]))
 
+const motifRequired = computed(() => ['sortie', 'ajustement'].includes(props.type))
+const motifOptions = computed(() => ({
+  entree: [
+    'Achat fournisseur',
+    'Stock initial',
+    'Retour client',
+    'Correction positive',
+    'Réception marchandise',
+  ],
+  sortie: [
+    'Vente hors facture',
+    'Casse / perte',
+    'Usage interne',
+    'Correction négative',
+    'Produit obsolète',
+    'Don / échantillon',
+  ],
+  ajustement: [
+    'Inventaire physique',
+    'Erreur de saisie corrigée',
+    'Écart de caisse stock',
+    'Régularisation stock',
+  ],
+}[props.type] || []))
+const selectedMotif = computed(() => motifOptions.value.includes(form.motif) ? form.motif : '')
+
 watch(produitSearch, () => {
   clearTimeout(produitSearchTimeout)
   produitSearchTimeout = setTimeout(() => loadProduits(), 300)
@@ -146,6 +187,13 @@ watch(produitSearch, () => {
 watch(() => form.entrepot_id, () => {
   form.emplacement_id = null
   loadEmplacements()
+})
+
+watch(() => props.type, () => {
+  form.motif = ''
+  form.quantite = 0
+  form.nouvelle_quantite = 0
+  form.prix_unitaire = null
 })
 
 onMounted(() => {
@@ -211,7 +259,19 @@ function emplacementLabel(emp) {
   return details ? `${zone} - ${details} - ${emp.code}` : `${zone} - ${emp.code}`
 }
 
+function applyMotifSuggestion(value) {
+  if (value) {
+    form.motif = value
+  }
+}
+
 async function handleSubmit() {
+  if (motifRequired.value && !String(form.motif || '').trim()) {
+    errorMessages.value = ['Le motif est obligatoire pour ce mouvement.']
+    toast.error(errorMessages.value)
+    return
+  }
+
   saving.value = true
   errorMessages.value = []
   try {
