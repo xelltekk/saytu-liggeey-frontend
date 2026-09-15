@@ -1,23 +1,27 @@
-function encodeOutlookParam(value) {
+function encodeEmailParam(value) {
   return encodeURIComponent(String(value || ''))
 }
 
-export function buildOutlookComposeUrl({ to, subject = '', body = '', cc = '', bcc = '' }) {
+export function buildClassicOutlookComposeUrl({ to, subject = '', body = '', cc = '', bcc = '' }) {
   const email = String(to || '').trim()
   if (!email) return ''
 
   const params = []
-  params.push(`to=${encodeOutlookParam(email)}`)
-  if (cc) params.push(`cc=${encodeOutlookParam(cc)}`)
-  if (bcc) params.push(`bcc=${encodeOutlookParam(bcc)}`)
-  if (subject) params.push(`subject=${encodeOutlookParam(subject)}`)
-  if (body) params.push(`body=${encodeOutlookParam(body)}`)
+  if (cc) params.push(`cc=${encodeEmailParam(cc)}`)
+  if (bcc) params.push(`bcc=${encodeEmailParam(bcc)}`)
+  if (subject) params.push(`subject=${encodeEmailParam(subject)}`)
+  if (body) params.push(`body=${encodeEmailParam(body)}`)
 
-  return `ms-outlook://compose?${params.join('&')}`
+  const query = params.join('&')
+  return `mailto:${encodeEmailParam(email)}${query ? `?${query}` : ''}`
+}
+
+export function buildOutlookComposeUrl(options) {
+  return buildClassicOutlookComposeUrl(options)
 }
 
 export function buildMailtoUrl(options) {
-  return buildOutlookComposeUrl(options)
+  return buildClassicOutlookComposeUrl(options)
 }
 
 function safeDecodeMailtoValue(value) {
@@ -28,10 +32,21 @@ function safeDecodeMailtoValue(value) {
   }
 }
 
-function toOutlookComposeUrl(emailUrl) {
+function toClassicOutlookComposeUrl(emailUrl) {
   const rawUrl = String(emailUrl || '').trim()
   if (!rawUrl) return ''
-  if (rawUrl.toLowerCase().startsWith('ms-outlook://')) return rawUrl
+  if (rawUrl.toLowerCase().startsWith('ms-outlook://')) {
+    const rawQuery = rawUrl.includes('?') ? rawUrl.slice(rawUrl.indexOf('?') + 1) : ''
+    const outlookParams = new URLSearchParams(rawQuery)
+
+    return buildClassicOutlookComposeUrl({
+      to: outlookParams.get('to') || '',
+      cc: outlookParams.get('cc') || '',
+      bcc: outlookParams.get('bcc') || '',
+      subject: outlookParams.get('subject') || outlookParams.get('su') || '',
+      body: outlookParams.get('body') || '',
+    })
+  }
   if (!rawUrl.toLowerCase().startsWith('mailto:')) return rawUrl
 
   const mailtoBody = rawUrl.slice(rawUrl.indexOf(':') + 1)
@@ -40,7 +55,7 @@ function toOutlookComposeUrl(emailUrl) {
   const rawQuery = questionIndex >= 0 ? mailtoBody.slice(questionIndex + 1) : ''
   const mailtoParams = new URLSearchParams(rawQuery)
 
-  return buildOutlookComposeUrl({
+  return buildClassicOutlookComposeUrl({
     to: mailtoParams.get('to') || safeDecodeMailtoValue(rawRecipients),
     cc: mailtoParams.get('cc') || '',
     bcc: mailtoParams.get('bcc') || '',
@@ -57,7 +72,7 @@ export function closeReservedEmailComposerWindow(reservedWindow) {
   void reservedWindow
 }
 
-function openOutlookWithNativeLink(outlookUrl) {
+function openClassicOutlookWithNativeLink(outlookUrl) {
   if (typeof document === 'undefined' || !document.body) return false
 
   const link = document.createElement('a')
@@ -76,10 +91,10 @@ export function openEmailComposer(mailtoUrl, reservedWindow = null) {
     return false
   }
 
-  const composerUrl = toOutlookComposeUrl(mailtoUrl)
+  const composerUrl = toClassicOutlookComposeUrl(mailtoUrl)
 
   try {
-    if (openOutlookWithNativeLink(composerUrl)) return true
+    if (openClassicOutlookWithNativeLink(composerUrl)) return true
   } catch (error) {
     // Fall back to protocol navigation below.
   }
