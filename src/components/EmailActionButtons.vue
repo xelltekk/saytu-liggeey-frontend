@@ -235,7 +235,7 @@ function openInOutlook() {
 
 .email-choice-backdrop {
   align-items: center;
-  background: rgb(15 23 42 / 28%);
+  background: rgb(8 47 73 / 32%);
   display: flex;
   inset: 0;
   justify-content: center;
@@ -246,21 +246,21 @@ function openInOutlook() {
 
 .email-choice-modal {
   background:
-    linear-gradient(135deg, rgb(240 249 255 / 96%), rgb(236 254 255 / 96%)),
-    var(--saytu-surface, #fff);
-  border: 1px solid var(--saytu-border, #bfdbfe);
+    linear-gradient(135deg, rgb(255 255 255 / 98%), rgb(236 254 255 / 98%)),
+    #ffffff;
+  border: 1px solid #7dd3fc;
   border-radius: 1.35rem;
-  box-shadow: 0 28px 80px rgb(15 23 42 / 24%);
-  max-width: 430px;
-  padding: 1.15rem;
+  box-shadow: 0 28px 80px rgb(8 47 73 / 26%);
+  max-width: 460px;
+  padding: 1.25rem;
   position: relative;
-  width: min(430px, 100%);
+  width: min(460px, 100%);
 }
 
 .email-choice-close {
   align-items: center;
   border-radius: 999px;
-  color: var(--saytu-muted, #64748b);
+  color: #0369a1;
   display: inline-flex;
   font-size: 1.3rem;
   height: 2rem;
@@ -273,11 +273,11 @@ function openInOutlook() {
 
 .email-choice-close:hover {
   background: rgb(14 165 233 / 10%);
-  color: var(--saytu-primary, #2563eb);
+  color: #075985;
 }
 
 .email-choice-kicker {
-  color: var(--saytu-primary, #2563eb);
+  color: #0284c7;
   font-size: 0.72rem;
   font-weight: 900;
   letter-spacing: 0.16em;
@@ -285,27 +285,33 @@ function openInOutlook() {
 }
 
 .email-choice-modal h3 {
-  color: var(--saytu-shell-text, #0f172a);
-  font-size: 1.05rem;
+  color: #082f49;
+  font-size: 1.18rem;
   font-weight: 950;
   margin: 0.25rem 2rem 0.4rem 0;
 }
 
 .email-choice-help,
 .email-choice-subject {
-  color: var(--saytu-muted, #64748b);
-  font-size: 0.82rem;
+  color: #334155;
+  font-size: 0.86rem;
   margin: 0;
 }
 
+.email-choice-help strong {
+  color: #0f172a;
+  font-weight: 900;
+}
+
 .email-choice-subject {
-  background: rgb(255 255 255 / 70%);
-  border: 1px solid rgb(186 230 253 / 70%);
+  background: #f8fdff;
+  border: 1px solid #bae6fd;
   border-radius: 0.9rem;
-  color: var(--saytu-shell-text, #0f172a);
-  font-weight: 750;
+  color: #0f172a;
+  font-weight: 850;
+  line-height: 1.35;
   margin-top: 0.75rem;
-  padding: 0.65rem 0.75rem;
+  padding: 0.75rem 0.85rem;
 }
 
 .email-choice-actions {
@@ -315,7 +321,8 @@ function openInOutlook() {
 }
 
 .email-choice-actions .email-action-btn {
-  min-height: 2.35rem;
+  font-size: 0.82rem;
+  min-height: 2.55rem;
   width: 100%;
 }
 </style>
