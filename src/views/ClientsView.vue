@@ -114,8 +114,6 @@
                   <a
                     v-if="client.email"
                     :href="emailHref(client.email)"
-                    target="_blank"
-                    rel="noopener noreferrer"
                     class="max-w-[240px] truncate font-medium text-xelltekk-700 hover:text-xelltekk-900 hover:underline"
                     @click.stop
                   >

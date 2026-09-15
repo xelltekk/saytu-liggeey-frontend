@@ -112,7 +112,7 @@
               <td class="px-4 py-3 text-center"><span class="badge" :class="p.statut === 'actif' ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-700'">{{ p.statut }}</span></td>
               <td class="px-4 py-3 text-right">
                 <div class="flex flex-wrap justify-end gap-2">
-                  <a v-if="p.email" :href="relanceEmailHref(p, latestAction(p))" target="_blank" rel="noopener noreferrer" class="text-sm font-medium text-xelltekk-600 hover:text-xelltekk-800">Email</a>
+                  <a v-if="p.email" :href="relanceEmailHref(p, latestAction(p))" class="text-sm font-medium text-xelltekk-600 hover:text-xelltekk-800">Email</a>
                   <button type="button" @click="creerDevis(p)" class="text-sm font-medium text-xelltekk-600 hover:text-xelltekk-800">+ Devis</button>
                   <button @click="openAction(p)" class="text-sm font-medium text-xelltekk-600 hover:text-xelltekk-800">+ Action</button>
                   <button v-if="isAdmin" @click="openAssignProspect(p)" class="text-sm font-medium text-indigo-600 hover:text-indigo-800">Affecter</button>
@@ -432,6 +432,7 @@ import { useToast } from '@/composables/useToast'
 import { useTableSort } from '@/composables/useTableSort'
 import { telechargerCSV } from '@/services/exports'
 import { ouvrirPDF } from '@/services/pdf'
+import { buildOutlookComposeUrl } from '@/utils/emailComposer'
 
 const auth = useAuthStore()
 const toast = useToast()
@@ -1124,17 +1125,16 @@ function relanceEmailHref(prospect, action = null) {
   const email = prospect?.email
   if (!email) return '#'
   const nom = prospect?.nom || 'client'
-  const sujet = encodeURIComponent(`Relance commerciale - ${nom}`)
+  const subject = `Relance commerciale - ${nom}`
   const objet = action?.objet ? ` concernant ${action.objet}` : ''
   const potentiel = Number(action?.montant_potentiel || action?.potentiel || 0)
-  const body = encodeURIComponent(
+  const body =
     `Bonjour,\n\nJe me permets de revenir vers vous${objet}.\n\n` +
     `Nous restons disponibles pour échanger sur votre besoin et vous proposer la solution la plus adaptée.\n` +
     `${potentiel > 0 ? `\nMontant/opportunité estimée : ${formatPrice(potentiel)} Francs CFA BCEAO.\n` : ''}` +
     `\nCordialement,\n${auth.user?.name || 'L’équipe commerciale'}\nXELLTEKK`
-  )
 
-  return `mailto:${email}?subject=${sujet}&body=${body}`
+  return buildOutlookComposeUrl({ to: email, subject, body })
 }
 
 function phoneHref(prospect) {

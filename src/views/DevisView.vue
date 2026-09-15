@@ -98,7 +98,7 @@
                 </div>
                 <div class="compact-row-meta">
                   <span>{{ devi.client?.code || '–' }}</span>
-                  <a v-if="devi.client?.email" :href="relanceEmailHref(devi)" target="_blank" rel="noopener noreferrer" class="text-xelltekk-700 hover:underline">
+                  <a v-if="devi.client?.email" :href="relanceEmailHref(devi)" class="text-xelltekk-700 hover:underline">
                     {{ devi.client.email }}
                   </a>
                   <span class="text-blue-600">Commercial : {{ devi.commercial?.name || 'Non affecté' }}</span>
@@ -124,8 +124,6 @@
                   <a
                     v-if="devi.client?.email"
                     :href="relanceEmailHref(devi)"
-                    target="_blank"
-                    rel="noopener noreferrer"
                     class="rounded-full border border-gray-200 px-2 py-1 text-xs font-semibold text-xelltekk-700 hover:border-xelltekk-300 hover:bg-xelltekk-50"
                     title="Préparer un email de relance"
                   >
@@ -288,6 +286,7 @@ import { useToast } from '@/composables/useToast'
 import { useTableSort } from '@/composables/useTableSort'
 import { useAuthStore } from '@/stores/auth'
 import { telechargerCSV } from '@/services/exports'
+import { buildOutlookComposeUrl } from '@/utils/emailComposer'
 
 const toast = useToast()
 const route = useRoute()
@@ -689,7 +688,11 @@ function relanceEmailHref(devi) {
     'Cordialement,',
     auth.user?.name || 'XELLTEKK',
   ].filter(Boolean)
-  return `mailto:${client.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyLines.join('\n'))}`
+  return buildOutlookComposeUrl({
+    to: client.email,
+    subject,
+    body: bodyLines.join('\n'),
+  })
 }
 
 async function openFromRoute(id) {

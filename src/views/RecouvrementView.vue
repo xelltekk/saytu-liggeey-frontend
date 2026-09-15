@@ -114,7 +114,7 @@
                 </button>
                 <div class="mt-1 font-bold text-slate-950">{{ facture.client?.nom || 'Client non renseigné' }}</div>
                 <div class="mt-0.5 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500">
-                  <a v-if="facture.client?.email" :href="buildMailtoUrl({ to: facture.client.email })" target="_blank" rel="noopener noreferrer" class="hover:underline">{{ facture.client.email }}</a>
+                  <a v-if="facture.client?.email" :href="buildMailtoUrl({ to: facture.client.email })" class="hover:underline">{{ facture.client.email }}</a>
                   <span v-if="facture.client?.telephone">{{ facture.client.telephone }}</span>
                   <span v-if="facture.commercial?.name">Com. {{ facture.commercial.name }}</span>
                 </div>

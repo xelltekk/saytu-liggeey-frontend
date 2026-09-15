@@ -83,7 +83,7 @@
                 </div>
                 <div class="compact-row-meta">
                   <span>{{ f.client?.code || '–' }}</span>
-                  <a v-if="f.client?.email" :href="relanceFactureEmailHref(f)" target="_blank" rel="noopener noreferrer" class="text-xelltekk-700 hover:underline">
+                  <a v-if="f.client?.email" :href="relanceFactureEmailHref(f)" class="text-xelltekk-700 hover:underline">
                     {{ f.client.email }}
                   </a>
                   <span class="text-blue-600">Commercial : {{ f.commercial?.name || 'Non affecté' }}</span>
@@ -105,8 +105,6 @@
                 <a
                   v-if="canRelancer(f)"
                   :href="relanceFactureEmailHref(f)"
-                  target="_blank"
-                  rel="noopener noreferrer"
                   class="rounded-full border border-orange-200 px-2 py-1 text-xs font-semibold text-orange-700 hover:bg-orange-50"
                   title="Préparer un email de relance"
                 >
@@ -381,6 +379,7 @@ import SortableTh from '@/components/SortableTh.vue'
 import { useToast } from '@/composables/useToast'
 import { useTableSort } from '@/composables/useTableSort'
 import { useAuthStore } from '@/stores/auth'
+import { buildOutlookComposeUrl } from '@/utils/emailComposer'
 
 const toast = useToast()
 const auth = useAuthStore()
@@ -847,7 +846,11 @@ function relanceFactureEmailHref(f) {
     auth.user?.name || 'XELLTEKK',
   ].filter(Boolean)
 
-  return `mailto:${client.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyLines.join('\n'))}`
+  return buildOutlookComposeUrl({
+    to: client.email,
+    subject,
+    body: bodyLines.join('\n'),
+  })
 }
 
 async function openFromRoute(id) {
