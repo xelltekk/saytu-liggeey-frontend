@@ -10,44 +10,6 @@ export function buildMailtoUrl({ to, subject = '', body = '' }) {
   return `mailto:${encodeURIComponent(email)}${query ? `?${query}` : ''}`
 }
 
-function safeDecodeMailtoValue(value) {
-  try {
-    return decodeURIComponent(String(value || '').replace(/\+/g, '%20'))
-  } catch (error) {
-    return String(value || '')
-  }
-}
-
-export function buildEmailComposerUrl(mailtoUrl) {
-  const rawUrl = String(mailtoUrl || '').trim()
-  if (!rawUrl || !rawUrl.toLowerCase().startsWith('mailto:')) return rawUrl
-
-  const mailtoBody = rawUrl.slice(rawUrl.indexOf(':') + 1)
-  const questionIndex = mailtoBody.indexOf('?')
-  const rawRecipients = questionIndex >= 0 ? mailtoBody.slice(0, questionIndex) : mailtoBody
-  const rawQuery = questionIndex >= 0 ? mailtoBody.slice(questionIndex + 1) : ''
-  const mailtoParams = new URLSearchParams(rawQuery)
-
-  const composerParams = new URLSearchParams({
-    view: 'cm',
-    fs: '1',
-  })
-
-  const to = mailtoParams.get('to') || safeDecodeMailtoValue(rawRecipients)
-  const cc = mailtoParams.get('cc')
-  const bcc = mailtoParams.get('bcc')
-  const subject = mailtoParams.get('subject') || mailtoParams.get('su')
-  const body = mailtoParams.get('body')
-
-  if (to) composerParams.set('to', to)
-  if (cc) composerParams.set('cc', cc)
-  if (bcc) composerParams.set('bcc', bcc)
-  if (subject) composerParams.set('su', subject)
-  if (body) composerParams.set('body', body)
-
-  return `https://mail.google.com/mail/?${composerParams.toString()}`
-}
-
 export function reserveEmailComposerWindow() {
   if (typeof window === 'undefined') return null
 
@@ -86,7 +48,7 @@ export function reserveEmailComposerWindow() {
         <body>
           <div>
             <strong>Préparation de l’email…</strong>
-            <span>Gmail ou votre messagerie va s’ouvrir dans cet onglet.</span>
+            <span>Votre messagerie par défaut va s’ouvrir depuis cet onglet.</span>
           </div>
         </body>
       </html>
@@ -114,7 +76,7 @@ export function openEmailComposer(mailtoUrl, reservedWindow = null) {
     return false
   }
 
-  const composerUrl = buildEmailComposerUrl(mailtoUrl)
+  const composerUrl = String(mailtoUrl || '').trim()
 
   if (reservedWindow && !reservedWindow.closed) {
     try {
@@ -126,9 +88,9 @@ export function openEmailComposer(mailtoUrl, reservedWindow = null) {
   }
 
   try {
-    const popup = window.open(composerUrl, '_blank', 'noopener,noreferrer')
+    const popup = reserveEmailComposerWindow()
     if (popup) {
-      popup.opener = null
+      popup.location.replace(composerUrl)
       return true
     }
   } catch (error) {
@@ -140,6 +102,7 @@ export function openEmailComposer(mailtoUrl, reservedWindow = null) {
     link.href = composerUrl
     link.target = '_blank'
     link.rel = 'noopener noreferrer'
+    link.dataset.mailtoGuardFallback = 'true'
     link.style.display = 'none'
     document.body.appendChild(link)
     link.click()
