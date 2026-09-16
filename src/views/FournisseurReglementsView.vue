@@ -31,6 +31,9 @@
         <button type="button" @click="activeTab = 'reglements'" class="tab-button" :class="activeTab === 'reglements' ? 'tab-active' : ''">
           Règlements
         </button>
+        <button type="button" @click="activeTab = 'pilotage'" class="tab-button" :class="activeTab === 'pilotage' ? 'tab-active' : ''">
+          Pilotage dettes
+        </button>
       </div>
 
       <div class="flex flex-wrap gap-2 pb-3">
@@ -44,6 +47,116 @@
         <button type="button" @click="openReglementCreate" class="btn-secondary">Nouveau règlement</button>
       </div>
     </div>
+
+    <section v-show="activeTab === 'pilotage'" class="space-y-4">
+      <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <article v-for="card in debtKpiCards" :key="card.label" class="debt-card">
+          <span class="stat-label">{{ card.label }}</span>
+          <strong class="stat-value" :class="card.color">{{ card.value }}</strong>
+          <span class="text-xs text-slate-500">{{ card.hint }}</span>
+        </article>
+      </div>
+
+      <div class="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
+        <section class="debt-panel">
+          <div class="debt-panel-header">
+            <div>
+              <h3>Échéancier fournisseurs</h3>
+              <p>Factures à régler par priorité d’échéance.</p>
+            </div>
+            <button type="button" class="btn-secondary px-3 py-1.5 text-sm" @click="loadDebtDashboard" :disabled="debtDashboardLoading">
+              {{ debtDashboardLoading ? 'Chargement...' : 'Actualiser' }}
+            </button>
+          </div>
+          <div class="divide-y divide-slate-100">
+            <div v-for="facture in debtDashboard.echeancier" :key="facture.id" class="debt-row">
+              <div class="min-w-0">
+                <button type="button" class="font-mono text-sm font-bold text-blue-700 hover:underline" @click="openReglementForFacture(facture)">
+                  {{ facture.numero }}
+                </button>
+                <p class="truncate text-sm font-semibold text-slate-800">{{ facture.fournisseur?.nom || 'Fournisseur' }}</p>
+                <p class="text-xs text-slate-500">Échéance {{ formatDate(facture.date_echeance) }} · {{ urgenceLabel(facture) }}</p>
+              </div>
+              <div class="flex flex-col items-end gap-2">
+                <span class="font-mono text-sm font-black text-orange-700">{{ formatPrice(facture.reste_a_payer) }}</span>
+                <button type="button" class="table-action" @click="openReglementForFacture(facture)">Payer</button>
+              </div>
+            </div>
+            <p v-if="!debtDashboard.echeancier?.length" class="px-4 py-8 text-center text-sm text-slate-500">Aucune dette fournisseur à suivre.</p>
+          </div>
+        </section>
+
+        <section class="debt-panel">
+          <div class="debt-panel-header">
+            <div>
+              <h3>Balance âgée</h3>
+              <p>Répartition du reste dû.</p>
+            </div>
+          </div>
+          <div class="space-y-3 p-4">
+            <div v-for="bucket in debtDashboard.aging" :key="bucket.key">
+              <div class="mb-1 flex items-center justify-between text-sm">
+                <span class="font-semibold text-slate-700">{{ bucket.label }}</span>
+                <span class="font-mono font-bold text-slate-900">{{ formatPrice(bucket.amount) }}</span>
+              </div>
+              <div class="h-2 overflow-hidden rounded-full bg-slate-100">
+                <div class="h-full rounded-full bg-gradient-to-r from-blue-500 to-cyan-400" :style="{ width: agingPercent(bucket.amount) + '%' }"></div>
+              </div>
+              <p class="mt-1 text-xs text-slate-500">{{ bucket.count }} facture(s)</p>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div class="grid gap-4 xl:grid-cols-2">
+        <section class="debt-panel">
+          <div class="debt-panel-header">
+            <div>
+              <h3>Fournisseurs les plus dus</h3>
+              <p>Priorise les sorties de trésorerie.</p>
+            </div>
+          </div>
+          <div class="divide-y divide-slate-100">
+            <div v-for="supplier in debtDashboard.top_fournisseurs" :key="supplier.fournisseur_id" class="debt-row">
+              <div>
+                <button type="button" class="font-bold text-slate-900 hover:text-blue-700" @click="openSupplierSituation(supplier.fournisseur_id)">
+                  {{ supplier.nom }}
+                </button>
+                <p class="text-xs text-slate-500">{{ supplier.factures_count }} facture(s) · retard {{ formatPrice(supplier.montant_retard) }}</p>
+              </div>
+              <div class="flex flex-col items-end gap-2">
+                <span class="font-mono font-black text-blue-700">{{ formatPrice(supplier.reste_a_payer) }}</span>
+                <button type="button" class="table-action" @click="openReglementForSupplier(supplier.fournisseur_id)">Régler</button>
+              </div>
+            </div>
+            <p v-if="!debtDashboard.top_fournisseurs?.length" class="px-4 py-8 text-center text-sm text-slate-500">Aucun fournisseur débiteur.</p>
+          </div>
+        </section>
+
+        <section class="debt-panel">
+          <div class="debt-panel-header">
+            <div>
+              <h3>Paiements conseillés</h3>
+              <p>Liste courte selon retard, échéance et montant.</p>
+            </div>
+          </div>
+          <div class="divide-y divide-slate-100">
+            <div v-for="facture in debtDashboard.suggestions" :key="facture.id" class="debt-row">
+              <div>
+                <div class="font-mono text-sm font-bold text-slate-800">{{ facture.numero }}</div>
+                <p class="text-sm font-semibold text-slate-700">{{ facture.fournisseur?.nom || 'Fournisseur' }}</p>
+                <p class="text-xs" :class="urgenceClass(facture)">{{ urgenceLabel(facture) }}</p>
+              </div>
+              <div class="flex flex-col items-end gap-2">
+                <span class="font-mono font-black text-orange-700">{{ formatPrice(facture.reste_a_payer) }}</span>
+                <button type="button" class="table-action" @click="openReglementForFacture(facture)">Préparer</button>
+              </div>
+            </div>
+            <p v-if="!debtDashboard.suggestions?.length" class="px-4 py-8 text-center text-sm text-slate-500">Aucune suggestion de paiement.</p>
+          </div>
+        </section>
+      </div>
+    </section>
 
     <section v-show="activeTab === 'factures'" class="space-y-4">
       <div class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
@@ -102,6 +215,8 @@
                 <td class="td text-center"><span class="badge" :class="statutBadge(facture.statut)">{{ statutLabel(facture.statut) }}</span></td>
                 <td class="td">
                   <div class="flex justify-end gap-2">
+                    <button v-if="Number(facture.reste_a_payer || 0) > 0" type="button" @click="openReglementForFacture(facture)" class="table-action">Payer</button>
+                    <button type="button" @click="openSupplierSituation(facture.fournisseur_id || facture.fournisseur?.id)" class="table-action">Situation</button>
                     <button type="button" @click="openFactureEdit(facture)" class="table-action">Modifier</button>
                     <button type="button" @click="deleteFacture(facture)" class="table-danger">Supprimer</button>
                   </div>
@@ -333,6 +448,71 @@
         </div>
       </form>
     </AppModal>
+
+    <AppModal v-model="showSituationModal" title="Situation fournisseur" size="lg">
+      <div v-if="situationLoading" class="py-10 text-center text-sm text-slate-500">Chargement de la situation...</div>
+      <div v-else-if="supplierSituation.fournisseur" class="space-y-4">
+        <div class="rounded-2xl border border-cyan-200 bg-cyan-50 p-4">
+          <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h3 class="text-lg font-black text-slate-900">{{ supplierSituation.fournisseur.nom }}</h3>
+              <p class="text-sm text-slate-600">{{ supplierSituation.fournisseur.code || '-' }} · {{ supplierSituation.fournisseur.email || 'Email non renseigné' }}</p>
+            </div>
+            <button type="button" class="btn-primary px-4 py-2 text-sm" @click="openSupplierSituationPdf">
+              Situation PDF
+            </button>
+          </div>
+        </div>
+
+        <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <article v-for="card in supplierSituationCards" :key="card.label" class="rounded-xl border border-slate-200 bg-white p-3">
+            <span class="stat-label">{{ card.label }}</span>
+            <strong class="mt-1 block text-lg font-black" :class="card.color">{{ card.value }}</strong>
+          </article>
+        </div>
+
+        <section class="debt-panel">
+          <div class="debt-panel-header">
+            <div>
+              <h3>Factures impayées</h3>
+              <p>Échéances et montants restant à payer.</p>
+            </div>
+          </div>
+          <div class="max-h-80 divide-y divide-slate-100 overflow-y-auto">
+            <div v-for="facture in supplierSituation.factures_impayees" :key="facture.id" class="debt-row">
+              <div>
+                <div class="font-mono text-sm font-bold text-slate-800">{{ facture.numero }}</div>
+                <p class="text-xs text-slate-500">Échéance {{ formatDate(facture.date_echeance) }} · {{ urgenceLabel(facture) }}</p>
+              </div>
+              <div class="flex flex-col items-end gap-2">
+                <span class="font-mono font-black text-orange-700">{{ formatPrice(facture.reste_a_payer) }}</span>
+                <button type="button" class="table-action" @click="openReglementForFacture(facture)">Payer</button>
+              </div>
+            </div>
+            <p v-if="!supplierSituation.factures_impayees?.length" class="px-4 py-8 text-center text-sm text-slate-500">Aucune facture impayée.</p>
+          </div>
+        </section>
+
+        <section class="debt-panel">
+          <div class="debt-panel-header">
+            <div>
+              <h3>Derniers règlements</h3>
+              <p>Historique récent des paiements fournisseur.</p>
+            </div>
+          </div>
+          <div class="max-h-64 divide-y divide-slate-100 overflow-y-auto">
+            <div v-for="reglement in supplierSituation.reglements" :key="reglement.id" class="debt-row">
+              <div>
+                <div class="font-mono text-sm font-bold text-slate-800">{{ reglement.reference }}</div>
+                <p class="text-xs text-slate-500">{{ formatDate(reglement.date_reglement) }} · {{ modeLabel(reglement.mode_paiement) }}</p>
+              </div>
+              <span class="font-mono font-black text-emerald-700">{{ formatPrice(reglement.montant) }}</span>
+            </div>
+            <p v-if="!supplierSituation.reglements?.length" class="px-4 py-8 text-center text-sm text-slate-500">Aucun règlement enregistré.</p>
+          </div>
+        </section>
+      </div>
+    </AppModal>
   </div>
 </template>
 
@@ -344,6 +524,7 @@ import AppModal from '@/components/AppModal.vue'
 import { useToast } from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
 import { telechargerCSV } from '@/services/exports'
+import { ouvrirPDF } from '@/services/pdf'
 
 const PaginationBar = defineComponent({
   props: { meta: { type: Object, required: true } },
@@ -378,8 +559,11 @@ const reglementLoading = ref(false)
 const exportLoading = ref(false)
 const savingFacture = ref(false)
 const savingReglement = ref(false)
+const debtDashboardLoading = ref(false)
+const situationLoading = ref(false)
 const showFactureModal = ref(false)
 const showReglementModal = ref(false)
+const showSituationModal = ref(false)
 const editingFacture = ref(null)
 let factureSearchTimer = null
 let reglementSearchTimer = null
@@ -390,6 +574,23 @@ const stats = reactive({
   en_retard: 0,
   dette_total: 0,
   reglements_mois: 0,
+})
+
+const debtDashboard = reactive({
+  kpis: {},
+  aging: [],
+  top_fournisseurs: [],
+  echeancier: [],
+  suggestions: [],
+  derniers_reglements: [],
+})
+
+const supplierSituation = reactive({
+  fournisseur: null,
+  resume: {},
+  factures_impayees: [],
+  factures_recentes: [],
+  reglements: [],
 })
 
 const factureFilters = reactive({ search: '', fournisseur_id: '', statut: '', etat: '' })
@@ -421,6 +622,19 @@ const reglementForm = reactive({
 })
 
 const totalFactureForm = computed(() => Number(factureForm.montant_ht || 0) + Number(factureForm.montant_tva || 0))
+const debtKpiCards = computed(() => [
+  { label: 'Dette totale', value: formatPrice(debtDashboard.kpis?.dette_total), hint: `${debtDashboard.kpis?.factures_impayees || 0} facture(s) impayée(s)`, color: 'text-blue-700' },
+  { label: 'En retard', value: formatPrice(debtDashboard.kpis?.montant_en_retard), hint: `${debtDashboard.kpis?.factures_en_retard || 0} facture(s)`, color: 'text-red-700' },
+  { label: 'À 7 jours', value: formatPrice(debtDashboard.kpis?.a_regler_7_jours), hint: `${debtDashboard.kpis?.factures_7_jours || 0} échéance(s) proche(s)`, color: 'text-orange-700' },
+  { label: 'Réglé ce mois', value: formatPrice(debtDashboard.kpis?.reglements_mois), hint: `En attente: ${formatPrice(debtDashboard.kpis?.reglements_en_attente)}`, color: 'text-emerald-700' },
+])
+const agingTotal = computed(() => (debtDashboard.aging || []).reduce((sum, bucket) => sum + Number(bucket.amount || 0), 0))
+const supplierSituationCards = computed(() => [
+  { label: 'Total facturé', value: formatPrice(supplierSituation.resume?.total_facture), color: 'text-slate-900' },
+  { label: 'Total payé', value: formatPrice(supplierSituation.resume?.total_paye), color: 'text-emerald-700' },
+  { label: 'Reste dû', value: formatPrice(supplierSituation.resume?.reste_a_payer), color: 'text-orange-700' },
+  { label: 'En retard', value: formatPrice(supplierSituation.resume?.montant_en_retard), color: 'text-red-700' },
+])
 
 function todayInput() {
   return new Date().toISOString().slice(0, 10)
@@ -442,7 +656,7 @@ function syncMeta(target, source) {
 
 async function loadInitialData() {
   try {
-    await Promise.all([loadFournisseurs(), loadStats(), loadFactures(), loadReglements()])
+    await Promise.all([loadFournisseurs(), loadStats(), loadFactures(), loadReglements(), loadDebtDashboard()])
   } catch (error) {
     showApiError(error, 'Impossible de charger les règlements fournisseurs.')
   }
@@ -456,6 +670,23 @@ async function loadFournisseurs() {
 async function loadStats() {
   const { data } = await api.get('/fournisseurs-reglements/stats')
   Object.assign(stats, data)
+}
+
+async function loadDebtDashboard() {
+  debtDashboardLoading.value = true
+  try {
+    const { data } = await api.get('/fournisseurs-reglements/dashboard')
+    Object.assign(debtDashboard, {
+      kpis: data.kpis || {},
+      aging: data.aging || [],
+      top_fournisseurs: data.top_fournisseurs || [],
+      echeancier: data.echeancier || [],
+      suggestions: data.suggestions || [],
+      derniers_reglements: data.derniers_reglements || [],
+    })
+  } finally {
+    debtDashboardLoading.value = false
+  }
 }
 
 async function loadFactures(page = 1) {
@@ -568,7 +799,7 @@ async function saveFacture() {
       toast.success('Facture fournisseur créée.')
     }
     showFactureModal.value = false
-    await Promise.all([loadStats(), loadFactures(factureMeta.current_page)])
+    await Promise.all([loadStats(), loadDebtDashboard(), loadFactures(factureMeta.current_page)])
   } catch (error) {
     showApiError(error)
   } finally {
@@ -581,7 +812,7 @@ async function deleteFacture(facture) {
   try {
     await api.delete(`/fournisseurs-reglements/factures/${facture.id}`)
     toast.success('Facture fournisseur supprimée.')
-    await Promise.all([loadStats(), loadFactures(factureMeta.current_page)])
+    await Promise.all([loadStats(), loadDebtDashboard(), loadFactures(factureMeta.current_page)])
   } catch (error) {
     showApiError(error)
   }
@@ -606,6 +837,35 @@ function openReglementCreate() {
   showReglementModal.value = true
 }
 
+async function openReglementForSupplier(fournisseurId) {
+  if (!fournisseurId) return
+  activeTab.value = 'reglements'
+  resetReglementForm()
+  reglementForm.fournisseur_id = fournisseurId
+  showReglementModal.value = true
+  await loadFacturesImpayees()
+  selectAllFacturesImpayees()
+}
+
+async function openReglementForFacture(facture) {
+  const fournisseurId = facture?.fournisseur_id || facture?.fournisseur?.id
+  if (!fournisseurId) return toast.error('Fournisseur introuvable pour cette facture.')
+  activeTab.value = 'reglements'
+  resetReglementForm()
+  reglementForm.fournisseur_id = fournisseurId
+  showReglementModal.value = true
+  showSituationModal.value = false
+  await loadFacturesImpayees()
+  const target = facturesImpayees.value.find((item) => Number(item.id) === Number(facture.id))
+  if (target) {
+    reglementForm.factures = [{
+      facture_id: target.id,
+      montant_affecte: Number(target.reste_a_payer || facture.reste_a_payer || 0),
+    }]
+    syncReglementMontant()
+  }
+}
+
 async function loadFacturesImpayees() {
   reglementForm.factures = []
   reglementForm.montant = 0
@@ -618,6 +878,16 @@ async function loadFacturesImpayees() {
   } catch (error) {
     showApiError(error, 'Impossible de charger les factures impayées du fournisseur.')
   }
+}
+
+function selectAllFacturesImpayees() {
+  reglementForm.factures = facturesImpayees.value
+    .filter((facture) => Number(facture.reste_a_payer || 0) > 0)
+    .map((facture) => ({
+      facture_id: facture.id,
+      montant_affecte: Number(facture.reste_a_payer || 0),
+    }))
+  syncReglementMontant()
 }
 
 function isFactureSelected(id) {
@@ -674,7 +944,7 @@ async function saveReglement() {
     await api.post('/fournisseurs-reglements/reglements', payload)
     toast.success('Règlement fournisseur enregistré.')
     showReglementModal.value = false
-    await Promise.all([loadStats(), loadFactures(factureMeta.current_page), loadReglements(1)])
+    await Promise.all([loadStats(), loadDebtDashboard(), loadFactures(factureMeta.current_page), loadReglements(1)])
   } catch (error) {
     showApiError(error)
   } finally {
@@ -687,9 +957,39 @@ async function deleteReglement(reglement) {
   try {
     await api.delete(`/fournisseurs-reglements/reglements/${reglement.id}`)
     toast.success('Règlement fournisseur supprimé.')
-    await Promise.all([loadStats(), loadFactures(factureMeta.current_page), loadReglements(reglementMeta.current_page)])
+    await Promise.all([loadStats(), loadDebtDashboard(), loadFactures(factureMeta.current_page), loadReglements(reglementMeta.current_page)])
   } catch (error) {
     showApiError(error)
+  }
+}
+
+async function openSupplierSituation(fournisseurId) {
+  if (!fournisseurId) return
+  situationLoading.value = true
+  showSituationModal.value = true
+  try {
+    const { data } = await api.get(`/fournisseurs-reglements/fournisseurs/${fournisseurId}/situation`)
+    Object.assign(supplierSituation, {
+      fournisseur: data.fournisseur || null,
+      resume: data.resume || {},
+      factures_impayees: data.factures_impayees || [],
+      factures_recentes: data.factures_recentes || [],
+      reglements: data.reglements || [],
+    })
+  } catch (error) {
+    showApiError(error, 'Situation fournisseur indisponible.')
+  } finally {
+    situationLoading.value = false
+  }
+}
+
+async function openSupplierSituationPdf() {
+  const fournisseurId = supplierSituation.fournisseur?.id
+  if (!fournisseurId) return
+  try {
+    await ouvrirPDF(`/fournisseurs-reglements/fournisseurs/${fournisseurId}/situation-pdf`, `situation-fournisseur-${supplierSituation.fournisseur.code || fournisseurId}.pdf`)
+  } catch (error) {
+    toast.error('Situation fournisseur PDF indisponible.')
   }
 }
 
@@ -743,6 +1043,27 @@ function formatPrice(value) {
 function formatDate(value) {
   if (!value) return '-'
   return new Date(value).toLocaleDateString('fr-FR')
+}
+
+function agingPercent(amount) {
+  const total = Number(agingTotal.value || 0)
+  if (!total) return 0
+  return Math.max(4, Math.min(100, Math.round(Number(amount || 0) * 100 / total)))
+}
+
+function urgenceLabel(facture) {
+  if (Number(facture?.jours_retard || 0) > 0) return `En retard de ${facture.jours_retard} j`
+  if (facture?.jours_avant_echeance !== null && facture?.jours_avant_echeance !== undefined) return `À payer dans ${facture.jours_avant_echeance} j`
+  return 'Échéance à planifier'
+}
+
+function urgenceClass(facture) {
+  return {
+    critique: 'text-red-700 font-semibold',
+    retard: 'text-orange-700 font-semibold',
+    proche: 'text-amber-700 font-semibold',
+    normale: 'text-slate-500',
+  }[facture?.urgence] || 'text-slate-500'
 }
 
 function statutLabel(statut) {
@@ -810,6 +1131,30 @@ onMounted(() => {
 <style scoped>
 .stat-card {
   @apply rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md;
+}
+
+.debt-card {
+  @apply rounded-2xl border border-cyan-200 bg-cyan-50/70 p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md;
+}
+
+.debt-panel {
+  @apply overflow-hidden rounded-2xl border border-sky-200 bg-white shadow-sm;
+}
+
+.debt-panel-header {
+  @apply flex flex-col gap-2 border-b border-sky-100 bg-sky-50/70 px-4 py-3 sm:flex-row sm:items-center sm:justify-between;
+}
+
+.debt-panel-header h3 {
+  @apply font-black text-slate-900;
+}
+
+.debt-panel-header p {
+  @apply text-xs text-slate-500;
+}
+
+.debt-row {
+  @apply flex items-center justify-between gap-4 px-4 py-3 transition hover:bg-cyan-50/60;
 }
 
 .stat-label {
