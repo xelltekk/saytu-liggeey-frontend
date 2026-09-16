@@ -1768,8 +1768,9 @@ function normalizeStockValuation(data) {
 
 async function loadInventorySessions() {
   try {
-    const { data } = await api.get('/stocks/inventaires', {
+    const { data } = await api.get('/stocks/summary', {
       params: {
+        mode: 'inventaires',
         per_page: 6,
         statut: 'en_cours',
         entrepot_id: filters.entrepot_id || undefined,
@@ -1786,7 +1787,8 @@ async function startInventorySession() {
   try {
     const entrepot = entrepots.value.find((item) => Number(item.id) === Number(filters.entrepot_id))
     const titre = `Inventaire ${entrepot?.libelle || 'global'} - ${new Date().toLocaleDateString('fr-FR')}`
-    const { data } = await api.post('/stocks/inventaires', {
+    const { data } = await api.post('/stocks/ajustement', {
+      mode: 'inventaire_create',
       titre,
       entrepot_id: filters.entrepot_id || undefined,
       search: filters.search || undefined,
@@ -1808,7 +1810,12 @@ async function openInventorySession(session) {
   if (!session?.id) return
   inventorySessionLoading.value = true
   try {
-    const { data } = await api.get(`/stocks/inventaires/${session.id}`)
+    const { data } = await api.get('/stocks/summary', {
+      params: {
+        mode: 'inventaire_show',
+        inventaire_id: session.id,
+      },
+    })
     activeInventory.value = data
     prepareInventorySessionDrafts(data)
   } catch (e) {
@@ -1874,7 +1881,10 @@ async function saveInventorySessionLine(line) {
 
   inventoryLineSavingId.value = line.id
   try {
-    const { data } = await api.patch(`/stocks/inventaires/${activeInventory.value.id}/lignes/${line.id}`, {
+    const { data } = await api.post('/stocks/ajustement', {
+      mode: 'inventaire_line',
+      inventaire_id: activeInventory.value.id,
+      line_id: line.id,
       quantite_comptee: counted,
       motif: draft.motif || defaultInventoryMotif(),
     })
@@ -1895,7 +1905,9 @@ async function validateInventorySession() {
   if (!activeInventory.value?.id) return
   inventorySessionActionLoading.value = true
   try {
-    const { data } = await api.post(`/stocks/inventaires/${activeInventory.value.id}/valider`, {
+    const { data } = await api.post('/stocks/ajustement', {
+      mode: 'inventaire_validate',
+      inventaire_id: activeInventory.value.id,
       motif: `Validation ${activeInventory.value.reference}`,
     })
     activeInventory.value = data
@@ -1917,7 +1929,9 @@ async function cancelInventorySession() {
 
   inventorySessionActionLoading.value = true
   try {
-    const { data } = await api.post(`/stocks/inventaires/${activeInventory.value.id}/annuler`, {
+    const { data } = await api.post('/stocks/ajustement', {
+      mode: 'inventaire_cancel',
+      inventaire_id: activeInventory.value.id,
       motif: 'Annulation utilisateur',
     })
     activeInventory.value = data
