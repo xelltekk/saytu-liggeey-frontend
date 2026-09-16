@@ -41,8 +41,8 @@
         <strong>{{ entrepotsSummary.zones }}</strong>
       </div>
       <div class="entrepots-stat-pill">
-        <span>Villes</span>
-        <strong>{{ entrepotsSummary.villes }}</strong>
+        <span>Emplacements</span>
+        <strong>{{ entrepotsSummary.emplacements }}</strong>
       </div>
     </section>
 
@@ -72,6 +72,7 @@
             <span>{{ locationLabel(entrepot) }}</span>
             <span>Responsable : {{ entrepot.responsable?.name || 'Non affecté' }}</span>
             <span><strong class="text-[color:var(--saytu-shell-text,#0f172a)]">{{ entrepot.zones_count || 0 }}</strong> zone(s)</span>
+            <span><strong class="text-[color:var(--saytu-shell-text,#0f172a)]">{{ entrepot.emplacements_count || 0 }}</strong> emplacement(s)</span>
           </div>
         </div>
 
@@ -151,6 +152,7 @@ const entrepotsSummary = computed(() => {
     total: meta.total || rows.length,
     actifs: rows.filter((entrepot) => entrepot.is_active).length,
     zones: rows.reduce((sum, entrepot) => sum + Number(entrepot.zones_count || 0), 0),
+    emplacements: rows.reduce((sum, entrepot) => sum + Number(entrepot.emplacements_count || 0), 0),
     villes: villes.size,
   }
 })
@@ -210,14 +212,14 @@ function openEdit(entrepot) {
 
 async function openDetails(entrepot) {
   const { data } = await api.get(`/entrepots/${entrepot.id}`)
-  detailsEntrepot.value = data.entrepot
+  detailsEntrepot.value = { ...data.entrepot, stats: data.stats || {} }
   showDetailsModal.value = true
 }
 
 async function refreshDetails() {
   if (!detailsEntrepot.value.id) return
   const { data } = await api.get(`/entrepots/${detailsEntrepot.value.id}`)
-  detailsEntrepot.value = data.entrepot
+  detailsEntrepot.value = { ...data.entrepot, stats: data.stats || {} }
   await loadEntrepots(meta.current_page)
 }
 
