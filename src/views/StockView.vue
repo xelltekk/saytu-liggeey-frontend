@@ -819,6 +819,7 @@
               Priorisez les ruptures, les stocks critiques et les quantités à recommander.
             </p>
           </div>
+          <div class="flex flex-col gap-2">
           <div class="grid grid-cols-2 gap-2 sm:grid-cols-5">
             <button type="button" class="rounded-xl border px-3 py-2 text-right" :class="alertChipClass('')" @click="setAlertLevel('')">
               <p class="text-[10px] font-black uppercase tracking-[0.14em]">Total</p>
@@ -840,6 +841,15 @@
               <p class="text-[10px] font-black uppercase tracking-[0.14em] text-cyan-700">Budget estimé</p>
               <p class="font-mono text-lg font-black text-slate-900">{{ formatPrice(alertResume.valeur_estimee) }}</p>
             </div>
+          </div>
+          <button
+            type="button"
+            class="btn-primary w-full rounded-xl px-4 py-2 text-sm"
+            :disabled="alertDemandCreating || sortedAlertes.length === 0"
+            @click="createPurchaseDemandFromAlerts()"
+          >
+            {{ alertDemandCreating ? 'Création...' : 'Créer demande d’achat du filtre' }}
+          </button>
           </div>
         </div>
       </div>
@@ -879,9 +889,18 @@
               <div class="text-xs text-slate-500">≈ {{ formatPrice(a.valeur_estimee) }}</div>
             </td>
             <td class="px-4 py-3 text-right">
-              <button class="btn-secondary px-3 py-1.5 text-xs" @click="openProduitFromAlert(a)">
-                Ajuster seuil
-              </button>
+              <div class="flex flex-wrap justify-end gap-2">
+                <button
+                  class="btn-primary px-3 py-1.5 text-xs"
+                  :disabled="alertDemandCreatingId === a.id"
+                  @click="createPurchaseDemandFromAlerts(a)"
+                >
+                  {{ alertDemandCreatingId === a.id ? 'Création...' : 'Demande achat' }}
+                </button>
+                <button class="btn-secondary px-3 py-1.5 text-xs" @click="openProduitFromAlert(a)">
+                  Ajuster seuil
+                </button>
+              </div>
             </td>
           </tr>
           <tr v-if="alertes.length === 0">
@@ -1054,6 +1073,8 @@ const inventorySessionLoading = ref(false)
 const inventorySessionActionLoading = ref(false)
 const inventoryLineSavingId = ref(null)
 const transferActionId = ref(null)
+const alertDemandCreating = ref(false)
+const alertDemandCreatingId = ref(null)
 
 const showMouvementModal = ref(false)
 const mouvementType = ref('entree')
@@ -1635,6 +1656,87 @@ function alertRowClass(alerte) {
 function openProduitFromAlert(alerte) {
   if (!alerte?.id) return
   router.push({ path: '/produits', query: { open: alerte.id } })
+}
+
+function addDaysIso(days) {
+  const date = new Date()
+  date.setDate(date.getDate() + days)
+  return isoDate(date)
+}
+
+function alertDemandPriority(rows) {
+  if (rows.some(row => row.niveau === 'rupture')) return 'urgente'
+  if (rows.some(row => row.niveau === 'critique')) return 'haute'
+  return 'normale'
+}
+
+function alertDemandRows(source = null) {
+  const rows = source ? [source] : sortedAlertes.value
+  return rows.filter(row => Number(row?.id || 0) > 0 && Number(row?.quantite_recommandee || 0) > 0)
+}
+
+function buildAlertDemandPayload(rows) {
+  const single = rows.length === 1 ? rows[0] : null
+  const estimatedBudget = rows.reduce((sum, row) => sum + Number(row.valeur_estimee || 0), 0)
+
+  return {
+    date_demande: isoDate(new Date()),
+    date_besoin: addDaysIso(rows.some(row => row.niveau === 'rupture') ? 2 : 7),
+    service_demandeur: 'Stock',
+    priorite: alertDemandPriority(rows),
+    objet: single
+      ? `Réapprovisionnement stock - ${single.reference || single.libelle}`
+      : `Réapprovisionnement stock - ${rows.length} produit(s) en alerte`,
+    justification: [
+      `Demande générée depuis les alertes de stock le ${new Date().toLocaleDateString('fr-FR')}.`,
+      `Budget estimé : ${formatPrice(estimatedBudget)} XOF.`,
+      'Les quantités proposées sont calculées à partir du stock actuel, du stock d’alerte et du stock de sécurité.',
+    ].join('\n'),
+    lignes: rows.map(row => ({
+      produit_id: row.id,
+      quantite: Math.max(0.001, Number(row.quantite_recommandee || 0)),
+      prix_estime_ht: Number(row.prix_achat_ht || 0),
+      notes: [
+        `Urgence : ${alertLevelLabel(row.niveau)}`,
+        `Stock actuel : ${formatQte(row.stock_total)} ${row.unite || ''}`.trim(),
+        `Seuil pilotage : ${formatQte(row.seuil_pilotage)}`,
+        `Quantité recommandée : ${formatQte(row.quantite_recommandee)} ${row.unite || ''}`.trim(),
+      ].join(' · '),
+    })),
+  }
+}
+
+async function createPurchaseDemandFromAlerts(source = null) {
+  const rows = alertDemandRows(source)
+  if (!rows.length) {
+    toast.error('Aucune quantité à recommander sur cette sélection.')
+    return
+  }
+
+  const message = rows.length === 1
+    ? `Créer une demande d’achat pour ${rows[0].reference || rows[0].libelle} ?`
+    : `Créer une demande d’achat avec ${rows.length} ligne(s) du filtre actuel ?`
+
+  if (!window.confirm(message)) return
+
+  alertDemandCreating.value = true
+  alertDemandCreatingId.value = source?.id || null
+
+  try {
+    const { data } = await api.post('/achats/demandes', buildAlertDemandPayload(rows))
+    toast.success(`Demande d’achat ${data.numero || ''} créée en brouillon.`)
+    router.push({ path: '/achats', query: { demandes: 1 } })
+  } catch (e) {
+    const errors = e.response?.data?.errors || {}
+    toast.error(
+      Object.values(errors)?.[0]?.[0]
+      || e.response?.data?.message
+      || 'Création de la demande d’achat impossible.'
+    )
+  } finally {
+    alertDemandCreating.value = false
+    alertDemandCreatingId.value = null
+  }
 }
 
 function setTransferStatus(statut) {
