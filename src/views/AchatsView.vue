@@ -16,7 +16,52 @@
           </button>
         </div>
         <button v-if="!showRequests" class="btn-secondary rounded-full px-4 py-2 text-sm" @click="togglePerformance">{{ showPerformance ? 'Masquer performance' : 'Performance' }}</button>
+        <button v-if="!showRequests" class="btn-secondary rounded-full px-4 py-2 text-sm" @click="showReports = true">Rapports</button>
+        <button v-if="!showRequests" class="btn-secondary rounded-full px-4 py-2 text-sm" :disabled="loadingDashboard" @click="loadDashboard">{{ loadingDashboard ? 'Pilotage...' : 'Actualiser pilotage' }}</button>
         <button class="btn-primary inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm" @click="showRequests ? openDemandCreate() : openCreate()"><Plus :size="18" /> {{ showRequests ? 'Demande' : 'Bon de commande' }}</button>
+      </div>
+    </section>
+
+    <section v-if="!showRequests" class="achat-dashboard-panel">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h3 class="font-black text-[color:var(--saytu-shell-text,#0f172a)]">Tableau de bord achats</h3>
+          <p class="text-sm text-[color:var(--saytu-topbar-subtitle,#64748b)]">Vue rapide : validations, réceptions, dettes fournisseurs et litiges.</p>
+        </div>
+        <span class="rounded-full bg-cyan-100 px-3 py-1 text-xs font-black text-cyan-700">Temps réel</span>
+      </div>
+      <div class="achat-dashboard-grid">
+        <button v-for="card in dashboardCards" :key="card.key" type="button" class="achat-dashboard-card" @click="applyDashboardShortcut(card)">
+          <span>{{ card.label }}</span>
+          <strong :class="card.color">{{ card.value }}</strong>
+          <small>{{ card.hint }}</small>
+        </button>
+      </div>
+      <div class="grid gap-3 xl:grid-cols-3">
+        <div class="achat-mini-panel">
+          <h4>Livraisons en retard</h4>
+          <div v-for="row in achatDashboard.commandes_retard" :key="row.id" class="achat-mini-row">
+            <button type="button" @click="openDetails(row)">{{ row.numero }}</button>
+            <span>{{ row.fournisseur?.nom || '-' }} · {{ formatDate(row.date_livraison_prevue) }}</span>
+          </div>
+          <p v-if="!achatDashboard.commandes_retard.length" class="achat-empty">Aucune livraison en retard.</p>
+        </div>
+        <div class="achat-mini-panel">
+          <h4>Factures à payer</h4>
+          <div v-for="row in achatDashboard.factures_urgentes" :key="row.id" class="achat-mini-row">
+            <button type="button" @click="goToInvoice(row)">{{ row.numero }}</button>
+            <span>{{ row.fournisseur?.nom || '-' }} · reste {{ money(row.reste_a_payer) }}</span>
+          </div>
+          <p v-if="!achatDashboard.factures_urgentes.length" class="achat-empty">Aucune facture urgente.</p>
+        </div>
+        <div class="achat-mini-panel">
+          <h4>Top fournisseurs</h4>
+          <div v-for="row in achatDashboard.top_fournisseurs" :key="row.id" class="achat-mini-row">
+            <button type="button" @click="openSupplier360(row.id)">{{ row.nom }}</button>
+            <span>{{ row.commandes_count }} commande(s) · {{ money(row.montant_total) }}</span>
+          </div>
+          <p v-if="!achatDashboard.top_fournisseurs.length" class="achat-empty">Aucun achat historisé.</p>
+        </div>
       </div>
     </section>
 
@@ -69,7 +114,11 @@
         <tbody>
           <tr v-for="commande in commandes" :key="commande.id">
             <td><button class="font-mono font-semibold text-blue-700 hover:underline" @click="openDetails(commande)">{{ commande.numero }}</button></td>
-            <td><strong>{{ commande.fournisseur?.nom || '-' }}</strong><p class="text-xs text-slate-500">{{ commande.objet || 'Sans objet' }}</p></td>
+            <td>
+              <button v-if="commande.fournisseur?.id" type="button" class="font-black text-[color:var(--saytu-primary,#2563eb)] hover:underline" @click="openSupplier360(commande.fournisseur.id)">{{ commande.fournisseur?.nom || '-' }}</button>
+              <strong v-else>{{ commande.fournisseur?.nom || '-' }}</strong>
+              <p class="text-xs text-slate-500">{{ commande.objet || 'Sans objet' }}</p>
+            </td>
             <td>{{ formatDate(commande.date_commande) }}</td>
             <td>{{ formatDate(commande.date_livraison_prevue) }}</td>
             <td>{{ commande.entrepot?.libelle || 'À définir' }}</td>
@@ -222,7 +271,16 @@
           <label class="field-label">Entrepôt<select v-model.number="receptionForm.entrepot_id" class="input" required @change="receptionForm.emplacement_id = null"><option :value="null">Choisir</option><option v-for="e in referentiels.entrepots" :key="e.id" :value="e.id">{{ e.code }} - {{ e.libelle }}</option></select></label>
           <label class="field-label">Emplacement<select v-model.number="receptionForm.emplacement_id" class="input"><option :value="null">Sans emplacement</option><option v-for="e in receptionEmplacements" :key="e.id" :value="e.id">{{ e.label }}</option></select></label>
           <label class="field-label">Date réception<input v-model="receptionForm.date_reception" type="date" class="input" required /></label>
-          <label class="field-label">Notes<input v-model="receptionForm.notes" class="input" placeholder="Bon livraison, réserve..." /></label>
+          <label class="field-label">N° BL fournisseur<input v-model="receptionForm.reference_bl" class="input" placeholder="Ex: BL-2026-001" /></label>
+          <label class="field-label">Contrôle qualité
+            <select v-model="receptionForm.controle_qualite" class="input">
+              <option value="conforme">Conforme</option>
+              <option value="reserve">Avec réserve</option>
+              <option value="non_conforme">Non conforme</option>
+            </select>
+          </label>
+          <label class="field-label">Notes<input v-model="receptionForm.notes" class="input" placeholder="Observation rapide..." /></label>
+          <label class="field-label md:col-span-2">Réserve réception<textarea v-model="receptionForm.reserve_reception" rows="2" class="input" placeholder="Décrire l’écart, produit abîmé, quantité litigieuse..."></textarea></label>
         </div>
         <div class="overflow-x-auto rounded-lg border border-slate-200">
           <table class="w-full"><thead><tr><th>Produit</th><th class="text-right">Commandé</th><th class="text-right">Déjà reçu</th><th class="text-right">Reliquat</th><th class="text-right">À recevoir</th></tr></thead><tbody>
@@ -284,6 +342,13 @@
               <option value="excedent">Excédent livré</option>
               <option value="erreur">Erreur de commande</option>
               <option value="autre">Autre</option>
+            </select>
+          </label>
+          <label class="field-label">Litige
+            <select v-model="returnForm.litige_statut" class="input">
+              <option value="ouvert">Ouvert</option>
+              <option value="en_attente_avoir">En attente d’avoir</option>
+              <option value="clos">Clos</option>
             </select>
           </label>
           <label class="field-label">Notes<input v-model="returnForm.notes" class="input" placeholder="Précisions sur le retour" /></label>
@@ -359,15 +424,73 @@
                   <button class="inline-flex items-center gap-1 font-semibold text-cyan-700 hover:underline" @click="downloadReceptionPdf(r)"><FileDown :size="15" /> PDF BR</button>
                 </span>
               </div>
+              <div class="mt-2 flex flex-wrap gap-2 text-xs">
+                <span class="rounded-full bg-slate-100 px-2 py-1 font-bold text-slate-700">BL : {{ r.reference_bl || '-' }}</span>
+                <span class="rounded-full px-2 py-1 font-bold" :class="qualityBadge(r.controle_qualite)">Contrôle : {{ qualityLabel(r.controle_qualite) }}</span>
+                <span v-if="r.reserve_reception" class="rounded-full bg-amber-100 px-2 py-1 font-bold text-amber-800">Réserve : {{ r.reserve_reception }}</span>
+              </div>
               <div v-if="r.retours?.length" class="mt-3 space-y-2">
                 <div v-for="retour in r.retours" :key="retour.id" class="flex flex-wrap items-center justify-between gap-2 rounded-md border border-orange-200 bg-orange-50 p-2 text-orange-900">
-                  <span><strong class="font-mono">{{ retour.numero }}</strong> · {{ formatDate(retour.date_retour) }} · {{ motifRetourLabel(retour.motif) }} · {{ money(retour.total_ttc) }}</span>
+                  <span><strong class="font-mono">{{ retour.numero }}</strong> · {{ formatDate(retour.date_retour) }} · {{ motifRetourLabel(retour.motif) }} · {{ litigeLabel(retour.litige_statut) }} · {{ money(retour.total_ttc) }}</span>
                   <span v-if="retour.avoir" class="font-semibold text-violet-700">Avoir {{ retour.avoir.numero }}</span>
                   <button v-else-if="canCredit && selected.facture_fournisseur" class="font-semibold text-violet-700 hover:underline" @click="openCredit(retour)">Générer l'avoir</button>
                   <span v-else-if="!selected.facture_fournisseur" class="text-xs text-slate-500">Facture requise pour l'avoir</span>
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+    </AppModal>
+
+    <AppModal v-model="showReports" title="Rapports achats fournisseurs" size="md">
+      <div class="space-y-3">
+        <p class="text-sm text-slate-600">Téléchargez les états de contrôle pour les achats, factures fournisseurs, retours et litiges.</p>
+        <div class="grid gap-2">
+          <button v-for="report in reportExports" :key="report.url" type="button" class="btn-secondary justify-between" @click="downloadAchatReport(report)">
+            <span>{{ report.label }}</span>
+            <FileDown :size="16" />
+          </button>
+        </div>
+      </div>
+    </AppModal>
+
+    <AppModal v-model="showSupplier360" title="Fiche fournisseur 360" size="lg">
+      <div v-if="loadingSupplier360" class="py-10 text-center text-sm text-slate-500">Chargement fournisseur...</div>
+      <div v-else-if="supplier360.fournisseur" class="space-y-4">
+        <div class="rounded-xl border border-cyan-200 bg-cyan-50 p-4 text-cyan-950">
+          <h3 class="text-lg font-black">{{ supplier360.fournisseur.nom }}</h3>
+          <p class="text-sm">{{ supplier360.fournisseur.code || '-' }} · {{ supplier360.fournisseur.email || 'Email non renseigné' }} · {{ supplier360.fournisseur.telephone || supplier360.fournisseur.mobile || 'Téléphone non renseigné' }}</p>
+        </div>
+        <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+          <div v-for="card in supplier360Cards" :key="card.label" class="rounded-xl border border-slate-200 bg-white p-3">
+            <span class="text-xs font-black uppercase tracking-wide text-slate-500">{{ card.label }}</span>
+            <strong class="block text-lg font-black text-slate-900">{{ card.value }}</strong>
+          </div>
+        </div>
+        <div class="grid gap-3 xl:grid-cols-2">
+          <div class="achat-mini-panel">
+            <h4>Dernières commandes</h4>
+            <div v-for="row in supplier360.commandes" :key="row.id" class="achat-mini-row">
+              <button type="button" @click="openDetails(row); showSupplier360 = false">{{ row.numero }}</button>
+              <span>{{ statusLabel(row.statut) }} · {{ money(row.total_ttc) }}</span>
+            </div>
+            <p v-if="!supplier360.commandes?.length" class="achat-empty">Aucune commande.</p>
+          </div>
+          <div class="achat-mini-panel">
+            <h4>Factures récentes</h4>
+            <div v-for="row in supplier360.factures" :key="row.id" class="achat-mini-row">
+              <button type="button" @click="goToInvoice(row)">{{ row.numero }}</button>
+              <span>{{ statusInvoiceLabel(row.statut) }} · reste {{ money(row.reste_a_payer) }}</span>
+            </div>
+            <p v-if="!supplier360.factures?.length" class="achat-empty">Aucune facture.</p>
+          </div>
+        </div>
+        <div class="achat-mini-panel">
+          <h4>Produits rattachés au fournisseur</h4>
+          <div class="flex flex-wrap gap-2">
+            <span v-for="product in supplier360.produits" :key="product.id" class="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">{{ product.reference }} · {{ product.libelle }}</span>
+            <span v-if="!supplier360.produits?.length" class="achat-empty">Aucun produit rattaché.</span>
           </div>
         </div>
       </div>
@@ -405,9 +528,13 @@ const showEvaluation = ref(false)
 const showDetails = ref(false)
 const showPerformance = ref(false)
 const showRequests = ref(false)
+const showReports = ref(false)
+const showSupplier360 = ref(false)
 const showDemandForm = ref(false)
 const showDemandReject = ref(false)
 const showDemandConvert = ref(false)
+const loadingDashboard = ref(false)
+const loadingSupplier360 = ref(false)
 const loadingPerformance = ref(false)
 const loadingReferentiels = ref(false)
 const referentielsError = ref('')
@@ -420,6 +547,8 @@ const demands = ref([])
 const selectedDemand = ref(null)
 const editingDemandId = ref(null)
 const rejectReason = ref('')
+const achatDashboard = reactive({ kpis: {}, top_fournisseurs: [], commandes_retard: [], factures_urgentes: [], litiges: [] })
+const supplier360 = reactive({ fournisseur: null, resume: {}, commandes: [], factures: [], reglements: [], retours: [], produits: [] })
 const stats = reactive({ total: 0, a_approuver: 0, a_receptionner: 0, recues_mois: 0, engagement_total: 0 })
 const demandStats = reactive({ total: 0, brouillons: 0, a_approuver: 0, approuvees: 0, urgentes: 0 })
 const meta = reactive({})
@@ -443,13 +572,19 @@ const emptyDemandLine = () => ({ key: ++demandLineKey, produit_id: null, quantit
 const emptyDemandForm = () => ({ date_demande: new Date().toISOString().slice(0, 10), date_besoin: '', service_demandeur: '', objet: '', priorite: 'normale', justification: '', lignes: [emptyDemandLine()] })
 const form = reactive(emptyForm())
 const demandForm = reactive(emptyDemandForm())
-const receptionForm = reactive({ entrepot_id: null, emplacement_id: null, date_reception: new Date().toISOString().slice(0, 10), notes: '', lignes: [] })
+const receptionForm = reactive({ entrepot_id: null, emplacement_id: null, date_reception: new Date().toISOString().slice(0, 10), reference_bl: '', controle_qualite: 'conforme', reserve_reception: '', notes: '', lignes: [] })
 const invoiceForm = reactive({ reference_fournisseur: '', date_facture: new Date().toISOString().slice(0, 10), date_echeance: '', statut: 'validee', notes: '' })
-const returnForm = reactive({ date_retour: new Date().toISOString().slice(0, 10), motif: 'defectueux', notes: '', lignes: [] })
+const returnForm = reactive({ date_retour: new Date().toISOString().slice(0, 10), motif: 'defectueux', litige_statut: 'ouvert', notes: '', lignes: [] })
 const creditForm = reactive({ reference_fournisseur: '', date_avoir: new Date().toISOString().slice(0, 10), notes: '' })
 const evaluationForm = reactive({ date_evaluation: new Date().toISOString().slice(0, 10), note_qualite: 3, note_delai: 3, note_prix: 3, note_service: 3, commentaire: '' })
 const convertForm = reactive({ fournisseur_id: null, entrepot_id: null, date_commande: new Date().toISOString().slice(0, 10), date_livraison_prevue: '' })
 const evaluationCriteria = [{ key: 'note_qualite', label: 'Qualité' }, { key: 'note_delai', label: 'Délais' }, { key: 'note_prix', label: 'Prix' }, { key: 'note_service', label: 'Service' }]
+const reportExports = [
+  { label: 'Synthèse achats PDF', url: '/achats/rapport.pdf?type=synthese' },
+  { label: 'Fournisseurs PDF', url: '/achats/rapport.pdf?type=fournisseurs' },
+  { label: 'Factures impayées PDF', url: '/achats/rapport.pdf?type=factures' },
+  { label: 'Retours & litiges PDF', url: '/achats/rapport.pdf?type=litiges' },
+]
 
 const statCards = computed(() => [
   { key: 'total', label: 'Commandes', value: stats.total, color: 'text-slate-900' },
@@ -457,6 +592,20 @@ const statCards = computed(() => [
   { key: 'approuvee', label: 'À réceptionner', value: stats.a_receptionner, color: 'text-blue-700' },
   { key: 'recue', label: 'Reçues ce mois', value: stats.recues_mois, color: 'text-green-700' },
   { key: 'engagement', label: 'Engagement', value: money(stats.engagement_total), color: 'text-violet-700' },
+])
+const dashboardCards = computed(() => [
+  { key: 'soumise', label: 'À approuver', value: achatDashboard.kpis.commandes_a_approuver || 0, hint: 'Commandes soumises', color: 'text-amber-700', action: 'statut', statut: 'soumise' },
+  { key: 'reception', label: 'À réceptionner', value: achatDashboard.kpis.commandes_a_receptionner || 0, hint: 'Commandes approuvées', color: 'text-blue-700', action: 'statut', statut: 'approuvee' },
+  { key: 'retard', label: 'Retards livraison', value: achatDashboard.kpis.commandes_retard_livraison || 0, hint: 'Livraison dépassée', color: 'text-red-700', action: 'retard' },
+  { key: 'dette', label: 'Dette fournisseurs', value: money(achatDashboard.kpis.dette_fournisseurs), hint: 'Reste à payer', color: 'text-violet-700', action: 'invoice' },
+  { key: 'factures', label: 'Factures en retard', value: achatDashboard.kpis.factures_en_retard || 0, hint: 'À régler', color: 'text-orange-700', action: 'invoice' },
+  { key: 'litiges', label: 'Litiges ouverts', value: achatDashboard.kpis.litiges_ouverts || 0, hint: 'Retours sans avoir', color: 'text-rose-700', action: 'report' },
+])
+const supplier360Cards = computed(() => [
+  { label: 'Commandes', value: supplier360.resume?.commandes || 0 },
+  { label: 'Volume achats', value: money(supplier360.resume?.montant_achats) },
+  { label: 'Reste à payer', value: money(supplier360.resume?.reste_a_payer) },
+  { label: 'Litiges ouverts', value: supplier360.resume?.litiges_ouverts || 0 },
 ])
 const demandStatCards = computed(() => [
   { key: 'total', label: 'Demandes', value: demandStats.total, color: 'text-slate-900' },
@@ -477,6 +626,9 @@ function formatDate(value) { return value ? new Date(value).toLocaleDateString('
 function statusLabel(status) { return { brouillon: 'Brouillon', soumise: 'Soumise', approuvee: 'Approuvée', partiellement_recue: 'Partiellement reçue', recue: 'Reçue', annulee: 'Annulée' }[status] || status }
 function statusClass(status) { return { brouillon: 'bg-slate-100 text-slate-700', soumise: 'bg-amber-100 text-amber-800', approuvee: 'bg-blue-100 text-blue-800', partiellement_recue: 'bg-cyan-100 text-cyan-800', recue: 'bg-green-100 text-green-800', annulee: 'bg-red-100 text-red-700' }[status] || 'bg-slate-100 text-slate-700' }
 function statusInvoiceLabel(status) { return { brouillon: 'Brouillon', validee: 'Validée', partiellement_payee: 'Partiellement payée', payee: 'Payée', annulee: 'Annulée' }[status] || status }
+function qualityLabel(status) { return { conforme: 'Conforme', reserve: 'Avec réserve', non_conforme: 'Non conforme' }[status] || 'Conforme' }
+function qualityBadge(status) { return { conforme: 'bg-emerald-100 text-emerald-800', reserve: 'bg-amber-100 text-amber-800', non_conforme: 'bg-red-100 text-red-700' }[status] || 'bg-emerald-100 text-emerald-800' }
+function litigeLabel(status) { return { ouvert: 'Litige ouvert', en_attente_avoir: 'Avoir attendu', clos: 'Clos' }[status] || 'Litige ouvert' }
 function performanceClass(score) { if (score === null) return 'bg-slate-100 text-slate-600'; if (score >= 80) return 'bg-green-100 text-green-800'; if (score >= 60) return 'bg-amber-100 text-amber-800'; return 'bg-red-100 text-red-800' }
 function demandStatusLabel(status) { return { brouillon: 'Brouillon', soumise: 'Soumise', approuvee: 'Approuvée', rejetee: 'Rejetée', convertie: 'Convertie', annulee: 'Annulée' }[status] || status }
 function demandStatusClass(status) { return { brouillon: 'bg-slate-100 text-slate-700', soumise: 'bg-amber-100 text-amber-800', approuvee: 'bg-green-100 text-green-800', rejetee: 'bg-red-100 text-red-700', convertie: 'bg-blue-100 text-blue-800', annulee: 'bg-slate-100 text-slate-500' }[status] || 'bg-slate-100 text-slate-700' }
@@ -581,6 +733,65 @@ async function loadReferentiels() {
   }
 }
 async function loadStats() { Object.assign(stats, (await api.get('/achats/stats')).data) }
+async function loadDashboard() {
+  loadingDashboard.value = true
+  try {
+    const { data } = await api.get('/achats/dashboard')
+    Object.assign(achatDashboard, {
+      kpis: data.kpis || {},
+      top_fournisseurs: data.top_fournisseurs || [],
+      commandes_retard: data.commandes_retard || [],
+      factures_urgentes: data.factures_urgentes || [],
+      litiges: data.litiges || [],
+    })
+  } catch (e) {
+    toast.error(e.response?.data?.message || 'Impossible de charger le tableau de bord achats.')
+  } finally {
+    loadingDashboard.value = false
+  }
+}
+function applyDashboardShortcut(card) {
+  if (card.action === 'statut') {
+    filters.statut = card.statut
+    loadCommandes(1)
+  } else if (card.action === 'invoice') {
+    router.push({ path: '/fournisseurs-reglements', query: { etat: 'retard' } })
+  } else if (card.action === 'report') {
+    showReports.value = true
+  } else if (card.action === 'retard') {
+    filters.statut = ''
+    loadCommandes(1)
+  }
+}
+async function openSupplier360(id) {
+  if (!id) return
+  loadingSupplier360.value = true
+  showSupplier360.value = true
+  try {
+    const { data } = await api.get(`/achats/fournisseurs/${id}/360`)
+    Object.assign(supplier360, {
+      fournisseur: data.fournisseur || null,
+      resume: data.resume || {},
+      commandes: data.commandes || [],
+      factures: data.factures || [],
+      reglements: data.reglements || [],
+      retours: data.retours || [],
+      produits: data.produits || [],
+    })
+  } catch (e) {
+    toast.error(e.response?.data?.message || 'Impossible de charger la fiche fournisseur.')
+    showSupplier360.value = false
+  } finally {
+    loadingSupplier360.value = false
+  }
+}
+async function downloadAchatReport(report) {
+  try {
+    await ouvrirPDF(report.url, `${report.label}.pdf`)
+  } catch (e) {
+    toast.error('Impossible de générer le rapport achats.')
+  }
+}
 async function loadPerformance() { loadingPerformance.value = true; try { supplierPerformance.value = (await api.get('/achats/fournisseurs-performance')).data.data || [] } catch (e) { toast.error(e.response?.data?.message || 'Impossible de charger la performance fournisseurs.') } finally { loadingPerformance.value = false } }
 async function togglePerformance() { showPerformance.value = !showPerformance.value; if (showPerformance.value && !supplierPerformance.value.length) await loadPerformance() }
 async function loadDemandStats() { Object.assign(demandStats, (await api.get('/achats/demandes/stats')).data) }
@@ -609,7 +820,7 @@ function openConvertDemand(demand) { selectedDemand.value = demand; Object.assig
 async function convertDemand() { saving.value = true; try { const { data } = await api.post('/achats/demandes/' + selectedDemand.value.id + '/convertir', { ...convertForm, entrepot_id: convertForm.entrepot_id || null, date_livraison_prevue: convertForm.date_livraison_prevue || null }); toast.success('Bon de commande ' + data.numero + ' créé en brouillon.'); showDemandConvert.value = false; await Promise.all([refreshDemands(), refresh()]) } catch (e) { toast.error(Object.values(e.response?.data?.errors || {})[0]?.[0] || e.response?.data?.message || 'Conversion impossible.') } finally { saving.value = false } }
 async function deleteDemand(demand) { if (!await askConfirm({ message: 'Supprimer le brouillon ' + demand.numero + ' ?', tone: 'danger', confirmLabel: 'Supprimer' })) return; try { await api.delete('/achats/demandes/' + demand.id); toast.success('Demande supprimée.'); await refreshDemands() } catch (e) { toast.error(e.response?.data?.message || 'Suppression impossible.') } }
 async function loadCommandes(page = 1) { try { const { data } = await api.get('/achats/commandes', { params: { page, per_page: 20, ...filters, fournisseur_id: filters.fournisseur_id || undefined } }); commandes.value = data.data || []; Object.assign(meta, data) } catch (e) { toast.error(e.response?.data?.message || 'Impossible de charger les achats.') } }
-async function refresh(page = meta.current_page || 1) { await Promise.all([loadCommandes(page), loadStats()]) }
+async function refresh(page = meta.current_page || 1) { await Promise.all([loadCommandes(page), loadStats(), loadDashboard()]) }
 function openCreate() { editingId.value = null; Object.assign(form, emptyForm()); productSearch.value = ''; showForm.value = true }
 async function editCommande(row) { try { const { data } = await api.get(`/achats/commandes/${row.id}`); editingId.value = row.id; Object.assign(form, { fournisseur_id: data.fournisseur_id, entrepot_id: data.entrepot_id || null, date_commande: String(data.date_commande).slice(0, 10), date_livraison_prevue: data.date_livraison_prevue ? String(data.date_livraison_prevue).slice(0, 10) : '', objet: data.objet || '', devise: data.devise || 'XOF', notes: data.notes || '', lignes: data.lignes.map(l => ({ key: ++lineKey, produit_id: l.produit_id, quantite: Number(l.quantite), prix_unitaire_ht: Number(l.prix_unitaire_ht), taux_tva: Number(l.taux_tva) })) }); showForm.value = true } catch (e) { toast.error(e.response?.data?.message || 'Chargement impossible.') } }
 async function saveCommande() { saving.value = true; try { const payload = { ...form, date_livraison_prevue: form.date_livraison_prevue || null, entrepot_id: form.entrepot_id || null, lignes: form.lignes.map(({ produit_id, quantite, prix_unitaire_ht, taux_tva }) => ({ produit_id, quantite, prix_unitaire_ht, taux_tva })) }; if (editingId.value) await api.put(`/achats/commandes/${editingId.value}`, payload); else await api.post('/achats/commandes', payload); toast.success('Bon de commande enregistré.'); showForm.value = false; await refresh() } catch (e) { toast.error(Object.values(e.response?.data?.errors || {})[0]?.[0] || e.response?.data?.message || 'Enregistrement impossible.') } finally { saving.value = false } }
@@ -618,8 +829,8 @@ async function submitCommande(row) { if (await askConfirm({ message: `Soumettre 
 async function approveCommande(row) { if (await askConfirm({ message: `Approuver ${row.numero} ?`, tone: 'primary' })) runAction(row, 'approuver', 'Commande approuvée.') }
 async function deleteCommande(row) { if (!await askConfirm({ message: `Supprimer le brouillon ${row.numero} ?`, tone: 'danger', confirmLabel: 'Supprimer' })) return; try { await api.delete(`/achats/commandes/${row.id}`); toast.success('Bon de commande supprimé.'); await refresh() } catch (e) { toast.error(e.response?.data?.message || 'Suppression impossible.') } }
 async function openDetails(row) { try { selected.value = (await api.get(`/achats/commandes/${row.id}`)).data; showDetails.value = true } catch (e) { toast.error(e.response?.data?.message || 'Chargement impossible.') } }
-async function openReception(row) { try { selected.value = (await api.get(`/achats/commandes/${row.id}`)).data; const lines = selected.value.lignes.map(l => { const restant = Math.max(0, Number(l.quantite) - Number(l.quantite_recue)); return { ligne_id: l.id, reference: l.reference, designation: l.designation, commande: Number(l.quantite), deja_recu: Number(l.quantite_recue), restant, quantite: restant } }).filter(l => l.restant > 0); Object.assign(receptionForm, { entrepot_id: selected.value.entrepot_id || referentiels.entrepots[0]?.id || null, emplacement_id: null, date_reception: new Date().toISOString().slice(0, 10), notes: '', lignes: lines }); showReception.value = true } catch (e) { toast.error(e.response?.data?.message || 'Chargement impossible.') } }
-async function saveReception() { const lines = receptionForm.lignes.filter(l => Number(l.quantite || 0) > 0).map(l => ({ ligne_id: l.ligne_id, quantite: Number(l.quantite) })); if (!lines.length) return toast.error('Saisissez au moins une quantité reçue.'); saving.value = true; try { await api.post(`/achats/commandes/${selected.value.id}/receptions`, { entrepot_id: receptionForm.entrepot_id, emplacement_id: receptionForm.emplacement_id || null, date_reception: receptionForm.date_reception, notes: receptionForm.notes || null, lignes: lines }); toast.success('Réception enregistrée et stock mis à jour.'); showReception.value = false; await refresh() } catch (e) { toast.error(Object.values(e.response?.data?.errors || {})[0]?.[0] || e.response?.data?.message || 'Réception impossible.') } finally { saving.value = false } }
+async function openReception(row) { try { selected.value = (await api.get(`/achats/commandes/${row.id}`)).data; const lines = selected.value.lignes.map(l => { const restant = Math.max(0, Number(l.quantite) - Number(l.quantite_recue)); return { ligne_id: l.id, reference: l.reference, designation: l.designation, commande: Number(l.quantite), deja_recu: Number(l.quantite_recue), restant, quantite: restant } }).filter(l => l.restant > 0); Object.assign(receptionForm, { entrepot_id: selected.value.entrepot_id || referentiels.entrepots[0]?.id || null, emplacement_id: null, date_reception: new Date().toISOString().slice(0, 10), reference_bl: '', controle_qualite: 'conforme', reserve_reception: '', notes: '', lignes: lines }); showReception.value = true } catch (e) { toast.error(e.response?.data?.message || 'Chargement impossible.') } }
+async function saveReception() { const lines = receptionForm.lignes.filter(l => Number(l.quantite || 0) > 0).map(l => ({ ligne_id: l.ligne_id, quantite: Number(l.quantite) })); if (!lines.length) return toast.error('Saisissez au moins une quantité reçue.'); saving.value = true; try { await api.post(`/achats/commandes/${selected.value.id}/receptions`, { entrepot_id: receptionForm.entrepot_id, emplacement_id: receptionForm.emplacement_id || null, date_reception: receptionForm.date_reception, reference_bl: receptionForm.reference_bl || null, controle_qualite: receptionForm.controle_qualite || 'conforme', reserve_reception: receptionForm.reserve_reception || null, notes: receptionForm.notes || null, lignes: lines }); toast.success('Réception enregistrée et stock mis à jour.'); showReception.value = false; await Promise.all([refresh(), loadDashboard()]) } catch (e) { toast.error(Object.values(e.response?.data?.errors || {})[0]?.[0] || e.response?.data?.message || 'Réception impossible.') } finally { saving.value = false } }
 
 async function openInvoiceCreate(row) {
   try {
@@ -686,7 +897,7 @@ function availableReturnLines(reception) {
 
 function openReturn(reception) {
   selectedReturnReception.value = reception
-  Object.assign(returnForm, { date_retour: new Date().toISOString().slice(0, 10), motif: 'defectueux', notes: '', lignes: availableReturnLines(reception) })
+  Object.assign(returnForm, { date_retour: new Date().toISOString().slice(0, 10), motif: 'defectueux', litige_statut: 'ouvert', notes: '', lignes: availableReturnLines(reception) })
   showDetails.value = false
   showReturn.value = true
 }
@@ -697,11 +908,11 @@ async function saveReturn() {
   saving.value = true
   try {
     await api.post('/achats/receptions/' + selectedReturnReception.value.id + '/retours', {
-      date_retour: returnForm.date_retour, motif: returnForm.motif, notes: returnForm.notes || null, lignes,
+      date_retour: returnForm.date_retour, motif: returnForm.motif, litige_statut: returnForm.litige_statut || 'ouvert', avoir_attendu: returnForm.litige_statut !== 'clos', notes: returnForm.notes || null, lignes,
     })
     toast.success('Retour fournisseur enregistré et stock corrigé.')
     showReturn.value = false
-    await refresh()
+    await Promise.all([refresh(), loadDashboard()])
     await openDetails({ id: selected.value.id })
   } catch (e) {
     toast.error(Object.values(e.response?.data?.errors || {})[0]?.[0] || e.response?.data?.message || 'Retour impossible.')
@@ -725,7 +936,7 @@ async function saveCredit() {
     })
     toast.success('Avoir fournisseur ' + data.numero + ' généré et comptabilisé.')
     showCredit.value = false
-    await refresh()
+    await Promise.all([refresh(), loadDashboard()])
     await openDetails({ id: selected.value.id })
   } catch (e) {
     toast.error(Object.values(e.response?.data?.errors || {})[0]?.[0] || e.response?.data?.message || 'Génération de l avoir impossible.')
@@ -797,7 +1008,7 @@ watch(() => route.query.demandes, async value => {
 })
 
 onMounted(async () => {
-  await Promise.all([loadReferentiels(), loadStats(), loadCommandes(), loadDemandStats()])
+  await Promise.all([loadReferentiels(), loadStats(), loadDashboard(), loadCommandes(), loadDemandStats()])
   if (route.query.demandes) {
     showRequests.value = true
     await Promise.all([loadDemands(), loadDemandStats()])
@@ -932,6 +1143,84 @@ onMounted(async () => {
 .achat-performance-panel {
   border-radius: 1.25rem;
   padding: 0.9rem;
+}
+
+.achat-dashboard-panel {
+  border: 1px solid color-mix(in srgb, var(--saytu-primary, #0ea5e9) 16%, var(--saytu-border, #bae6fd));
+  border-radius: 1.25rem;
+  background:
+    radial-gradient(circle at top right, color-mix(in srgb, var(--saytu-brand-to, #22d3ee) 18%, transparent), transparent 34%),
+    color-mix(in srgb, var(--saytu-surface, #ffffff) 86%, var(--saytu-primary, #0ea5e9) 14%);
+  box-shadow: 0 12px 32px color-mix(in srgb, var(--saytu-primary, #0ea5e9) 10%, transparent);
+  padding: 0.9rem;
+}
+
+.achat-dashboard-grid {
+  display: grid;
+  gap: 0.65rem;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  margin: 0.75rem 0;
+}
+
+.achat-dashboard-card {
+  border: 1px solid color-mix(in srgb, var(--saytu-primary, #0ea5e9) 18%, var(--saytu-border, #bae6fd));
+  border-radius: 1rem;
+  background: rgb(255 255 255 / 72%);
+  padding: 0.75rem;
+  text-align: left;
+}
+
+.achat-dashboard-card span,
+.achat-mini-panel h4 {
+  color: var(--saytu-muted, #64748b);
+  font-size: 0.68rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.achat-dashboard-card strong {
+  display: block;
+  font-size: 1.25rem;
+  font-weight: 950;
+  line-height: 1.1;
+  margin-top: 0.25rem;
+}
+
+.achat-dashboard-card small {
+  color: var(--saytu-muted, #64748b);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.achat-mini-panel {
+  border: 1px solid color-mix(in srgb, var(--saytu-primary, #0ea5e9) 14%, var(--saytu-border, #bae6fd));
+  border-radius: 1rem;
+  background: rgb(255 255 255 / 72%);
+  padding: 0.75rem;
+}
+
+.achat-mini-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border-top: 1px solid color-mix(in srgb, var(--saytu-primary, #0ea5e9) 12%, transparent);
+  margin-top: 0.55rem;
+  padding-top: 0.55rem;
+}
+
+.achat-mini-row button {
+  color: var(--saytu-primary, #0ea5e9);
+  font-weight: 900;
+  text-align: left;
+}
+
+.achat-mini-row span,
+.achat-empty {
+  color: var(--saytu-muted, #64748b);
+  font-size: 0.78rem;
+  font-weight: 700;
 }
 
 .achat-performance-summary {
