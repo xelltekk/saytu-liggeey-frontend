@@ -130,7 +130,7 @@
         <div class="rounded-2xl border border-cyan-200 bg-cyan-50/80 p-4 shadow-sm">
           <p class="text-xs font-black uppercase tracking-[0.16em] text-cyan-700">Valeur stock</p>
           <p class="mt-3 text-2xl font-black text-slate-900">{{ formatPrice(stockSummary.kpis.valeur_stock) }}</p>
-          <p class="mt-1 text-xs text-cyan-800">{{ formatQte(stockSummary.kpis.quantite_totale) }} unité(s) au total</p>
+          <p class="mt-1 text-xs text-cyan-800">{{ formatQte(stockSummary.kpis.quantite_disponible) }} disponible(s) / {{ formatQte(stockSummary.kpis.quantite_totale) }} total</p>
         </div>
         <div class="rounded-2xl border border-sky-200 bg-sky-50/80 p-4 shadow-sm">
           <p class="text-xs font-black uppercase tracking-[0.16em] text-sky-700">Produits suivis</p>
@@ -167,7 +167,8 @@
                 </div>
                 <div class="text-right">
                   <p class="font-mono text-sm font-black text-cyan-700">{{ formatPrice(entrepot.valeur) }}</p>
-                  <p class="text-xs text-slate-500">{{ formatQte(entrepot.quantite) }} unité(s)</p>
+                  <p class="text-xs text-slate-500">{{ formatQte(entrepot.quantite_disponible ?? entrepot.quantite) }} dispo. / {{ formatQte(entrepot.quantite) }} total</p>
+                  <p v-if="Number(entrepot.quantite_reservee || 0) > 0" class="text-xs font-bold text-amber-700">{{ formatQte(entrepot.quantite_reservee) }} réservé(s)</p>
                 </div>
               </div>
             </article>
@@ -375,7 +376,7 @@
     <!-- TAB: Stock -->
     <div v-else-if="onglet === 'stock'" class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
       <div class="border-b border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800">
-        Un produit peut apparaître sur plusieurs lignes lorsqu'il est rangé dans plusieurs emplacements. La colonne « Total produit » affiche sa quantité globale.
+        Un produit peut apparaître sur plusieurs lignes lorsqu'il est rangé dans plusieurs emplacements. Le disponible = stock réel - quantité réservée.
       </div>
       <div class="overflow-x-auto">
         <table class="w-full">
@@ -385,7 +386,9 @@
               <SortableTh column="produit" :active="stockSort.key === 'produit'" :icon="stockSortIcon('produit')" @sort="toggleStockSort">Produit</SortableTh>
               <SortableTh column="entrepot" :active="stockSort.key === 'entrepot'" :icon="stockSortIcon('entrepot')" @sort="toggleStockSort">Entrepôt</SortableTh>
               <SortableTh column="emplacement" :active="stockSort.key === 'emplacement'" :icon="stockSortIcon('emplacement')" @sort="toggleStockSort">Emplacement</SortableTh>
-              <SortableTh column="quantite" :active="stockSort.key === 'quantite'" :icon="stockSortIcon('quantite')" align="right" @sort="toggleStockSort">Quantité</SortableTh>
+              <SortableTh column="quantite" :active="stockSort.key === 'quantite'" :icon="stockSortIcon('quantite')" align="right" @sort="toggleStockSort">Réel</SortableTh>
+              <SortableTh column="reservee" :active="stockSort.key === 'reservee'" :icon="stockSortIcon('reservee')" align="right" @sort="toggleStockSort">Réservé</SortableTh>
+              <SortableTh column="disponible" :active="stockSort.key === 'disponible'" :icon="stockSortIcon('disponible')" align="right" @sort="toggleStockSort">Disponible</SortableTh>
               <SortableTh column="total_produit" :active="stockSort.key === 'total_produit'" :icon="stockSortIcon('total_produit')" align="right" @sort="toggleStockSort">Total produit</SortableTh>
               <SortableTh column="pmp" :active="stockSort.key === 'pmp'" :icon="stockSortIcon('pmp')" align="right" @sort="toggleStockSort">PMP</SortableTh>
               <SortableTh column="valeur" :active="stockSort.key === 'valeur'" :icon="stockSortIcon('valeur')" align="right" @sort="toggleStockSort">Valeur</SortableTh>
@@ -405,11 +408,20 @@
                 <span v-else class="badge bg-orange-100 text-orange-800">À affecter</span>
               </td>
               <td class="px-4 py-3 text-sm text-right font-mono font-semibold"
-                  :class="parseFloat(s.quantite) <= parseFloat(s.produit?.stock_alerte || 0) ? 'text-orange-600' : 'text-gray-900'">
+                  :class="stockAvailableQty(s) <= parseFloat(s.produit?.stock_alerte || 0) ? 'text-orange-600' : 'text-gray-900'">
                 {{ formatQte(s.quantite) }} {{ s.produit?.unite || '' }}
+              </td>
+              <td class="px-4 py-3 text-sm text-right font-mono font-semibold" :class="stockReservedQty(s) > 0 ? 'text-amber-700' : 'text-slate-400'">
+                {{ formatQte(stockReservedQty(s)) }} {{ s.produit?.unite || '' }}
+              </td>
+              <td class="px-4 py-3 text-sm text-right font-mono font-black" :class="stockAvailableClass(s)">
+                {{ formatQte(stockAvailableQty(s)) }} {{ s.produit?.unite || '' }}
               </td>
               <td class="px-4 py-3 text-sm text-right font-mono font-semibold text-blue-700">
                 {{ formatQte(s.stock_total_produit) }} {{ s.produit?.unite || '' }}
+                <p v-if="Number(s.stock_reserve_produit || 0) > 0" class="text-[11px] font-bold text-amber-700">
+                  {{ formatQte(s.stock_disponible_produit) }} dispo.
+                </p>
               </td>
               <td class="px-4 py-3 text-sm text-right text-gray-600">{{ formatPrice(s.pmp) }}</td>
               <td class="px-4 py-3 text-sm text-right font-semibold text-xelltekk-700">
@@ -423,7 +435,7 @@
               </td>
             </tr>
             <tr v-if="stocks.length === 0">
-              <td colspan="9" class="px-4 py-12 text-center text-gray-400 text-sm">
+              <td colspan="11" class="px-4 py-12 text-center text-gray-400 text-sm">
                 Aucun stock. Faites une entrée pour commencer.
               </td>
             </tr>
@@ -1107,6 +1119,8 @@ const sortedStocks = computed(() => sortedStockRows(stocks.value, {
   entrepot: (stock) => stock.entrepot?.libelle || '',
   emplacement: (stock) => emplacementLabel(stock.emplacement),
   quantite: (stock) => parseFloat(stock.quantite || 0),
+  reservee: (stock) => stockReservedQty(stock),
+  disponible: (stock) => stockAvailableQty(stock),
   total_produit: (stock) => parseFloat(stock.stock_total_produit || 0),
   pmp: (stock) => parseFloat(stock.pmp || 0),
   valeur: (stock) => parseFloat(stock.quantite || 0) * parseFloat(stock.pmp || 0),
@@ -1296,6 +1310,19 @@ function onMouvementSaved() {
 function formatQte(n) { return parseFloat(n || 0).toLocaleString('fr-FR', { maximumFractionDigits: 3 }) }
 function formatPrice(n) { return new Intl.NumberFormat('fr-FR').format(Math.round(n || 0))  }
 function formatDateTime(d) { return d ? new Date(d).toLocaleString('fr-FR') : '–' }
+function stockReservedQty(stock) {
+  return Math.max(0, Number(stock?.quantite_reservee || 0))
+}
+function stockAvailableQty(stock) {
+  return Math.max(0, Number(stock?.quantite || 0) - stockReservedQty(stock))
+}
+function stockAvailableClass(stock) {
+  const available = stockAvailableQty(stock)
+  const alertThreshold = Number(stock?.produit?.stock_alerte || 0)
+  if (available <= 0) return 'text-red-700'
+  if (alertThreshold > 0 && available <= alertThreshold) return 'text-orange-700'
+  return 'text-emerald-700'
+}
 function formatSignedQte(n) {
   const value = Number(n || 0)
   if (Math.abs(value) < 0.0001) return '0'
@@ -1816,6 +1843,8 @@ function emptyStockSummary() {
       produits_en_stock: 0,
       lignes_stock: 0,
       quantite_totale: 0,
+      quantite_reservee: 0,
+      quantite_disponible: 0,
       valeur_stock: 0,
       alertes: 0,
       ruptures: 0,
