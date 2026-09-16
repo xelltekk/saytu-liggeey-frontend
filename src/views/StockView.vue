@@ -435,8 +435,154 @@
 
     <!-- TAB: Inventaire -->
     <div v-else-if="onglet === 'inventaire'" class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-      <div class="border-b border-cyan-100 bg-cyan-50 px-4 py-3 text-sm text-cyan-900">
-        Saisissez la quantité réellement comptée. Saytu calcule l’écart et enregistre un mouvement d’ajustement avec justification.
+      <div class="border-b border-cyan-100 bg-cyan-50 px-4 py-4">
+        <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <h2 class="text-base font-black text-slate-900">Sessions d’inventaire</h2>
+            <p class="text-sm text-cyan-900">
+              Lancez une session, comptez toutes les lignes, puis validez les écarts en une seule fois.
+            </p>
+            <p class="mt-1 text-xs text-cyan-700">
+              Le filtre entrepôt et la recherche en cours limitent les lignes préparées dans la nouvelle session.
+            </p>
+          </div>
+          <button class="btn-primary whitespace-nowrap text-sm" :disabled="inventorySessionActionLoading" @click="startInventorySession">
+            {{ inventorySessionActionLoading ? 'Préparation...' : '+ Nouvelle session' }}
+          </button>
+        </div>
+
+        <div v-if="inventorySessions.length" class="mt-3 grid grid-cols-1 gap-2 lg:grid-cols-2">
+          <button
+            v-for="session in inventorySessions"
+            :key="session.id"
+            type="button"
+            class="rounded-xl border border-cyan-200 bg-white/80 p-3 text-left transition hover:bg-white"
+            :class="activeInventory?.id === session.id ? 'ring-2 ring-cyan-400' : ''"
+            @click="openInventorySession(session)"
+          >
+            <div class="flex items-start justify-between gap-3">
+              <div class="min-w-0">
+                <p class="truncate font-black text-slate-900">{{ session.titre }}</p>
+                <p class="text-xs font-mono text-cyan-700">{{ session.reference }}</p>
+              </div>
+              <span class="badge bg-cyan-100 text-cyan-800">{{ inventoryStatusLabel(session.statut) }}</span>
+            </div>
+            <div class="mt-2 flex flex-wrap gap-3 text-xs text-slate-600">
+              <span>{{ session.entrepot?.libelle || 'Tous entrepôts' }}</span>
+              <span>{{ session.lignes_comptees_count || 0 }}/{{ session.lignes_count || 0 }} comptée(s)</span>
+              <span>{{ session.lignes_ecart_count || 0 }} écart(s)</span>
+            </div>
+          </button>
+        </div>
+
+        <p v-else class="mt-3 rounded-xl border border-cyan-100 bg-white/70 p-3 text-sm text-slate-500">
+          Aucune session en cours. Créez une session pour figer les quantités théoriques avant comptage.
+        </p>
+      </div>
+
+      <div v-if="activeInventory" class="border-b border-cyan-100 bg-white px-4 py-4">
+        <div class="mb-3 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <h3 class="text-base font-black text-slate-900">{{ activeInventory.titre }}</h3>
+            <p class="text-xs text-slate-500">
+              {{ activeInventory.reference }} · {{ activeInventory.entrepot?.libelle || 'Tous entrepôts' }} · démarré le {{ formatDateTime(activeInventory.started_at) }}
+            </p>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button class="btn-secondary text-xs" :disabled="inventorySessionLoading" @click="openInventorySession(activeInventory)">Actualiser</button>
+            <button class="btn-secondary text-xs" :disabled="inventorySessionActionLoading" @click="cancelInventorySession">Annuler session</button>
+            <button class="btn-primary text-xs" :disabled="inventorySessionActionLoading || !inventorySessionCanValidate" @click="validateInventorySession">
+              {{ inventorySessionActionLoading ? 'Validation...' : 'Valider les écarts' }}
+            </button>
+          </div>
+        </div>
+
+        <div class="mb-3 grid grid-cols-2 gap-2 md:grid-cols-5">
+          <div class="rounded-xl border border-cyan-100 bg-cyan-50 p-3 text-right">
+            <p class="text-[10px] font-black uppercase tracking-[0.14em] text-cyan-700">Lignes</p>
+            <p class="font-mono text-lg font-black text-slate-900">{{ activeInventory.resume?.lignes || 0 }}</p>
+          </div>
+          <div class="rounded-xl border border-cyan-100 bg-cyan-50 p-3 text-right">
+            <p class="text-[10px] font-black uppercase tracking-[0.14em] text-cyan-700">Comptées</p>
+            <p class="font-mono text-lg font-black text-slate-900">{{ activeInventory.resume?.comptees || 0 }}</p>
+          </div>
+          <div class="rounded-xl border border-orange-100 bg-orange-50 p-3 text-right">
+            <p class="text-[10px] font-black uppercase tracking-[0.14em] text-orange-700">À compter</p>
+            <p class="font-mono text-lg font-black text-orange-700">{{ activeInventory.resume?.a_compter || 0 }}</p>
+          </div>
+          <div class="rounded-xl border border-sky-100 bg-sky-50 p-3 text-right">
+            <p class="text-[10px] font-black uppercase tracking-[0.14em] text-sky-700">Écarts</p>
+            <p class="font-mono text-lg font-black text-slate-900">{{ activeInventory.resume?.ecarts || 0 }}</p>
+          </div>
+          <div class="rounded-xl border border-sky-100 bg-sky-50 p-3 text-right">
+            <p class="text-[10px] font-black uppercase tracking-[0.14em] text-sky-700">Écart total</p>
+            <p class="font-mono text-lg font-black" :class="Number(activeInventory.resume?.ecart_total || 0) < 0 ? 'text-red-700' : 'text-emerald-700'">
+              {{ formatSignedQte(activeInventory.resume?.ecart_total || 0) }}
+            </p>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto rounded-xl border border-cyan-100">
+          <table class="w-full">
+            <thead class="bg-cyan-50 text-xs uppercase text-cyan-700">
+              <tr>
+                <th class="px-3 py-2 text-left">Produit</th>
+                <th class="px-3 py-2 text-left">Localisation</th>
+                <th class="px-3 py-2 text-right">Théorique</th>
+                <th class="px-3 py-2 text-right">Compté</th>
+                <th class="px-3 py-2 text-right">Écart</th>
+                <th class="px-3 py-2 text-left">Motif</th>
+                <th class="px-3 py-2 text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-cyan-50">
+              <tr v-for="line in activeInventory.lignes || []" :key="line.id" class="hover:bg-cyan-50/40">
+                <td class="px-3 py-3 text-sm">
+                  <p class="font-bold text-slate-900">{{ line.produit?.libelle || 'Produit' }}</p>
+                  <p class="text-xs font-mono text-slate-500">{{ line.produit?.reference || '-' }}</p>
+                </td>
+                <td class="px-3 py-3 text-xs text-slate-600">
+                  <p class="font-bold text-slate-900">{{ line.entrepot?.libelle || 'Entrepôt' }}</p>
+                  <p>{{ emplacementLabel(line.emplacement) }}</p>
+                </td>
+                <td class="px-3 py-3 text-right font-mono text-sm font-bold">{{ formatQte(line.quantite_theorique) }}</td>
+                <td class="px-3 py-3 text-right">
+                  <input
+                    type="number"
+                    step="0.001"
+                    min="0"
+                    class="input w-28 text-right font-mono"
+                    :value="inventoryLineDrafts[line.id]?.quantite_comptee ?? ''"
+                    @input="setInventorySessionLineCount(line, $event.target.value)"
+                  />
+                </td>
+                <td class="px-3 py-3 text-right font-mono text-sm font-black" :class="inventorySessionDeltaClass(line)">
+                  {{ formatSignedQte(inventorySessionDelta(line)) }}
+                </td>
+                <td class="px-3 py-3">
+                  <input
+                    class="input min-w-48 text-sm"
+                    :value="inventoryLineDrafts[line.id]?.motif ?? ''"
+                    placeholder="Casse, erreur, inventaire..."
+                    @input="setInventorySessionLineMotif(line, $event.target.value)"
+                  />
+                </td>
+                <td class="px-3 py-3 text-right">
+                  <button class="btn-secondary px-3 py-1.5 text-xs" :disabled="inventoryLineSavingId === line.id || activeInventory.statut !== 'en_cours'" @click="saveInventorySessionLine(line)">
+                    {{ inventoryLineSavingId === line.id ? '...' : line.statut === 'compte' ? 'Modifier' : 'Enregistrer' }}
+                  </button>
+                </td>
+              </tr>
+              <tr v-if="(activeInventory.lignes || []).length === 0">
+                <td colspan="7" class="px-4 py-8 text-center text-sm text-slate-400">Aucune ligne dans cette session.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="border-b border-cyan-100 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+        Inventaire rapide ligne par ligne : saisissez la quantité réellement comptée pour corriger immédiatement une seule ligne.
       </div>
       <div class="overflow-x-auto">
         <table class="w-full">
@@ -866,6 +1012,8 @@ const transferts = ref([])
 const alertes = ref([])
 const stockSummary = ref(emptyStockSummary())
 const stockValuation = ref(emptyStockValuation())
+const inventorySessions = ref([])
+const activeInventory = ref(null)
 const movementResume = ref(emptyMovementResume())
 const transferResume = ref(emptyTransferResume())
 const alertResume = ref(emptyAlertResume())
@@ -900,7 +1048,11 @@ const exportLoading = ref(false)
 const meta = reactive({ current_page: 1, last_page: 1, total: 0, from: 0, to: 0 })
 const filters = reactive({ search: '', entrepot_id: '', type: '', document_type: '', transfer_statut: '', alert_niveau: '', dormant_days: 90, date_from: '', date_to: '' })
 const inventoryDrafts = reactive({})
+const inventoryLineDrafts = reactive({})
 const inventorySavingId = ref(null)
+const inventorySessionLoading = ref(false)
+const inventorySessionActionLoading = ref(false)
+const inventoryLineSavingId = ref(null)
 const transferActionId = ref(null)
 
 const showMouvementModal = ref(false)
@@ -971,6 +1123,13 @@ const transfertDisponible = computed(() => {
   return Math.max(0, parseFloat(stock.quantite || 0) - parseFloat(stock.quantite_reservee || 0))
 })
 
+const inventorySessionCanValidate = computed(() => {
+  const inventory = activeInventory.value
+  return inventory?.statut === 'en_cours'
+    && Number(inventory?.resume?.lignes || 0) > 0
+    && Number(inventory?.resume?.a_compter || 0) === 0
+})
+
 const hasTransfertEmplacements = computed(() => emplacementsTransfert.value.length > 0)
 
 // Composant Pagination inline
@@ -1025,6 +1184,7 @@ async function reload(page = 1) {
       stocks.value = data.data
       if (tab === 'inventaire') {
         prepareInventoryDrafts(stocks.value)
+        await loadInventorySessions()
       }
       Object.assign(meta, { current_page: data.current_page, last_page: data.last_page, total: data.total, from: data.from || 0, to: data.to || 0 })
     } else if (tab === 'mouvements') {
@@ -1115,6 +1275,11 @@ function onMouvementSaved() {
 function formatQte(n) { return parseFloat(n || 0).toLocaleString('fr-FR', { maximumFractionDigits: 3 }) }
 function formatPrice(n) { return new Intl.NumberFormat('fr-FR').format(Math.round(n || 0))  }
 function formatDateTime(d) { return d ? new Date(d).toLocaleString('fr-FR') : '–' }
+function formatSignedQte(n) {
+  const value = Number(n || 0)
+  if (Math.abs(value) < 0.0001) return '0'
+  return `${value > 0 ? '+' : '-'}${formatQte(Math.abs(value))}`
+}
 function typeLabel(t) { return { entree: 'Entrée', sortie: 'Sortie', transfert: 'Transfert', ajustement: 'Ajustement', inventaire: 'Inventaire' }[t] || t }
 function emplacementLabel(emp) {
   if (!emp) return 'Sans emplacement'
@@ -1599,6 +1764,178 @@ function normalizeStockValuation(data) {
     top_produits: Array.isArray(data?.top_produits) ? data.top_produits : [],
     produits_dormants: Array.isArray(data?.produits_dormants) ? data.produits_dormants : [],
   }
+}
+
+async function loadInventorySessions() {
+  try {
+    const { data } = await api.get('/stocks/inventaires', {
+      params: {
+        per_page: 6,
+        statut: 'en_cours',
+        entrepot_id: filters.entrepot_id || undefined,
+      },
+    })
+    inventorySessions.value = Array.isArray(data) ? data : data.data || []
+  } catch (e) {
+    inventorySessions.value = []
+  }
+}
+
+async function startInventorySession() {
+  inventorySessionActionLoading.value = true
+  try {
+    const entrepot = entrepots.value.find((item) => Number(item.id) === Number(filters.entrepot_id))
+    const titre = `Inventaire ${entrepot?.libelle || 'global'} - ${new Date().toLocaleDateString('fr-FR')}`
+    const { data } = await api.post('/stocks/inventaires', {
+      titre,
+      entrepot_id: filters.entrepot_id || undefined,
+      search: filters.search || undefined,
+      notes: 'Session créée depuis le module Stock.',
+    })
+    activeInventory.value = data
+    prepareInventorySessionDrafts(data)
+    toast.success('Session d’inventaire créée.')
+    await loadInventorySessions()
+  } catch (e) {
+    const errors = e.response?.data?.errors || {}
+    toast.error(errors.stock?.[0] || e.response?.data?.message || 'Création de la session impossible.')
+  } finally {
+    inventorySessionActionLoading.value = false
+  }
+}
+
+async function openInventorySession(session) {
+  if (!session?.id) return
+  inventorySessionLoading.value = true
+  try {
+    const { data } = await api.get(`/stocks/inventaires/${session.id}`)
+    activeInventory.value = data
+    prepareInventorySessionDrafts(data)
+  } catch (e) {
+    toast.error('Impossible d’ouvrir cette session.')
+  } finally {
+    inventorySessionLoading.value = false
+  }
+}
+
+function prepareInventorySessionDrafts(inventory) {
+  Object.keys(inventoryLineDrafts).forEach((key) => delete inventoryLineDrafts[key])
+  ;(inventory?.lignes || []).forEach((line) => {
+    inventoryLineDrafts[line.id] = {
+      quantite_comptee: line.quantite_comptee ?? '',
+      motif: line.motif || defaultInventoryMotif(),
+    }
+  })
+}
+
+function ensureInventoryLineDraft(line) {
+  if (!inventoryLineDrafts[line.id]) {
+    inventoryLineDrafts[line.id] = {
+      quantite_comptee: line.quantite_comptee ?? '',
+      motif: line.motif || defaultInventoryMotif(),
+    }
+  }
+
+  return inventoryLineDrafts[line.id]
+}
+
+function setInventorySessionLineCount(line, value) {
+  ensureInventoryLineDraft(line).quantite_comptee = value
+}
+
+function setInventorySessionLineMotif(line, value) {
+  ensureInventoryLineDraft(line).motif = value
+}
+
+function inventorySessionDelta(line) {
+  const draft = ensureInventoryLineDraft(line)
+  const counted = draft.quantite_comptee
+  if (counted === '' || counted === null || counted === undefined) {
+    return Number(line.ecart || 0)
+  }
+
+  return Number(counted || 0) - Number(line.quantite_theorique || 0)
+}
+
+function inventorySessionDeltaClass(line) {
+  const delta = inventorySessionDelta(line)
+  if (Math.abs(delta) < 0.0001) return 'text-slate-500'
+  return delta > 0 ? 'text-emerald-700' : 'text-red-700'
+}
+
+async function saveInventorySessionLine(line) {
+  const draft = ensureInventoryLineDraft(line)
+  const counted = Number(draft.quantite_comptee)
+
+  if (draft.quantite_comptee === '' || Number.isNaN(counted) || counted < 0) {
+    toast.error('Saisissez une quantité comptée valide.')
+    return
+  }
+
+  inventoryLineSavingId.value = line.id
+  try {
+    const { data } = await api.patch(`/stocks/inventaires/${activeInventory.value.id}/lignes/${line.id}`, {
+      quantite_comptee: counted,
+      motif: draft.motif || defaultInventoryMotif(),
+    })
+    const index = activeInventory.value.lignes.findIndex((item) => item.id === line.id)
+    if (index >= 0) {
+      activeInventory.value.lignes[index] = data
+    }
+    await openInventorySession(activeInventory.value)
+    toast.success('Ligne comptée enregistrée.')
+  } catch (e) {
+    toast.error(e.response?.data?.message || 'Enregistrement impossible.')
+  } finally {
+    inventoryLineSavingId.value = null
+  }
+}
+
+async function validateInventorySession() {
+  if (!activeInventory.value?.id) return
+  inventorySessionActionLoading.value = true
+  try {
+    const { data } = await api.post(`/stocks/inventaires/${activeInventory.value.id}/valider`, {
+      motif: `Validation ${activeInventory.value.reference}`,
+    })
+    activeInventory.value = data
+    prepareInventorySessionDrafts(data)
+    toast.success('Inventaire validé et écarts appliqués.')
+    await loadInventorySessions()
+    await reload(meta.current_page)
+  } catch (e) {
+    const errors = e.response?.data?.errors || {}
+    toast.error(errors.lignes?.[0] || errors.inventaire?.[0] || e.response?.data?.message || 'Validation impossible.')
+  } finally {
+    inventorySessionActionLoading.value = false
+  }
+}
+
+async function cancelInventorySession() {
+  if (!activeInventory.value?.id) return
+  if (!window.confirm('Annuler cette session d’inventaire ? Les comptages saisis seront conservés dans l’historique mais aucun écart ne sera appliqué.')) return
+
+  inventorySessionActionLoading.value = true
+  try {
+    const { data } = await api.post(`/stocks/inventaires/${activeInventory.value.id}/annuler`, {
+      motif: 'Annulation utilisateur',
+    })
+    activeInventory.value = data
+    toast.success('Session annulée.')
+    await loadInventorySessions()
+  } catch (e) {
+    toast.error(e.response?.data?.message || 'Annulation impossible.')
+  } finally {
+    inventorySessionActionLoading.value = false
+  }
+}
+
+function inventoryStatusLabel(statut) {
+  return {
+    en_cours: 'En cours',
+    valide: 'Validé',
+    annule: 'Annulé',
+  }[statut] || statut
 }
 
 function defaultInventoryMotif() {
