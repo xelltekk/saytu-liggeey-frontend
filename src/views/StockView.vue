@@ -31,6 +31,34 @@
                 :class="onglet === 'alertes' ? 'text-xelltekk-700 border-b-2 border-xelltekk-700' : 'text-gray-500 hover:text-gray-700'">
           ⚠️ Alertes
         </button>
+        <button @click="onglet = 'reappro'" class="px-6 py-3 text-sm font-medium transition-colors"
+                :class="onglet === 'reappro' ? 'text-xelltekk-700 border-b-2 border-xelltekk-700' : 'text-gray-500 hover:text-gray-700'">
+          🧠 Réappro
+        </button>
+        <button @click="onglet = 'reservations'" class="px-6 py-3 text-sm font-medium transition-colors"
+                :class="onglet === 'reservations' ? 'text-xelltekk-700 border-b-2 border-xelltekk-700' : 'text-gray-500 hover:text-gray-700'">
+          🔒 Réservations
+        </button>
+        <button @click="onglet = 'historique'" class="px-6 py-3 text-sm font-medium transition-colors"
+                :class="onglet === 'historique' ? 'text-xelltekk-700 border-b-2 border-xelltekk-700' : 'text-gray-500 hover:text-gray-700'">
+          🧾 Historique produit
+        </button>
+        <button @click="onglet = 'series'" class="px-6 py-3 text-sm font-medium transition-colors"
+                :class="onglet === 'series' ? 'text-xelltekk-700 border-b-2 border-xelltekk-700' : 'text-gray-500 hover:text-gray-700'">
+          # Séries / lots
+        </button>
+        <button @click="onglet = 'etiquettes'" class="px-6 py-3 text-sm font-medium transition-colors"
+                :class="onglet === 'etiquettes' ? 'text-xelltekk-700 border-b-2 border-xelltekk-700' : 'text-gray-500 hover:text-gray-700'">
+          🏷️ Étiquettes
+        </button>
+        <button @click="onglet = 'validations'" class="px-6 py-3 text-sm font-medium transition-colors"
+                :class="onglet === 'validations' ? 'text-xelltekk-700 border-b-2 border-xelltekk-700' : 'text-gray-500 hover:text-gray-700'">
+          ✅ Contrôles
+        </button>
+        <button @click="onglet = 'rapports'" class="px-6 py-3 text-sm font-medium transition-colors"
+                :class="onglet === 'rapports' ? 'text-xelltekk-700 border-b-2 border-xelltekk-700' : 'text-gray-500 hover:text-gray-700'">
+          📄 Rapports
+        </button>
       </div>
     </div>
 
@@ -89,6 +117,33 @@
           <option :value="90">Dormants depuis 90 jours</option>
           <option :value="180">Dormants depuis 180 jours</option>
           <option :value="365">Dormants depuis 365 jours</option>
+        </select>
+        <select v-if="onglet === 'reservations'" v-model="filters.reservation_statut" @change="reload(1)" class="input md:w-48">
+          <option value="">Tous statuts</option>
+          <option value="active">Actives</option>
+          <option value="consommee">Consommées</option>
+          <option value="liberee">Libérées</option>
+          <option value="remplacee">Remplacées</option>
+        </select>
+        <select v-if="onglet === 'series'" v-model="filters.series_statut" @change="reload(1)" class="input md:w-48">
+          <option value="">Tous statuts</option>
+          <option value="disponible">Disponibles</option>
+          <option value="reserve">Réservés</option>
+          <option value="vendu">Vendus</option>
+          <option value="sav">SAV</option>
+          <option value="sorti">Sortis</option>
+          <option value="perdu">Perdus</option>
+        </select>
+        <select v-if="onglet === 'validations'" v-model="filters.validation_statut" @change="reload(1)" class="input md:w-48">
+          <option value="a_valider">À valider</option>
+          <option value="valide">Validés</option>
+          <option value="">Tous</option>
+        </select>
+        <select v-if="onglet === 'reappro'" v-model="filters.reappro_period" @change="reload(1)" class="input md:w-56">
+          <option :value="30">Consommation 30 jours</option>
+          <option :value="90">Consommation 90 jours</option>
+          <option :value="180">Consommation 180 jours</option>
+          <option :value="365">Consommation 365 jours</option>
         </select>
       </div>
 
@@ -925,9 +980,367 @@
       </div>
     </div>
 
+    <!-- TAB: Réapprovisionnement intelligent -->
+    <div v-else-if="onglet === 'reappro'" class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+      <div class="border-b border-cyan-100 bg-cyan-50 px-4 py-3">
+        <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <h2 class="text-base font-black text-slate-900">Réapprovisionnement intelligent</h2>
+            <p class="text-xs text-cyan-800">La proposition tient compte du disponible, des seuils et de la consommation récente.</p>
+          </div>
+          <div class="grid grid-cols-2 gap-2 md:grid-cols-4">
+            <div class="rounded-xl border border-cyan-200 bg-white px-3 py-2 text-right">
+              <p class="text-[10px] font-black uppercase tracking-[0.14em] text-cyan-700">Produits</p>
+              <p class="font-mono text-lg font-black">{{ reapproResume.produits }}</p>
+            </div>
+            <div class="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-right">
+              <p class="text-[10px] font-black uppercase tracking-[0.14em] text-red-700">Ruptures</p>
+              <p class="font-mono text-lg font-black">{{ reapproResume.ruptures }}</p>
+            </div>
+            <div class="rounded-xl border border-orange-200 bg-orange-50 px-3 py-2 text-right">
+              <p class="text-[10px] font-black uppercase tracking-[0.14em] text-orange-700">Critiques</p>
+              <p class="font-mono text-lg font-black">{{ reapproResume.critiques }}</p>
+            </div>
+            <div class="rounded-xl border border-cyan-200 bg-white px-3 py-2 text-right">
+              <p class="text-[10px] font-black uppercase tracking-[0.14em] text-cyan-700">Budget</p>
+              <p class="font-mono text-lg font-black">{{ formatPrice(reapproResume.budget_estime) }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full">
+          <thead class="bg-gray-50 border-b border-gray-200">
+            <tr>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500">Produit</th>
+              <th class="px-4 py-3 text-right text-xs font-semibold uppercase text-gray-500">Disponible</th>
+              <th class="px-4 py-3 text-right text-xs font-semibold uppercase text-gray-500">Sorties période</th>
+              <th class="px-4 py-3 text-right text-xs font-semibold uppercase text-gray-500">Couverture</th>
+              <th class="px-4 py-3 text-right text-xs font-semibold uppercase text-gray-500">À commander</th>
+              <th class="px-4 py-3 text-right text-xs font-semibold uppercase text-gray-500">Budget</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-100">
+            <tr v-for="row in reapproRows" :key="row.id" class="hover:bg-cyan-50/30">
+              <td class="px-4 py-3">
+                <p class="font-bold text-slate-900">{{ row.libelle }}</p>
+                <p class="text-xs font-mono text-slate-500">{{ row.reference || '-' }} · <span class="badge text-xs" :class="alertLevelBadge(row.niveau)">{{ alertLevelLabel(row.niveau) }}</span></p>
+              </td>
+              <td class="px-4 py-3 text-right font-mono font-black" :class="stockAvailableClass({ quantite: row.stock_disponible, quantite_reservee: 0, produit: { stock_alerte: row.stock_alerte } })">
+                {{ formatQte(row.stock_disponible) }}
+              </td>
+              <td class="px-4 py-3 text-right font-mono">{{ formatQte(row.sorties_periode) }}</td>
+              <td class="px-4 py-3 text-right text-sm">
+                {{ row.couverture_jours === null ? '∞' : `${row.couverture_jours} j` }}
+                <p class="text-xs text-slate-500">{{ formatQte(row.moyenne_jour) }}/jour</p>
+              </td>
+              <td class="px-4 py-3 text-right font-mono font-black text-cyan-700">{{ formatQte(row.quantite_recommandee) }} {{ row.unite }}</td>
+              <td class="px-4 py-3 text-right font-mono font-bold">{{ formatPrice(row.budget_estime) }}</td>
+            </tr>
+            <tr v-if="reapproRows.length === 0">
+              <td colspan="6" class="px-4 py-12 text-center text-green-600 text-sm">Aucun besoin de réapprovisionnement détecté.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB: Réservations -->
+    <div v-else-if="onglet === 'reservations'" class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+      <div class="border-b border-cyan-100 bg-cyan-50 px-4 py-3">
+        <h2 class="text-base font-black text-slate-900">Réservations liées aux devis</h2>
+        <p class="text-xs text-cyan-800">{{ reservationResume.active }} active(s), {{ formatQte(reservationResume.quantite_active) }} unité(s) bloquée(s).</p>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full">
+          <thead class="bg-gray-50 border-b border-gray-200">
+            <tr>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500">Devis / client</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500">Produit</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500">Localisation</th>
+              <th class="px-4 py-3 text-right text-xs font-semibold uppercase text-gray-500">Quantité</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500">Statut</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500">Dates</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-100">
+            <tr v-for="r in reservations" :key="r.id" class="hover:bg-cyan-50/30">
+              <td class="px-4 py-3">
+                <p class="font-mono font-black text-slate-900">{{ r.devis?.numero || '-' }}</p>
+                <p class="text-xs text-slate-500">{{ r.devis?.client?.nom || 'Client' }}</p>
+              </td>
+              <td class="px-4 py-3">
+                <p class="font-bold text-slate-900">{{ r.produit?.libelle || 'Produit' }}</p>
+                <p class="text-xs font-mono text-slate-500">{{ r.produit?.reference || '-' }}</p>
+              </td>
+              <td class="px-4 py-3 text-xs text-slate-600">
+                <p class="font-bold text-slate-900">{{ r.stock?.entrepot?.libelle || '-' }}</p>
+                <p>{{ emplacementLabel(r.stock?.emplacement) }}</p>
+              </td>
+              <td class="px-4 py-3 text-right font-mono font-black text-cyan-700">{{ formatQte(r.quantite) }} {{ r.produit?.unite || '' }}</td>
+              <td class="px-4 py-3"><span class="badge text-xs" :class="reservationStatusBadge(r.statut)">{{ reservationStatusLabel(r.statut) }}</span></td>
+              <td class="px-4 py-3 text-xs text-slate-500">
+                <div>Réservé : {{ formatDateTime(r.reserved_at) }}</div>
+                <div v-if="r.consumed_at">Consommé : {{ formatDateTime(r.consumed_at) }}</div>
+                <div v-if="r.released_at">Libéré : {{ formatDateTime(r.released_at) }}</div>
+              </td>
+            </tr>
+            <tr v-if="reservations.length === 0">
+              <td colspan="6" class="px-4 py-12 text-center text-slate-400 text-sm">Aucune réservation avec ces filtres.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <Pagination v-if="meta.total > 0" :meta="meta" @page="reload" />
+    </div>
+
+    <!-- TAB: Historique produit -->
+    <div v-else-if="onglet === 'historique'" class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+      <div class="border-b border-cyan-100 bg-cyan-50 px-4 py-3">
+        <h2 class="text-base font-black text-slate-900">Historique complet par produit</h2>
+        <p class="text-xs text-cyan-800">Vue synthétique : stock, réservations, mouvements cumulés et dernier mouvement.</p>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full">
+          <thead class="bg-gray-50 border-b border-gray-200">
+            <tr>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500">Produit</th>
+              <th class="px-4 py-3 text-right text-xs font-semibold uppercase text-gray-500">Stock</th>
+              <th class="px-4 py-3 text-right text-xs font-semibold uppercase text-gray-500">Réservé</th>
+              <th class="px-4 py-3 text-right text-xs font-semibold uppercase text-gray-500">Entrées</th>
+              <th class="px-4 py-3 text-right text-xs font-semibold uppercase text-gray-500">Sorties</th>
+              <th class="px-4 py-3 text-right text-xs font-semibold uppercase text-gray-500">Valeur</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500">Dernier mouvement</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-100">
+            <tr v-for="p in historiqueProduits" :key="p.id" class="hover:bg-cyan-50/30">
+              <td class="px-4 py-3">
+                <p class="font-bold text-slate-900">{{ p.libelle }}</p>
+                <p class="text-xs font-mono text-slate-500">{{ p.reference || '-' }} · {{ p.categorie }}</p>
+              </td>
+              <td class="px-4 py-3 text-right font-mono font-bold">{{ formatQte(p.stock_total) }}</td>
+              <td class="px-4 py-3 text-right font-mono" :class="Number(p.stock_reserve || 0) > 0 ? 'font-black text-amber-700' : 'text-slate-400'">{{ formatQte(p.stock_reserve) }}</td>
+              <td class="px-4 py-3 text-right font-mono text-emerald-700">{{ formatQte(p.entrees) }}</td>
+              <td class="px-4 py-3 text-right font-mono text-red-700">{{ formatQte(p.sorties) }}</td>
+              <td class="px-4 py-3 text-right font-mono font-bold text-cyan-700">{{ formatPrice(p.valeur_stock) }}</td>
+              <td class="px-4 py-3 text-xs text-slate-500">{{ p.dernier_mouvement ? formatDateTime(p.dernier_mouvement) : 'Jamais' }}</td>
+            </tr>
+            <tr v-if="historiqueProduits.length === 0">
+              <td colspan="7" class="px-4 py-12 text-center text-slate-400 text-sm">Aucun produit trouvé.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <Pagination v-if="meta.total > 0" :meta="meta" @page="reload" />
+    </div>
+
+    <!-- TAB: Séries / lots -->
+    <div v-else-if="onglet === 'series'" class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+      <div class="border-b border-cyan-100 bg-cyan-50 px-4 py-3">
+        <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 class="text-base font-black text-slate-900">Numéros de série et lots</h2>
+            <p class="text-xs text-cyan-800">{{ seriesResume.disponible }} disponible(s), {{ seriesResume.reserve }} réservé(s), {{ seriesResume.vendu }} vendu(s).</p>
+          </div>
+          <button class="btn-primary text-sm" @click="openSerieModal">+ Ajouter série / lot</button>
+        </div>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full">
+          <thead class="bg-gray-50 border-b border-gray-200">
+            <tr>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500">Produit</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500">Série / lot</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500">Localisation</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500">Statut</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500">Garantie</th>
+              <th class="px-4 py-3 text-right text-xs font-semibold uppercase text-gray-500">Action</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-100">
+            <tr v-for="s in series" :key="s.id" class="hover:bg-cyan-50/30">
+              <td class="px-4 py-3">
+                <p class="font-bold text-slate-900">{{ s.produit?.libelle || 'Produit' }}</p>
+                <p class="text-xs font-mono text-slate-500">{{ s.produit?.reference || '-' }}</p>
+              </td>
+              <td class="px-4 py-3 text-sm">
+                <p v-if="s.serial_number" class="font-mono font-black text-slate-900">SN {{ s.serial_number }}</p>
+                <p v-if="s.lot_number" class="font-mono text-cyan-700">Lot {{ s.lot_number }}</p>
+              </td>
+              <td class="px-4 py-3 text-xs text-slate-600">{{ s.entrepot?.libelle || '-' }} · {{ emplacementLabel(s.emplacement) }}</td>
+              <td class="px-4 py-3"><span class="badge text-xs" :class="serieStatusBadge(s.statut)">{{ serieStatusLabel(s.statut) }}</span></td>
+              <td class="px-4 py-3 text-xs text-slate-500">{{ s.garantie_jusquau || '-' }}</td>
+              <td class="px-4 py-3 text-right">
+                <select class="input py-1 text-xs" :value="s.statut" @change="updateSerieStatus(s, $event.target.value)">
+                  <option value="disponible">Disponible</option>
+                  <option value="reserve">Réservé</option>
+                  <option value="vendu">Vendu</option>
+                  <option value="sav">SAV</option>
+                  <option value="sorti">Sorti</option>
+                  <option value="perdu">Perdu</option>
+                </select>
+              </td>
+            </tr>
+            <tr v-if="series.length === 0">
+              <td colspan="6" class="px-4 py-12 text-center text-slate-400 text-sm">Aucun numéro de série ou lot enregistré.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <Pagination v-if="meta.total > 0" :meta="meta" @page="reload" />
+    </div>
+
+    <!-- TAB: Étiquettes -->
+    <div v-else-if="onglet === 'etiquettes'" class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+      <div class="border-b border-cyan-100 bg-cyan-50 px-4 py-3">
+        <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 class="text-base font-black text-slate-900">Étiquettes produits</h2>
+            <p class="text-xs text-cyan-800">Prévisualisez les étiquettes à imprimer pour les produits actuellement en stock.</p>
+          </div>
+          <button class="btn-primary text-sm" @click="openEtiquettesPdf">Imprimer PDF</button>
+        </div>
+      </div>
+      <div class="grid grid-cols-1 gap-3 p-4 md:grid-cols-2 xl:grid-cols-3">
+        <article v-for="label in etiquettes" :key="label.id" class="rounded-2xl border border-cyan-200 bg-cyan-50/50 p-4">
+          <p class="font-black text-slate-900">{{ label.libelle }}</p>
+          <p class="text-xs font-mono text-slate-500">{{ label.reference || '-' }}</p>
+          <div class="my-3 rounded-xl border border-dashed border-cyan-400 bg-white px-3 py-2 text-center font-mono text-lg font-black tracking-[0.2em] text-cyan-800">
+            {{ label.code_barre || label.reference || label.id }}
+          </div>
+          <p class="text-xs text-slate-600">{{ label.entrepot }} · {{ label.emplacement }}</p>
+          <p class="mt-2 text-right font-black text-cyan-700">{{ formatPrice(label.prix_vente_ht) }} XOF</p>
+        </article>
+        <p v-if="etiquettes.length === 0" class="col-span-full rounded-xl bg-slate-50 p-8 text-center text-sm text-slate-400">Aucune étiquette à afficher.</p>
+      </div>
+    </div>
+
+    <!-- TAB: Contrôles -->
+    <div v-else-if="onglet === 'validations'" class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+      <div class="border-b border-cyan-100 bg-cyan-50 px-4 py-3">
+        <h2 class="text-base font-black text-slate-900">Contrôle des mouvements sensibles</h2>
+        <p class="text-xs text-cyan-800">{{ validationResume.a_valider }} mouvement(s) à contrôler, {{ validationResume.valide }} validé(s).</p>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full">
+          <thead class="bg-gray-50 border-b border-gray-200">
+            <tr>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500">Mouvement</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500">Produit</th>
+              <th class="px-4 py-3 text-right text-xs font-semibold uppercase text-gray-500">Quantité</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500">Motif</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500">Validation</th>
+              <th class="px-4 py-3 text-right text-xs font-semibold uppercase text-gray-500">Action</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-100">
+            <tr v-for="m in validations" :key="m.id" class="hover:bg-cyan-50/30">
+              <td class="px-4 py-3 text-xs text-slate-500">{{ formatDateTime(m.date_mouvement) }}<br><span class="badge bg-slate-100 text-slate-700">{{ typeLabel(m.type) }}</span></td>
+              <td class="px-4 py-3"><p class="font-bold">{{ m.produit?.libelle || 'Produit' }}</p><p class="text-xs font-mono text-slate-500">{{ m.produit?.reference || '-' }}</p></td>
+              <td class="px-4 py-3 text-right font-mono font-black">{{ formatQte(m.quantite) }}</td>
+              <td class="px-4 py-3 text-xs text-slate-600">{{ m.motif || '-' }}</td>
+              <td class="px-4 py-3 text-xs">
+                <span v-if="m.validation?.statut === 'valide'" class="badge bg-emerald-100 text-emerald-800">Validé par {{ m.validation?.validator?.name || 'admin' }}</span>
+                <span v-else class="badge bg-orange-100 text-orange-800">À valider</span>
+              </td>
+              <td class="px-4 py-3 text-right">
+                <button v-if="m.validation?.statut !== 'valide'" class="btn-primary px-3 py-1.5 text-xs" @click="validateMovement(m)">Valider</button>
+                <span v-else class="text-xs text-slate-400">OK</span>
+              </td>
+            </tr>
+            <tr v-if="validations.length === 0">
+              <td colspan="6" class="px-4 py-12 text-center text-slate-400 text-sm">Aucun mouvement sensible avec ces filtres.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <Pagination v-if="meta.total > 0" :meta="meta" @page="reload" />
+    </div>
+
+    <!-- TAB: Rapports -->
+    <div v-else-if="onglet === 'rapports'" class="space-y-4">
+      <div class="grid grid-cols-1 gap-3 md:grid-cols-4">
+        <div class="rounded-2xl border border-cyan-200 bg-cyan-50 p-4">
+          <p class="text-xs font-black uppercase tracking-[0.16em] text-cyan-700">Valeur stock</p>
+          <p class="mt-2 text-2xl font-black">{{ formatPrice(rapports.summary.valeur_stock) }}</p>
+        </div>
+        <div class="rounded-2xl border border-cyan-200 bg-white p-4">
+          <p class="text-xs font-black uppercase tracking-[0.16em] text-cyan-700">Disponible</p>
+          <p class="mt-2 text-2xl font-black">{{ formatQte(rapports.summary.quantite_disponible) }}</p>
+        </div>
+        <div class="rounded-2xl border border-cyan-200 bg-white p-4">
+          <p class="text-xs font-black uppercase tracking-[0.16em] text-cyan-700">Réservé</p>
+          <p class="mt-2 text-2xl font-black">{{ formatQte(rapports.summary.quantite_reservee) }}</p>
+        </div>
+        <div class="rounded-2xl border border-cyan-200 bg-white p-4">
+          <p class="text-xs font-black uppercase tracking-[0.16em] text-cyan-700">Alertes</p>
+          <p class="mt-2 text-2xl font-black">{{ rapports.summary.alertes || 0 }}</p>
+        </div>
+      </div>
+      <div class="rounded-2xl border border-cyan-200 bg-white p-4">
+        <h2 class="text-base font-black text-slate-900">Exports PDF</h2>
+        <p class="mb-4 text-sm text-slate-500">Générez les états propres pour contrôle, inventaire ou transmission interne.</p>
+        <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <button v-for="report in rapports.exports" :key="report.url" class="btn-secondary justify-center py-3 text-sm" @click="openPdf(report.url)">
+            {{ report.label }}
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Modal mouvement -->
     <AppModal v-model="showMouvementModal" :title="mouvementTitle" size="md">
       <MouvementForm :type="mouvementType" :entrepots="entrepots" @saved="onMouvementSaved" @cancel="showMouvementModal = false" />
+    </AppModal>
+
+    <AppModal v-model="showSerieModal" title="Ajouter une série / un lot" size="md">
+      <form class="space-y-4" @submit.prevent="saveSerie">
+        <div>
+          <label class="mb-1 block text-sm font-medium text-gray-700">Ligne de stock <span class="text-red-500">*</span></label>
+          <select v-model.number="serieForm.stock_id" class="input" required @change="syncSerieProductFromStock">
+            <option value="">— Sélectionnez une ligne —</option>
+            <option v-for="stock in stockOptions" :key="stock.id" :value="stock.id">
+              {{ stock.produit?.reference || '-' }} — {{ stock.produit?.libelle || 'Produit' }} · {{ stock.entrepot?.libelle || '-' }} · {{ emplacementLabel(stock.emplacement) }}
+            </option>
+          </select>
+        </div>
+        <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+          <label class="block text-sm font-medium text-gray-700">
+            Numéro de série
+            <input v-model="serieForm.serial_number" class="input mt-1" placeholder="SN, IMEI, clé..." />
+          </label>
+          <label class="block text-sm font-medium text-gray-700">
+            Numéro de lot
+            <input v-model="serieForm.lot_number" class="input mt-1" placeholder="Lot, batch..." />
+          </label>
+        </div>
+        <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+          <label class="block text-sm font-medium text-gray-700">
+            Statut
+            <select v-model="serieForm.statut" class="input mt-1">
+              <option value="disponible">Disponible</option>
+              <option value="reserve">Réservé</option>
+              <option value="vendu">Vendu</option>
+              <option value="sav">SAV</option>
+              <option value="sorti">Sorti</option>
+              <option value="perdu">Perdu</option>
+            </select>
+          </label>
+          <label class="block text-sm font-medium text-gray-700">
+            Garantie jusqu’au
+            <input v-model="serieForm.garantie_jusquau" type="date" class="input mt-1" />
+          </label>
+        </div>
+        <label class="block text-sm font-medium text-gray-700">
+          Notes
+          <textarea v-model="serieForm.notes" class="input mt-1 min-h-20" placeholder="État, provenance, remarque SAV..."></textarea>
+        </label>
+        <div class="flex justify-end gap-2 border-t border-gray-200 pt-3">
+          <button type="button" class="btn-secondary" @click="showSerieModal = false">Annuler</button>
+          <button class="btn-primary" :disabled="serieSaving">{{ serieSaving ? 'Enregistrement...' : 'Enregistrer' }}</button>
+        </div>
+      </form>
     </AppModal>
 
     <AppModal v-model="showDeplacementModal" title="Déplacer le stock" size="md">
@@ -1041,6 +1454,13 @@ const stocks = ref([])
 const mouvements = ref([])
 const transferts = ref([])
 const alertes = ref([])
+const reservations = ref([])
+const historiqueProduits = ref([])
+const reapproRows = ref([])
+const series = ref([])
+const etiquettes = ref([])
+const validations = ref([])
+const stockOptions = ref([])
 const stockSummary = ref(emptyStockSummary())
 const stockValuation = ref(emptyStockValuation())
 const inventorySessions = ref([])
@@ -1048,6 +1468,11 @@ const activeInventory = ref(null)
 const movementResume = ref(emptyMovementResume())
 const transferResume = ref(emptyTransferResume())
 const alertResume = ref(emptyAlertResume())
+const reservationResume = ref(emptyReservationResume())
+const reapproResume = ref(emptyReapproResume())
+const seriesResume = ref(emptySeriesResume())
+const validationResume = ref(emptyValidationResume())
+const rapports = ref(emptyRapports())
 const mouvementTypeOptions = [
   { value: '', label: 'Tous les mouvements', shortLabel: 'Tous' },
   { value: 'entree', label: 'Entrées', shortLabel: 'Entrées' },
@@ -1077,7 +1502,21 @@ const entrepots = ref([])
 const loading = ref(false)
 const exportLoading = ref(false)
 const meta = reactive({ current_page: 1, last_page: 1, total: 0, from: 0, to: 0 })
-const filters = reactive({ search: '', entrepot_id: '', type: '', document_type: '', transfer_statut: '', alert_niveau: '', dormant_days: 90, date_from: '', date_to: '' })
+const filters = reactive({
+  search: '',
+  entrepot_id: '',
+  type: '',
+  document_type: '',
+  transfer_statut: '',
+  alert_niveau: '',
+  dormant_days: 90,
+  date_from: '',
+  date_to: '',
+  reservation_statut: 'active',
+  series_statut: '',
+  validation_statut: 'a_valider',
+  reappro_period: 90,
+})
 const inventoryDrafts = reactive({})
 const inventoryLineDrafts = reactive({})
 const inventorySavingId = ref(null)
@@ -1087,6 +1526,17 @@ const inventoryLineSavingId = ref(null)
 const transferActionId = ref(null)
 const alertDemandCreating = ref(false)
 const alertDemandCreatingId = ref(null)
+const showSerieModal = ref(false)
+const serieSaving = ref(false)
+const serieForm = reactive({
+  produit_id: '',
+  stock_id: '',
+  serial_number: '',
+  lot_number: '',
+  statut: 'disponible',
+  garantie_jusquau: '',
+  notes: '',
+})
 
 const showMouvementModal = ref(false)
 const mouvementType = ref('entree')
@@ -1239,6 +1689,46 @@ async function reload(page = 1) {
       if (requestId !== reloadRequestId || tab !== onglet.value) return
       alertes.value = Array.isArray(data) ? data : data.data || []
       alertResume.value = normalizeAlertResume(data?.resume)
+      Object.assign(meta, { current_page: 1, last_page: 1, total: alertes.value.length, from: alertes.value.length ? 1 : 0, to: alertes.value.length })
+    } else if (tab === 'reappro') {
+      const { data } = await api.get('/stocks/reapprovisionnement', { params: reapproFilterParams() })
+      if (requestId !== reloadRequestId || tab !== onglet.value) return
+      reapproRows.value = Array.isArray(data?.data) ? data.data : []
+      reapproResume.value = normalizeReapproResume(data?.resume)
+      Object.assign(meta, { current_page: 1, last_page: 1, total: reapproRows.value.length, from: reapproRows.value.length ? 1 : 0, to: reapproRows.value.length })
+    } else if (tab === 'reservations') {
+      const { data } = await api.get('/stocks/reservations', { params: { page, per_page: 25, search: filters.search || undefined, statut: filters.reservation_statut || undefined } })
+      if (requestId !== reloadRequestId || tab !== onglet.value) return
+      reservations.value = data.data || []
+      reservationResume.value = normalizeReservationResume(data.resume)
+      Object.assign(meta, { current_page: data.current_page, last_page: data.last_page, total: data.total, from: data.from || 0, to: data.to || 0 })
+    } else if (tab === 'historique') {
+      const { data } = await api.get('/stocks/historique-produits', { params: { page, per_page: 25, search: filters.search || undefined, entrepot_id: filters.entrepot_id || undefined } })
+      if (requestId !== reloadRequestId || tab !== onglet.value) return
+      historiqueProduits.value = data.data || []
+      Object.assign(meta, { current_page: data.current_page, last_page: data.last_page, total: data.total, from: data.from || 0, to: data.to || 0 })
+    } else if (tab === 'series') {
+      const { data } = await api.get('/stocks/series', { params: { page, per_page: 25, search: filters.search || undefined, statut: filters.series_statut || undefined } })
+      if (requestId !== reloadRequestId || tab !== onglet.value) return
+      series.value = data.data || []
+      seriesResume.value = normalizeSeriesResume(data.resume)
+      Object.assign(meta, { current_page: data.current_page, last_page: data.last_page, total: data.total, from: data.from || 0, to: data.to || 0 })
+    } else if (tab === 'etiquettes') {
+      const { data } = await api.get('/stocks/etiquettes', { params: { search: filters.search || undefined, entrepot_id: filters.entrepot_id || undefined } })
+      if (requestId !== reloadRequestId || tab !== onglet.value) return
+      etiquettes.value = Array.isArray(data?.data) ? data.data : []
+      Object.assign(meta, { current_page: 1, last_page: 1, total: etiquettes.value.length, from: etiquettes.value.length ? 1 : 0, to: etiquettes.value.length })
+    } else if (tab === 'validations') {
+      const { data } = await api.get('/stocks/validations', { params: { page, per_page: 25, search: filters.search || undefined, statut: filters.validation_statut || undefined } })
+      if (requestId !== reloadRequestId || tab !== onglet.value) return
+      validations.value = data.data || []
+      validationResume.value = normalizeValidationResume(data.resume)
+      Object.assign(meta, { current_page: data.current_page, last_page: data.last_page, total: data.total, from: data.from || 0, to: data.to || 0 })
+    } else if (tab === 'rapports') {
+      const { data } = await api.get('/stocks/rapports')
+      if (requestId !== reloadRequestId || tab !== onglet.value) return
+      rapports.value = normalizeRapports(data)
+      Object.assign(meta, { current_page: 1, last_page: 1, total: 0, from: 0, to: 0 })
     }
   } catch (e) {
     toast.error('Erreur de chargement')
@@ -1546,6 +2036,13 @@ function alertFilterParams() {
   }
 }
 
+function reapproFilterParams() {
+  return {
+    search: filters.search || undefined,
+    periode_jours: filters.reappro_period || 90,
+  }
+}
+
 function setMouvementType(type) {
   filters.type = type
   reload(1)
@@ -1635,6 +2132,75 @@ function normalizeAlertResume(data) {
   }
 }
 
+function emptyReservationResume() {
+  return { active: 0, consommee: 0, liberee: 0, quantite_active: 0 }
+}
+
+function normalizeReservationResume(data) {
+  return {
+    active: Number(data?.active || 0),
+    consommee: Number(data?.consommee || 0),
+    liberee: Number(data?.liberee || 0),
+    quantite_active: Number(data?.quantite_active || 0),
+  }
+}
+
+function emptyReapproResume() {
+  return { produits: 0, ruptures: 0, critiques: 0, quantite_recommandee: 0, budget_estime: 0, periode_jours: 90 }
+}
+
+function normalizeReapproResume(data) {
+  return {
+    produits: Number(data?.produits || 0),
+    ruptures: Number(data?.ruptures || 0),
+    critiques: Number(data?.critiques || 0),
+    quantite_recommandee: Number(data?.quantite_recommandee || 0),
+    budget_estime: Number(data?.budget_estime || 0),
+    periode_jours: Number(data?.periode_jours || 90),
+  }
+}
+
+function emptySeriesResume() {
+  return { disponible: 0, reserve: 0, vendu: 0, sav: 0 }
+}
+
+function normalizeSeriesResume(data) {
+  return {
+    disponible: Number(data?.disponible || 0),
+    reserve: Number(data?.reserve || 0),
+    vendu: Number(data?.vendu || 0),
+    sav: Number(data?.sav || 0),
+  }
+}
+
+function emptyValidationResume() {
+  return { a_valider: 0, valide: 0 }
+}
+
+function normalizeValidationResume(data) {
+  return {
+    a_valider: Number(data?.a_valider || 0),
+    valide: Number(data?.valide || 0),
+  }
+}
+
+function emptyRapports() {
+  return {
+    summary: {},
+    valorisation: {},
+    exports: [],
+  }
+}
+
+function normalizeRapports(data) {
+  const fallback = emptyRapports()
+  return {
+    summary: data?.summary || fallback.summary,
+    valorisation: data?.valorisation || fallback.valorisation,
+    exports: Array.isArray(data?.exports) ? data.exports : [],
+  }
+}
+
 function setAlertLevel(niveau) {
   filters.alert_niveau = niveau
   reload(1)
@@ -1678,6 +2244,147 @@ function alertRowClass(alerte) {
     critique: 'bg-orange-50/40',
     alerte: '',
   }[alerte?.niveau] || ''
+}
+
+function reservationStatusLabel(statut) {
+  return {
+    active: 'Active',
+    consommee: 'Consommée',
+    liberee: 'Libérée',
+    remplacee: 'Remplacée',
+  }[statut] || statut
+}
+
+function reservationStatusBadge(statut) {
+  return {
+    active: 'bg-amber-100 text-amber-800',
+    consommee: 'bg-emerald-100 text-emerald-800',
+    liberee: 'bg-slate-100 text-slate-700',
+    remplacee: 'bg-blue-100 text-blue-800',
+  }[statut] || 'bg-gray-100 text-gray-700'
+}
+
+function serieStatusLabel(statut) {
+  return {
+    disponible: 'Disponible',
+    reserve: 'Réservé',
+    vendu: 'Vendu',
+    sav: 'SAV',
+    sorti: 'Sorti',
+    perdu: 'Perdu',
+  }[statut] || statut
+}
+
+function serieStatusBadge(statut) {
+  return {
+    disponible: 'bg-emerald-100 text-emerald-800',
+    reserve: 'bg-amber-100 text-amber-800',
+    vendu: 'bg-blue-100 text-blue-800',
+    sav: 'bg-purple-100 text-purple-800',
+    sorti: 'bg-slate-100 text-slate-700',
+    perdu: 'bg-red-100 text-red-800',
+  }[statut] || 'bg-gray-100 text-gray-700'
+}
+
+async function openSerieModal() {
+  Object.assign(serieForm, {
+    produit_id: '',
+    stock_id: '',
+    serial_number: '',
+    lot_number: '',
+    statut: 'disponible',
+    garantie_jusquau: '',
+    notes: '',
+  })
+  await loadStockOptions()
+  showSerieModal.value = true
+}
+
+async function loadStockOptions() {
+  try {
+    const { data } = await api.get('/stocks', { params: { per_page: 100, search: filters.search || undefined, entrepot_id: filters.entrepot_id || undefined } })
+    stockOptions.value = data.data || []
+  } catch (e) {
+    stockOptions.value = []
+  }
+}
+
+function syncSerieProductFromStock() {
+  const selected = stockOptions.value.find((stock) => Number(stock.id) === Number(serieForm.stock_id))
+  serieForm.produit_id = selected?.produit_id || ''
+}
+
+async function saveSerie() {
+  if (!serieForm.produit_id && !serieForm.stock_id) {
+    toast.error('Sélectionnez une ligne de stock ou renseignez le produit.')
+    return
+  }
+
+  if (!String(serieForm.serial_number || '').trim() && !String(serieForm.lot_number || '').trim()) {
+    toast.error('Renseignez au moins un numéro de série ou un numéro de lot.')
+    return
+  }
+
+  serieSaving.value = true
+  try {
+    await api.post('/stocks/series', {
+      produit_id: serieForm.produit_id || undefined,
+      stock_id: serieForm.stock_id || undefined,
+      serial_number: serieForm.serial_number || undefined,
+      lot_number: serieForm.lot_number || undefined,
+      statut: serieForm.statut,
+      garantie_jusquau: serieForm.garantie_jusquau || undefined,
+      notes: serieForm.notes || undefined,
+    })
+    toast.success('Série / lot enregistré.')
+    showSerieModal.value = false
+    await reload(meta.current_page)
+  } catch (e) {
+    const errors = e.response?.data?.errors || {}
+    toast.error(Object.values(errors)?.[0]?.[0] || e.response?.data?.message || 'Enregistrement impossible.')
+  } finally {
+    serieSaving.value = false
+  }
+}
+
+async function updateSerieStatus(serie, statut) {
+  try {
+    await api.patch(`/stocks/series/${serie.id}`, { statut })
+    serie.statut = statut
+    toast.success('Statut mis à jour.')
+  } catch (e) {
+    toast.error(e.response?.data?.message || 'Mise à jour impossible.')
+    await reload(meta.current_page)
+  }
+}
+
+async function validateMovement(mouvement) {
+  const commentaire = window.prompt('Commentaire de validation', 'Contrôle stock validé')
+  if (commentaire === null) return
+
+  try {
+    await api.post(`/stocks/mouvements/${mouvement.id}/valider`, { commentaire })
+    toast.success('Mouvement validé.')
+    await reload(meta.current_page)
+  } catch (e) {
+    toast.error(e.response?.data?.message || 'Validation impossible.')
+  }
+}
+
+async function openPdf(url) {
+  try {
+    const response = await api.get(url, { responseType: 'blob' })
+    const blob = response.data instanceof Blob ? response.data : new Blob([response.data], { type: 'application/pdf' })
+    const objectUrl = window.URL.createObjectURL(blob)
+    window.open(objectUrl, '_blank', 'noopener,noreferrer')
+    window.setTimeout(() => window.URL.revokeObjectURL(objectUrl), 60_000)
+  } catch (e) {
+    toast.error('Ouverture du PDF impossible.')
+  }
+}
+
+function openEtiquettesPdf() {
+  openPdf('/stocks/etiquettes.pdf')
 }
 
 function openProduitFromAlert(alerte) {
@@ -2206,6 +2913,24 @@ watch(onglet, () => {
   if (onglet.value !== 'alertes') {
     filters.alert_niveau = ''
     alertResume.value = emptyAlertResume()
+  }
+  if (onglet.value !== 'reservations') {
+    filters.reservation_statut = 'active'
+    reservationResume.value = emptyReservationResume()
+  }
+  if (onglet.value !== 'series') {
+    filters.series_statut = ''
+    seriesResume.value = emptySeriesResume()
+  }
+  if (onglet.value !== 'validations') {
+    filters.validation_statut = 'a_valider'
+    validationResume.value = emptyValidationResume()
+  }
+  if (onglet.value !== 'reappro') {
+    reapproResume.value = emptyReapproResume()
+  }
+  if (onglet.value !== 'rapports') {
+    rapports.value = emptyRapports()
   }
   reload(1)
 })
