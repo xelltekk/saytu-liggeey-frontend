@@ -1,6 +1,6 @@
 <template>
   <div class="space-y-4">
-    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-6">
       <button type="button" @click="setFactureFilter('')" class="stat-card" :class="activeFactureStatut === '' ? activeCardClass : ''">
         <span class="stat-label">Factures fournisseurs</span>
         <strong class="stat-value text-slate-900">{{ stats.total_factures || 0 }}</strong>
@@ -21,6 +21,10 @@
         <span class="stat-label">Réglé ce mois</span>
         <strong class="stat-value text-emerald-700">{{ formatPrice(stats.reglements_mois) }}</strong>
       </div>
+      <button type="button" @click="setControleFilter('bon_a_payer')" class="stat-card" :class="factureFilters.controle_paiement_statut === 'bon_a_payer' ? activeCardClass : ''">
+        <span class="stat-label">Bon à payer</span>
+        <strong class="stat-value text-cyan-700">{{ stats.bon_a_payer || 0 }}</strong>
+      </button>
     </div>
 
     <div class="flex flex-col gap-3 border-b border-slate-200 sm:flex-row sm:items-center sm:justify-between">
@@ -76,10 +80,11 @@
                 </button>
                 <p class="truncate text-sm font-semibold text-slate-800">{{ facture.fournisseur?.nom || 'Fournisseur' }}</p>
                 <p class="text-xs text-slate-500">Échéance {{ formatDate(facture.date_echeance) }} · {{ urgenceLabel(facture) }}</p>
+                <span class="badge mt-1 inline-flex" :class="controlePaiementBadge(facture.controle_paiement_statut)">{{ controlePaiementLabel(facture.controle_paiement_statut) }}</span>
               </div>
               <div class="flex flex-col items-end gap-2">
                 <span class="font-mono text-sm font-black text-orange-700">{{ formatPrice(facture.reste_a_payer) }}</span>
-                <button type="button" class="table-action" @click="openReglementForFacture(facture)">Payer</button>
+                <button v-if="canPayFacture(facture)" type="button" class="table-action" @click="openReglementForFacture(facture)">Payer</button>
               </div>
             </div>
             <p v-if="!debtDashboard.echeancier?.length" class="px-4 py-8 text-center text-sm text-slate-500">Aucune dette fournisseur à suivre.</p>
@@ -146,10 +151,11 @@
                 <div class="font-mono text-sm font-bold text-slate-800">{{ facture.numero }}</div>
                 <p class="text-sm font-semibold text-slate-700">{{ facture.fournisseur?.nom || 'Fournisseur' }}</p>
                 <p class="text-xs" :class="urgenceClass(facture)">{{ urgenceLabel(facture) }}</p>
+                <span class="badge mt-1 inline-flex" :class="controlePaiementBadge(facture.controle_paiement_statut)">{{ controlePaiementLabel(facture.controle_paiement_statut) }}</span>
               </div>
               <div class="flex flex-col items-end gap-2">
                 <span class="font-mono font-black text-orange-700">{{ formatPrice(facture.reste_a_payer) }}</span>
-                <button type="button" class="table-action" @click="openReglementForFacture(facture)">Préparer</button>
+                <button v-if="canPayFacture(facture)" type="button" class="table-action" @click="openReglementForFacture(facture)">Préparer</button>
               </div>
             </div>
             <p v-if="!debtDashboard.suggestions?.length" class="px-4 py-8 text-center text-sm text-slate-500">Aucune suggestion de paiement.</p>
@@ -160,7 +166,7 @@
 
     <section v-show="activeTab === 'factures'" class="space-y-4">
       <div class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-        <div class="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_220px_180px]">
+        <div class="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_220px_180px_190px]">
           <input v-model="factureFilters.search" @input="onFactureSearch" type="search" class="input" placeholder="Rechercher numéro, fournisseur, référence..." />
           <select v-model="factureFilters.fournisseur_id" @change="loadFactures(1)" class="input">
             <option value="">Tous fournisseurs</option>
@@ -174,12 +180,18 @@
             <option value="payee">Payée</option>
             <option value="annulee">Annulée</option>
           </select>
+          <select v-model="factureFilters.controle_paiement_statut" @change="loadFactures(1)" class="input">
+            <option value="">Tous contrôles</option>
+            <option value="a_controler">À contrôler</option>
+            <option value="bon_a_payer">Bon à payer</option>
+            <option value="bloque">Bloquées</option>
+          </select>
         </div>
       </div>
 
       <div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <div class="overflow-x-auto">
-          <table class="w-full min-w-[1080px]">
+          <table class="w-full min-w-[1240px]">
             <thead class="border-b border-slate-200 bg-slate-50">
               <tr>
                 <th class="th">N°</th>
@@ -191,6 +203,7 @@
                 <th class="th text-right">Total</th>
                 <th class="th text-right">Payé</th>
                 <th class="th text-right">Reste</th>
+                <th class="th text-center">Contrôle</th>
                 <th class="th text-center">Statut</th>
                 <th class="th text-right">Actions</th>
               </tr>
@@ -212,10 +225,17 @@
                 <td class="td text-right font-mono font-semibold">{{ formatPrice(facture.total_ttc) }}</td>
                 <td class="td text-right font-mono text-emerald-700">{{ formatPrice(facture.montant_paye) }}</td>
                 <td class="td text-right font-mono text-orange-700">{{ formatPrice(facture.reste_a_payer) }}</td>
+                <td class="td text-center">
+                  <span class="badge" :class="controlePaiementBadge(facture.controle_paiement_statut)">{{ controlePaiementLabel(facture.controle_paiement_statut) }}</span>
+                  <div v-if="facture.controle_paiement_note" class="mt-1 max-w-[160px] truncate text-xs text-slate-500" :title="facture.controle_paiement_note">{{ facture.controle_paiement_note }}</div>
+                </td>
                 <td class="td text-center"><span class="badge" :class="statutBadge(facture.statut)">{{ statutLabel(facture.statut) }}</span></td>
                 <td class="td">
-                  <div class="flex justify-end gap-2">
-                    <button v-if="Number(facture.reste_a_payer || 0) > 0" type="button" @click="openReglementForFacture(facture)" class="table-action">Payer</button>
+                  <div class="flex flex-wrap justify-end gap-2">
+                    <button v-if="Number(facture.reste_a_payer || 0) > 0 && facture.controle_paiement_statut !== 'bon_a_payer'" type="button" @click="updateControlePaiement(facture, 'bon_a_payer')" class="table-action">Bon à payer</button>
+                    <button v-if="Number(facture.reste_a_payer || 0) > 0 && facture.controle_paiement_statut !== 'a_controler'" type="button" @click="updateControlePaiement(facture, 'a_controler')" class="table-action">À contrôler</button>
+                    <button v-if="Number(facture.reste_a_payer || 0) > 0 && facture.controle_paiement_statut !== 'bloque'" type="button" @click="updateControlePaiement(facture, 'bloque')" class="table-danger">Bloquer</button>
+                    <button v-if="canPayFacture(facture)" type="button" @click="openReglementForFacture(facture)" class="table-action">Payer</button>
                     <button type="button" @click="openSupplierSituation(facture.fournisseur_id || facture.fournisseur?.id)" class="table-action">Situation</button>
                     <button type="button" @click="openFactureEdit(facture)" class="table-action">Modifier</button>
                     <button type="button" @click="deleteFacture(facture)" class="table-danger">Supprimer</button>
@@ -223,10 +243,10 @@
                 </td>
               </tr>
               <tr v-if="!factureLoading && factures.length === 0">
-                <td colspan="11" class="px-4 py-10 text-center text-sm text-slate-500">Aucune facture fournisseur</td>
+                <td colspan="12" class="px-4 py-10 text-center text-sm text-slate-500">Aucune facture fournisseur</td>
               </tr>
               <tr v-if="factureLoading">
-                <td colspan="11" class="px-4 py-10 text-center text-sm text-slate-500">Chargement...</td>
+                <td colspan="12" class="px-4 py-10 text-center text-sm text-slate-500">Chargement...</td>
               </tr>
             </tbody>
           </table>
@@ -353,12 +373,24 @@
             </select>
           </label>
           <label class="field-label">
+            Contrôle paiement
+            <select v-model="factureForm.controle_paiement_statut" class="input mt-1">
+              <option value="a_controler">À contrôler</option>
+              <option value="bon_a_payer">Bon à payer</option>
+              <option value="bloque">Bloquée</option>
+            </select>
+          </label>
+          <label class="field-label">
             Total TTC
             <input :value="formatPrice(totalFactureForm)" type="text" readonly class="input mt-1 bg-slate-50" />
           </label>
           <label class="field-label md:col-span-2">
             Notes
             <textarea v-model="factureForm.notes" rows="3" class="input mt-1"></textarea>
+          </label>
+          <label class="field-label md:col-span-2">
+            Note contrôle paiement
+            <textarea v-model="factureForm.controle_paiement_note" rows="2" class="input mt-1" placeholder="Ex: litige, validation gérant, attente avoir..."></textarea>
           </label>
         </div>
 
@@ -420,6 +452,7 @@
               <div>
                 <div class="font-mono text-sm font-semibold text-slate-800">{{ facture.numero }}</div>
                 <div class="text-xs text-slate-500">Reste: {{ formatPrice(facture.reste_a_payer) }} - Échéance: {{ formatDate(facture.date_echeance) }}</div>
+                <span class="badge mt-1 inline-flex" :class="controlePaiementBadge(facture.controle_paiement_statut)">{{ controlePaiementLabel(facture.controle_paiement_statut) }}</span>
               </div>
               <input
                 :disabled="!isFactureSelected(facture.id)"
@@ -483,10 +516,11 @@
               <div>
                 <div class="font-mono text-sm font-bold text-slate-800">{{ facture.numero }}</div>
                 <p class="text-xs text-slate-500">Échéance {{ formatDate(facture.date_echeance) }} · {{ urgenceLabel(facture) }}</p>
+                <span class="badge mt-1 inline-flex" :class="controlePaiementBadge(facture.controle_paiement_statut)">{{ controlePaiementLabel(facture.controle_paiement_statut) }}</span>
               </div>
               <div class="flex flex-col items-end gap-2">
                 <span class="font-mono font-black text-orange-700">{{ formatPrice(facture.reste_a_payer) }}</span>
-                <button type="button" class="table-action" @click="openReglementForFacture(facture)">Payer</button>
+                <button v-if="canPayFacture(facture)" type="button" class="table-action" @click="openReglementForFacture(facture)">Payer</button>
               </div>
             </div>
             <p v-if="!supplierSituation.factures_impayees?.length" class="px-4 py-8 text-center text-sm text-slate-500">Aucune facture impayée.</p>
@@ -573,6 +607,8 @@ const stats = reactive({
   impayees: 0,
   en_retard: 0,
   dette_total: 0,
+  bon_a_payer: 0,
+  bloquees: 0,
   reglements_mois: 0,
 })
 
@@ -593,7 +629,7 @@ const supplierSituation = reactive({
   reglements: [],
 })
 
-const factureFilters = reactive({ search: '', fournisseur_id: '', statut: '', etat: '' })
+const factureFilters = reactive({ search: '', fournisseur_id: '', statut: '', etat: '', controle_paiement_statut: '' })
 const reglementFilters = reactive({ search: '', fournisseur_id: '', statut: '' })
 const factureMeta = reactive({ current_page: 1, last_page: 1, total: 0, from: 0, to: 0 })
 const reglementMeta = reactive({ current_page: 1, last_page: 1, total: 0, from: 0, to: 0 })
@@ -603,6 +639,8 @@ const factureForm = reactive({
   reference_fournisseur: '',
   objet: '',
   statut: 'validee',
+  controle_paiement_statut: 'a_controler',
+  controle_paiement_note: '',
   date_facture: todayInput(),
   date_echeance: '',
   montant_ht: 0,
@@ -626,7 +664,7 @@ const debtKpiCards = computed(() => [
   { label: 'Dette totale', value: formatPrice(debtDashboard.kpis?.dette_total), hint: `${debtDashboard.kpis?.factures_impayees || 0} facture(s) impayée(s)`, color: 'text-blue-700' },
   { label: 'En retard', value: formatPrice(debtDashboard.kpis?.montant_en_retard), hint: `${debtDashboard.kpis?.factures_en_retard || 0} facture(s)`, color: 'text-red-700' },
   { label: 'À 7 jours', value: formatPrice(debtDashboard.kpis?.a_regler_7_jours), hint: `${debtDashboard.kpis?.factures_7_jours || 0} échéance(s) proche(s)`, color: 'text-orange-700' },
-  { label: 'Réglé ce mois', value: formatPrice(debtDashboard.kpis?.reglements_mois), hint: `En attente: ${formatPrice(debtDashboard.kpis?.reglements_en_attente)}`, color: 'text-emerald-700' },
+  { label: 'Contrôle paiement', value: formatPrice(debtDashboard.kpis?.bon_a_payer), hint: `${debtDashboard.kpis?.factures_bon_a_payer || 0} bon(s) · bloqué: ${formatPrice(debtDashboard.kpis?.montant_bloque)}`, color: 'text-cyan-700' },
 ])
 const agingTotal = computed(() => (debtDashboard.aging || []).reduce((sum, bucket) => sum + Number(bucket.amount || 0), 0))
 const supplierSituationCards = computed(() => [
@@ -699,6 +737,7 @@ async function loadFactures(page = 1) {
       fournisseur_id: factureFilters.fournisseur_id || undefined,
       statut: factureFilters.statut || undefined,
       etat: factureFilters.etat || undefined,
+      controle_paiement_statut: factureFilters.controle_paiement_statut || undefined,
     }
     const { data } = await api.get('/fournisseurs-reglements/factures', { params })
     factures.value = data.data || []
@@ -744,6 +783,12 @@ function setFactureFilter(type) {
   loadFactures(1)
 }
 
+function setControleFilter(type) {
+  activeTab.value = 'factures'
+  factureFilters.controle_paiement_statut = type || ''
+  loadFactures(1)
+}
+
 function onFactureStatutChange() {
   activeFactureStatut.value = ''
   factureFilters.etat = ''
@@ -757,6 +802,8 @@ function resetFactureForm() {
     reference_fournisseur: '',
     objet: '',
     statut: 'validee',
+    controle_paiement_statut: 'a_controler',
+    controle_paiement_note: '',
     date_facture: todayInput(),
     date_echeance: '',
     montant_ht: 0,
@@ -777,6 +824,8 @@ function openFactureEdit(facture) {
     reference_fournisseur: facture.reference_fournisseur || '',
     objet: facture.objet || '',
     statut: ['payee', 'partiellement_payee'].includes(facture.statut) ? 'validee' : facture.statut,
+    controle_paiement_statut: facture.controle_paiement_statut || 'a_controler',
+    controle_paiement_note: facture.controle_paiement_note || '',
     date_facture: normalizeDate(facture.date_facture),
     date_echeance: normalizeDate(facture.date_echeance),
     montant_ht: Number(facture.montant_ht || 0),
@@ -815,6 +864,29 @@ async function deleteFacture(facture) {
     await Promise.all([loadStats(), loadDebtDashboard(), loadFactures(factureMeta.current_page)])
   } catch (error) {
     showApiError(error)
+  }
+}
+
+async function updateControlePaiement(facture, statut) {
+  const labels = {
+    a_controler: 'remettre cette facture à contrôler',
+    bon_a_payer: 'marquer cette facture comme bon à payer',
+    bloque: 'bloquer cette facture au paiement',
+  }
+  const tone = statut === 'bloque' ? 'danger' : 'info'
+  if (!await askConfirm({ message: `Voulez-vous ${labels[statut] || 'modifier le contrôle paiement'} ?`, tone, confirmLabel: statut === 'bloque' ? 'Bloquer' : 'Confirmer' })) return
+
+  try {
+    await api.patch(`/fournisseurs-reglements/factures/${facture.id}/controle-paiement`, {
+      controle_paiement_statut: statut,
+      controle_paiement_note: statut === 'bloque'
+        ? (facture.controle_paiement_note || 'Blocage manuel avant règlement.')
+        : facture.controle_paiement_note || null,
+    })
+    toast.success('Contrôle paiement mis à jour.')
+    await Promise.all([loadStats(), loadDebtDashboard(), loadFactures(factureMeta.current_page)])
+  } catch (error) {
+    showApiError(error, 'Impossible de mettre à jour le contrôle paiement.')
   }
 }
 
@@ -882,7 +954,7 @@ async function loadFacturesImpayees() {
 
 function selectAllFacturesImpayees() {
   reglementForm.factures = facturesImpayees.value
-    .filter((facture) => Number(facture.reste_a_payer || 0) > 0)
+    .filter((facture) => canPayFacture(facture))
     .map((facture) => ({
       facture_id: facture.id,
       montant_affecte: Number(facture.reste_a_payer || 0),
@@ -1017,6 +1089,7 @@ async function exporterFacturesCSV() {
       fournisseur_id: factureFilters.fournisseur_id || undefined,
       statut: factureFilters.statut || undefined,
       etat: factureFilters.etat || undefined,
+      controle_paiement_statut: factureFilters.controle_paiement_statut || undefined,
     }, 'factures_fournisseurs.csv')
     toast.success('Export des factures fournisseurs téléchargé.')
   } catch (error) {
@@ -1064,6 +1137,26 @@ function urgenceClass(facture) {
     proche: 'text-amber-700 font-semibold',
     normale: 'text-slate-500',
   }[facture?.urgence] || 'text-slate-500'
+}
+
+function controlePaiementLabel(statut) {
+  return {
+    a_controler: 'À contrôler',
+    bon_a_payer: 'Bon à payer',
+    bloque: 'Bloquée',
+  }[statut || 'a_controler'] || 'À contrôler'
+}
+
+function controlePaiementBadge(statut) {
+  return {
+    a_controler: 'bg-slate-100 text-slate-700',
+    bon_a_payer: 'bg-cyan-100 text-cyan-700',
+    bloque: 'bg-red-100 text-red-700',
+  }[statut || 'a_controler'] || 'bg-slate-100 text-slate-700'
+}
+
+function canPayFacture(facture) {
+  return Number(facture?.reste_a_payer || 0) > 0 && (facture?.controle_paiement_statut || 'a_controler') !== 'bloque'
 }
 
 function statutLabel(statut) {
