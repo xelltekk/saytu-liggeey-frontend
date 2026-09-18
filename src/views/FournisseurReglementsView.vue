@@ -517,7 +517,7 @@
 </template>
 
 <script setup>
-import { computed, defineComponent, h, onMounted, reactive, ref } from 'vue'
+import { computed, defineComponent, h, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import api from '@/services/api'
 import AppModal from '@/components/AppModal.vue'
@@ -1119,11 +1119,39 @@ function modeLabel(mode) {
   }[mode] || mode
 }
 
-onMounted(() => {
+function applyRouteQuery() {
+  if (route.query.tab === 'pilotage') {
+    activeTab.value = 'pilotage'
+  } else if (route.query.tab === 'reglements') {
+    activeTab.value = 'reglements'
+  } else if (!route.query.search) {
+    activeTab.value = 'factures'
+  }
+
   if (route.query.search) {
     activeTab.value = 'factures'
     factureFilters.search = String(route.query.search)
   }
+
+  if (route.query.etat) {
+    factureFilters.etat = String(route.query.etat)
+    activeFactureStatut.value = String(route.query.etat)
+    if (route.query.tab !== 'pilotage') {
+      activeTab.value = 'factures'
+    }
+  }
+}
+
+watch(
+  () => route.query,
+  () => {
+    applyRouteQuery()
+    if (activeTab.value === 'pilotage') loadDebtDashboard()
+  }
+)
+
+onMounted(() => {
+  applyRouteQuery()
   loadInitialData()
 })
 </script>
