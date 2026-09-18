@@ -309,9 +309,17 @@
                   </div>
                   <span v-else>-</span>
                 </td>
-                <td class="td text-center"><span class="badge" :class="reglementBadge(reglement.statut)">{{ reglementLabel(reglement.statut) }}</span></td>
-                <td class="td text-right">
-                  <button type="button" @click="deleteReglement(reglement)" class="table-danger">Supprimer</button>
+                <td class="td text-center">
+                  <span class="badge" :class="reglementBadge(reglement.statut)">{{ reglementLabel(reglement.statut) }}</span>
+                  <div v-if="reglement.validateur_paiement" class="mt-1 text-[11px] text-slate-500">{{ reglement.validateur_paiement.name }}</div>
+                </td>
+                <td class="td">
+                  <div class="flex flex-wrap justify-end gap-2">
+                    <button v-if="reglement.statut !== 'valide'" type="button" @click="updateReglementStatut(reglement, 'valide')" class="table-action">Valider</button>
+                    <button v-if="reglement.statut === 'en_attente'" type="button" @click="updateReglementStatut(reglement, 'rejete')" class="table-danger">Rejeter</button>
+                    <button v-if="['en_attente', 'valide'].includes(reglement.statut)" type="button" @click="updateReglementStatut(reglement, 'annule')" class="table-danger">Annuler</button>
+                    <button type="button" @click="deleteReglement(reglement)" class="table-danger">Supprimer</button>
+                  </div>
                 </td>
               </tr>
               <tr v-if="!reglementLoading && reglements.length === 0">
@@ -431,6 +439,13 @@
           <label class="field-label">
             Montant réglé
             <input v-model.number="reglementForm.montant" type="number" min="1" step="1" required class="input mt-1" />
+          </label>
+          <label class="field-label">
+            Statut initial
+            <select v-model="reglementForm.statut" class="input mt-1">
+              <option value="en_attente">En attente validation</option>
+              <option value="valide">Validé immédiatement</option>
+            </select>
           </label>
           <label class="field-label">
             Référence paiement
@@ -653,6 +668,7 @@ const reglementForm = reactive({
   date_reglement: todayInput(),
   montant: 0,
   mode_paiement: 'virement',
+  statut: 'en_attente',
   reference_paiement: '',
   banque: '',
   notes: '',
@@ -896,6 +912,7 @@ function resetReglementForm() {
     date_reglement: todayInput(),
     montant: 0,
     mode_paiement: 'virement',
+    statut: 'en_attente',
     reference_paiement: '',
     banque: '',
     notes: '',
@@ -1032,6 +1049,35 @@ async function deleteReglement(reglement) {
     await Promise.all([loadStats(), loadDebtDashboard(), loadFactures(factureMeta.current_page), loadReglements(reglementMeta.current_page)])
   } catch (error) {
     showApiError(error)
+  }
+}
+
+async function updateReglementStatut(reglement, statut) {
+  const labels = {
+    valide: 'valider ce règlement fournisseur',
+    rejete: 'rejeter ce règlement fournisseur',
+    annule: 'annuler ce règlement fournisseur',
+    en_attente: 'remettre ce règlement en attente',
+  }
+  const confirmLabel = {
+    valide: 'Valider',
+    rejete: 'Rejeter',
+    annule: 'Annuler',
+    en_attente: 'Confirmer',
+  }[statut] || 'Confirmer'
+  const tone = statut === 'valide' ? 'primary' : 'danger'
+
+  if (!await askConfirm({ message: `Voulez-vous ${labels[statut] || 'modifier ce règlement'} ?`, tone, confirmLabel })) return
+
+  try {
+    await api.patch(`/fournisseurs-reglements/reglements/${reglement.id}/statut`, {
+      statut,
+      decision_note: statut === 'valide' ? 'Validation depuis le module règlements fournisseurs.' : null,
+    })
+    toast.success('Statut du règlement mis à jour.')
+    await Promise.all([loadStats(), loadDebtDashboard(), loadFactures(factureMeta.current_page), loadReglements(reglementMeta.current_page)])
+  } catch (error) {
+    showApiError(error, 'Impossible de modifier le statut du règlement.')
   }
 }
 
