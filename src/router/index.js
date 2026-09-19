@@ -251,7 +251,7 @@ const routeRoles = {
   '/achats': ['admin', 'gerant', 'magasinier', 'comptable'],
   '/leasing': ['admin', 'gerant', 'commercial', 'magasinier', 'comptable'],
   '/fournisseurs-reglements': ['admin', 'gerant', 'comptable'],
-  '/depenses': ['admin', 'gerant', 'comptable', 'caissier', 'commercial', 'magasinier'],
+  '/depenses': ['admin', 'gerant', 'comptable'],
   '/tresorerie-comptes': ['admin', 'gerant', 'comptable'],
   '/caisse': ['admin', 'gerant', 'comptable', 'caissier'],
   '/compta': ['admin', 'gerant', 'comptable'],
@@ -300,7 +300,7 @@ const routePermissions = {
 }
 
 function shouldOpenOnboarding(user) {
-  return user?.role === 'admin'
+  return roleForAccess(user) === 'admin'
     && user?.onboarding?.enabled
     && !user.onboarding.completed
     && !user?.tenant?.is_platform
@@ -308,14 +308,18 @@ function shouldOpenOnboarding(user) {
 }
 
 function homeRouteForUser(user) {
-  if (user?.role === 'caissier') return 'caisse'
+  if (roleForAccess(user) === 'caissier') return 'caisse'
   if (shouldOpenOnboarding(user)) return 'onboarding'
   return 'dashboard'
 }
 
+function roleForAccess(user) {
+  return user?.base_role || user?.role
+}
+
 function hasPermission(user, permission) {
   if (!permission) return false
-  if (user?.role === 'admin') return true
+  if (roleForAccess(user) === 'admin') return true
   return Array.isArray(user?.permissions?.flat) && user.permissions.flat.includes(permission)
 }
 
@@ -363,7 +367,8 @@ router.beforeEach(async (to, from, next) => {
   }
 
   // 3) Vérification du rôle pour cette route
-  const role = auth.user?.role
+  const role = roleForAccess(auth.user)
+  const directRole = auth.user?.role
   if (to.name === 'licence' && isXelltekkAdmin(auth.user)) {
     return next({ name: 'xelltekk-admin' })
   }
@@ -379,7 +384,7 @@ router.beforeEach(async (to, from, next) => {
     const prefix = Object.keys(routeRoles).find(p => to.path.startsWith(p))
     if (prefix) {
       const allowedRoles = routeRoles[prefix]
-      if (! allowedRoles.includes(role) && !hasPermission(auth.user, routePermissions[prefix])) {
+      if (! allowedRoles.includes(role) && ! allowedRoles.includes(directRole) && !hasPermission(auth.user, routePermissions[prefix])) {
         // Pas autorisé → vers le dashboard (évite la boucle car dashboard est libre)
         if (to.name !== 'dashboard') {
           return next({ name: role === 'caissier' ? 'caisse' : 'dashboard' })
