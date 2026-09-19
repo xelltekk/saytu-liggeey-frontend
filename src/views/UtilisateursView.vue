@@ -76,6 +76,67 @@
       </div>
     </section>
 
+    <section class="rounded-3xl border border-cyan-200 bg-cyan-50/70 p-4 shadow-sm">
+      <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <h2 class="font-black text-slate-950">Journal des comptes utilisateurs</h2>
+          <p class="mt-1 text-sm text-slate-600">
+            Dernières actions sensibles : création, modification, activation, désactivation, reset mot de passe et suppression.
+          </p>
+        </div>
+        <button type="button" class="btn-secondary px-3 py-2 text-xs" :disabled="userActivitiesLoading" @click="loadUserActivities(true)">
+          {{ userActivitiesLoading ? 'Chargement...' : 'Rafraîchir le journal' }}
+        </button>
+      </div>
+
+      <div v-if="userActivities.length" class="mt-4 overflow-x-auto rounded-2xl border border-cyan-100 bg-white">
+        <table class="min-w-full text-sm">
+          <thead class="bg-cyan-100/70 text-left text-xs uppercase tracking-wide text-slate-600">
+            <tr>
+              <th class="px-3 py-2">Date</th>
+              <th class="px-3 py-2">Auteur</th>
+              <th class="px-3 py-2">Action</th>
+              <th class="px-3 py-2">Compte concerné</th>
+              <th class="px-3 py-2">Détails</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-cyan-100">
+            <tr v-for="activity in userActivities" :key="`${activity.date}-${activity.event}-${activity.subject_id}`">
+              <td class="whitespace-nowrap px-3 py-3 text-xs font-semibold text-slate-600">{{ formatDateTime(activity.date) }}</td>
+              <td class="px-3 py-3">
+                <div class="font-bold text-slate-900">{{ activity.user_name || 'Système' }}</div>
+                <div class="text-xs text-slate-500">{{ roleLabel(activity.user_role) || activity.user_role || '—' }}</div>
+              </td>
+              <td class="px-3 py-3">
+                <span class="rounded-full px-2 py-1 text-xs font-black" :class="activityEventClass(activity.event)">
+                  {{ userActivityLabel(activity.event, activity.title) }}
+                </span>
+                <div v-if="activity.description" class="mt-1 max-w-md text-xs text-slate-500">{{ activity.description }}</div>
+              </td>
+              <td class="px-3 py-3">
+                <div class="font-bold text-slate-900">{{ activityTargetName(activity) }}</div>
+                <div class="font-mono text-xs text-slate-500">{{ activity.reference || '—' }}</div>
+              </td>
+              <td class="px-3 py-3">
+                <div class="flex flex-wrap gap-1">
+                  <span
+                    v-for="detail in activityDetails(activity)"
+                    :key="detail"
+                    class="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600"
+                  >
+                    {{ detail }}
+                  </span>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div v-else class="mt-4 rounded-2xl border border-dashed border-cyan-200 bg-white/70 p-6 text-center text-sm text-slate-500">
+        Aucun événement utilisateur enregistré pour le moment.
+      </div>
+    </section>
+
     <!-- Header + filtres -->
     <div class="rounded-3xl border border-gray-200 bg-white p-4 shadow-sm">
       <div class="flex flex-col md:flex-row gap-3">
@@ -264,6 +325,8 @@ const resetUser = ref(null)
 const resetMode = ref('generate')
 const resetForm = reactive({ password: '' })
 const resetting = ref(false)
+const userActivities = ref([])
+const userActivitiesLoading = ref(false)
 
 const inactiveUsersCount = computed(() => Math.max(0, Number(stats.total || 0) - Number(stats.actifs || 0)))
 
@@ -335,8 +398,8 @@ const accessModules = computed(() => [
   {
     key: 'journal',
     title: 'Journal accès',
-    description: 'Prévu pour afficher connexions réussies, échecs, changements de rôle et resets.',
-    status: 'Audit',
+    description: 'Affiche les créations, resets, suppressions et changements sensibles des comptes.',
+    status: `${userActivities.value.length} action(s)`,
     badgeClass: 'bg-violet-50 text-violet-700',
   },
   {
@@ -454,6 +517,24 @@ async function loadRoleOptions() {
   }
 }
 
+async function loadUserActivities(notify = false) {
+  userActivitiesLoading.value = true
+  try {
+    const { data } = await api.get('/activites', {
+      params: {
+        category: 'utilisateurs',
+        limit: 80,
+      },
+    })
+    userActivities.value = Array.isArray(data.data) ? data.data : []
+    if (notify) toast.success('Journal des comptes actualisé.')
+  } catch (e) {
+    if (notify) toast.error('Journal des comptes impossible à charger.')
+  } finally {
+    userActivitiesLoading.value = false
+  }
+}
+
 function openCreate() { editingUser.value = null; showModal.value = true }
 function openEdit(u) { editingUser.value = { ...u }; showModal.value = true }
 
@@ -461,6 +542,7 @@ function onSaved(payload) {
   showModal.value = false
   loadUsers(meta.current_page)
   loadStats()
+  loadUserActivities()
 
   if (payload.user?.id === auth.user?.id) {
     auth.user = payload.user
@@ -485,6 +567,7 @@ async function handleDelete() {
     showDeleteModal.value = false
     loadUsers(meta.current_page)
     loadStats()
+    loadUserActivities()
   } catch (err) {
     toast.error(err.response.data.message || 'Erreur')
   } finally {
@@ -498,6 +581,7 @@ async function toggleActif(u) {
     toast.success(data.message)
     loadUsers(meta.current_page)
     loadStats()
+    loadUserActivities()
   } catch (err) {
     toast.error(err.response.data.message || 'Erreur')
   }
@@ -522,6 +606,7 @@ async function handleResetPassword() {
     passwordUserName.value = resetUser.value.name
     generatedPassword.value = data.password_genere
     showPasswordModal.value = true
+    loadUserActivities()
   } catch (err) {
     toast.error(err.response.data.message || 'Erreur')
   } finally {
@@ -578,7 +663,64 @@ function roleBadge(r) {
   }[r] || 'bg-gray-100'
 }
 
-onMounted(() => { loadRoleOptions(); loadUsers(); loadStats() })
+function formatDateTime(value) {
+  if (!value) return '—'
+  try {
+    return new Intl.DateTimeFormat('fr-FR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(new Date(value))
+  } catch (e) {
+    return value
+  }
+}
+
+function userActivityLabel(event, fallback) {
+  return {
+    user_created: 'Création',
+    user_updated: 'Modification',
+    user_activated: 'Activation',
+    user_deactivated: 'Désactivation',
+    user_password_reset: 'Reset mot de passe',
+    user_deleted: 'Suppression',
+    user_photo_updated: 'Photo modifiée',
+    user_photo_deleted: 'Photo supprimée',
+  }[event] || fallback || event || 'Action'
+}
+
+function activityEventClass(event) {
+  if (event === 'user_deleted' || event === 'user_deactivated') return 'bg-red-50 text-red-700'
+  if (event === 'user_password_reset') return 'bg-amber-50 text-amber-700'
+  if (event === 'user_created' || event === 'user_activated') return 'bg-emerald-50 text-emerald-700'
+  return 'bg-cyan-50 text-cyan-700'
+}
+
+function activityTargetName(activity) {
+  return activity?.payload?.metadata?.target?.name
+    || activity?.payload?.metadata?.after?.name
+    || activity?.subject_label
+    || 'Compte utilisateur'
+}
+
+function activityDetails(activity) {
+  const metadata = activity?.payload?.metadata || {}
+  const details = []
+
+  if (Array.isArray(metadata.changed_fields) && metadata.changed_fields.length) {
+    details.push(`Champs : ${metadata.changed_fields.join(', ')}`)
+  }
+  if (metadata.tokens_revoked) details.push('Sessions fermées')
+  if (metadata.generated_password === true) details.push('Mot de passe généré')
+  if (metadata.generated_password === false && activity.event === 'user_password_reset') details.push('Mot de passe défini')
+  if (metadata.photo_changed) details.push('Photo remplacée')
+
+  return details.length ? details : ['Journalisé']
+}
+
+onMounted(() => { loadRoleOptions(); loadUsers(); loadStats(); loadUserActivities() })
 </script>
 
 <style scoped>
