@@ -67,6 +67,124 @@
       </button>
     </div>
 
+    <div class="rounded-lg border border-xelltekk-100 bg-white shadow-sm">
+      <div class="flex flex-col gap-2 border-b border-xelltekk-100 px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <h4 class="font-semibold text-gray-900">Pilotage devis</h4>
+          <p class="text-xs text-gray-500">Décidez vite quoi finaliser, relancer, convertir ou analyser.</p>
+        </div>
+        <div class="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4 lg:w-auto">
+          <button type="button" class="rounded-xl border border-cyan-100 bg-cyan-50 px-3 py-2 text-left" @click="applyStatutFilter('envoye')">
+            <span class="block text-[11px] font-semibold uppercase text-cyan-700">En attente</span>
+            <span class="block font-bold text-cyan-900">{{ formatPrice(stats.montant_total_en_attente) }} XOF</span>
+          </button>
+          <button type="button" class="rounded-xl border border-orange-100 bg-orange-50 px-3 py-2 text-left" @click="applySuiviFilter('a_relancer')">
+            <span class="block text-[11px] font-semibold uppercase text-orange-700">À relancer</span>
+            <span class="block font-bold text-orange-900">{{ formatPrice(stats.montant_a_relancer) }} XOF</span>
+          </button>
+          <button type="button" class="rounded-xl border border-green-100 bg-green-50 px-3 py-2 text-left" @click="applySuiviFilter('acceptes_a_facturer')">
+            <span class="block text-[11px] font-semibold uppercase text-green-700">À facturer</span>
+            <span class="block font-bold text-green-900">{{ stats.acceptes_a_facturer || 0 }} devis</span>
+          </button>
+          <div class="rounded-xl border border-xelltekk-100 bg-xelltekk-50 px-3 py-2">
+            <span class="block text-[11px] font-semibold uppercase text-xelltekk-700">Acceptation</span>
+            <span class="block font-bold text-xelltekk-900">{{ stats.taux_acceptation || 0 }}%</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid gap-3 p-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+        <button
+          v-for="stage in pipelineDevis"
+          :key="stage.key"
+          type="button"
+          class="rounded-xl border bg-gradient-to-br p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+          :class="devisPipelineCardClass(stage)"
+          @click="applyPipelineFilter(stage)"
+        >
+          <div class="flex items-start justify-between gap-2">
+            <div>
+              <div class="text-xs font-bold uppercase tracking-wide text-gray-700">{{ stage.label }}</div>
+              <div class="mt-1 text-[11px] leading-snug text-gray-500">{{ stage.description }}</div>
+            </div>
+            <span class="rounded-full px-2.5 py-1 text-xs font-bold" :class="devisPipelineBadgeClass(stage.key)">{{ stage.count || 0 }}</span>
+          </div>
+          <div class="mt-3 font-semibold text-gray-900">{{ formatPrice(stage.amount) }} XOF</div>
+        </button>
+      </div>
+
+      <div class="grid gap-3 border-t border-xelltekk-100 p-3 lg:grid-cols-3">
+        <div class="rounded-xl border border-gray-100 bg-gray-50/70 p-3">
+          <div class="text-xs font-semibold uppercase text-gray-500">Indicateurs</div>
+          <div class="mt-3 grid grid-cols-2 gap-2 text-sm">
+            <div class="rounded-lg bg-white p-2">
+              <div class="text-[11px] text-gray-500">Transformation</div>
+              <div class="font-bold text-xelltekk-800">{{ stats.taux_transformation || 0 }}%</div>
+            </div>
+            <div class="rounded-lg bg-white p-2">
+              <div class="text-[11px] text-gray-500">Panier moyen</div>
+              <div class="font-bold text-xelltekk-800">{{ formatPrice(stats.panier_moyen) }}</div>
+            </div>
+            <div class="rounded-lg bg-white p-2">
+              <div class="text-[11px] text-gray-500">Décidés</div>
+              <div class="font-bold text-xelltekk-800">{{ stats.decides || 0 }}</div>
+            </div>
+            <div class="rounded-lg bg-white p-2">
+              <div class="text-[11px] text-gray-500">Délai décision</div>
+              <div class="font-bold text-xelltekk-800">{{ stats.delai_moyen_decision_jours ?? '–' }} j</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="rounded-xl border border-orange-100 bg-orange-50/70 p-3">
+          <div class="mb-2 flex items-center justify-between">
+            <h5 class="font-semibold text-orange-800">Relances prioritaires</h5>
+            <button type="button" class="text-xs font-semibold text-orange-700 hover:underline" @click="applySuiviFilter('a_relancer')">Tout voir</button>
+          </div>
+          <div class="space-y-2">
+            <div v-for="item in relancesPrioritaires" :key="`relance-${item.id}`" class="rounded-lg bg-white p-2 shadow-sm">
+              <div class="flex items-start justify-between gap-2">
+                <div class="min-w-0">
+                  <div class="truncate text-sm font-semibold text-gray-900">{{ item.numero }} · {{ item.client?.nom || 'Client' }}</div>
+                  <div class="text-xs text-orange-700">{{ followUpHint(item) }} · {{ formatPrice(item.total_ttc) }} XOF</div>
+                  <div class="text-[11px] text-gray-500">{{ item.action_recommandee || 'Relancer le client' }}</div>
+                </div>
+                <div class="flex shrink-0 flex-wrap justify-end gap-1">
+                  <EmailActionButtons v-if="item.client?.email" :draft="relanceEmailDraft(item)" :filename="`relance-devis-${item.numero || item.id}`" dialog compact />
+                  <button type="button" class="text-xs font-semibold text-xelltekk-700 hover:underline" @click="openEdit(item)">Ouvrir</button>
+                </div>
+              </div>
+            </div>
+            <div v-if="!relancesPrioritaires.length" class="py-4 text-center text-xs text-gray-400">Aucune relance prioritaire.</div>
+          </div>
+        </div>
+
+        <div class="rounded-xl border border-cyan-100 bg-cyan-50/70 p-3">
+          <div class="mb-2 flex items-center justify-between">
+            <h5 class="font-semibold text-cyan-800">Gros devis ouverts</h5>
+            <button type="button" class="text-xs font-semibold text-cyan-700 hover:underline" @click="applySuiviFilter('gros')">Tout voir</button>
+          </div>
+          <div class="space-y-2">
+            <div v-for="item in grosDevis" :key="`gros-${item.id}`" class="rounded-lg bg-white p-2 shadow-sm">
+              <div class="flex items-start justify-between gap-2">
+                <div class="min-w-0">
+                  <div class="truncate text-sm font-semibold text-gray-900">{{ item.numero }} · {{ item.client?.nom || 'Client' }}</div>
+                  <div class="text-xs text-cyan-700">{{ statutLabel(item.statut) }} · {{ formatPrice(item.total_ttc) }} XOF</div>
+                  <div class="text-[11px] text-gray-500">{{ item.action_recommandee || followUpLabel(item) }}</div>
+                </div>
+                <div class="flex shrink-0 flex-wrap justify-end gap-1">
+                  <button v-if="item.statut === 'accepte'" type="button" class="text-xs font-semibold text-green-700 hover:underline" @click="confirmConvertir(item)">Facturer</button>
+                  <button type="button" class="text-xs font-semibold text-xelltekk-700 hover:underline" @click="ouvrirPdf(item)">PDF</button>
+                  <button type="button" class="text-xs font-semibold text-xelltekk-700 hover:underline" @click="openEdit(item)">Ouvrir</button>
+                </div>
+              </div>
+            </div>
+            <div v-if="!grosDevis.length" class="py-4 text-center text-xs text-gray-400">Aucun gros devis ouvert.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Loader -->
     <div v-if="loading" class="bg-white rounded-lg p-12 text-center text-gray-500">
       Chargement...
@@ -309,9 +427,19 @@ const stats = reactive({
   expires: 0,
   a_relancer: 0,
   acceptes_a_facturer: 0,
+  ouverts: 0,
+  decides: 0,
+  montant_total: 0,
   montant_total_acceptes: 0,
   montant_total_en_attente: 0,
+  montant_total_factures: 0,
+  montant_total_refuses: 0,
+  montant_total_expires: 0,
   montant_a_relancer: 0,
+  panier_moyen: 0,
+  taux_acceptation: 0,
+  taux_transformation: 0,
+  delai_moyen_decision_jours: null,
   pipeline: [],
   relances_prioritaires: [],
   gros_devis: [],
@@ -350,6 +478,14 @@ const sortedDevis = computed(() => sortedRows(devis.value, {
   statut: 'statut',
 }))
 
+const pipelineDevis = computed(() => (stats.pipeline || []).map((stage) => ({
+  ...stage,
+  count: Number(stage.count || 0),
+  amount: Number(stage.amount || 0),
+})))
+const relancesPrioritaires = computed(() => stats.relances_prioritaires || [])
+const grosDevis = computed(() => stats.gros_devis || [])
+
 let searchTimeout = null
 function onSearchInput() {
   clearTimeout(searchTimeout)
@@ -374,6 +510,22 @@ function applySuiviFilter(suivi) {
   loadDevis(1)
 }
 
+function applyPipelineFilter(stage) {
+  if (['brouillon', 'envoye', 'accepte', 'facture'].includes(stage.key)) {
+    applyStatutFilter(stage.key)
+    return
+  }
+
+  if (stage.key === 'expire') {
+    applySuiviFilter('expires')
+    return
+  }
+
+  if (stage.key === 'a_relancer') {
+    applySuiviFilter('a_relancer')
+  }
+}
+
 function onStatutSelectChange() {
   if (filters.statut) filters.suivi = ''
   loadDevis(1)
@@ -394,6 +546,39 @@ function suiviCardClass(suivi) {
   return filters.suivi === suivi ?
      'border-xelltekk-500 bg-xelltekk-50 ring-2 ring-xelltekk-100'
     : 'border-gray-200'
+}
+
+function devisPipelineActive(stage) {
+  if (['brouillon', 'envoye', 'accepte', 'facture'].includes(stage.key)) {
+    return !filters.suivi && filters.statut === stage.key
+  }
+  if (stage.key === 'expire') return filters.suivi === 'expires'
+  if (stage.key === 'a_relancer') return filters.suivi === 'a_relancer'
+  return false
+}
+
+function devisPipelineCardClass(stage) {
+  const base = {
+    brouillon: 'from-gray-50 to-white border-gray-200',
+    envoye: 'from-blue-50 to-white border-blue-200',
+    a_relancer: 'from-orange-50 to-white border-orange-200',
+    accepte: 'from-green-50 to-white border-green-200',
+    facture: 'from-purple-50 to-white border-purple-200',
+    expire: 'from-red-50 to-white border-red-200',
+  }[stage.key] || 'from-white to-white border-gray-200'
+
+  return devisPipelineActive(stage) ? `${base} ring-2 ring-xelltekk-200` : base
+}
+
+function devisPipelineBadgeClass(key) {
+  return {
+    brouillon: 'bg-gray-100 text-gray-700',
+    envoye: 'bg-blue-100 text-blue-700',
+    a_relancer: 'bg-orange-100 text-orange-700',
+    accepte: 'bg-green-100 text-green-700',
+    facture: 'bg-purple-100 text-purple-700',
+    expire: 'bg-red-100 text-red-700',
+  }[key] || 'bg-gray-100 text-gray-700'
 }
 
 async function loadDevis(page = 1) {
