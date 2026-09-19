@@ -55,15 +55,29 @@
         <div v-else class="divide-y divide-[color:var(--saytu-border,#e2e8f0)]">
           <div v-for="token in activeTokens" :key="token.id" class="flex flex-col gap-3 px-4 py-3 md:flex-row md:items-center md:justify-between">
             <div class="min-w-0">
-              <p class="truncate font-bold text-[color:var(--saytu-shell-text,#0f172a)]">{{ token.user_name || 'Utilisateur' }}</p>
-              <p class="truncate text-xs text-[color:var(--saytu-muted,#64748b)]">{{ token.name || 'Session API' }}</p>
+              <div class="flex flex-wrap items-center gap-2">
+                <p class="truncate font-bold text-[color:var(--saytu-shell-text,#0f172a)]">{{ token.user_name || 'Utilisateur' }}</p>
+                <span v-if="token.is_current" class="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-black text-emerald-700">
+                  Session actuelle
+                </span>
+              </div>
+              <p class="truncate text-xs text-[color:var(--saytu-muted,#64748b)]">
+                {{ token.user_email || 'Email non renseigné' }} · {{ token.name || 'Session API' }}
+              </p>
               <p class="mt-1 text-xs text-[color:var(--saytu-muted,#64748b)]">
                 Créée {{ formatDateTime(token.created_at) }} · Dernière activité {{ formatDateTime(token.last_used_at) }}
               </p>
             </div>
-            <button type="button" class="btn-secondary border-red-200 text-red-700 hover:bg-red-50" @click="revoquerSession(token)">
+            <button
+              type="button"
+              class="btn-secondary"
+              :class="token.is_current ? 'cursor-not-allowed border-slate-200 text-slate-400' : 'border-red-200 text-red-700 hover:bg-red-50'"
+              :disabled="token.is_current"
+              :title="token.is_current ? 'Impossible de déconnecter la session que vous utilisez actuellement.' : 'Déconnecter cette session'"
+              @click="revoquerSession(token)"
+            >
               <LogOut class="h-4 w-4" />
-              Déconnecter
+              {{ token.is_current ? 'Session actuelle' : 'Déconnecter' }}
             </button>
           </div>
         </div>
@@ -258,6 +272,11 @@ async function downloadBackup() {
 }
 
 async function revoquerSession(token) {
+  if (token.is_current) {
+    toast.error('Impossible de déconnecter la session que vous utilisez actuellement.')
+    return
+  }
+
   const confirmed = await askConfirm({
     title: 'Déconnecter cette session ?',
     message: `La session de ${token.user_name || 'cet utilisateur'} sera immédiatement révoquée.`,
