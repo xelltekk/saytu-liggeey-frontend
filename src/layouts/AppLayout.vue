@@ -723,23 +723,28 @@ const tousLesMenus = [
 ]
 
 const menuItems = computed(() => {
-  const role = auth.user?.role
+  const role = roleForAccess(auth.user)
   if (!role) return []
 
   return tousLesMenus.filter(canAccessMenuItem)
 })
 
 function canAccessMenuItem(item) {
-  const role = auth.user?.role
+  const role = roleForAccess(auth.user)
+  const directRole = auth.user?.role
   if (!role) return false
   if (item.xelltekkOnly && !isXelltekkAdmin()) return false
   if (item.tenantOnly && (!auth.user?.tenant || auth.user.tenant.is_platform)) return false
   if (!licenceAllowsMenuItem(item)) return false
-  if (role === 'admin') return true
-  if (item.roles.includes(role)) return true
+  if (role === 'admin' || directRole === 'admin') return true
+  if (item.roles.includes(role) || item.roles.includes(directRole)) return true
   if (item.permission && userHasPermission(item.permission)) return true
 
   return false
+}
+
+function roleForAccess(user) {
+  return user?.base_role || user?.role
 }
 
 function licenceAllowsMenuItem(item) {
