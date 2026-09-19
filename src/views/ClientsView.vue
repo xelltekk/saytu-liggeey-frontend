@@ -302,7 +302,7 @@
               Télécharger la situation PDF
             </button>
           </div>
-          <div class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-4">
+          <div class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-3 xl:grid-cols-6">
             <div class="client360-mini-stat">
               <span>Total facturé</span>
               <strong>{{ formatPrice(situation(client360).total_facture) }}</strong>
@@ -316,24 +316,71 @@
               <strong class="text-amber-700">{{ formatPrice(situation(client360).reste_du) }}</strong>
             </div>
             <div class="client360-mini-stat">
+              <span>En retard</span>
+              <strong class="text-rose-700">{{ formatPrice(situation(client360).montant_retard) }}</strong>
+            </div>
+            <div class="client360-mini-stat">
               <span>Partielles</span>
               <strong class="text-blue-700">{{ situation(client360).factures_partielles_count || 0 }}</strong>
             </div>
+            <div class="client360-mini-stat">
+              <span>Prochaine échéance</span>
+              <strong class="text-slate-700">{{ nextDueLabel(situation(client360).prochaine_echeance) }}</strong>
+            </div>
           </div>
-          <div v-if="situation(client360).factures_partiellement_payees?.length" class="mt-4 overflow-hidden rounded-xl border border-slate-100">
-            <div class="bg-slate-50 px-3 py-2 text-xs font-bold uppercase text-slate-500">Factures partiellement payées</div>
-            <div class="divide-y divide-slate-100">
-              <button
-                v-for="facture in situation(client360).factures_partiellement_payees"
-                :key="facture.id"
-                type="button"
-                class="grid w-full grid-cols-1 gap-1 px-3 py-2 text-left text-sm hover:bg-slate-50 sm:grid-cols-[1fr_auto_auto]"
-                @click="goToDocument('/factures', facture.id)"
-              >
-                <span class="font-mono font-bold text-xelltekk-700">{{ facture.numero }}</span>
-                <span class="text-slate-500">Payé {{ formatPrice(facture.montant_paye) }}</span>
-                <span class="font-semibold text-amber-700">Reste {{ formatPrice(facture.reste_a_payer) }}</span>
-              </button>
+
+          <div class="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-[1.25fr_0.75fr]">
+            <div class="overflow-hidden rounded-xl border border-slate-100">
+              <div class="flex items-center justify-between gap-3 bg-slate-50 px-3 py-2">
+                <div class="text-xs font-bold uppercase text-slate-500">Factures ouvertes</div>
+                <span class="rounded-full bg-white px-2 py-0.5 text-xs font-bold text-slate-500">
+                  {{ situation(client360).factures_impayees_count || 0 }}
+                </span>
+              </div>
+              <div v-if="situation(client360).factures_impayees?.length" class="divide-y divide-slate-100">
+                <article
+                  v-for="facture in situation(client360).factures_impayees"
+                  :key="facture.id"
+                  class="grid grid-cols-1 gap-2 px-3 py-2 text-sm hover:bg-slate-50 lg:grid-cols-[1fr_auto_auto]"
+                >
+                  <div>
+                    <button type="button" class="font-mono font-bold text-xelltekk-700 hover:underline" @click="goToDocument('/factures', facture.id)">
+                      {{ facture.numero }}
+                    </button>
+                    <div class="mt-0.5 flex flex-wrap gap-1 text-xs text-slate-500">
+                      <span>Échéance {{ formatDate(facture.date_echeance) }}</span>
+                      <span v-if="facture.est_en_retard" class="font-bold text-rose-700">· {{ facture.retard_label }}</span>
+                      <span v-else>· {{ facture.statut }}</span>
+                    </div>
+                  </div>
+                  <div class="text-left lg:text-right">
+                    <div class="font-semibold text-slate-600">Payé {{ formatPrice(facture.montant_paye) }}</div>
+                    <div class="font-black text-amber-700">Reste {{ formatPrice(facture.reste_a_payer) }}</div>
+                  </div>
+                  <div class="flex flex-wrap gap-2 lg:justify-end">
+                    <button type="button" class="mini-action-btn" @click="ouvrirFacturePdf(facture)">PDF</button>
+                    <button type="button" class="mini-action-btn" @click="creerPaiement(client360)">Paiement</button>
+                  </div>
+                </article>
+              </div>
+              <div v-else class="p-4 text-center text-sm text-slate-400">Aucune facture ouverte.</div>
+            </div>
+
+            <div class="overflow-hidden rounded-xl border border-slate-100">
+              <div class="bg-slate-50 px-3 py-2 text-xs font-bold uppercase text-slate-500">Relances / recouvrement</div>
+              <div v-if="situation(client360).suivis_recouvrement?.length" class="divide-y divide-slate-100">
+                <article v-for="suivi in situation(client360).suivis_recouvrement.slice(0, 5)" :key="suivi.id" class="px-3 py-2 text-sm">
+                  <div class="flex items-center justify-between gap-2">
+                    <span class="font-bold text-slate-800">{{ recouvrementActionLabel(suivi.type_action) }}</span>
+                    <span class="badge text-[10px]" :class="genericStatusBadge(suivi.statut)">{{ recouvrementStatusLabel(suivi.statut) }}</span>
+                  </div>
+                  <div class="mt-1 text-xs text-slate-500">
+                    {{ formatDateTime(suivi.date_action) }} · {{ suivi.facture?.numero || 'Facture' }}
+                  </div>
+                  <p v-if="suivi.commentaire" class="mt-1 line-clamp-2 text-xs text-slate-600">{{ suivi.commentaire }}</p>
+                </article>
+              </div>
+              <div v-else class="p-4 text-center text-sm text-slate-400">Aucune relance enregistrée.</div>
             </div>
           </div>
         </section>
@@ -395,9 +442,23 @@
 
           <Client360List title="Derniers paiements" empty="Aucun paiement" :items="client360.historique?.paiements || []">
             <template #default="{ item }">
-              <div class="font-mono font-semibold">{{ item.reference }}</div>
+              <button v-if="canViewPaymentReceipts" type="button" class="font-mono font-semibold text-xelltekk-700 hover:underline" @click="ouvrirPaiementRecu(item)">{{ item.reference }}</button>
+              <div v-else class="font-mono font-semibold">{{ item.reference }}</div>
               <div class="text-xs text-slate-500">{{ formatDate(item.date_paiement) }} · {{ modeLabel(item.mode_paiement) }}</div>
               <div class="font-mono text-sm font-bold text-emerald-700">{{ formatPrice(item.montant) }}</div>
+            </template>
+          </Client360List>
+
+          <Client360List title="Historique relances" empty="Aucune relance" :items="client360.historique?.recouvrement || []">
+            <template #default="{ item }">
+              <div class="flex items-start justify-between gap-2">
+                <div>
+                  <div class="font-semibold text-slate-900">{{ recouvrementActionLabel(item.type_action) }}</div>
+                  <div class="text-xs text-slate-500">{{ formatDateTime(item.date_action) }} · {{ item.facture?.numero || 'Facture' }}</div>
+                </div>
+                <span class="badge text-[10px]" :class="genericStatusBadge(item.statut)">{{ recouvrementStatusLabel(item.statut) }}</span>
+              </div>
+              <p v-if="item.commentaire" class="mt-2 text-xs text-slate-600">{{ item.commentaire }}</p>
             </template>
           </Client360List>
 
@@ -473,6 +534,7 @@ const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
 const isAdmin = computed(() => hasAnyRole(auth.user, ['admin', 'gerant']))
+const canViewPaymentReceipts = computed(() => hasAnyRole(auth.user, ['admin', 'gerant', 'comptable', 'caissier']))
 const { amountNoteText, formatMoney } = useCurrency()
 
 const clients = ref([])
@@ -678,6 +740,24 @@ async function ouvrirSituationClientPdf(client) {
   }
 }
 
+async function ouvrirFacturePdf(facture) {
+  if (!facture?.id) return
+  try {
+    await ouvrirPDF(`/factures/${facture.id}/pdf`, `${facture.numero || 'facture'}.pdf`)
+  } catch (e) {
+    toast.error('Facture PDF indisponible pour le moment.')
+  }
+}
+
+async function ouvrirPaiementRecu(paiement) {
+  if (!paiement?.id) return
+  try {
+    await ouvrirPDF(`/paiements/${paiement.id}/recu`, `${paiement.reference || 'recu-paiement'}.pdf`)
+  } catch (e) {
+    toast.error('Reçu paiement indisponible pour le moment.')
+  }
+}
+
 function uniqueInvoicesForRelance(client) {
   const invoices = [
     ...(client.alertes?.factures_en_retard || []),
@@ -837,6 +917,12 @@ function genericStatusBadge(statut) {
     envoye: 'bg-blue-100 text-blue-700',
     partiellement_payee: 'bg-amber-100 text-amber-700',
     impayee: 'bg-amber-100 text-amber-700',
+    a_surveiller: 'bg-slate-100 text-slate-600',
+    a_relancer: 'bg-amber-100 text-amber-700',
+    relance: 'bg-blue-100 text-blue-700',
+    promesse_paiement: 'bg-violet-100 text-violet-700',
+    litige: 'bg-rose-100 text-rose-700',
+    paye: 'bg-emerald-100 text-emerald-700',
     brouillon: 'bg-slate-100 text-slate-600',
     annulee: 'bg-rose-100 text-rose-700',
     refuse: 'bg-rose-100 text-rose-700',
@@ -856,8 +942,37 @@ function modeLabel(mode) {
   }[mode] || mode || '—'
 }
 
+function recouvrementActionLabel(type) {
+  return {
+    note: 'Note',
+    relance_email: 'Relance email',
+    appel: 'Appel',
+    whatsapp: 'WhatsApp',
+    promesse_paiement: 'Promesse de paiement',
+    litige: 'Litige',
+    paiement_recu: 'Paiement reçu',
+    cloture: 'Clôture',
+  }[type] || type || 'Action'
+}
+
+function recouvrementStatusLabel(statut) {
+  return {
+    a_surveiller: 'À surveiller',
+    a_relancer: 'À relancer',
+    relance: 'Relancé',
+    promesse_paiement: 'Promesse',
+    litige: 'Litige',
+    paye: 'Payé',
+  }[statut] || statut || '—'
+}
+
 function formatPrice(value) {
   return formatMoney(value)
+}
+
+function nextDueLabel(invoice) {
+  if (!invoice) return '—'
+  return `${formatDate(invoice.date_echeance)} · ${formatPrice(invoice.reste_a_payer)}`
 }
 
 function formatDate(value) {
@@ -865,6 +980,19 @@ function formatDate(value) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return '—'
   return date.toLocaleDateString('fr-FR')
+}
+
+function formatDateTime(value) {
+  if (!value) return '—'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '—'
+  return date.toLocaleString('fr-FR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
 }
 
 onMounted(() => {
@@ -950,6 +1078,20 @@ watch(() => route.query.open, (id) => {
   background: color-mix(in srgb, var(--saytu-surface, #ffffff) 74%, var(--saytu-primary, #2563eb) 26%);
   box-shadow: 0 10px 24px color-mix(in srgb, var(--saytu-primary, #2563eb) 12%, transparent);
   transform: translateY(-1px);
+}
+
+.mini-action-btn {
+  border: 1px solid color-mix(in srgb, var(--saytu-primary, #2563eb) 24%, var(--saytu-border, #e2e8f0));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--saytu-surface, #ffffff) 88%, var(--saytu-primary, #2563eb) 12%);
+  color: var(--saytu-primary, #2563eb);
+  padding: 0.25rem 0.6rem;
+  font-size: 0.75rem;
+  font-weight: 850;
+}
+
+.mini-action-btn:hover {
+  background: color-mix(in srgb, var(--saytu-surface, #ffffff) 78%, var(--saytu-primary, #2563eb) 22%);
 }
 
 .client360-card {
