@@ -16,6 +16,80 @@
       </div>
     </section>
 
+    <section class="rounded-3xl border border-sky-200 bg-sky-50/70 p-4 shadow-sm">
+      <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <h2 class="font-black text-slate-950">Audit des rôles existants</h2>
+          <p class="mt-1 text-sm text-slate-600">
+            Lecture seule : contrôle des rôles, utilisateurs associés et accès sensibles. Aucun droit n’est modifié ici.
+          </p>
+          <p v-if="accessAudit?.generated_at" class="mt-1 text-xs font-semibold text-sky-700">
+            Dernière analyse : {{ formatDateTime(accessAudit.generated_at) }}
+          </p>
+        </div>
+        <button type="button" class="btn-secondary px-3 py-2 text-xs" @click="loadAudit">Rafraîchir l’audit</button>
+      </div>
+
+      <div v-if="accessAudit" class="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <div v-for="card in auditCards" :key="card.label" class="rounded-2xl border border-sky-100 bg-white p-3">
+          <div class="text-xs font-black uppercase tracking-[0.18em] text-slate-500">{{ card.label }}</div>
+          <div class="mt-2 text-2xl font-black text-slate-950">{{ card.value }}</div>
+          <div class="mt-1 text-xs text-slate-500">{{ card.hint }}</div>
+        </div>
+      </div>
+
+      <div v-if="accessAudit?.unknown_role_users?.length" class="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+        <strong>{{ accessAudit.unknown_role_users.length }} utilisateur(s)</strong> ont un rôle qui n’existe pas dans la liste des rôles :
+        {{ accessAudit.unknown_role_users.map((user) => `${user.name} (${user.role})`).join(', ') }}
+      </div>
+
+      <div v-if="accessAudit" class="mt-4 overflow-x-auto rounded-2xl border border-sky-100 bg-white">
+        <table class="min-w-full text-sm">
+          <thead class="bg-sky-100/70 text-left text-xs uppercase tracking-wide text-slate-600">
+            <tr>
+              <th class="px-3 py-2">Rôle</th>
+              <th class="px-3 py-2">Base</th>
+              <th class="px-3 py-2 text-center">Utilisateurs</th>
+              <th class="px-3 py-2 text-center">Permissions</th>
+              <th class="px-3 py-2">Accès sensibles</th>
+              <th class="px-3 py-2">Alertes</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-sky-100">
+            <tr v-for="role in accessAudit.roles" :key="role.id">
+              <td class="px-3 py-3">
+                <div class="font-black text-slate-900">{{ role.label }}</div>
+                <div class="text-xs font-mono text-slate-500">{{ role.code }}</div>
+                <span class="mt-1 inline-flex rounded-full px-2 py-0.5 text-[11px] font-bold" :class="role.is_system ? 'bg-slate-100 text-slate-700' : 'bg-emerald-50 text-emerald-700'">
+                  {{ role.is_system ? 'Système' : 'Personnalisé' }}
+                </span>
+              </td>
+              <td class="px-3 py-3 text-slate-600">{{ role.base_role || '—' }}</td>
+              <td class="px-3 py-3 text-center">
+                <div class="font-black text-slate-900">{{ role.users_count }}</div>
+                <div class="text-xs text-slate-500">{{ role.active_users_count }} actif(s)</div>
+              </td>
+              <td class="px-3 py-3 text-center font-black text-slate-900">{{ role.permissions_count }}</td>
+              <td class="max-w-md px-3 py-3">
+                <div v-if="role.sensitive_permissions.length" class="flex flex-wrap gap-1">
+                  <span v-for="permission in role.sensitive_permissions" :key="permission" class="rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-bold text-red-700">
+                    {{ formatPermission(permission) }}
+                  </span>
+                </div>
+                <span v-else class="text-xs text-slate-400">Aucun accès sensible détecté</span>
+              </td>
+              <td class="max-w-sm px-3 py-3">
+                <ul v-if="role.warnings.length" class="space-y-1 text-xs text-amber-700">
+                  <li v-for="warning in role.warnings" :key="warning">⚠ {{ warning }}</li>
+                </ul>
+                <span v-else class="text-xs text-emerald-600">RAS</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
     <section class="grid grid-cols-1 gap-4 xl:grid-cols-[360px_1fr]">
       <aside class="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
         <div class="flex items-center justify-between gap-3">
@@ -253,6 +327,7 @@ const { askConfirm } = useConfirm()
 const loading = ref(false)
 const saving = ref(false)
 const definitions = ref({ modules: {}, actions: {}, system_roles: {} })
+const accessAudit = ref(null)
 const roles = ref([])
 const selectedRole = ref(null)
 const form = ref(null)
@@ -265,6 +340,16 @@ const actions = computed(() => definitions.value.actions || {})
 const actionKeys = computed(() => Object.keys(actions.value))
 const systemRoleOptions = computed(() => roles.value.filter((role) => role.is_system))
 const moduleOptions = computed(() => Object.entries(definitions.value.modules || {}).map(([key, module]) => ({ key, ...module })))
+const auditCards = computed(() => {
+  const summary = accessAudit.value?.summary || {}
+  return [
+    { label: 'Rôles', value: summary.roles_total ?? 0, hint: `${summary.custom_roles ?? 0} personnalisé(s)` },
+    { label: 'Utilisateurs', value: summary.users_total ?? 0, hint: `${summary.active_users ?? 0} actif(s)` },
+    { label: 'Rôles vides', value: summary.roles_without_users ?? 0, hint: 'Sans utilisateur associé' },
+    { label: 'Rôles inconnus', value: summary.unknown_role_users ?? 0, hint: 'Utilisateurs à vérifier' },
+    { label: 'Accès sensibles', value: summary.roles_with_sensitive_permissions ?? 0, hint: 'Rôles concernés' },
+  ]
+})
 const availableOverrideActions = computed(() => {
   const module = definitions.value.modules?.[overrideForm.value.module]
   return module?.actions || ['view']
@@ -285,13 +370,15 @@ onMounted(loadAll)
 async function loadAll() {
   loading.value = true
   try {
-    const [{ data: defs }, { data: roleList }, { data: usersPage }] = await Promise.all([
+    const [{ data: defs }, { data: roleList }, { data: audit }, { data: usersPage }] = await Promise.all([
       api.get('/access-control/definitions'),
       api.get('/access-control/roles'),
+      api.get('/access-control/audit'),
       api.get('/users', { params: { per_page: 100 } }),
     ])
     definitions.value = defs
     roles.value = roleList
+    accessAudit.value = audit
     users.value = usersPage.data || []
     if (roles.value.length) {
       const current = selectedRole.value ? roles.value.find((role) => role.id === selectedRole.value.id) : roles.value[0]
@@ -301,6 +388,16 @@ async function loadAll() {
     toast.error('Chargement des rôles impossible.')
   } finally {
     loading.value = false
+  }
+}
+
+async function loadAudit() {
+  try {
+    const { data } = await api.get('/access-control/audit')
+    accessAudit.value = data
+    toast.success('Audit actualisé')
+  } catch (e) {
+    toast.error('Audit des rôles impossible.')
   }
 }
 
@@ -337,6 +434,16 @@ async function saveOverride() {
 
 function moduleLabel(key) {
   return definitions.value.modules?.[key]?.label || key
+}
+
+function formatPermission(permission) {
+  const [module, action] = String(permission || '').split('.')
+  return `${moduleLabel(module)} · ${actions.value[action] || action}`
+}
+
+function formatDateTime(value) {
+  if (!value) return ''
+  return new Date(value).toLocaleString('fr-FR')
 }
 
 function emptyPermissions() {
