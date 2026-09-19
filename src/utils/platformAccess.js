@@ -26,6 +26,5 @@ export function isXelltekkAdmin(user) {
   const hasXelltekkEmail = email.endsWith('@xelltekk.com') || email.endsWith('@xelltekk.sn')
 
   return Boolean(user?.is_xelltekk_admin)
-    || Boolean(user?.licence?.licence_bypass)
     || (user?.role === 'admin' && isPlatformSpace(user) && hasXelltekkEmail)
 }
