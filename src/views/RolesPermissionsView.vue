@@ -90,6 +90,97 @@
       </div>
     </section>
 
+    <section class="rounded-3xl border border-cyan-200 bg-cyan-50/70 p-4 shadow-sm">
+      <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <h2 class="font-black text-slate-950">Matrice recommandée</h2>
+          <p class="mt-1 text-sm text-slate-600">
+            Lecture seule : comparaison entre les droits actuels et une configuration recommandée plus prudente.
+            Aucune modification automatique n’est appliquée.
+          </p>
+          <p v-if="recommendedMatrix?.generated_at" class="mt-1 text-xs font-semibold text-cyan-700">
+            Dernière analyse : {{ formatDateTime(recommendedMatrix.generated_at) }}
+          </p>
+        </div>
+        <button type="button" class="btn-secondary px-3 py-2 text-xs" @click="loadRecommendedMatrix">Rafraîchir la matrice</button>
+      </div>
+
+      <div v-if="recommendedMatrix" class="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <div v-for="card in matrixCards" :key="card.label" class="rounded-2xl border border-cyan-100 bg-white p-3">
+          <div class="text-xs font-black uppercase tracking-[0.18em] text-slate-500">{{ card.label }}</div>
+          <div class="mt-2 text-2xl font-black text-slate-950">{{ card.value }}</div>
+          <div class="mt-1 text-xs text-slate-500">{{ card.hint }}</div>
+        </div>
+      </div>
+
+      <div v-if="recommendedMatrix" class="mt-4 overflow-x-auto rounded-2xl border border-cyan-100 bg-white">
+        <table class="min-w-full text-sm">
+          <thead class="bg-cyan-100/70 text-left text-xs uppercase tracking-wide text-slate-600">
+            <tr>
+              <th class="px-3 py-2">Rôle</th>
+              <th class="px-3 py-2">Base</th>
+              <th class="px-3 py-2">Statut</th>
+              <th class="px-3 py-2 text-center">Actuel / recommandé</th>
+              <th class="px-3 py-2">Trop accordé</th>
+              <th class="px-3 py-2">Manquant</th>
+              <th class="px-3 py-2">Sensible à revoir</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-cyan-100">
+            <tr v-for="role in recommendedMatrix.roles" :key="role.id">
+              <td class="px-3 py-3">
+                <div class="font-black text-slate-900">{{ role.label }}</div>
+                <div class="text-xs font-mono text-slate-500">{{ role.code }}</div>
+              </td>
+              <td class="px-3 py-3 text-slate-600">{{ role.base_role || '—' }}</td>
+              <td class="px-3 py-3">
+                <span class="rounded-full px-2 py-1 text-xs font-black" :class="matrixStatusClass(role.status)">
+                  {{ matrixStatusLabel(role.status) }}
+                </span>
+              </td>
+              <td class="px-3 py-3 text-center">
+                <div class="font-black text-slate-900">{{ role.current_count }} / {{ role.recommended_count }}</div>
+                <div class="text-xs text-slate-500">{{ role.users_count }} utilisateur(s)</div>
+              </td>
+              <td class="max-w-md px-3 py-3">
+                <div v-if="role.extra_permissions.length" class="flex flex-wrap gap-1">
+                  <span v-for="permission in previewPermissions(role.extra_permissions)" :key="permission" class="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-700">
+                    {{ formatPermission(permission) }}
+                  </span>
+                  <span v-if="remainingPermissions(role.extra_permissions)" class="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600">
+                    +{{ remainingPermissions(role.extra_permissions) }}
+                  </span>
+                </div>
+                <span v-else class="text-xs text-emerald-600">RAS</span>
+              </td>
+              <td class="max-w-md px-3 py-3">
+                <div v-if="role.missing_permissions.length" class="flex flex-wrap gap-1">
+                  <span v-for="permission in previewPermissions(role.missing_permissions)" :key="permission" class="rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-bold text-sky-700">
+                    {{ formatPermission(permission) }}
+                  </span>
+                  <span v-if="remainingPermissions(role.missing_permissions)" class="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600">
+                    +{{ remainingPermissions(role.missing_permissions) }}
+                  </span>
+                </div>
+                <span v-else class="text-xs text-emerald-600">RAS</span>
+              </td>
+              <td class="max-w-md px-3 py-3">
+                <div v-if="role.sensitive_extra_permissions.length" class="flex flex-wrap gap-1">
+                  <span v-for="permission in previewPermissions(role.sensitive_extra_permissions)" :key="permission" class="rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-bold text-red-700">
+                    {{ formatPermission(permission) }}
+                  </span>
+                  <span v-if="remainingPermissions(role.sensitive_extra_permissions)" class="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600">
+                    +{{ remainingPermissions(role.sensitive_extra_permissions) }}
+                  </span>
+                </div>
+                <span v-else class="text-xs text-emerald-600">RAS</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
     <section class="grid grid-cols-1 gap-4 xl:grid-cols-[360px_1fr]">
       <aside class="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
         <div class="flex items-center justify-between gap-3">
@@ -328,6 +419,7 @@ const loading = ref(false)
 const saving = ref(false)
 const definitions = ref({ modules: {}, actions: {}, system_roles: {} })
 const accessAudit = ref(null)
+const recommendedMatrix = ref(null)
 const roles = ref([])
 const selectedRole = ref(null)
 const form = ref(null)
@@ -350,6 +442,16 @@ const auditCards = computed(() => {
     { label: 'Accès sensibles', value: summary.roles_with_sensitive_permissions ?? 0, hint: 'Rôles concernés' },
   ]
 })
+const matrixCards = computed(() => {
+  const summary = recommendedMatrix.value?.summary || {}
+  return [
+    { label: 'À vérifier', value: summary.roles_to_review ?? 0, hint: 'Rôles avec écarts' },
+    { label: 'Trop accordé', value: summary.roles_with_extra_permissions ?? 0, hint: 'Droits à contrôler' },
+    { label: 'Droits manquants', value: summary.roles_with_missing_permissions ?? 0, hint: 'Droits recommandés absents' },
+    { label: 'Accès sensibles', value: summary.roles_with_sensitive_extra_permissions ?? 0, hint: 'À retirer si inutile' },
+    { label: 'Sans modèle', value: summary.roles_without_recommendation ?? 0, hint: 'Base métier inconnue' },
+  ]
+})
 const availableOverrideActions = computed(() => {
   const module = definitions.value.modules?.[overrideForm.value.module]
   return module?.actions || ['view']
@@ -370,15 +472,17 @@ onMounted(loadAll)
 async function loadAll() {
   loading.value = true
   try {
-    const [{ data: defs }, { data: roleList }, { data: audit }, { data: usersPage }] = await Promise.all([
+    const [{ data: defs }, { data: roleList }, { data: audit }, { data: matrix }, { data: usersPage }] = await Promise.all([
       api.get('/access-control/definitions'),
       api.get('/access-control/roles'),
       api.get('/access-control/audit'),
+      api.get('/access-control/recommended-matrix'),
       api.get('/users', { params: { per_page: 100 } }),
     ])
     definitions.value = defs
     roles.value = roleList
     accessAudit.value = audit
+    recommendedMatrix.value = matrix
     users.value = usersPage.data || []
     if (roles.value.length) {
       const current = selectedRole.value ? roles.value.find((role) => role.id === selectedRole.value.id) : roles.value[0]
@@ -398,6 +502,16 @@ async function loadAudit() {
     toast.success('Audit actualisé')
   } catch (e) {
     toast.error('Audit des rôles impossible.')
+  }
+}
+
+async function loadRecommendedMatrix() {
+  try {
+    const { data } = await api.get('/access-control/recommended-matrix')
+    recommendedMatrix.value = data
+    toast.success('Matrice recommandée actualisée')
+  } catch (e) {
+    toast.error('Matrice recommandée impossible à charger.')
   }
 }
 
@@ -444,6 +558,30 @@ function formatPermission(permission) {
 function formatDateTime(value) {
   if (!value) return ''
   return new Date(value).toLocaleString('fr-FR')
+}
+
+function previewPermissions(permissions = [], limit = 4) {
+  return permissions.slice(0, limit)
+}
+
+function remainingPermissions(permissions = [], limit = 4) {
+  return Math.max(0, permissions.length - limit)
+}
+
+function matrixStatusLabel(status) {
+  return {
+    ok: 'Conforme',
+    review: 'À vérifier',
+    no_template: 'Sans modèle',
+  }[status] || status
+}
+
+function matrixStatusClass(status) {
+  return {
+    ok: 'bg-emerald-50 text-emerald-700',
+    review: 'bg-amber-50 text-amber-700',
+    no_template: 'bg-slate-100 text-slate-700',
+  }[status] || 'bg-slate-100 text-slate-700'
 }
 
 function emptyPermissions() {
