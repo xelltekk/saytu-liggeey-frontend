@@ -115,6 +115,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { Eye, EyeOff, LockKeyhole, Mail, UserCircle } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
 import api from '@/services/api'
+import { hasAnyRole } from '@/utils/access'
 
 const route = useRoute()
 const router = useRouter()
@@ -162,7 +163,7 @@ async function handleLogin() {
     } else {
       localStorage.removeItem(REMEMBER_EMAIL_KEY)
     }
-    if (data.user?.role === 'caissier') {
+    if (hasAnyRole(data.user, 'caissier')) {
       await entrerPleinEcran()
     }
     router.push({ name: homeRouteForUser(data.user) })
@@ -185,10 +186,10 @@ async function entrerPleinEcran() {
 }
 
 function homeRouteForUser(user) {
-  if (user?.role === 'caissier') return 'caisse'
+  if (hasAnyRole(user, 'caissier')) return 'caisse'
 
   if (
-    user?.role === 'admin'
+    hasAnyRole(user, 'admin')
     && user?.onboarding?.enabled
     && !user.onboarding.completed
     && !user?.tenant?.is_platform

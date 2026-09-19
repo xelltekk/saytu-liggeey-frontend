@@ -125,10 +125,11 @@ import EntrepotForm from '@/components/EntrepotForm.vue'
 import EntrepotDetails from '@/components/EntrepotDetails.vue'
 import { useToast } from '@/composables/useToast'
 import { useAuthStore } from '@/stores/auth'
+import { hasAnyRole } from '@/utils/access'
 
 const toast = useToast()
 const auth = useAuthStore()
-const canManage = auth.user?.role === 'admin' || auth.user?.role === 'magasinier'
+const canManage = computed(() => hasAnyRole(auth.user, ['admin', 'magasinier']))
 
 const entrepots = ref([])
 const loading = ref(false)

@@ -380,14 +380,15 @@ import { useToast } from '@/composables/useToast'
 import { useTableSort } from '@/composables/useTableSort'
 import { useAuthStore } from '@/stores/auth'
 import { buildEmailDraft } from '@/utils/emailComposer'
+import { hasAnyRole } from '@/utils/access'
 
 const toast = useToast()
 const auth = useAuthStore()
 const route = useRoute()
 const router = useRouter()
-const isCommercial = computed(() => auth.user?.role === 'commercial')
-const isAdmin = computed(() => ['admin', 'gerant'].includes(auth.user?.role))
-const canManagePayments = computed(() => ['admin', 'gerant', 'comptable'].includes(auth.user?.role))
+const isCommercial = computed(() => hasAnyRole(auth.user, 'commercial'))
+const isAdmin = computed(() => hasAnyRole(auth.user, ['admin', 'gerant']))
+const canManagePayments = computed(() => hasAnyRole(auth.user, ['admin', 'gerant', 'comptable']))
 const factures = ref([])
 const { sort, toggleSort, sortIcon, sortedRows } = useTableSort('numero', 'desc')
 const loading = ref(false)

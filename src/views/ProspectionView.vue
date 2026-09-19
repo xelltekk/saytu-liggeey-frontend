@@ -440,12 +440,13 @@ import { useTableSort } from '@/composables/useTableSort'
 import { telechargerCSV } from '@/services/exports'
 import { ouvrirPDF } from '@/services/pdf'
 import { buildEmailDraft } from '@/utils/emailComposer'
+import { hasAnyRole } from '@/utils/access'
 
 const auth = useAuthStore()
 const toast = useToast()
 const router = useRouter()
 const { confirm: askConfirm } = useConfirm()
-const isAdmin = computed(() => ['admin', 'gerant'].includes(auth.user?.role))
+const isAdmin = computed(() => hasAnyRole(auth.user, ['admin', 'gerant']))
 
 const today = new Date()
 const startMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0, 10)

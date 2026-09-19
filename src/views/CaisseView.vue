@@ -784,6 +784,7 @@ import { useAuthStore } from '@/stores/auth'
 import { ouvrirPDF } from '@/services/pdf'
 import { telechargerCSV } from '@/services/exports'
 import { useRoute } from 'vue-router'
+import { hasAnyRole } from '@/utils/access'
 
 const toast = useToast()
 const auth = useAuthStore()
@@ -840,8 +841,8 @@ const creerEncaissement = (montant = 0, mode = 'especes') => ({
   reference_paiement: '',
 })
 const encaissements = ref([creerEncaissement()])
-const isAdmin = computed(() => ['admin', 'gerant'].includes(auth.user?.role))
-const isTouchPos = computed(() => auth.user?.role === 'caissier')
+const isAdmin = computed(() => hasAnyRole(auth.user, ['admin', 'gerant']))
+const isTouchPos = computed(() => hasAnyRole(auth.user, 'caissier'))
 const sessionsActivesCount = computed(() => sessionsOuvertes.value.filter(s => s.statut === 'ouverte').length)
 const facturesComptoirTotal = computed(() => Number(facturesComptoirMeta.total || facturesComptoir.value.length || 0))
 const showFacturesComptoirPanel = computed(() => activeCaisseTab.value === 'factures-comptoir' && (Boolean(session.value) || isAdmin.value))

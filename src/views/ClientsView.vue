@@ -466,12 +466,13 @@ import { useAuthStore } from '@/stores/auth'
 import { useCurrency } from '@/composables/useCurrency'
 import { ouvrirPDF } from '@/services/pdf'
 import { buildEmailDraft } from '@/utils/emailComposer'
+import { hasAnyRole } from '@/utils/access'
 
 const toast = useToast()
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
-const isAdmin = computed(() => ['admin', 'gerant'].includes(auth.user?.role))
+const isAdmin = computed(() => hasAnyRole(auth.user, ['admin', 'gerant']))
 const { amountNoteText, formatMoney } = useCurrency()
 
 const clients = ref([])

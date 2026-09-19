@@ -287,12 +287,13 @@ import { useTableSort } from '@/composables/useTableSort'
 import { useAuthStore } from '@/stores/auth'
 import { telechargerCSV } from '@/services/exports'
 import { buildEmailDraft } from '@/utils/emailComposer'
+import { hasAnyRole } from '@/utils/access'
 
 const toast = useToast()
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
-const isAdmin = computed(() => ['admin', 'gerant'].includes(auth.user?.role))
+const isAdmin = computed(() => hasAnyRole(auth.user, ['admin', 'gerant']))
 
 const devis = ref([])
 const { sort, toggleSort, sortIcon, sortedRows } = useTableSort('numero', 'desc')

@@ -218,12 +218,13 @@ import { telechargerFichierPrive } from '@/services/files'
 import { useAuthStore } from '@/stores/auth'
 import { useNotificationsStore } from '@/stores/notifications'
 import { useTableSort } from '@/composables/useTableSort'
+import { hasAnyRole } from '@/utils/access'
 
 const toast = useToast()
 const route = useRoute()
 const auth = useAuthStore()
 const notifications = useNotificationsStore()
-const canValidate = computed(() => ['admin', 'gerant', 'comptable'].includes(auth.user?.role))
+const canValidate = computed(() => hasAnyRole(auth.user, ['admin', 'gerant', 'comptable']))
 const depenses = ref([])
 const categories = ref({})
 const sessionsOuvertes = ref([])

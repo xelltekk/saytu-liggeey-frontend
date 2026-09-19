@@ -356,6 +356,7 @@ import { useToast } from '@/composables/useToast'
 import { useTableSort } from '@/composables/useTableSort'
 import { useAuthStore } from '@/stores/auth'
 import { useConfirm } from '@/composables/useConfirm'
+import { hasAnyRole } from '@/utils/access'
 
 const toast = useToast()
 const auth = useAuthStore()
@@ -376,7 +377,7 @@ const page = ref(1)
 const perPage = 25
 const { sort, toggleSort, sortIcon, sortedRows } = useTableSort('date', 'desc')
 
-const canSeeActivities = computed(() => ['admin', 'gerant'].includes(auth.user?.role))
+const canSeeActivities = computed(() => hasAnyRole(auth.user, ['admin', 'gerant']))
 
 const availableCategories = computed(() => {
   const values = new Set(apiCategories.value)

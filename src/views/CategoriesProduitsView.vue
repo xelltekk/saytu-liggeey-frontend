@@ -211,6 +211,7 @@ import api from '@/services/api'
 import AppModal from '@/components/AppModal.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
+import { hasAnyRole, hasPermission } from '@/utils/access'
 
 const auth = useAuthStore()
 const toast = useToast()
@@ -228,10 +229,10 @@ const errors = reactive({})
 const form = reactive(emptyForm())
 
 const canManage = computed(() => {
-  const role = auth.user?.role
-  if (['admin', 'gerant', 'magasinier'].includes(role)) return true
-  const permissions = auth.user?.permissions?.flat || []
-  return permissions.includes('produits.create') || permissions.includes('produits.update') || permissions.includes('produits.delete')
+  if (hasAnyRole(auth.user, ['admin', 'gerant', 'magasinier'])) return true
+  return hasPermission(auth.user, 'produits.create')
+    || hasPermission(auth.user, 'produits.update')
+    || hasPermission(auth.user, 'produits.delete')
 })
 
 const flatCategories = computed(() => flattenCategories(categories.value))

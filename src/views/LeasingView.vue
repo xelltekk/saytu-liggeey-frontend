@@ -560,6 +560,7 @@ import AppModal from '@/components/AppModal.vue'
 import { useToast } from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
 import { useAuthStore } from '@/stores/auth'
+import { hasAnyRole } from '@/utils/access'
 
 const toast = useToast()
 const auth = useAuthStore()
@@ -595,8 +596,8 @@ const releves = ref([])
 const interventions = ref([])
 const editingImprimante = ref(null)
 const editingIntervention = ref(null)
-const canManageImprimantes = computed(() => auth.user?.role === 'admin')
-const canGenerateFactures = computed(() => ['admin', 'gerant', 'commercial', 'comptable'].includes(auth.user?.role))
+const canManageImprimantes = computed(() => hasAnyRole(auth.user, 'admin'))
+const canGenerateFactures = computed(() => hasAnyRole(auth.user, ['admin', 'gerant', 'commercial', 'comptable']))
 
 const filters = reactive({
   contrats: { search: '', statut: '' },

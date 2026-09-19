@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import api, { clearSessionToken, setSessionToken } from '@/services/api'
+import { effectiveRole, hasAnyRole } from '@/utils/access'
 
 localStorage.removeItem('xelltekk_token')
 
@@ -11,9 +12,9 @@ export const useAuthStore = defineStore('auth', {
 
   getters: {
     isAuthenticated: (state) => !!state.user,
-    isAdmin: (state) => state.user?.role === 'admin',
-    isManager: (state) => ['admin', 'gerant'].includes(state.user?.role),
-    userRole: (state) => state.user?.role || null,
+    isAdmin: (state) => hasAnyRole(state.user, 'admin'),
+    isManager: (state) => hasAnyRole(state.user, ['admin', 'gerant']),
+    userRole: (state) => effectiveRole(state.user),
   },
 
   actions: {

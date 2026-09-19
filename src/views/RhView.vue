@@ -383,12 +383,13 @@ import { BriefcaseBusiness, Clock3, LayoutDashboard, Settings2, UsersRound } fro
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
+import { hasAnyRole } from '@/utils/access'
 
 const auth = useAuthStore()
 const route = useRoute()
 const toast = useToast()
 const { confirm: askConfirm } = useConfirm()
-const canManage = computed(() => ['admin', 'gerant'].includes(auth.user?.role))
+const canManage = computed(() => hasAnyRole(auth.user, ['admin', 'gerant']))
 const pageSubtitle = computed(() => canManage.value ? 'Pilotage RH et gestion du personnel' : 'Votre espace employe')
 const groups = [
   { id: 'accueil', label: 'Accueil', icon: LayoutDashboard, tabs: [{ id: 'dashboard', label: 'Vue d’ensemble' }, { id: 'mon-espace', label: 'Mon espace' }] },

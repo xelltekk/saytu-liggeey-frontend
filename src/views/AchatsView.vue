@@ -510,6 +510,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
 import { ouvrirPDF } from '@/services/pdf'
+import { hasAnyRole } from '@/utils/access'
 
 const auth = useAuthStore()
 const toast = useToast()
@@ -559,12 +560,12 @@ const filters = reactive({ search: '', statut: '', fournisseur_id: null, date_fr
 const demandFilters = reactive({ search: '', statut: '', priorite: '' })
 const statuses = ['brouillon', 'soumise', 'approuvee', 'partiellement_recue', 'recue', 'annulee']
 const demandStatuses = ['brouillon', 'soumise', 'approuvee', 'rejetee', 'convertie', 'annulee']
-const canApprove = computed(() => ['admin', 'gerant', 'comptable'].includes(auth.user?.role))
-const canReceive = computed(() => ['admin', 'gerant', 'magasinier'].includes(auth.user?.role))
-const canInvoice = computed(() => ['admin', 'gerant', 'comptable'].includes(auth.user?.role))
-const canReturn = computed(() => ['admin', 'gerant', 'magasinier'].includes(auth.user?.role))
-const canCredit = computed(() => ['admin', 'gerant', 'comptable'].includes(auth.user?.role))
-const canEvaluate = computed(() => ['admin', 'gerant', 'magasinier', 'comptable'].includes(auth.user?.role))
+const canApprove = computed(() => hasAnyRole(auth.user, ['admin', 'gerant', 'comptable']))
+const canReceive = computed(() => hasAnyRole(auth.user, ['admin', 'gerant', 'magasinier']))
+const canInvoice = computed(() => hasAnyRole(auth.user, ['admin', 'gerant', 'comptable']))
+const canReturn = computed(() => hasAnyRole(auth.user, ['admin', 'gerant', 'magasinier']))
+const canCredit = computed(() => hasAnyRole(auth.user, ['admin', 'gerant', 'comptable']))
+const canEvaluate = computed(() => hasAnyRole(auth.user, ['admin', 'gerant', 'magasinier', 'comptable']))
 let lineKey = 0
 let demandLineKey = 0
 const emptyLine = () => ({ key: ++lineKey, produit_id: null, quantite: 1, prix_unitaire_ht: 0, taux_tva: 0 })

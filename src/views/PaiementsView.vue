@@ -152,12 +152,13 @@ import { telechargerCSV } from '@/services/exports'
 import { ouvrirPDF } from '@/services/pdf'
 import { useAuthStore } from '@/stores/auth'
 import { useTableSort } from '@/composables/useTableSort'
+import { hasAnyRole } from '@/utils/access'
 
 const toast = useToast()
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
-const isCaissier = auth.user?.role === 'caissier'
+const isCaissier = hasAnyRole(auth.user, 'caissier')
 const paiements = ref([])
 const { sort, toggleSort, sortIcon, sortedRows } = useTableSort('date', 'desc')
 const loading = ref(false)

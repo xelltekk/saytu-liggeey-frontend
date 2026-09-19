@@ -492,6 +492,7 @@ import { ouvrirPDF } from '@/services/pdf'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
 import { useTheme } from '@/composables/useTheme'
+import { effectiveRole, hasAnyRole } from '@/utils/access'
 
 ChartJS.register(Title, Tooltip, Legend, CategoryScale, LinearScale, PointElement, LineElement, Filler)
 
@@ -533,10 +534,10 @@ const dashboardDefaultOrder = [
 ]
 
 const userName = computed(() => auth.user?.name?.split(' ')[0] || 'Utilisateur')
-const userRole = computed(() => String(auth.user?.role || '').toLowerCase())
+const userRole = computed(() => String(effectiveRole(auth.user) || '').toLowerCase())
 const isCommercial = computed(() => dashboardScope.value === 'commercial' || userRole.value.includes('commercial'))
 const isStockManager = computed(() => dashboardScope.value === 'stock' || userRole.value === 'magasinier' || userRole.value.includes('stock'))
-const isManagerDashboard = computed(() => ['admin', 'gerant'].includes(userRole.value))
+const isManagerDashboard = computed(() => hasAnyRole(auth.user, ['admin', 'gerant']))
 const isBusinessDashboard = computed(() => dashboardScope.value === 'business' && !isCommercial.value && !isStockManager.value)
 const hasKpiCards = computed(() => isBusinessDashboard.value || isCommercial.value || isStockManager.value)
 const dashboardLayoutStorageKey = computed(() => `${DASHBOARD_LAYOUT_STORAGE_PREFIX}.${userRole.value || 'user'}.${dashboardScope.value || 'default'}`)
