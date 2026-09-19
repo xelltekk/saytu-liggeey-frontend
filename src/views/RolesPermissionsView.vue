@@ -124,6 +124,7 @@
               <th class="px-3 py-2">Trop accordé</th>
               <th class="px-3 py-2">Manquant</th>
               <th class="px-3 py-2">Sensible à revoir</th>
+              <th class="px-3 py-2 text-right">Action</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-cyan-100">
@@ -174,6 +175,19 @@
                   </span>
                 </div>
                 <span v-else class="text-xs text-emerald-600">RAS</span>
+              </td>
+              <td class="px-3 py-3 text-right">
+                <button
+                  v-if="role.has_recommendation && role.status === 'review'"
+                  type="button"
+                  class="btn-primary px-3 py-2 text-xs"
+                  :disabled="applyingRecommendedRoleId === role.id"
+                  @click="applyRecommendedRole(role)"
+                >
+                  {{ applyingRecommendedRoleId === role.id ? 'Application...' : 'Appliquer' }}
+                </button>
+                <span v-else-if="role.status === 'ok'" class="text-xs font-bold text-emerald-600">Conforme</span>
+                <span v-else class="text-xs text-slate-400">Base à définir</span>
               </td>
             </tr>
           </tbody>
@@ -413,10 +427,11 @@ import { useToast } from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
 
 const toast = useToast()
-const { askConfirm } = useConfirm()
+const { confirm: askConfirm } = useConfirm()
 
 const loading = ref(false)
 const saving = ref(false)
+const applyingRecommendedRoleId = ref(null)
 const definitions = ref({ modules: {}, actions: {}, system_roles: {} })
 const accessAudit = ref(null)
 const recommendedMatrix = ref(null)
@@ -512,6 +527,32 @@ async function loadRecommendedMatrix() {
     toast.success('Matrice recommandée actualisée')
   } catch (e) {
     toast.error('Matrice recommandée impossible à charger.')
+  }
+}
+
+async function applyRecommendedRole(role) {
+  if (!role?.id || !role.has_recommendation) return
+
+  const ok = await askConfirm({
+    title: 'Appliquer la matrice recommandée',
+    message: `Appliquer la recommandation au rôle ${role.label} ? ${role.extra_permissions_count} droit(s) seront retirés et ${role.missing_permissions_count} droit(s) seront ajoutés. Les utilisateurs gardent le même rôle.`,
+    hint: 'Action contrôlée : vous pouvez toujours réajuster manuellement les droits du rôle après application.',
+    confirmLabel: 'Appliquer',
+    tone: role.sensitive_extra_permissions_count ? 'danger' : 'primary',
+  })
+  if (!ok) return
+
+  applyingRecommendedRoleId.value = role.id
+  try {
+    const { data } = await api.put(`/access-control/roles/${role.id}/apply-recommended`)
+    toast.success(data.message || 'Matrice recommandée appliquée.')
+    await loadAll()
+    const refreshed = roles.value.find((item) => item.id === role.id)
+    if (refreshed) selectRole(refreshed)
+  } catch (e) {
+    toast.error(e.response?.data?.message || 'Application impossible.')
+  } finally {
+    applyingRecommendedRoleId.value = null
   }
 }
 
