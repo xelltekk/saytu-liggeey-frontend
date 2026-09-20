@@ -118,7 +118,7 @@
                   Suivi
                 </button>
                 <button
-                  v-if="canManagePayments && f.type !== 'avoir' && !['payee','annulee'].includes(f.statut)"
+                  v-if="canManagePayments && f.type !== 'avoir' && !['brouillon','payee','annulee'].includes(f.statut)"
                   @click="openEncaisser(f)"
                   class="text-emerald-700 hover:text-emerald-900 mr-2 text-sm font-medium"
                   title="Encaisser un paiement"
@@ -126,7 +126,7 @@
                   Encaisser
                 </button>
                 <button
-                  v-if="canManagePayments && f.type !== 'avoir' && !['payee','annulee'].includes(f.statut)"
+                  v-if="canManagePayments && f.type !== 'avoir' && !['brouillon','payee','annulee'].includes(f.statut)"
                   @click="openMarquerPayee(f)"
                   class="text-green-600 hover:text-green-800 mr-2"
                   title="Marquer comme payée"
@@ -452,7 +452,7 @@
           <div class="rounded-xl border border-gray-200 bg-white p-4">
             <div class="mb-3 flex items-center justify-between">
               <h3 class="font-black text-slate-900">Paiements</h3>
-              <button v-if="canManagePayments && pilotageFacture && !['payee','annulee'].includes(pilotageFacture.statut)" type="button" class="text-xs font-bold text-emerald-700 hover:text-emerald-900" @click="openEncaisser(pilotageFacture)">Encaisser</button>
+              <button v-if="canManagePayments && pilotageFacture && !['brouillon','payee','annulee'].includes(pilotageFacture.statut)" type="button" class="text-xs font-bold text-emerald-700 hover:text-emerald-900" @click="openEncaisser(pilotageFacture)">Encaisser</button>
             </div>
             <div v-if="pilotageData.paiements?.length" class="space-y-2">
               <div v-for="paiement in pilotageData.paiements" :key="paiement.id" class="rounded-lg bg-slate-50 p-2 text-sm">
