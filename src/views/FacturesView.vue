@@ -111,6 +111,21 @@
                 />
                 <button @click="ouvrirPdf(f)" class="text-xelltekk-600 hover:text-xelltekk-800 mr-2" title="PDF">📄</button>
                 <button
+                  @click="openPilotage(f)"
+                  class="text-sky-700 hover:text-sky-900 mr-2 text-sm font-medium"
+                  title="Suivi complet de la facture"
+                >
+                  Suivi
+                </button>
+                <button
+                  v-if="canManagePayments && f.type !== 'avoir' && !['payee','annulee'].includes(f.statut)"
+                  @click="openEncaisser(f)"
+                  class="text-emerald-700 hover:text-emerald-900 mr-2 text-sm font-medium"
+                  title="Encaisser un paiement"
+                >
+                  Encaisser
+                </button>
+                <button
                   v-if="canManagePayments && f.type !== 'avoir' && !['payee','annulee'].includes(f.statut)"
                   @click="openMarquerPayee(f)"
                   class="text-green-600 hover:text-green-800 mr-2"
@@ -332,6 +347,152 @@
       </template>
     </AppModal>
 
+    <!-- Modal encaissement partiel/direct -->
+    <AppModal v-model="showEncaisserModal" :title="encaissementFacture ? `Encaisser ${encaissementFacture.numero}` : 'Encaisser une facture'" size="md">
+      <div v-if="encaissementFacture" class="space-y-4">
+        <div class="grid grid-cols-3 gap-2 text-sm">
+          <div class="rounded-lg border border-sky-100 bg-sky-50 p-3">
+            <div class="text-[10px] font-bold uppercase text-sky-700">Total</div>
+            <div class="font-black text-slate-900">{{ formatPrice(encaissementFacture.total_ttc) }}</div>
+          </div>
+          <div class="rounded-lg border border-emerald-100 bg-emerald-50 p-3">
+            <div class="text-[10px] font-bold uppercase text-emerald-700">Payé</div>
+            <div class="font-black text-slate-900">{{ formatPrice(encaissementFacture.montant_paye) }}</div>
+          </div>
+          <div class="rounded-lg border border-orange-100 bg-orange-50 p-3">
+            <div class="text-[10px] font-bold uppercase text-orange-700">Reste</div>
+            <div class="font-black text-slate-900">{{ formatPrice(encaissementFacture.reste_a_payer) }}</div>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Montant encaissé <span class="text-red-500">*</span></label>
+          <input v-model.number="encaissementForm.montant" type="number" min="0.01" step="0.01" class="input" />
+          <p class="mt-1 text-xs text-gray-500">Vous pouvez saisir un paiement partiel ou le reste total.</p>
+        </div>
+
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Mode de paiement</label>
+            <select v-model="encaissementForm.mode_paiement" class="input">
+              <option value="especes">Espèces</option>
+              <option value="virement">Virement</option>
+              <option value="cheque">Chèque</option>
+              <option value="wave">Wave</option>
+              <option value="orange_money">Orange Money</option>
+              <option value="free_money">Free Money</option>
+              <option value="carte_bancaire">Carte bancaire</option>
+              <option value="compensation">Compensation</option>
+              <option value="autre">Autre</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Date</label>
+            <input v-model="encaissementForm.date_paiement" type="date" class="input" />
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Référence paiement</label>
+          <input v-model="encaissementForm.reference_paiement" type="text" class="input" placeholder="Ex: N° transaction Wave, chèque, virement..." />
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+          <textarea v-model="encaissementForm.notes" rows="2" class="input" placeholder="Commentaire interne sur l'encaissement..."></textarea>
+        </div>
+      </div>
+
+      <template #footer>
+        <button @click="showEncaisserModal = false" class="btn-secondary">Annuler</button>
+        <button @click="handleEncaisser" :disabled="encaissementLoading || !encaissementForm.montant" class="btn-primary">
+          <span v-if="encaissementLoading">Enregistrement...</span>
+          <span v-else>Enregistrer paiement</span>
+        </button>
+      </template>
+    </AppModal>
+
+    <!-- Modal pilotage facture -->
+    <AppModal v-model="showPilotageModal" :title="pilotageFacture ? `Suivi facture ${pilotageFacture.numero}` : 'Suivi facture'" size="xl">
+      <div v-if="pilotageLoading" class="py-10 text-center text-gray-500">Chargement du suivi...</div>
+      <div v-else-if="pilotageData" class="space-y-4">
+        <div class="grid grid-cols-1 gap-3 lg:grid-cols-4">
+          <div class="rounded-xl border border-sky-100 bg-sky-50 p-4">
+            <div class="text-[11px] font-black uppercase tracking-wide text-sky-700">Contrôle</div>
+            <div class="mt-2 text-lg font-black" :class="pilotageData.validation_controle?.pret_validation ? 'text-emerald-700' : 'text-red-700'">
+              {{ pilotageData.validation_controle?.pret_validation ? 'Prête' : 'À corriger' }}
+            </div>
+            <p class="mt-1 text-xs text-slate-600">{{ (pilotageData.validation_controle?.alertes || []).length }} alerte(s)</p>
+          </div>
+          <div class="rounded-xl border border-cyan-100 bg-cyan-50 p-4">
+            <div class="text-[11px] font-black uppercase tracking-wide text-cyan-700">Client</div>
+            <div class="mt-2 text-lg font-black text-slate-900">{{ formatPrice(pilotageData.etat_client?.reste_du) }}</div>
+            <p class="mt-1 text-xs text-slate-600">{{ pilotageData.etat_client?.factures_ouvertes || 0 }} facture(s) ouverte(s)</p>
+          </div>
+          <div class="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
+            <div class="text-[11px] font-black uppercase tracking-wide text-emerald-700">Encaissement</div>
+            <div class="mt-2 text-lg font-black text-slate-900">{{ pilotageData.analyse_encaissement?.taux_paiement || 0 }}%</div>
+            <p class="mt-1 text-xs text-slate-600">Reste {{ formatPrice(pilotageData.analyse_encaissement?.reste) }}</p>
+          </div>
+          <div class="rounded-xl border border-orange-100 bg-orange-50 p-4">
+            <div class="text-[11px] font-black uppercase tracking-wide text-orange-700">Relance</div>
+            <div class="mt-2 text-sm font-bold text-slate-900">{{ pilotageData.relance_auto?.urgence || 'aucune' }}</div>
+            <p class="mt-1 text-xs text-slate-600">{{ pilotageData.relance_auto?.message }}</p>
+          </div>
+        </div>
+
+        <div v-if="(pilotageData.validation_controle?.erreurs || []).length || (pilotageData.validation_controle?.alertes || []).length" class="rounded-xl border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-900">
+          <div class="font-black">Points de contrôle</div>
+          <ul class="mt-1 list-disc pl-5">
+            <li v-for="item in [...(pilotageData.validation_controle?.erreurs || []), ...(pilotageData.validation_controle?.alertes || [])]" :key="item">{{ item }}</li>
+          </ul>
+        </div>
+
+        <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          <div class="rounded-xl border border-gray-200 bg-white p-4">
+            <div class="mb-3 flex items-center justify-between">
+              <h3 class="font-black text-slate-900">Paiements</h3>
+              <button v-if="canManagePayments && pilotageFacture && !['payee','annulee'].includes(pilotageFacture.statut)" type="button" class="text-xs font-bold text-emerald-700 hover:text-emerald-900" @click="openEncaisser(pilotageFacture)">Encaisser</button>
+            </div>
+            <div v-if="pilotageData.paiements?.length" class="space-y-2">
+              <div v-for="paiement in pilotageData.paiements" :key="paiement.id" class="rounded-lg bg-slate-50 p-2 text-sm">
+                <div class="font-bold text-slate-900">{{ paiement.reference }} · {{ formatPrice(paiement.montant) }}</div>
+                <div class="text-xs text-slate-500">{{ formatDate(paiement.date_paiement) }} · {{ modePaiementLabel(paiement.mode_paiement) }}</div>
+              </div>
+            </div>
+            <p v-else class="text-sm text-gray-500">Aucun paiement enregistré.</p>
+          </div>
+
+          <div class="rounded-xl border border-gray-200 bg-white p-4">
+            <div class="mb-3 flex items-center justify-between">
+              <h3 class="font-black text-slate-900">Relances</h3>
+              <button v-if="canRelancer(pilotageFacture || {})" type="button" class="text-xs font-bold text-sky-700 hover:text-sky-900" :disabled="tracingRelance" @click="handleTracerRelance">Tracer</button>
+            </div>
+            <div v-if="pilotageData.recouvrements?.length" class="space-y-2">
+              <div v-for="suivi in pilotageData.recouvrements" :key="suivi.id" class="rounded-lg bg-slate-50 p-2 text-sm">
+                <div class="font-bold text-slate-900">{{ actionLabel(suivi.type_action) }}</div>
+                <div class="text-xs text-slate-500">{{ formatDateTime(suivi.date_action) }} · {{ suivi.user?.name || '—' }}</div>
+                <p v-if="suivi.commentaire" class="mt-1 text-xs text-slate-600">{{ suivi.commentaire }}</p>
+              </div>
+            </div>
+            <p v-else class="text-sm text-gray-500">Aucune relance tracée.</p>
+          </div>
+
+          <div class="rounded-xl border border-gray-200 bg-white p-4">
+            <h3 class="mb-3 font-black text-slate-900">Historique</h3>
+            <div v-if="pilotageData.historique?.length" class="max-h-80 space-y-2 overflow-y-auto">
+              <div v-for="(item, index) in pilotageData.historique" :key="`${item.type}-${index}`" class="rounded-lg bg-slate-50 p-2 text-sm">
+                <div class="font-bold text-slate-900">{{ item.titre }}</div>
+                <div class="text-xs text-slate-500">{{ formatDateTime(item.date) }} · {{ item.utilisateur || 'Système' }}</div>
+                <p v-if="item.detail" class="mt-1 text-xs text-slate-600">{{ item.detail }}</p>
+              </div>
+            </div>
+            <p v-else class="text-sm text-gray-500">Aucun historique disponible.</p>
+          </div>
+        </div>
+      </div>
+    </AppModal>
+
     <!-- Modal "Annuler la facture" -->
     <AppModal v-model="showAnnulerModal" :title="annulFacture ? `Annuler la facture ${annulFacture.numero}` : ''" size="md">
       <div v-if="annulFacture" class="space-y-4">
@@ -488,6 +649,25 @@ const payeeForm = reactive({
   notes: '',
 })
 const marquantPayee = ref(false)
+
+// Encaissement direct
+const showEncaisserModal = ref(false)
+const encaissementFacture = ref(null)
+const encaissementLoading = ref(false)
+const encaissementForm = reactive({
+  montant: null,
+  mode_paiement: 'especes',
+  date_paiement: new Date().toISOString().slice(0, 10),
+  reference_paiement: '',
+  notes: '',
+})
+
+// Pilotage facture
+const showPilotageModal = ref(false)
+const pilotageFacture = ref(null)
+const pilotageData = ref(null)
+const pilotageLoading = ref(false)
+const tracingRelance = ref(false)
 
 // Annuler
 const showAnnulerModal = ref(false)
@@ -792,6 +972,87 @@ async function handleMarquerPayee() {
   }
 }
 
+// ===== ENCAISSER =====
+function openEncaisser(f) {
+  encaissementFacture.value = f
+  encaissementForm.montant = Math.max(parseFloat(f?.reste_a_payer || f?.total_ttc || 0), 0)
+  encaissementForm.mode_paiement = 'especes'
+  encaissementForm.date_paiement = new Date().toISOString().slice(0, 10)
+  encaissementForm.reference_paiement = ''
+  encaissementForm.notes = ''
+  showEncaisserModal.value = true
+}
+
+async function handleEncaisser() {
+  if (!encaissementFacture.value) return
+  encaissementLoading.value = true
+  try {
+    const payload = {
+      montant: encaissementForm.montant,
+      mode_paiement: encaissementForm.mode_paiement,
+      date_paiement: encaissementForm.date_paiement || undefined,
+      reference_paiement: encaissementForm.reference_paiement || undefined,
+      notes: encaissementForm.notes || undefined,
+    }
+    const { data } = await api.post(`/factures/${encaissementFacture.value.id}/encaisser`, payload)
+    toast.success(data.message || 'Paiement enregistré')
+    showEncaisserModal.value = false
+    await loadFactures(meta.current_page)
+    loadStats()
+    if (showPilotageModal.value && pilotageFacture.value?.id === encaissementFacture.value.id) {
+      await loadPilotage(encaissementFacture.value.id)
+    }
+  } catch (err) {
+    const errors = err.response?.data?.errors
+    const firstError = errors ? Object.values(errors).flat()[0] : null
+    toast.error(firstError || err.response?.data?.message || 'Erreur lors de l’encaissement')
+  } finally {
+    encaissementLoading.value = false
+  }
+}
+
+// ===== PILOTAGE FACTURE =====
+async function openPilotage(f) {
+  pilotageFacture.value = f
+  pilotageData.value = null
+  showPilotageModal.value = true
+  await loadPilotage(f.id)
+}
+
+async function loadPilotage(id) {
+  pilotageLoading.value = true
+  try {
+    const { data } = await api.get(`/factures/${id}/pilotage`)
+    pilotageData.value = data
+    pilotageFacture.value = data.facture || pilotageFacture.value
+  } catch (err) {
+    toast.error(err.response?.data?.message || 'Erreur de chargement du suivi facture')
+    showPilotageModal.value = false
+  } finally {
+    pilotageLoading.value = false
+  }
+}
+
+async function handleTracerRelance() {
+  if (!pilotageFacture.value) return
+  tracingRelance.value = true
+  try {
+    const { data } = await api.post(`/recouvrement/factures/${pilotageFacture.value.id}/suivis`, {
+      statut: 'relance',
+      type_action: 'relance_email',
+      commentaire: `Relance préparée pour la facture ${pilotageFacture.value.numero}.`,
+      prochain_rappel: pilotageData.value?.relance_auto?.prochain_rappel_suggere || undefined,
+    })
+    toast.success(data.message || 'Relance tracée')
+    await loadPilotage(pilotageFacture.value.id)
+    await loadFactures(meta.current_page)
+  } catch (err) {
+    toast.error(err.response?.data?.message || 'Erreur lors du traçage de la relance')
+  } finally {
+    tracingRelance.value = false
+  }
+}
+
 // ===== ANNULER =====
 function openAnnuler(f) {
   annulFacture.value = f
@@ -819,6 +1080,33 @@ async function handleAnnuler() {
 function formatPrice(n) { return new Intl.NumberFormat('fr-FR').format(Math.round(n || 0)) }
 function formatQte(n) { return parseFloat(n || 0).toLocaleString('fr-FR', { maximumFractionDigits: 3 }) }
 function formatDate(d) { return d ? new Date(d).toLocaleDateString('fr-FR') : '–' }
+function formatDateTime(d) { return d ? new Date(d).toLocaleString('fr-FR') : '–' }
+function modePaiementLabel(mode) {
+  return {
+    especes: 'Espèces',
+    cheque: 'Chèque',
+    virement: 'Virement',
+    carte_bancaire: 'Carte bancaire',
+    mobile_money: 'Mobile money',
+    wave: 'Wave',
+    orange_money: 'Orange Money',
+    free_money: 'Free Money',
+    compensation: 'Compensation',
+    autre: 'Autre',
+  }[mode] || mode || 'Paiement'
+}
+function actionLabel(action) {
+  return {
+    note: 'Note',
+    relance_email: 'Relance email',
+    appel: 'Appel',
+    whatsapp: 'WhatsApp',
+    promesse_paiement: 'Promesse de paiement',
+    litige: 'Litige',
+    paiement_recu: 'Paiement reçu',
+    cloture: 'Clôture',
+  }[action] || action || 'Suivi'
+}
 function isEnRetard(f) {
   if (!['validee', 'envoyee', 'partiellement_payee', 'impayee'].includes(f.statut)) return false
   return new Date(f.date_echeance) < new Date()
