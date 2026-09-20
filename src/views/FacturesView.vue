@@ -403,9 +403,18 @@ const stats = reactive({
   annulees: 0,
   impayees: 0,
   en_retard: 0,
+  a_envoyer: 0,
+  echeance_proche: 0,
+  factures_ouvertes: 0,
   ca_mois: 0,
   ca_annee: 0,
   encours_total: 0,
+  montant_retard: 0,
+  montant_partiel: 0,
+  montant_echeance_proche: 0,
+  montant_total_facture: 0,
+  montant_total_paye: 0,
+  taux_recouvrement: 0,
 })
 const meta = reactive({ current_page: 1, last_page: 1, total: 0, from: 0, to: 0 })
 const filters = reactive({ search: '', statut: '', type: '', quick: '' })
@@ -453,8 +462,11 @@ const filterChips = computed(() => {
 
   if (!isCommercial.value) {
     chips.splice(1, 0,
-      { kind: 'quick', key: 'impayees', label: 'À traiter', count: stats.impayees, amount: stats.encours_total, tone: 'orange' },
-      { kind: 'quick', key: 'en_retard', label: 'En retard', count: stats.en_retard, amount: null, tone: 'red' },
+      { kind: 'quick', key: 'a_encaisser', label: 'À encaisser', count: stats.impayees, amount: stats.encours_total, tone: 'orange' },
+      { kind: 'quick', key: 'en_retard', label: 'En retard', count: stats.en_retard, amount: stats.montant_retard, tone: 'red' },
+      { kind: 'quick', key: 'partiels', label: 'Partiels', count: stats.partiellement_payees, amount: stats.montant_partiel, tone: 'yellow' },
+      { kind: 'quick', key: 'echeance_proche', label: 'Échéance proche', count: stats.echeance_proche, amount: stats.montant_echeance_proche, tone: 'cyan' },
+      { kind: 'quick', key: 'a_envoyer', label: 'À envoyer', count: stats.a_envoyer, amount: null, tone: 'indigo' },
     )
     chips.push(
       { kind: 'quick', key: 'ca_mois', label: 'CA facturation mois', count: null, amount: stats.ca_mois, tone: 'blue' },
@@ -492,7 +504,7 @@ const canSubmitAvoir = computed(() => {
 const allowedQuickFilters = computed(() => (
   isCommercial.value ?
      ['standard']
-    : ['standard', 'impayees', 'en_retard', 'ca_mois', 'ca_annee', 'encours']
+    : ['standard', 'impayees', 'a_encaisser', 'en_retard', 'partiels', 'echeance_proche', 'a_envoyer', 'ca_mois', 'ca_annee', 'encours']
 ))
 
 let searchTimeout = null
@@ -538,7 +550,10 @@ function filterChipClass(chip) {
   return {
     red: 'border-red-200 bg-red-50 text-red-700 hover:border-red-300',
     orange: 'border-orange-200 bg-orange-50 text-orange-700 hover:border-orange-300',
+    yellow: 'border-yellow-200 bg-yellow-50 text-yellow-700 hover:border-yellow-300',
     green: 'border-green-200 bg-green-50 text-green-700 hover:border-green-300',
+    cyan: 'border-cyan-200 bg-cyan-50 text-cyan-700 hover:border-cyan-300',
+    indigo: 'border-indigo-200 bg-indigo-50 text-indigo-700 hover:border-indigo-300',
     gray: 'border-gray-200 bg-gray-50 text-gray-700 hover:border-gray-300',
     blue: 'border-blue-200 bg-blue-50 text-blue-700 hover:border-blue-300',
   }[chip.tone] || 'border-gray-200 bg-gray-50 text-gray-700'
