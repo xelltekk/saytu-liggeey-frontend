@@ -118,6 +118,33 @@
                   Suivi
                 </button>
                 <button
+                  v-if="canValidateInvoices && f.type !== 'avoir' && f.statut === 'brouillon'"
+                  @click="handleValider(f)"
+                  :disabled="validatingId === `valider-${f.id}`"
+                  class="text-blue-700 hover:text-blue-900 mr-2 text-sm font-medium disabled:opacity-50"
+                  title="Valider la facture et sortir le stock"
+                >
+                  Valider
+                </button>
+                <button
+                  v-if="canValidateInvoices && f.type !== 'avoir' && f.statut === 'brouillon'"
+                  @click="handleEnvoyer(f)"
+                  :disabled="validatingId === `envoyer-${f.id}`"
+                  class="text-indigo-700 hover:text-indigo-900 mr-2 text-sm font-medium disabled:opacity-50"
+                  title="Valider puis marquer comme envoyée"
+                >
+                  Valider + envoyée
+                </button>
+                <button
+                  v-if="canValidateInvoices && f.type !== 'avoir' && f.statut === 'validee'"
+                  @click="handleEnvoyer(f)"
+                  :disabled="validatingId === `envoyer-${f.id}`"
+                  class="text-indigo-700 hover:text-indigo-900 mr-2 text-sm font-medium disabled:opacity-50"
+                  title="Marquer comme envoyée au client"
+                >
+                  Marquer envoyée
+                </button>
+                <button
                   v-if="canManagePayments && f.type !== 'avoir' && !['brouillon','payee','annulee'].includes(f.statut)"
                   @click="openEncaisser(f)"
                   class="text-emerald-700 hover:text-emerald-900 mr-2 text-sm font-medium"
@@ -550,10 +577,12 @@ const router = useRouter()
 const isCommercial = computed(() => hasAnyRole(auth.user, 'commercial'))
 const isAdmin = computed(() => hasAnyRole(auth.user, ['admin', 'gerant']))
 const canManagePayments = computed(() => hasAnyRole(auth.user, ['admin', 'gerant', 'comptable']))
+const canValidateInvoices = computed(() => hasAnyRole(auth.user, ['admin', 'gerant', 'commercial']))
 const factures = ref([])
 const { sort, toggleSort, sortIcon, sortedRows } = useTableSort('numero', 'desc')
 const loading = ref(false)
 const exportLoading = ref(false)
+const validatingId = ref(null)
 const stats = reactive({
   total: 0,
   brouillons: 0,
@@ -881,6 +910,40 @@ async function handleDelete() {
 async function ouvrirPdf(f) {
   try { await ouvrirPDF(`/factures/${f.id}/pdf`, `${f.numero}.pdf`) }
   catch (e) { toast.error('Impossible d\'ouvrir le PDF') }
+}
+
+async function handleValider(f) {
+  validatingId.value = `valider-${f.id}`
+  try {
+    await api.post(`/factures/${f.id}/valider`)
+    toast.success(`Facture ${f.numero} validée`)
+    await loadFactures(meta.current_page)
+    loadStats()
+    if (showPilotageModal.value && pilotageFacture.value?.id === f.id) await loadPilotage(f.id)
+  } catch (err) {
+    const errors = err.response?.data?.errors || err.response?.data?.validation_controle?.erreurs
+    const firstError = Array.isArray(errors) ? errors[0] : errors ? Object.values(errors).flat()[0] : null
+    toast.error(firstError || err.response?.data?.message || 'Erreur lors de la validation')
+  } finally {
+    validatingId.value = null
+  }
+}
+
+async function handleEnvoyer(f) {
+  validatingId.value = `envoyer-${f.id}`
+  try {
+    const { data } = await api.post(`/factures/${f.id}/envoyer`)
+    toast.success(data.message || `Facture ${f.numero} marquée envoyée`)
+    await loadFactures(meta.current_page)
+    loadStats()
+    if (showPilotageModal.value && pilotageFacture.value?.id === f.id) await loadPilotage(f.id)
+  } catch (err) {
+    const errors = err.response?.data?.errors || err.response?.data?.validation_controle?.erreurs
+    const firstError = Array.isArray(errors) ? errors[0] : errors ? Object.values(errors).flat()[0] : null
+    toast.error(firstError || err.response?.data?.message || 'Erreur lors du changement de statut')
+  } finally {
+    validatingId.value = null
+  }
 }
 
 // ===== AVOIRS =====
