@@ -113,76 +113,6 @@
         </button>
       </div>
 
-      <div class="grid gap-3 border-t border-xelltekk-100 p-3 lg:grid-cols-3">
-        <div class="rounded-xl border border-gray-100 bg-gray-50/70 p-3">
-          <div class="text-xs font-semibold uppercase text-gray-500">Indicateurs</div>
-          <div class="mt-3 grid grid-cols-2 gap-2 text-sm">
-            <div class="rounded-lg bg-white p-2">
-              <div class="text-[11px] text-gray-500">Transformation</div>
-              <div class="font-bold text-xelltekk-800">{{ stats.taux_transformation || 0 }}%</div>
-            </div>
-            <div class="rounded-lg bg-white p-2">
-              <div class="text-[11px] text-gray-500">Panier moyen</div>
-              <div class="font-bold text-xelltekk-800">{{ formatPrice(stats.panier_moyen) }}</div>
-            </div>
-            <div class="rounded-lg bg-white p-2">
-              <div class="text-[11px] text-gray-500">Décidés</div>
-              <div class="font-bold text-xelltekk-800">{{ stats.decides || 0 }}</div>
-            </div>
-            <div class="rounded-lg bg-white p-2">
-              <div class="text-[11px] text-gray-500">Délai décision</div>
-              <div class="font-bold text-xelltekk-800">{{ stats.delai_moyen_decision_jours ?? '–' }} j</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="rounded-xl border border-orange-100 bg-orange-50/70 p-3">
-          <div class="mb-2 flex items-center justify-between">
-            <h5 class="font-semibold text-orange-800">Relances prioritaires</h5>
-            <button type="button" class="text-xs font-semibold text-orange-700 hover:underline" @click="applySuiviFilter('a_relancer')">Tout voir</button>
-          </div>
-          <div class="space-y-2">
-            <div v-for="item in relancesPrioritaires" :key="`relance-${item.id}`" class="rounded-lg bg-white p-2 shadow-sm">
-              <div class="flex items-start justify-between gap-2">
-                <div class="min-w-0">
-                  <div class="truncate text-sm font-semibold text-gray-900">{{ item.numero }} · {{ item.client?.nom || 'Client' }}</div>
-                  <div class="text-xs text-orange-700">{{ followUpHint(item) }} · {{ formatPrice(item.total_ttc) }} XOF</div>
-                  <div class="text-[11px] text-gray-500">{{ item.action_recommandee || 'Relancer le client' }}</div>
-                </div>
-                <div class="flex shrink-0 flex-wrap justify-end gap-1">
-                  <EmailActionButtons v-if="item.client?.email" :draft="relanceEmailDraft(item)" :filename="`relance-devis-${item.numero || item.id}`" dialog compact />
-                  <button type="button" class="text-xs font-semibold text-xelltekk-700 hover:underline" @click="openEdit(item)">Ouvrir</button>
-                </div>
-              </div>
-            </div>
-            <div v-if="!relancesPrioritaires.length" class="py-4 text-center text-xs text-gray-400">Aucune relance prioritaire.</div>
-          </div>
-        </div>
-
-        <div class="rounded-xl border border-cyan-100 bg-cyan-50/70 p-3">
-          <div class="mb-2 flex items-center justify-between">
-            <h5 class="font-semibold text-cyan-800">Gros devis ouverts</h5>
-            <button type="button" class="text-xs font-semibold text-cyan-700 hover:underline" @click="applySuiviFilter('gros')">Tout voir</button>
-          </div>
-          <div class="space-y-2">
-            <div v-for="item in grosDevis" :key="`gros-${item.id}`" class="rounded-lg bg-white p-2 shadow-sm">
-              <div class="flex items-start justify-between gap-2">
-                <div class="min-w-0">
-                  <div class="truncate text-sm font-semibold text-gray-900">{{ item.numero }} · {{ item.client?.nom || 'Client' }}</div>
-                  <div class="text-xs text-cyan-700">{{ statutLabel(item.statut) }} · {{ formatPrice(item.total_ttc) }} XOF</div>
-                  <div class="text-[11px] text-gray-500">{{ item.action_recommandee || followUpLabel(item) }}</div>
-                </div>
-                <div class="flex shrink-0 flex-wrap justify-end gap-1">
-                  <button v-if="item.statut === 'accepte'" type="button" class="text-xs font-semibold text-green-700 hover:underline" @click="confirmConvertir(item)">Facturer</button>
-                  <button type="button" class="text-xs font-semibold text-xelltekk-700 hover:underline" @click="ouvrirPdf(item)">PDF</button>
-                  <button type="button" class="text-xs font-semibold text-xelltekk-700 hover:underline" @click="openEdit(item)">Ouvrir</button>
-                </div>
-              </div>
-            </div>
-            <div v-if="!grosDevis.length" class="py-4 text-center text-xs text-gray-400">Aucun gros devis ouvert.</div>
-          </div>
-        </div>
-      </div>
     </div>
 
     <!-- Loader -->
@@ -483,8 +413,6 @@ const pipelineDevis = computed(() => (stats.pipeline || []).map((stage) => ({
   count: Number(stage.count || 0),
   amount: Number(stage.amount || 0),
 })))
-const relancesPrioritaires = computed(() => stats.relances_prioritaires || [])
-const grosDevis = computed(() => stats.gros_devis || [])
 
 let searchTimeout = null
 function onSearchInput() {
