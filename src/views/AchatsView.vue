@@ -23,6 +23,8 @@
       </div>
     </section>
 
+    <div data-inline-modal-workspace></div>
+
     <section v-if="!showRequests" class="achat-dashboard-panel">
       <div class="flex flex-wrap items-center justify-between gap-2">
         <div>
@@ -504,7 +506,7 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { FileDown, PackageCheck, Plus, Trash2 } from 'lucide-vue-next'
 import api from '@/services/api'
-import AppModal from '@/components/AppModal.vue'
+import AppModal from '@/components/InlinePanelModal.vue'
 import AppPagination from '@/components/AppPagination.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'

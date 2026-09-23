@@ -73,6 +73,8 @@
       </button>
     </div>
 
+    <div data-inline-modal-workspace></div>
+
     <!-- Filtres -->
     <div class="bg-white rounded-lg border border-gray-200 p-3 mb-4">
       <div class="flex flex-col gap-2 md:flex-row md:flex-wrap">
@@ -1440,7 +1442,7 @@
 import { ref, reactive, onMounted, onUnmounted, computed, h, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/services/api'
-import AppModal from '@/components/AppModal.vue'
+import AppModal from '@/components/InlinePanelModal.vue'
 import MouvementForm from '@/components/MouvementForm.vue'
 import SortableTh from '@/components/SortableTh.vue'
 import { useToast } from '@/composables/useToast'

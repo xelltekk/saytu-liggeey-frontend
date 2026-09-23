@@ -52,6 +52,8 @@
       </div>
     </div>
 
+    <div data-inline-modal-workspace></div>
+
     <section v-show="activeTab === 'pilotage'" class="space-y-4">
       <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
         <article v-for="card in debtKpiCards" :key="card.label" class="debt-card">
@@ -569,7 +571,7 @@
 import { computed, defineComponent, h, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import api from '@/services/api'
-import AppModal from '@/components/AppModal.vue'
+import AppModal from '@/components/InlinePanelModal.vue'
 import { useToast } from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
 import { telechargerCSV } from '@/services/exports'

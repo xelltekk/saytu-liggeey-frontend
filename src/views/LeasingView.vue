@@ -17,6 +17,8 @@
       </div>
     </section>
 
+    <div data-inline-modal-workspace></div>
+
     <div v-if="moduleWarning" class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
       {{ moduleWarning }}
     </div>
@@ -556,7 +558,7 @@ import { useRoute } from 'vue-router'
 import api from '@/services/api'
 import { ouvrirPDF } from '@/services/pdf'
 import { telechargerFichierPrive } from '@/services/files'
-import AppModal from '@/components/AppModal.vue'
+import AppModal from '@/components/InlinePanelModal.vue'
 import { useToast } from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
 import { useAuthStore } from '@/stores/auth'

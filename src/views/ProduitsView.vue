@@ -67,6 +67,8 @@
       </div>
     </section>
 
+    <div data-inline-modal-workspace></div>
+
     <!-- Loader -->
     <div v-if="loading" class="rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-surface,#ffffff)] p-12 text-center text-[color:var(--saytu-topbar-subtitle,#64748b)]">
       Chargement...
@@ -207,7 +209,7 @@
 import { computed, ref, reactive, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '@/services/api'
-import AppModal from '@/components/AppModal.vue'
+import AppModal from '@/components/InlinePanelModal.vue'
 import ProduitForm from '@/components/ProduitForm.vue'
 import SortableTh from '@/components/SortableTh.vue'
 import { useToast } from '@/composables/useToast'

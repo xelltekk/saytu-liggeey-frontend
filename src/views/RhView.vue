@@ -8,6 +8,8 @@
       <button class="btn-primary" @click="openConge">+ Demande de congé</button>
     </div>
 
+    <div data-inline-modal-workspace></div>
+
     <div class="overflow-hidden rounded-lg border border-slate-200 bg-white">
       <div class="flex gap-1 overflow-x-auto border-b border-slate-200 bg-slate-50 p-2">
         <button v-for="group in visibleGroups" :key="group.id"
@@ -365,7 +367,7 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import api from '@/services/api'
-import AppModal from '@/components/AppModal.vue'
+import AppModal from '@/components/InlinePanelModal.vue'
 import AppPagination from '@/components/AppPagination.vue'
 import RhExtendedPanel from '@/components/rh/RhExtendedPanel.vue'
 import RhPresencePanel from '@/components/rh/RhPresencePanel.vue'

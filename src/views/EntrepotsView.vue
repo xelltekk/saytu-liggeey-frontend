@@ -46,6 +46,8 @@
       </div>
     </section>
 
+    <div data-inline-modal-workspace></div>
+
     <div v-if="loading" class="rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-surface,#ffffff)] p-12 text-center text-[color:var(--saytu-topbar-subtitle,#64748b)]">
       Chargement...
     </div>
@@ -119,7 +121,7 @@
 <script setup>
 import { computed, reactive, ref, onMounted } from 'vue'
 import api from '@/services/api'
-import AppModal from '@/components/AppModal.vue'
+import AppModal from '@/components/InlinePanelModal.vue'
 import AppPagination from '@/components/AppPagination.vue'
 import EntrepotForm from '@/components/EntrepotForm.vue'
 import EntrepotDetails from '@/components/EntrepotDetails.vue'

@@ -73,7 +73,7 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 import api from '@/services/api'
-import AppModal from '@/components/AppModal.vue'
+import AppModal from '@/components/InlinePanelModal.vue'
 import { useToast } from '@/composables/useToast'
 const props = defineProps({ canManage: Boolean, employes: { type: Array, default: () => [] } }), toast = useToast(), equipments = ref([]), assignments = ref([]), showReturn = ref(false), activeAssignment = ref(null)
 const categories = ['ordinateur', 'telephone', 'badge', 'mobilier', 'accessoire', 'autre'], etats = ['neuf', 'bon', 'moyen', 'a_reparer', 'hors_service'], statuts = ['disponible', 'attribue', 'maintenance', 'reforme']

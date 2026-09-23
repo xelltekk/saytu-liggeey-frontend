@@ -45,6 +45,8 @@
       </button>
     </div>
 
+    <div data-inline-modal-workspace></div>
+
     <div v-if="loading" class="bg-white rounded-lg p-12 text-center text-gray-500">Chargement...</div>
 
     <div v-else class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
@@ -144,7 +146,7 @@
 import { computed, ref, reactive, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '@/services/api'
-import AppModal from '@/components/AppModal.vue'
+import AppModal from '@/components/InlinePanelModal.vue'
 import PaiementForm from '@/components/PaiementForm.vue'
 import SortableTh from '@/components/SortableTh.vue'
 import { useToast } from '@/composables/useToast'

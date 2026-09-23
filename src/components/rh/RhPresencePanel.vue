@@ -47,7 +47,7 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 import api from '@/services/api'
-import AppModal from '@/components/AppModal.vue'
+import AppModal from '@/components/InlinePanelModal.vue'
 import { useToast } from '@/composables/useToast'
 const props = defineProps({ canManage: Boolean, employes: { type: Array, default: () => [] } }), toast = useToast()
 const monPointage = reactive({}), presences = ref([]), stats = reactive({}), showCorrection = ref(false)

@@ -28,6 +28,8 @@
       </div>
     </div>
 
+    <div data-inline-modal-workspace></div>
+
     <!-- Mini filtres -->
     <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-3">
       <div class="flex flex-wrap items-center gap-2">
@@ -560,7 +562,7 @@ import { ref, reactive, onMounted, computed, watch } from 'vue'
 import api from '@/services/api'
 import { ouvrirPDF } from '@/services/pdf'
 import { telechargerCSV } from '@/services/exports'
-import AppModal from '@/components/AppModal.vue'
+import AppModal from '@/components/InlinePanelModal.vue'
 import AppConfirmModal from '@/components/AppConfirmModal.vue'
 import FactureForm from '@/components/FactureForm.vue'
 import AssignCommercialModal from '@/components/AssignCommercialModal.vue'

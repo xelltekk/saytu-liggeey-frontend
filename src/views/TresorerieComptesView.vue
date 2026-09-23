@@ -56,6 +56,8 @@
       </div>
     </div>
 
+    <div data-inline-modal-workspace></div>
+
     <div v-if="loading" class="rounded-3xl bg-white p-12 text-center text-gray-500 shadow-sm">Chargement...</div>
 
     <div v-else class="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm">
@@ -309,7 +311,7 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 import api from '@/services/api'
-import AppModal from '@/components/AppModal.vue'
+import AppModal from '@/components/InlinePanelModal.vue'
 import AppPagination from '@/components/AppPagination.vue'
 import SortableTh from '@/components/SortableTh.vue'
 import { useToast } from '@/composables/useToast'

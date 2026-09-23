@@ -39,6 +39,8 @@
       </div>
     </section>
 
+    <div data-inline-modal-workspace></div>
+
     <section class="overflow-hidden rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-surface,#ffffff)]">
       <div class="flex flex-col gap-1 border-b border-[color:var(--saytu-border,#e2e8f0)] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -208,7 +210,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { CheckCircle, Folder, FolderTree, Pencil, Trash2, XCircle } from 'lucide-vue-next'
 import api from '@/services/api'
-import AppModal from '@/components/AppModal.vue'
+import AppModal from '@/components/InlinePanelModal.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
 import { hasAnyRole, hasPermission } from '@/utils/access'
