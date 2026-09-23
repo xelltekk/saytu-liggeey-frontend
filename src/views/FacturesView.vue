@@ -74,7 +74,9 @@
           <tbody class="divide-y divide-gray-100">
             <tr v-for="f in sortedFactures" :key="f.id" class="hover:bg-gray-50">
               <td class="px-3 py-3 text-xs font-mono text-gray-600">
-                {{ f.numero }}
+                <button type="button" class="font-mono font-black text-xelltekk-700 hover:underline" @click="openEdit(f)">
+                  {{ f.numero }}
+                </button>
                 <span v-if="f.type === 'avoir'" class="ml-1 text-red-600 text-[10px]">AVOIR</span>
               </td>
               <td class="px-3 py-3">
@@ -828,20 +830,14 @@ async function exporterCSV() {
 }
 
 function openCreate(client = null) {
-  editingFacture.value = null
-  creatingClient.value = client
-  formDirty.value = false
-  saisieModalMinimized.value = false
-  showModal.value = true
+  router.push({
+    name: 'facture-create',
+    query: client?.id ? { client_id: client.id, tab: 'saisie' } : { tab: 'saisie' },
+  })
 }
 
 async function openEdit(f) {
-  const { data } = await api.get(`/factures/${f.id}`)
-  creatingClient.value = null
-  editingFacture.value = data
-  formDirty.value = false
-  saisieModalMinimized.value = false
-  showModal.value = true
+  router.push({ name: 'facture-detail', params: { id: f.id }, query: { tab: 'fiche' } })
 }
 
 function openAssignFacture(f) {
@@ -879,10 +875,7 @@ async function handleCloner(f) {
   try {
     const { data } = await api.post(`/factures/${f.id}/cloner`)
     toast.success(data.message || `Facture ${f.numero} clonée`)
-    creatingClient.value = null
-    editingFacture.value = data.facture
-    formDirty.value = false
-    showModal.value = true
+    router.push({ name: 'facture-detail', params: { id: data.facture.id }, query: { tab: 'saisie' } })
     await loadFactures(meta.current_page)
     loadStats()
   } catch (err) {
@@ -1076,10 +1069,7 @@ async function handleEncaisser() {
 
 // ===== PILOTAGE FACTURE =====
 async function openPilotage(f) {
-  pilotageFacture.value = f
-  pilotageData.value = null
-  showPilotageModal.value = true
-  await loadPilotage(f.id)
+  router.push({ name: 'facture-detail', params: { id: f.id }, query: { tab: 'suivi' } })
 }
 
 async function loadPilotage(id) {
@@ -1224,26 +1214,12 @@ function relanceFactureEmailDraft(f) {
 
 async function openFromRoute(id) {
   if (!id) return
-  try {
-    const { data } = await api.get(`/factures/${parseInt(id)}`)
-    editingFacture.value = data
-    formDirty.value = false
-    showModal.value = true
-    router.replace({ path: '/factures', query: {} })
-  } catch (e) {
-    toast.error('Facture introuvable')
-  }
+  router.replace({ name: 'facture-detail', params: { id: parseInt(id) }, query: { tab: 'fiche' } })
 }
 
 async function openCreateFromRoute(clientId) {
   if (!clientId) return
-  try {
-    const { data } = await api.get(`/clients/${parseInt(clientId)}`)
-    openCreate(data)
-    router.replace({ path: '/factures', query: {} })
-  } catch (e) {
-    toast.error('Client introuvable')
-  }
+  router.replace({ name: 'facture-create', query: { client_id: parseInt(clientId), tab: 'saisie' } })
 }
 
 onMounted(async () => {

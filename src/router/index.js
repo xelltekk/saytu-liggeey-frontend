@@ -90,6 +90,16 @@ const routes = [
         component: () => import('@/views/FacturesView.vue'),
       },
       {
+        path: 'factures/nouveau',
+        name: 'facture-create',
+        component: () => import('@/views/FactureDetailView.vue'),
+      },
+      {
+        path: 'factures/:id',
+        name: 'facture-detail',
+        component: () => import('@/views/FactureDetailView.vue'),
+      },
+      {
         path: 'paiements',
         name: 'paiements',
         component: () => import('@/views/PaiementsView.vue'),
