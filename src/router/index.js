@@ -65,6 +65,16 @@ const routes = [
         component: () => import('@/views/ClientsView.vue'),
       },
       {
+        path: 'clients/nouveau',
+        name: 'client-create',
+        component: () => import('@/views/ClientDetailView.vue'),
+      },
+      {
+        path: 'clients/:id',
+        name: 'client-detail',
+        component: () => import('@/views/ClientDetailView.vue'),
+      },
+      {
         path: 'prospection',
         name: 'prospection',
         component: () => import('@/views/ProspectionView.vue'),

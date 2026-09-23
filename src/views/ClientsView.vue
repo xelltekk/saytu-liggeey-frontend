@@ -651,13 +651,11 @@ async function exporterCSV() {
 }
 
 function openCreate() {
-  editingClient.value = null
-  showModal.value = true
+  router.push({ name: 'client-create', query: { tab: 'saisie' } })
 }
 
 function openEdit(client) {
-  editingClient.value = { ...client }
-  showModal.value = true
+  router.push({ name: 'client-detail', params: { id: client.id }, query: { tab: 'saisie' } })
 }
 
 function openAssignClient(client) {
@@ -682,11 +680,11 @@ function situation(client) {
 }
 
 function creerDevis(client) {
-  router.push({ path: '/devis', query: { create_client: client.id } })
+  router.push({ name: 'devis-create', query: { client_id: client.id, tab: 'saisie' } })
 }
 
 function creerFacture(client) {
-  router.push({ path: '/factures', query: { create_client: client.id } })
+  router.push({ name: 'facture-create', query: { client_id: client.id, tab: 'saisie' } })
 }
 
 function creerPaiement(client) {
@@ -702,18 +700,8 @@ function creerIntervention(client) {
 }
 
 async function openClient360(client) {
-  showClient360Modal.value = true
-  client360.value = client
-  client360Loading.value = true
-
-  try {
-    const { data } = await api.get(`/clients/${client.id}`)
-    client360.value = data
-  } catch (e) {
-    toast.error('Impossible de charger la fiche 360°')
-  } finally {
-    client360Loading.value = false
-  }
+  if (!client?.id) return
+  router.push({ name: 'client-detail', params: { id: client.id }, query: { tab: 'fiche' } })
 }
 
 function goToDocument(path, id) {
@@ -835,10 +823,7 @@ function relanceDraftForClient(client) {
 async function openFromRoute(id) {
   if (!id) return
   try {
-    const { data } = await api.get(`/clients/${id}`)
-    editingClient.value = data
-    showModal.value = true
-    router.replace({ path: '/clients', query: {} })
+    router.replace({ name: 'client-detail', params: { id: parseInt(id) }, query: { tab: 'fiche' } })
   } catch (e) {
     toast.error('Client introuvable')
   }
