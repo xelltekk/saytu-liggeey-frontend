@@ -115,6 +115,212 @@
 
     </div>
 
+    <!-- Fiche devis intégrée -->
+    <section v-if="detailData || detailLoading" class="rounded-2xl border border-cyan-200 bg-white shadow-sm">
+      <div class="flex flex-col gap-3 border-b border-cyan-100 bg-cyan-50/70 px-4 py-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p class="text-xs font-black uppercase tracking-[0.2em] text-cyan-700">Fiche devis</p>
+          <div class="mt-1 flex flex-wrap items-center gap-2">
+            <h3 class="text-xl font-black text-slate-900">{{ detailDevis?.numero || 'Chargement...' }}</h3>
+            <span v-if="detailDevis" class="badge" :class="statutBadge(detailDevis.statut)">{{ statutLabel(detailDevis.statut) }}</span>
+            <span v-if="detailData?.suivi_commercial" class="badge bg-cyan-100 text-cyan-800">{{ detailData.suivi_commercial.label }}</span>
+          </div>
+          <p class="mt-1 text-sm text-slate-600">
+            {{ detailDevis?.client?.nom || 'Client non renseigné' }}
+            <span v-if="detailDevis?.objet"> · {{ detailDevis.objet }}</span>
+          </p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <button v-if="detailDevis" type="button" class="btn-secondary px-3 py-2 text-xs" @click="ouvrirPdf(detailDevis)">PDF</button>
+          <button v-if="detailDevis" type="button" class="btn-secondary px-3 py-2 text-xs" @click="openEdit(detailDevis)">Modifier</button>
+          <button
+            v-if="detailDevis && detailDevis.statut !== 'facture' && detailDevis.statut !== 'refuse'"
+            type="button"
+            class="btn-primary px-3 py-2 text-xs"
+            @click="confirmConvertir(detailDevis)"
+          >
+            Convertir
+          </button>
+          <button v-if="detailDevis" type="button" class="btn-secondary px-3 py-2 text-xs" @click="handleCloner(detailDevis)">Nouvelle version</button>
+          <button type="button" class="rounded-full border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-white" @click="closeDetail">Fermer</button>
+        </div>
+      </div>
+
+      <div v-if="detailLoading" class="p-8 text-center text-sm text-slate-500">Chargement de la fiche...</div>
+
+      <div v-else class="p-4">
+        <div class="mb-4 flex flex-wrap gap-2 border-b border-cyan-100">
+          <button
+            v-for="tab in detailTabs"
+            :key="tab.key"
+            type="button"
+            class="-mb-px rounded-t-xl border border-transparent px-4 py-2 text-sm font-bold"
+            :class="activeDetailTab === tab.key ? 'border-cyan-200 border-b-white bg-white text-cyan-700' : 'text-slate-500 hover:bg-cyan-50 hover:text-cyan-700'"
+            @click="activeDetailTab = tab.key"
+          >
+            {{ tab.label }}
+          </button>
+        </div>
+
+        <div v-if="activeDetailTab === 'fiche'" class="grid gap-4 xl:grid-cols-3">
+          <div class="rounded-2xl border border-cyan-100 bg-cyan-50/50 p-4">
+            <p class="text-xs font-black uppercase tracking-wide text-cyan-700">Résumé</p>
+            <dl class="mt-3 grid grid-cols-2 gap-3 text-sm">
+              <div>
+                <dt class="text-xs text-slate-500">Date devis</dt>
+                <dd class="font-bold text-slate-900">{{ formatDate(detailDevis?.date_devis) }}</dd>
+              </div>
+              <div>
+                <dt class="text-xs text-slate-500">Validité</dt>
+                <dd class="font-bold text-slate-900">{{ formatDate(detailDevis?.date_validite) }}</dd>
+              </div>
+              <div>
+                <dt class="text-xs text-slate-500">Commercial</dt>
+                <dd class="font-bold text-slate-900">{{ detailDevis?.commercial?.name || 'Non affecté' }}</dd>
+              </div>
+              <div>
+                <dt class="text-xs text-slate-500">Version</dt>
+                <dd class="font-bold text-slate-900">V{{ detailDevis?.version_numero || 1 }}</dd>
+              </div>
+            </dl>
+          </div>
+
+          <div class="rounded-2xl border border-cyan-100 bg-white p-4">
+            <p class="text-xs font-black uppercase tracking-wide text-cyan-700">Montants</p>
+            <div class="mt-3 space-y-2 text-sm">
+              <div class="flex justify-between"><span class="text-slate-500">Total HT</span><strong>{{ formatPrice(detailDevis?.total_ht) }} {{ detailDevis?.devise || 'XOF' }}</strong></div>
+              <div class="flex justify-between"><span class="text-slate-500">TVA</span><strong>{{ formatPrice(detailDevis?.total_tva) }} {{ detailDevis?.devise || 'XOF' }}</strong></div>
+              <div class="flex justify-between border-t border-cyan-100 pt-2 text-base"><span class="text-slate-700">Total TTC</span><strong class="text-cyan-700">{{ formatPrice(detailDevis?.total_ttc) }} {{ detailDevis?.devise || 'XOF' }}</strong></div>
+            </div>
+          </div>
+
+          <div class="rounded-2xl border p-4" :class="controlBoxClass(detailData?.validation_controle?.niveau)">
+            <p class="text-xs font-black uppercase tracking-wide">Contrôle avant envoi</p>
+            <div class="mt-3 space-y-2 text-sm">
+              <p v-for="item in detailData?.validation_controle?.erreurs || []" :key="`err-${item}`" class="font-semibold text-red-700">✕ {{ item }}</p>
+              <p v-for="item in detailData?.validation_controle?.alertes || []" :key="`warn-${item}`" class="font-semibold text-orange-700">⚠ {{ item }}</p>
+              <p v-for="item in detailData?.validation_controle?.ok || []" :key="`ok-${item}`" class="text-emerald-700">✓ {{ item }}</p>
+            </div>
+          </div>
+        </div>
+
+        <div v-else-if="activeDetailTab === 'lignes'" class="overflow-x-auto rounded-2xl border border-cyan-100">
+          <table class="w-full text-sm">
+            <thead class="bg-cyan-50 text-xs uppercase text-cyan-800">
+              <tr>
+                <th class="px-3 py-2 text-left">Désignation</th>
+                <th class="px-3 py-2 text-right">Qté</th>
+                <th class="px-3 py-2 text-right">PU HT</th>
+                <th class="px-3 py-2 text-right">TVA</th>
+                <th class="px-3 py-2 text-right">Total TTC</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-cyan-100">
+              <tr v-for="ligne in detailDevis?.lignes || []" :key="ligne.id">
+                <td class="px-3 py-3">
+                  <div class="font-bold text-slate-900">{{ ligne.designation }}</div>
+                  <div v-if="ligne.description" class="text-xs text-slate-500">{{ ligne.description }}</div>
+                </td>
+                <td class="px-3 py-3 text-right">{{ Number(ligne.quantite || 0) }}</td>
+                <td class="px-3 py-3 text-right">{{ formatPrice(ligne.prix_unitaire_ht) }}</td>
+                <td class="px-3 py-3 text-right">{{ Number(ligne.taux_tva || 0) }}%</td>
+                <td class="px-3 py-3 text-right font-bold">{{ formatPrice(ligne.total_ttc) }}</td>
+              </tr>
+              <tr v-if="!(detailDevis?.lignes || []).length">
+                <td colspan="5" class="px-3 py-6 text-center text-slate-400">Aucune ligne.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div v-else-if="activeDetailTab === 'suivi'" class="grid gap-4 lg:grid-cols-2">
+          <div class="rounded-2xl border border-cyan-100 bg-cyan-50/50 p-4">
+            <p class="text-xs font-black uppercase tracking-wide text-cyan-700">Relance recommandée</p>
+            <p class="mt-2 text-sm font-semibold text-slate-800">{{ detailData?.relance_auto?.message || 'Aucune recommandation.' }}</p>
+            <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+              <div class="rounded-xl bg-white p-3"><span class="block text-slate-500">Urgence</span><strong>{{ detailData?.relance_auto?.urgence || '—' }}</strong></div>
+              <div class="rounded-xl bg-white p-3"><span class="block text-slate-500">Canal</span><strong>{{ detailData?.relance_auto?.canal || '—' }}</strong></div>
+              <div class="rounded-xl bg-white p-3"><span class="block text-slate-500">Relances</span><strong>{{ detailData?.suivi_commercial?.relance_count || 0 }}</strong></div>
+              <div class="rounded-xl bg-white p-3"><span class="block text-slate-500">Dernière</span><strong>{{ formatDateTime(detailData?.suivi_commercial?.last_relance_at) }}</strong></div>
+            </div>
+            <button type="button" class="btn-primary mt-4 w-full" :disabled="relanceTracking || !detailDevis" @click="tracerRelanceDevis">
+              {{ relanceTracking ? 'Traçage...' : 'Tracer une relance' }}
+            </button>
+          </div>
+
+          <div class="rounded-2xl border border-cyan-100 bg-white p-4">
+            <p class="text-xs font-black uppercase tracking-wide text-cyan-700">Email de relance</p>
+            <p class="mt-2 text-sm text-slate-600">Destinataire : <strong>{{ detailData?.email_relance?.to || 'Email client absent' }}</strong></p>
+            <div class="mt-3 rounded-xl border border-cyan-100 bg-cyan-50/60 p-3 text-sm">
+              <p class="font-bold text-slate-900">{{ detailData?.email_relance?.subject }}</p>
+              <pre class="mt-2 whitespace-pre-wrap font-sans text-xs text-slate-600">{{ detailData?.email_relance?.body }}</pre>
+            </div>
+            <EmailActionButtons
+              v-if="detailData?.email_relance?.to"
+              :draft="detailEmailDraft"
+              :filename="`relance-devis-${detailDevis?.numero || detailDevis?.id}`"
+              dialog
+              class="mt-3"
+            />
+          </div>
+        </div>
+
+        <div v-else-if="activeDetailTab === 'historique'" class="space-y-3">
+          <div v-for="item in detailData?.historique || []" :key="`${item.date}-${item.event}-${item.description}`" class="rounded-2xl border border-cyan-100 bg-white p-4">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <p class="font-bold text-slate-900">{{ item.title || item.event }}</p>
+              <span class="text-xs text-slate-500">{{ formatDateTime(item.date) }}</span>
+            </div>
+            <p class="mt-1 text-sm text-slate-600">{{ item.description }}</p>
+            <p v-if="item.user_name" class="mt-2 text-xs text-cyan-700">Par {{ item.user_name }}</p>
+          </div>
+          <p v-if="!(detailData?.historique || []).length" class="rounded-2xl border border-dashed border-cyan-200 p-6 text-center text-sm text-slate-400">Aucun historique pour ce devis.</p>
+        </div>
+
+        <div v-else-if="activeDetailTab === 'documents'" class="grid gap-4 lg:grid-cols-2">
+          <div class="rounded-2xl border border-cyan-100 bg-white p-4">
+            <p class="text-xs font-black uppercase tracking-wide text-cyan-700">Versions du devis</p>
+            <div class="mt-3 space-y-2">
+              <button
+                v-for="version in detailData?.documents_lies?.versions || []"
+                :key="version.id"
+                type="button"
+                class="flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left text-sm"
+                :class="version.is_current ? 'border-cyan-300 bg-cyan-50' : 'border-cyan-100 hover:bg-cyan-50'"
+                @click="openDetail(version)"
+              >
+                <span>
+                  <strong>{{ version.numero }}</strong>
+                  <span class="ml-2 text-xs text-slate-500">V{{ version.version_numero }}</span>
+                </span>
+                <span class="text-xs font-bold text-cyan-700">{{ statutLabel(version.statut) }}</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="rounded-2xl border border-cyan-100 bg-white p-4">
+            <p class="text-xs font-black uppercase tracking-wide text-cyan-700">Factures liées</p>
+            <div class="mt-3 space-y-2">
+              <button
+                v-for="facture in detailData?.documents_lies?.factures || []"
+                :key="facture.id"
+                type="button"
+                class="flex w-full items-center justify-between rounded-xl border border-cyan-100 px-3 py-2 text-left text-sm hover:bg-cyan-50"
+                @click="router.push({ name: 'facture-detail', params: { id: facture.id } })"
+              >
+                <span>
+                  <strong>{{ facture.numero }}</strong>
+                  <span class="ml-2 text-xs text-slate-500">{{ formatDate(facture.date_facture) }}</span>
+                </span>
+                <span class="font-bold text-cyan-700">{{ formatPrice(facture.total_ttc) }}</span>
+              </button>
+              <p v-if="!(detailData?.documents_lies?.factures || []).length" class="rounded-xl border border-dashed border-cyan-100 p-4 text-center text-sm text-slate-400">Aucune facture liée.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- Loader -->
     <div v-if="loading" class="bg-white rounded-lg p-12 text-center text-gray-500">
       Chargement...
@@ -138,8 +344,12 @@
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-100">
-            <tr v-for="devi in sortedDevis" :key="devi.id" class="hover:bg-gray-50">
-              <td class="px-4 py-3 text-sm font-mono text-gray-600">{{ devi.numero }}</td>
+            <tr v-for="devi in sortedDevis" :key="devi.id" class="hover:bg-gray-50" :class="selectedDevis?.id === devi.id ? 'bg-cyan-50/70' : ''">
+              <td class="px-4 py-3 text-sm font-mono">
+                <button type="button" class="font-semibold text-xelltekk-700 hover:underline" @click="openDetail(devi)">
+                  {{ devi.numero }}
+                </button>
+              </td>
               <td class="px-4 py-3">
                 <div class="compact-row-primary text-gray-900" :title="devi.client?.nom || 'Client non renseigné'">
                   {{ devi.client?.nom || 'Client non renseigné' }}
@@ -169,6 +379,13 @@
               </td>
               <td class="px-4 py-3 text-right">
                 <div class="flex flex-wrap justify-end gap-2">
+                  <button
+                    @click="openDetail(devi)"
+                    class="rounded-full border border-cyan-200 px-2 py-1 text-xs font-semibold text-cyan-700 hover:bg-cyan-50"
+                    title="Ouvrir la fiche devis"
+                  >
+                    Fiche
+                  </button>
                   <EmailActionButtons
                     v-if="devi.client?.email"
                     :draft="relanceEmailDraft(devi)"
@@ -396,6 +613,32 @@ const statusChangingId = ref(null)
 const showAssignModal = ref(false)
 const assignTarget = ref(null)
 const assignEndpoint = computed(() => assignTarget.value ? `/devis/${assignTarget.value.id}/assign-commercial` : '/devis/0/assign-commercial')
+const selectedDevis = ref(null)
+const detailData = ref(null)
+const detailLoading = ref(false)
+const activeDetailTab = ref('fiche')
+const relanceTracking = ref(false)
+const detailTabs = [
+  { key: 'fiche', label: 'Fiche' },
+  { key: 'lignes', label: 'Lignes' },
+  { key: 'suivi', label: 'Suivi / relance' },
+  { key: 'historique', label: 'Historique' },
+  { key: 'documents', label: 'Documents liés' },
+]
+const detailDevis = computed(() => detailData.value?.devis || selectedDevis.value)
+const detailEmailDraft = computed(() => {
+  const email = detailData.value?.email_relance
+  const devisDetail = detailDevis.value
+  if (!email?.to) return buildEmailDraft()
+
+  return buildEmailDraft({
+    to: email.to,
+    subject: email.subject || '',
+    body: email.body || '',
+    context_type: 'devis',
+    context_id: devisDetail?.id,
+  })
+})
 
 const sortedDevis = computed(() => sortedRows(devis.value, {
   numero: 'numero',
@@ -559,6 +802,52 @@ async function exporterCSV() {
   }
 }
 
+async function openDetail(devi, tab = 'fiche') {
+  if (!devi?.id) return
+  selectedDevis.value = devi
+  activeDetailTab.value = tab
+  detailLoading.value = true
+  try {
+    const { data } = await api.get(`/devis/${devi.id}/pilotage`)
+    detailData.value = data
+    selectedDevis.value = data.devis
+  } catch (e) {
+    toast.error(e.response?.data?.message || 'Impossible de charger la fiche devis')
+  } finally {
+    detailLoading.value = false
+  }
+}
+
+function closeDetail() {
+  selectedDevis.value = null
+  detailData.value = null
+  activeDetailTab.value = 'fiche'
+}
+
+async function refreshDetail(tab = activeDetailTab.value) {
+  if (!detailDevis.value?.id) return
+  await openDetail(detailDevis.value, tab)
+}
+
+async function tracerRelanceDevis() {
+  if (!detailDevis.value?.id) return
+  relanceTracking.value = true
+  try {
+    await api.post(`/devis/${detailDevis.value.id}/relance`, {
+      type_action: 'relance_email',
+      commentaire: `Relance préparée depuis la fiche devis ${detailDevis.value.numero || ''}.`,
+    })
+    toast.success('Relance devis tracée.')
+    await refreshDetail('suivi')
+    await loadDevis(meta.current_page)
+    loadStats()
+  } catch (e) {
+    toast.error(e.response?.data?.message || 'Impossible de tracer la relance')
+  } finally {
+    relanceTracking.value = false
+  }
+}
+
 function openCreate(client = null) {
   editingDevis.value = null
   creatingClient.value = client
@@ -592,6 +881,7 @@ function onSaved() {
   showModal.value = false
   loadDevis(meta.current_page)
   loadStats()
+  if (editingDevis.value?.id) refreshDetail()
 }
 
 function requestCloseSaisie() {
@@ -621,6 +911,7 @@ async function handleDelete() {
   try {
     await api.delete(`/devis/${devisToDelete.value.id}`)
     toast.success(`Devis ${devisToDelete.value.numero} supprimé`)
+    if (selectedDevis.value?.id === devisToDelete.value.id) closeDetail()
     showDeleteModal.value = false
     devisToDelete.value = null
     loadDevis(meta.current_page)
@@ -644,6 +935,7 @@ async function handleConvertir() {
     toast.success(`Facture ${data.facture?.numero || ''} créée !`)
     showConvertModal.value = false
     devisToConvert.value = null
+    if (detailDevis.value?.id) await refreshDetail('documents')
     setTimeout(() => router.push('/factures'), 800)
   } catch (err) {
     toast.error(err.response?.data?.message || 'Erreur de conversion')
@@ -659,6 +951,7 @@ async function changeStatutDevis(devi, action) {
     toast.success(action === 'accepter' ? `Devis ${devi.numero} accepté` : `Devis ${devi.numero} refusé`)
     await loadDevis(meta.current_page)
     loadStats()
+    if (selectedDevis.value?.id === devi.id) await refreshDetail('suivi')
   } catch (err) {
     toast.error(err.response?.data?.message || 'Impossible de modifier le statut du devis')
   } finally {
@@ -679,12 +972,9 @@ async function handleCloner(devi) {
   try {
     const { data } = await api.post(`/devis/${devi.id}/cloner`)
     toast.success(data.message || `Devis ${devi.numero} cloné`)
-    creatingClient.value = null
-    editingDevis.value = data.devis
-    formDirty.value = false
-    showModal.value = true
     await loadDevis(meta.current_page)
     loadStats()
+    await openDetail(data.devis, 'fiche')
   } catch (err) {
     toast.error(err.response?.data?.message || 'Erreur lors du clonage du devis')
   } finally {
@@ -707,6 +997,27 @@ function formatPrice(n) {
 function formatDate(d) {
   if (!d) return '–'
   return new Date(d).toLocaleDateString('fr-FR')
+}
+
+function formatDateTime(d) {
+  if (!d) return '–'
+  const date = new Date(d)
+  if (Number.isNaN(date.getTime())) return '–'
+  return date.toLocaleString('fr-FR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+function controlBoxClass(niveau) {
+  return {
+    bloquant: 'border-red-200 bg-red-50 text-red-900',
+    attention: 'border-orange-200 bg-orange-50 text-orange-900',
+    ok: 'border-emerald-200 bg-emerald-50 text-emerald-900',
+  }[niveau] || 'border-cyan-100 bg-cyan-50 text-cyan-900'
 }
 
 function daysUntil(date) {
@@ -814,10 +1125,7 @@ function relanceEmailDraft(devi) {
 async function openFromRoute(id) {
   if (!id) return
   try {
-    const { data } = await api.get(`/devis/${parseInt(id)}`)
-    editingDevis.value = data
-    formDirty.value = false
-    showModal.value = true
+    await openDetail({ id: parseInt(id) })
     router.replace({ path: '/devis', query: {} })
   } catch (e) {
     toast.error('Devis introuvable')
