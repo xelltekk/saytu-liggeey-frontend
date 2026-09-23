@@ -85,6 +85,16 @@ const routes = [
         component: () => import('@/views/DevisView.vue'),
       },
       {
+        path: 'devis/nouveau',
+        name: 'devis-create',
+        component: () => import('@/views/DevisDetailView.vue'),
+      },
+      {
+        path: 'devis/:id',
+        name: 'devis-detail',
+        component: () => import('@/views/DevisDetailView.vue'),
+      },
+      {
         path: 'factures',
         name: 'factures',
         component: () => import('@/views/FacturesView.vue'),

@@ -116,7 +116,7 @@
     </div>
 
     <!-- Fiche devis intégrée -->
-    <section v-if="detailData || detailLoading" class="rounded-2xl border border-cyan-200 bg-white shadow-sm">
+    <section v-if="false && (detailData || detailLoading)" class="rounded-2xl border border-cyan-200 bg-white shadow-sm">
       <div class="flex flex-col gap-3 border-b border-cyan-100 bg-cyan-50/70 px-4 py-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <p class="text-xs font-black uppercase tracking-[0.2em] text-cyan-700">Fiche devis</p>
@@ -344,9 +344,9 @@
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-100">
-            <tr v-for="devi in sortedDevis" :key="devi.id" class="hover:bg-gray-50" :class="selectedDevis?.id === devi.id ? 'bg-cyan-50/70' : ''">
+            <tr v-for="devi in sortedDevis" :key="devi.id" class="hover:bg-gray-50">
               <td class="px-4 py-3 text-sm font-mono">
-                <button type="button" class="font-semibold text-xelltekk-700 hover:underline" @click="openDetail(devi)">
+                <button type="button" class="font-semibold text-xelltekk-700 hover:underline" @click="openEdit(devi, 'fiche')">
                   {{ devi.numero }}
                 </button>
               </td>
@@ -380,7 +380,7 @@
               <td class="px-4 py-3 text-right">
                 <div class="flex flex-wrap justify-end gap-2">
                   <button
-                    @click="openDetail(devi)"
+                    @click="openEdit(devi, 'fiche')"
                     class="rounded-full border border-cyan-200 px-2 py-1 text-xs font-semibold text-cyan-700 hover:bg-cyan-50"
                     title="Ouvrir la fiche devis"
                   >
@@ -430,7 +430,7 @@
                 >
                   Cloner
                 </button>
-                <button @click="openEdit(devi)" class="text-xelltekk-600 hover:text-xelltekk-800 text-sm font-medium mr-2" title="Modifier">
+                <button @click="openEdit(devi, 'saisie')" class="text-xelltekk-600 hover:text-xelltekk-800 text-sm font-medium mr-2" title="Modifier">
                   ✏️
                 </button>
                 <button v-if="isAdmin" @click="openAssignDevis(devi)" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium mr-2" title="Affecter">
@@ -467,7 +467,7 @@
 
     <!-- Saisie devis intégrée -->
     <section
-      v-if="showModal"
+      v-if="false && showModal"
       id="devis-inline-form"
       class="rounded-2xl border border-cyan-200 bg-white shadow-sm"
     >
@@ -872,22 +872,15 @@ function scrollToInlineForm() {
 }
 
 function openCreate(client = null) {
-  editingDevis.value = null
-  creatingClient.value = client
-  formDirty.value = false
-  saisieModalMinimized.value = false
-  showModal.value = true
-  scrollToInlineForm()
+  router.push({
+    name: 'devis-create',
+    query: client?.id ? { client_id: client.id, tab: 'saisie' } : { tab: 'saisie' },
+  })
 }
 
-async function openEdit(devi) {
-  const { data } = await api.get(`/devis/${devi.id}`)
-  creatingClient.value = null
-  editingDevis.value = data
-  formDirty.value = false
-  saisieModalMinimized.value = false
-  showModal.value = true
-  scrollToInlineForm()
+function openEdit(devi, tab = 'fiche') {
+  if (!devi?.id) return
+  router.push({ name: 'devis-detail', params: { id: devi.id }, query: { tab } })
 }
 
 function openAssignDevis(devi) {
@@ -964,7 +957,11 @@ async function handleConvertir() {
     showConvertModal.value = false
     devisToConvert.value = null
     if (detailDevis.value?.id) await refreshDetail('documents')
-    setTimeout(() => router.push('/factures'), 800)
+    if (data.facture?.id) {
+      router.push({ name: 'facture-detail', params: { id: data.facture.id }, query: { tab: 'saisie' } })
+    } else {
+      setTimeout(() => router.push('/factures'), 800)
+    }
   } catch (err) {
     toast.error(err.response?.data?.message || 'Erreur de conversion')
   } finally {
@@ -1002,7 +999,9 @@ async function handleCloner(devi) {
     toast.success(data.message || `Devis ${devi.numero} cloné`)
     await loadDevis(meta.current_page)
     loadStats()
-    await openDetail(data.devis, 'fiche')
+    if (data.devis?.id) {
+      router.push({ name: 'devis-detail', params: { id: data.devis.id }, query: { tab: 'saisie' } })
+    }
   } catch (err) {
     toast.error(err.response?.data?.message || 'Erreur lors du clonage du devis')
   } finally {
@@ -1153,8 +1152,7 @@ function relanceEmailDraft(devi) {
 async function openFromRoute(id) {
   if (!id) return
   try {
-    await openDetail({ id: parseInt(id) })
-    router.replace({ path: '/devis', query: {} })
+    router.replace({ name: 'devis-detail', params: { id: parseInt(id) }, query: { tab: 'fiche' } })
   } catch (e) {
     toast.error('Devis introuvable')
   }
@@ -1163,9 +1161,7 @@ async function openFromRoute(id) {
 async function openCreateFromRoute(clientId) {
   if (!clientId) return
   try {
-    const { data } = await api.get(`/clients/${parseInt(clientId)}`)
-    openCreate(data)
-    router.replace({ path: '/devis', query: {} })
+    router.replace({ name: 'devis-create', query: { client_id: parseInt(clientId), tab: 'saisie' } })
   } catch (e) {
     toast.error('Client introuvable')
   }
