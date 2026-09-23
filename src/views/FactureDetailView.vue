@@ -313,6 +313,7 @@ const encaissementForm = reactive({
 })
 
 const isCreate = computed(() => route.name === 'facture-create')
+const isInvoiceDetailRoute = computed(() => ['facture-create', 'facture-detail'].includes(route.name))
 const formKey = computed(() => isCreate.value
   ? `new-${creatingClient.value?.id || 'none'}`
   : `facture-${facture.value?.id || route.params.id || 'loading'}`)
@@ -349,6 +350,8 @@ function setTab(tab) {
 }
 
 async function loadAll() {
+  if (!isInvoiceDetailRoute.value) return
+
   if (isCreate.value) {
     facture.value = null
     pilotage.value = null
@@ -360,6 +363,8 @@ async function loadAll() {
   loading.value = true
   try {
     const id = route.params.id
+    if (!id) return
+
     const [factureResp, pilotageResp] = await Promise.all([
       api.get(`/factures/${id}`),
       api.get(`/factures/${id}/pilotage`),
@@ -583,6 +588,7 @@ onMounted(loadAll)
 watch(() => route.params.id, loadAll)
 watch(() => route.name, loadAll)
 watch(() => route.query.tab, () => {
+  if (!isInvoiceDetailRoute.value) return
   activeTab.value = routeTab()
 })
 
