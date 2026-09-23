@@ -80,6 +80,26 @@ const routes = [
         component: () => import('@/views/ProspectionView.vue'),
       },
       {
+        path: 'prospection/actions/nouveau',
+        name: 'prospection-action-create',
+        component: () => import('@/views/ProspectionActionDetailView.vue'),
+      },
+      {
+        path: 'prospection/actions/:id',
+        name: 'prospection-action-detail',
+        component: () => import('@/views/ProspectionActionDetailView.vue'),
+      },
+      {
+        path: 'prospection/objectifs/nouveau',
+        name: 'prospection-objectif-create',
+        component: () => import('@/views/ProspectionObjectifDetailView.vue'),
+      },
+      {
+        path: 'prospection/objectifs/:id',
+        name: 'prospection-objectif-detail',
+        component: () => import('@/views/ProspectionObjectifDetailView.vue'),
+      },
+      {
         path: 'prospection/nouveau',
         name: 'prospect-create',
         component: () => import('@/views/ProspectDetailView.vue'),

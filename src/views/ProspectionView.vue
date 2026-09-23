@@ -178,8 +178,8 @@
           {{ tab.label }}
         </button>
         <div class="ml-auto flex items-center gap-2 px-3">
-          <button v-if="activeTab === 'actions'" @click="openAction()" class="btn-primary text-sm">+ Action</button>
-          <button v-if="activeTab === 'objectifs' && isAdmin" @click="openObjectif()" class="btn-primary text-sm">+ Objectif</button>
+          <button v-if="activeTab === 'actions'" @click="openActionCreate" class="btn-primary text-sm">+ Action</button>
+          <button v-if="activeTab === 'objectifs' && isAdmin" @click="openObjectifCreate" class="btn-primary text-sm">+ Objectif</button>
         </div>
       </div>
 
@@ -351,7 +351,7 @@
                 <ObjectifProgress :value="o.realisation.ca" :target="o.objectif_ca" money />
               </td>
               <td v-if="isAdmin" class="px-4 py-3 text-right">
-                <button type="button" @click="openObjectif(o)" class="text-sm font-medium text-xelltekk-700 hover:text-xelltekk-900">Modifier</button>
+                <button type="button" @click="openObjectifDetail(o)" class="text-sm font-medium text-xelltekk-700 hover:text-xelltekk-900">Modifier</button>
               </td>
             </tr>
             <tr v-if="objectifs.length === 0">
@@ -413,132 +413,6 @@
       </div>
     </div>
 
-    <AppModal v-model="showActionModal" :title="editingActionId ? 'Modifier action de prospection' : 'Nouvelle action de prospection'" size="lg">
-      <form class="space-y-4" @submit.prevent="saveAction">
-        <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
-          <label class="block">
-            <span class="mb-1 block text-sm font-medium text-gray-700">Prospect</span>
-            <select v-model.number="actionForm.client_id" required class="input">
-              <option :value="null">Prospect...</option>
-              <option v-for="p in prospects" :key="p.id" :value="p.id">{{ p.code }} - {{ p.nom }}</option>
-            </select>
-          </label>
-          <label v-if="isAdmin" class="block">
-            <span class="mb-1 block text-sm font-medium text-gray-700">Commercial</span>
-            <select v-model.number="actionForm.commercial_id" class="input">
-              <option :value="null">Commercial...</option>
-              <option v-for="c in commerciaux" :key="c.id" :value="c.id">{{ c.name }}</option>
-            </select>
-          </label>
-          <label class="block">
-            <span class="mb-1 block text-sm font-medium text-gray-700">Type d’action</span>
-            <select v-model="actionForm.type_action" class="input">
-              <option value="appel">Appel</option>
-              <option value="email">Email</option>
-              <option value="visite">Visite</option>
-              <option value="whatsapp">WhatsApp</option>
-              <option value="relance">Relance</option>
-              <option value="devis">Devis à préparer</option>
-              <option value="autre">Autre</option>
-            </select>
-          </label>
-          <label class="block">
-            <span class="mb-1 block text-sm font-medium text-gray-700">Statut</span>
-            <select v-model="actionForm.statut" class="input">
-              <option value="planifiee">Planifiée</option>
-              <option value="effectuee">Effectuée</option>
-              <option value="annulee">Annulée</option>
-            </select>
-          </label>
-          <label class="block">
-            <span class="mb-1 block text-sm font-medium text-gray-700">Date de l’action</span>
-            <input v-model="actionForm.date_action" required type="datetime-local" class="input" />
-          </label>
-          <label class="block">
-            <span class="mb-1 block text-sm font-medium text-gray-700">Prochaine relance</span>
-            <input v-model="actionForm.date_relance" type="datetime-local" class="input" />
-          </label>
-          <label class="block md:col-span-2">
-            <span class="mb-1 block text-sm font-medium text-gray-700">Objet</span>
-            <input v-model="actionForm.objet" required class="input" placeholder="Objet de l'action" />
-          </label>
-          <label class="block">
-            <span class="mb-1 block text-sm font-medium text-gray-700">Montant potentiel</span>
-            <input v-model.number="actionForm.montant_potentiel" type="number" min="0" step="1" class="input" placeholder="Montant potentiel" />
-          </label>
-          <label class="block">
-            <span class="mb-1 block text-sm font-medium text-gray-700">Résultat</span>
-            <select v-model="actionForm.resultat" class="input">
-              <option value="aucun">Aucun</option>
-              <option value="interesse">Intéressé</option>
-              <option value="a_relancer">À relancer</option>
-              <option value="devis_a_faire">Devis à faire</option>
-              <option value="converti">Converti</option>
-              <option value="perdu">Perdu</option>
-            </select>
-          </label>
-          <label class="block md:col-span-2">
-            <span class="mb-1 block text-sm font-medium text-gray-700">Prochaine étape</span>
-            <input v-model="actionForm.prochaine_etape" class="input" placeholder="Ex. Envoyer une offre, rappeler mardi..." />
-          </label>
-          <label class="block md:col-span-2">
-            <span class="mb-1 block text-sm font-medium text-gray-700">Compte rendu</span>
-            <textarea v-model="actionForm.compte_rendu" rows="3" class="input" placeholder="Compte rendu"></textarea>
-          </label>
-        </div>
-        <div class="flex justify-end gap-2 border-t border-gray-200 pt-3">
-          <button type="button" @click="showActionModal = false" class="btn-secondary">Annuler</button>
-          <button type="submit" :disabled="saving" class="btn-primary">{{ saving ? 'Enregistrement...' : (editingActionId ? 'Mettre à jour' : 'Enregistrer') }}</button>
-        </div>
-      </form>
-    </AppModal>
-
-    <AppModal v-model="showObjectifModal" :title="editingObjectifId ? 'Modifier objectif commercial' : 'Nouvel objectif commercial'" size="md">
-      <form class="space-y-4" @submit.prevent="saveObjectif">
-        <label class="block">
-          <span class="mb-1 block text-sm font-medium text-gray-700">Commercial</span>
-          <select v-model.number="objectifForm.commercial_id" required class="input">
-            <option :value="null">Commercial...</option>
-            <option v-for="c in commerciaux" :key="c.id" :value="c.id">{{ c.name }}</option>
-          </select>
-        </label>
-        <div class="grid grid-cols-2 gap-3">
-          <label class="block">
-            <span class="mb-1 block text-sm font-medium text-gray-700">Date début</span>
-            <input v-model="objectifForm.periode_debut" required type="date" class="input" />
-          </label>
-          <label class="block">
-            <span class="mb-1 block text-sm font-medium text-gray-700">Date fin</span>
-            <input v-model="objectifForm.periode_fin" required type="date" class="input" />
-          </label>
-          <label class="block">
-            <span class="mb-1 block text-sm font-medium text-gray-700">Objectif prospects</span>
-            <input v-model.number="objectifForm.objectif_prospects" type="number" min="0" class="input" placeholder="Ex. 20" />
-          </label>
-          <label class="block">
-            <span class="mb-1 block text-sm font-medium text-gray-700">Objectif actions</span>
-            <input v-model.number="objectifForm.objectif_actions" type="number" min="0" class="input" placeholder="Ex. 50" />
-          </label>
-          <label class="block">
-            <span class="mb-1 block text-sm font-medium text-gray-700">Objectif devis</span>
-            <input v-model.number="objectifForm.objectif_devis" type="number" min="0" class="input" placeholder="Ex. 10" />
-          </label>
-          <label class="block">
-            <span class="mb-1 block text-sm font-medium text-gray-700">Objectif CA</span>
-            <input v-model.number="objectifForm.objectif_ca" type="number" min="0" class="input" placeholder="Ex. 1000000" />
-          </label>
-        </div>
-        <label class="block">
-          <span class="mb-1 block text-sm font-medium text-gray-700">Notes</span>
-          <textarea v-model="objectifForm.notes" rows="2" class="input" placeholder="Notes"></textarea>
-        </label>
-        <div class="flex justify-end gap-2 border-t border-gray-200 pt-3">
-          <button type="button" @click="showObjectifModal = false" class="btn-secondary">Annuler</button>
-          <button type="submit" :disabled="saving" class="btn-primary">{{ saving ? 'Enregistrement...' : (editingObjectifId ? 'Mettre à jour' : 'Enregistrer') }}</button>
-        </div>
-      </form>
-    </AppModal>
-
     <AssignCommercialModal
       v-if="assignTarget"
       v-model="showAssignModal"
@@ -553,9 +427,8 @@
 
 <script setup>
 import { computed, defineComponent, h, onMounted, onUnmounted, reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import api from '@/services/api'
-import AppModal from '@/components/AppModal.vue'
 import AppPagination from '@/components/AppPagination.vue'
 import AssignCommercialModal from '@/components/AssignCommercialModal.vue'
 import EmailActionButtons from '@/components/EmailActionButtons.vue'
@@ -572,6 +445,7 @@ import { hasAnyRole } from '@/utils/access'
 const auth = useAuthStore()
 const toast = useToast()
 const router = useRouter()
+const route = useRoute()
 const { confirm: askConfirm } = useConfirm()
 const isAdmin = computed(() => hasAnyRole(auth.user, ['admin', 'gerant']))
 
@@ -583,10 +457,9 @@ const filters = reactive({ commercial_id: '', date_from: startMonth, date_to: to
 const prospectFilters = reactive({ search: '', statut: '' })
 const actionFilters = reactive({ search: '', statut: '' })
 const loading = ref(false)
-const saving = ref(false)
 const exportLoading = ref(false)
 const pdfLoading = ref(false)
-const activeTab = ref('prospects')
+const activeTab = ref(['prospects', 'actions', 'objectifs', 'activites'].includes(String(route.query.tab || '')) ? String(route.query.tab) : 'prospects')
 const stats = ref({})
 const dashboard = ref({ pipeline: [], relances_prioritaires: [], prospects_chauds: [] })
 const prospects = ref([])
@@ -600,13 +473,9 @@ const objectifPage = ref(1)
 const objectifPerPage = 10
 const activityPage = ref(1)
 const activityPerPage = 25
-const showActionModal = ref(false)
-const showObjectifModal = ref(false)
 const activeKpi = ref('')
 const activityLoading = ref(false)
 const activityUpdatedAt = ref('')
-const editingActionId = ref(null)
-const editingObjectifId = ref(null)
 const showAssignModal = ref(false)
 const assignTarget = ref(null)
 const assignKind = ref('')
@@ -827,31 +696,6 @@ const activeKpiLabel = computed(() => {
   return labels[activeKpi.value] || ''
 })
 
-const actionForm = reactive({
-  client_id: null,
-  commercial_id: null,
-  type_action: 'appel',
-  statut: 'planifiee',
-  date_action: '',
-  date_relance: '',
-  objet: '',
-  compte_rendu: '',
-  resultat: 'aucun',
-  montant_potentiel: 0,
-  prochaine_etape: '',
-})
-
-const objectifForm = reactive({
-  commercial_id: null,
-  periode_debut: startMonth,
-  periode_fin: todayIso,
-  objectif_prospects: 0,
-  objectif_actions: 0,
-  objectif_devis: 0,
-  objectif_ca: 0,
-  notes: '',
-})
-
 let prospectSearchTimeout = null
 let actionSearchTimeout = null
 let activityInterval = null
@@ -1053,98 +897,27 @@ function openProspectAction(prospect) {
   const normalized = normalizeProspect(prospect)
   if (!normalized.id) return
 
-  router.push({
-    name: 'prospect-detail',
-    params: { id: normalized.id },
-    query: { tab: 'actions', new_action: '1' },
-  })
+  router.push({ name: 'prospection-action-create', query: { client_id: normalized.id } })
+}
+
+function openActionCreate() {
+  router.push({ name: 'prospection-action-create' })
 }
 
 function openActionDetail(action) {
-  const clientId = action?.client_id || action?.client?.id
-  if (!clientId) {
-    openEditAction(action)
-    return
-  }
+  if (!action?.id) return
 
-  router.push({
-    name: 'prospect-detail',
-    params: { id: clientId },
-    query: { tab: 'actions', action_id: action.id },
-  })
+  router.push({ name: 'prospection-action-detail', params: { id: action.id } })
 }
 
-function openAction(prospect = null) {
-  if (prospect) {
-    ensureProspectOption(prospect)
-  }
-
-  editingActionId.value = null
-  Object.assign(actionForm, {
-    client_id: prospect?.id || null,
-    commercial_id: prospect?.commercial_id || (filters.commercial_id ? Number(filters.commercial_id) : null),
-    type_action: 'appel',
-    statut: 'planifiee',
-    date_action: new Date().toISOString().slice(0, 16),
-    date_relance: '',
-    objet: prospect ? `Relance ${prospect.nom}` : '',
-    compte_rendu: '',
-    resultat: 'aucun',
-    montant_potentiel: 0,
-    prochaine_etape: '',
-  })
-  showActionModal.value = true
+function openObjectifCreate() {
+  router.push({ name: 'prospection-objectif-create' })
 }
 
-function openPipelineAction(item, stage) {
-  const prospect = normalizeProspect(item)
-  const relanceDate = inputDateTime(item.prochaine_relance) || nextDateTimeLocal(2)
-  const typeByStage = {
-    a_relancer: 'relance',
-    chaud: 'appel',
-    devis: 'devis',
-    nouveau: 'appel',
-    perdu: 'appel',
-    converti: 'autre',
-    suivi: 'appel',
-  }
-  const resultByStage = {
-    a_relancer: 'a_relancer',
-    chaud: 'interesse',
-    devis: 'devis_a_faire',
-    nouveau: 'aucun',
-    perdu: 'perdu',
-    converti: 'converti',
-    suivi: 'aucun',
-  }
+function openObjectifDetail(objectif) {
+  if (!objectif?.id) return
 
-  openAction(prospect)
-  Object.assign(actionForm, {
-    type_action: typeByStage[stage.key] || 'appel',
-    date_relance: stage.key === 'converti' || stage.key === 'perdu' ? '' : relanceDate,
-    objet: pipelineActionTitle(prospect, stage.key),
-    resultat: resultByStage[stage.key] || 'aucun',
-    montant_potentiel: Number(item.potentiel || 0),
-    prochaine_etape: pipelineNextStep(stage.key),
-  })
-}
-
-function openEditAction(action) {
-  editingActionId.value = action.id
-  Object.assign(actionForm, {
-    client_id: action.client_id || action.client?.id || null,
-    commercial_id: action.commercial_id || action.commercial?.id || null,
-    type_action: action.type_action || 'appel',
-    statut: action.statut || 'planifiee',
-    date_action: inputDateTime(action.date_action) || new Date().toISOString().slice(0, 16),
-    date_relance: inputDateTime(action.date_relance),
-    objet: action.objet || '',
-    compte_rendu: action.compte_rendu || '',
-    resultat: action.resultat || 'aucun',
-    montant_potentiel: Number(action.montant_potentiel || 0),
-    prochaine_etape: action.prochaine_etape || '',
-  })
-  showActionModal.value = true
+  router.push({ name: 'prospection-objectif-detail', params: { id: objectif.id } })
 }
 
 function openAssignProspect(prospect) {
@@ -1161,51 +934,6 @@ function openAssignAction(action) {
 
 function onAssigned() {
   reload()
-}
-
-function openObjectif(objectif = null) {
-  editingObjectifId.value = objectif?.id || null
-  Object.assign(objectifForm, {
-    commercial_id: objectif?.commercial_id || (filters.commercial_id ? Number(filters.commercial_id) : null),
-    periode_debut: inputDate(objectif?.periode_debut) || startMonth,
-    periode_fin: inputDate(objectif?.periode_fin) || todayIso,
-    objectif_prospects: Number(objectif?.objectif_prospects || 0),
-    objectif_actions: Number(objectif?.objectif_actions || 0),
-    objectif_devis: Number(objectif?.objectif_devis || 0),
-    objectif_ca: Number(objectif?.objectif_ca || 0),
-    notes: objectif?.notes || '',
-  })
-  showObjectifModal.value = true
-}
-
-async function saveAction() {
-  saving.value = true
-  try {
-    const payload = {
-      ...actionForm,
-      commercial_id: actionForm.commercial_id || undefined,
-      date_relance: actionForm.date_relance || null,
-      compte_rendu: actionForm.compte_rendu || null,
-      resultat: actionForm.resultat || 'aucun',
-      prochaine_etape: actionForm.prochaine_etape || null,
-    }
-
-    if (editingActionId.value) {
-      await api.put(`/prospection/actions/${editingActionId.value}`, payload)
-      toast.success('Action mise à jour')
-    } else {
-      await api.post('/prospection/actions', payload)
-      toast.success('Action enregistrée')
-    }
-
-    showActionModal.value = false
-    editingActionId.value = null
-    await reload()
-  } catch (e) {
-    toast.error(e.response.data.message || 'Erreur enregistrement')
-  } finally {
-    saving.value = false
-  }
 }
 
 async function convertirProspect(prospect) {
@@ -1271,26 +999,6 @@ async function deleteAction(action) {
   }
 }
 
-async function saveObjectif() {
-  saving.value = true
-  try {
-    if (editingObjectifId.value) {
-      await api.put(`/prospection/objectifs/${editingObjectifId.value}`, objectifForm)
-      toast.success('Objectif mis à jour')
-    } else {
-      await api.post('/prospection/objectifs', objectifForm)
-      toast.success('Objectif enregistré')
-    }
-    showObjectifModal.value = false
-    editingObjectifId.value = null
-    await reload()
-  } catch (e) {
-    toast.error(e.response.data.message || 'Erreur objectif')
-  } finally {
-    saving.value = false
-  }
-}
-
 function objectifPercent(value, target) {
   const goal = Number(target || 0)
   if (goal <= 0) {
@@ -1335,15 +1043,6 @@ function normalizeProspect(prospect) {
   }
 }
 
-function ensureProspectOption(prospect) {
-  const normalized = normalizeProspect(prospect)
-  if (!normalized.id) return
-
-  if (!prospects.value.some((item) => Number(item.id) === Number(normalized.id))) {
-    prospects.value = [normalized, ...prospects.value]
-  }
-}
-
 function pipelinePriority(stageKey) {
   return {
     nouveau: 'nouveau',
@@ -1381,32 +1080,6 @@ function pipelineBadgeClass(stageKey) {
     perdu: 'bg-gray-200 text-gray-700',
     suivi: 'bg-blue-100 text-blue-700',
   }[stageKey] || 'bg-gray-100 text-gray-700'
-}
-
-function pipelineActionTitle(prospect, stageKey) {
-  const name = prospect?.nom || 'prospect'
-
-  return {
-    a_relancer: `Relance ${name}`,
-    chaud: `Qualifier besoin - ${name}`,
-    devis: `Préparer devis - ${name}`,
-    nouveau: `Premier contact - ${name}`,
-    perdu: `Analyse opportunité perdue - ${name}`,
-    converti: `Suivi après conversion - ${name}`,
-    suivi: `Suivi commercial - ${name}`,
-  }[stageKey] || `Action commerciale - ${name}`
-}
-
-function pipelineNextStep(stageKey) {
-  return {
-    a_relancer: 'Relancer le prospect et noter le retour.',
-    chaud: 'Confirmer le besoin et préparer une proposition.',
-    devis: 'Préparer puis envoyer un devis.',
-    nouveau: 'Réaliser le premier contact.',
-    perdu: 'Archiver le motif de perte.',
-    converti: 'Basculer vers le suivi client.',
-    suivi: 'Planifier la prochaine action.',
-  }[stageKey] || ''
 }
 
 function prospectPriority(prospect) {
@@ -1499,21 +1172,6 @@ function phoneHref(prospect) {
   return phone ? `tel:${phone}` : ''
 }
 
-function inputDate(value) { return value ? String(value).slice(0, 10) : '' }
-function inputDateTime(value) {
-  if (!value) return ''
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return String(value).slice(0, 16)
-  const offset = date.getTimezoneOffset()
-  const local = new Date(date.getTime() - offset * 60000)
-  return local.toISOString().slice(0, 16)
-}
-function nextDateTimeLocal(days = 1) {
-  const date = new Date()
-  date.setDate(date.getDate() + days)
-  date.setHours(9, 0, 0, 0)
-  return inputDateTime(date)
-}
 function formatNumber(n) { return new Intl.NumberFormat('fr-FR').format(Math.round(n || 0)) }
 function formatPrice(n) { return new Intl.NumberFormat('fr-FR').format(Math.round(n || 0))  }
 function formatDate(d) { return d ? new Date(d).toLocaleDateString('fr-FR') : '-' }
