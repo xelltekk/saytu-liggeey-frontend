@@ -24,6 +24,7 @@
 
         <div v-if="facture" class="flex flex-wrap gap-2">
           <button type="button" class="btn-secondary" @click="ouvrirPdf">PDF</button>
+          <button type="button" class="btn-secondary" @click="setTab('saisie')">Modifier</button>
           <button
             v-if="canValidateInvoices && facture.type !== 'avoir' && facture.statut === 'brouillon'"
             type="button"
@@ -50,6 +51,34 @@
           >
             Encaisser
           </button>
+          <button
+            v-if="canRelancer(facture)"
+            type="button"
+            class="btn-secondary"
+            @click="setTab('suivi')"
+          >
+            Relancer
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="facture" class="sticky top-2 z-20 rounded-2xl border border-sky-200 bg-white/95 p-3 shadow-sm backdrop-blur">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="text-sm">
+          <span class="font-black text-slate-950">{{ facture.numero }}</span>
+          <span class="mx-2 text-slate-300">•</span>
+          <span class="text-slate-600">{{ facture.client?.nom || 'Client non renseigné' }}</span>
+          <span class="mx-2 text-slate-300">•</span>
+          <span class="font-mono font-black text-orange-700">Reste {{ formatPrice(facture.reste_a_payer) }}</span>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <button type="button" class="rounded-full border border-sky-200 px-3 py-1.5 text-xs font-black text-sky-800 hover:bg-sky-50" @click="ouvrirPdf">PDF</button>
+          <button type="button" class="rounded-full border border-sky-200 px-3 py-1.5 text-xs font-black text-sky-800 hover:bg-sky-50" @click="setTab('saisie')">Modifier</button>
+          <button v-if="canEncaisser" type="button" class="rounded-full bg-emerald-600 px-3 py-1.5 text-xs font-black text-white hover:bg-emerald-700" @click="setTab('paiements')">Encaisser</button>
+          <button v-if="canRelancer(facture)" type="button" class="rounded-full border border-orange-200 px-3 py-1.5 text-xs font-black text-orange-800 hover:bg-orange-50" @click="setTab('suivi')">Relancer</button>
+          <button v-if="canValidateInvoices && facture.type !== 'avoir' && facture.statut === 'brouillon'" type="button" class="rounded-full border border-blue-200 px-3 py-1.5 text-xs font-black text-blue-800 hover:bg-blue-50" :disabled="actionLoading === 'valider'" @click="handleValider">Valider</button>
+          <button v-if="canValidateInvoices && facture.type !== 'avoir' && ['brouillon', 'validee'].includes(facture.statut)" type="button" class="rounded-full bg-indigo-600 px-3 py-1.5 text-xs font-black text-white hover:bg-indigo-700" :disabled="actionLoading === 'envoyer'" @click="handleEnvoyer">{{ facture.statut === 'brouillon' ? 'Valider + envoyée' : 'Marquer envoyée' }}</button>
         </div>
       </div>
     </div>
@@ -123,6 +152,9 @@
         </section>
 
         <section v-else-if="activeTab === 'saisie'" class="space-y-4">
+          <div v-if="lastSavedAt" class="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm font-bold text-emerald-800">
+            Enregistré à {{ lastSavedAt }}. Vous restez sur cette fiche pour continuer.
+          </div>
           <FactureForm
             :key="formKey"
             :facture="facture"
@@ -168,6 +200,13 @@
         <section v-else-if="activeTab === 'paiements' && facture" class="grid grid-cols-1 gap-4 xl:grid-cols-[0.9fr_1.1fr]">
           <div class="rounded-xl border border-sky-100 bg-sky-50 p-4">
             <h2 class="mb-3 font-black text-slate-950">Encaisser depuis la facture</h2>
+            <div class="mb-3 rounded-xl border border-white/80 bg-white/80 p-3">
+              <div class="flex items-center justify-between text-sm">
+                <span class="font-bold text-slate-600">Reste à solder</span>
+                <span class="font-mono text-lg font-black text-orange-700">{{ formatPrice(facture.reste_a_payer) }}</span>
+              </div>
+              <button v-if="canEncaisser" type="button" class="mt-2 text-xs font-black text-emerald-700 hover:text-emerald-900" @click="fillRemainingAmount">Solder le reste automatiquement</button>
+            </div>
             <div v-if="!canEncaisser" class="rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-900">
               La facture doit être validée/envoyée et non soldée pour être encaissée.
             </div>
@@ -211,13 +250,16 @@
 
           <div class="rounded-xl border border-sky-100 bg-white p-4">
             <h2 class="mb-3 font-black text-slate-950">Paiements enregistrés</h2>
-            <div v-if="pilotage?.paiements?.length" class="space-y-2">
+              <div v-if="pilotage?.paiements?.length" class="space-y-2">
               <div v-for="paiement in pilotage.paiements" :key="paiement.id" class="rounded-lg bg-slate-50 p-3 text-sm">
                 <div class="flex items-center justify-between gap-3">
                   <div class="font-black text-slate-950">{{ paiement.reference }}</div>
                   <div class="font-mono font-black text-emerald-700">{{ formatPrice(paiement.montant) }}</div>
                 </div>
-                <div class="text-xs text-slate-500">{{ formatDate(paiement.date_paiement) }} · {{ modePaiementLabel(paiement.mode_paiement) }}</div>
+                <div class="mt-1 flex flex-wrap items-center justify-between gap-2">
+                  <div class="text-xs text-slate-500">{{ formatDate(paiement.date_paiement) }} · {{ modePaiementLabel(paiement.mode_paiement) }}</div>
+                  <button type="button" class="text-xs font-black text-sky-700 hover:text-sky-900" @click="ouvrirRecuPaiement(paiement)">Reçu PDF</button>
+                </div>
               </div>
             </div>
             <p v-else class="text-sm text-slate-500">Aucun paiement enregistré.</p>
@@ -303,6 +345,7 @@ const formDirty = ref(false)
 const actionLoading = ref('')
 const encaissementLoading = ref(false)
 const tracingRelance = ref(false)
+const lastSavedAt = ref('')
 
 const encaissementForm = reactive({
   montant: null,
@@ -404,11 +447,12 @@ function resetEncaissementForm() {
 async function onSaved(saved) {
   formDirty.value = false
   if (isCreate.value && saved?.id) {
-    await router.replace({ name: 'facture-detail', params: { id: saved.id }, query: { tab: 'fiche' } })
+    await router.replace({ name: 'facture-detail', params: { id: saved.id }, query: { tab: 'saisie' } })
     return
   }
   await loadAll()
-  activeTab.value = 'fiche'
+  activeTab.value = 'saisie'
+  lastSavedAt.value = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
 }
 
 async function handleValider() {
@@ -460,6 +504,10 @@ async function handleEncaisser() {
   }
 }
 
+function fillRemainingAmount() {
+  encaissementForm.montant = Math.max(parseFloat(facture.value?.reste_a_payer || 0), 0)
+}
+
 async function handleTracerRelance() {
   if (!facture.value) return
   tracingRelance.value = true
@@ -486,6 +534,15 @@ async function ouvrirPdf() {
     await ouvrirPDF(`/factures/${facture.value.id}/pdf`, `${facture.value.numero}.pdf`)
   } catch (e) {
     toast.error('Impossible d’ouvrir le PDF')
+  }
+}
+
+async function ouvrirRecuPaiement(paiement) {
+  if (!paiement?.id) return
+  try {
+    await ouvrirPDF(`/paiements/${paiement.id}/recu`, `${paiement.reference || 'recu-paiement'}.pdf`)
+  } catch (e) {
+    toast.error('Impossible d’ouvrir le reçu')
   }
 }
 
