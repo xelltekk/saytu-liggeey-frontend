@@ -465,22 +465,36 @@
       </div>
     </div>
 
-    <!-- Modal création/édition -->
-    <AppModal
-      v-model="showModal"
-      :title="editingDevis ? `Modifier ${editingDevis.numero}` : 'Nouveau devis'"
-      size="xl"
-      :before-close="requestCloseSaisie"
-      @minimized-change="saisieModalMinimized = $event"
+    <!-- Saisie devis intégrée -->
+    <section
+      v-if="showModal"
+      id="devis-inline-form"
+      class="rounded-2xl border border-cyan-200 bg-white shadow-sm"
     >
-      <DevisForm
-        :devis="editingDevis"
-        :client="creatingClient"
-        @saved="onSaved"
-        @cancel="closeSaisie"
-        @dirty-change="formDirty = $event"
-      />
-    </AppModal>
+      <div class="flex flex-col gap-3 border-b border-cyan-100 bg-cyan-50/70 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p class="text-xs font-black uppercase tracking-[0.2em] text-cyan-700">Saisie devis</p>
+          <h3 class="mt-1 text-xl font-black text-slate-900">
+            {{ editingDevis ? `Modifier ${editingDevis.numero}` : 'Nouveau devis' }}
+          </h3>
+          <p class="mt-1 text-sm text-slate-600">
+            Formulaire intégré dans la page, sans fenêtre flottante.
+          </p>
+        </div>
+        <button type="button" class="rounded-full border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-white" @click="closeSaisie">
+          Fermer
+        </button>
+      </div>
+      <div class="p-4">
+        <DevisForm
+          :devis="editingDevis"
+          :client="creatingClient"
+          @saved="onSaved"
+          @cancel="closeSaisie"
+          @dirty-change="formDirty = $event"
+        />
+      </div>
+    </section>
 
     <AppConfirmModal
       v-model="showLeaveConfirm"
@@ -848,12 +862,22 @@ async function tracerRelanceDevis() {
   }
 }
 
+function scrollToInlineForm() {
+  window.requestAnimationFrame(() => {
+    document.getElementById('devis-inline-form')?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start',
+    })
+  })
+}
+
 function openCreate(client = null) {
   editingDevis.value = null
   creatingClient.value = client
   formDirty.value = false
   saisieModalMinimized.value = false
   showModal.value = true
+  scrollToInlineForm()
 }
 
 async function openEdit(devi) {
@@ -863,6 +887,7 @@ async function openEdit(devi) {
   formDirty.value = false
   saisieModalMinimized.value = false
   showModal.value = true
+  scrollToInlineForm()
 }
 
 function openAssignDevis(devi) {
@@ -890,7 +915,10 @@ function requestCloseSaisie() {
   return false
 }
 function closeSaisie() {
-  requestCloseSaisie()
+  if (!requestCloseSaisie()) return
+  formDirty.value = false
+  saisieModalMinimized.value = false
+  showModal.value = false
 }
 function discardDevisForm() {
   showLeaveConfirm.value = false
