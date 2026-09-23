@@ -163,7 +163,7 @@
       </button>
       <button type="submit" :disabled="saving" class="btn-primary">
         <span v-if="saving">Enregistrement...</span>
-        <span v-else>{{ client ? 'Modifier' : 'Créer le client' }}</span>
+        <span v-else>{{ submitLabel || (client?.id ? 'Modifier' : 'Créer le client') }}</span>
       </button>
     </div>
   </form>
@@ -179,6 +179,7 @@ import { errorMessagesFromResponse, validationErrors } from '@/utils/formErrors'
 
 const props = defineProps({
   client: { type: Object, default: null }, // null = création, objet = édition
+  submitLabel: { type: String, default: '' },
 })
 
 const emit = defineEmits(['saved', 'cancel'])

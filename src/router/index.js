@@ -80,6 +80,16 @@ const routes = [
         component: () => import('@/views/ProspectionView.vue'),
       },
       {
+        path: 'prospection/nouveau',
+        name: 'prospect-create',
+        component: () => import('@/views/ProspectDetailView.vue'),
+      },
+      {
+        path: 'prospection/:id',
+        name: 'prospect-detail',
+        component: () => import('@/views/ProspectDetailView.vue'),
+      },
+      {
         path: 'produits',
         name: 'produits',
         component: () => import('@/views/ProduitsView.vue'),

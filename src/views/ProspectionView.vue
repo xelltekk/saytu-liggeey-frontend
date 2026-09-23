@@ -18,6 +18,9 @@
         <button type="button" @click="exporterCSV" :disabled="exportLoading" class="btn-secondary">
           {{ exportLoading ? 'Export...' : 'Exporter CSV' }}
         </button>
+        <button type="button" @click="openProspectCreate" class="btn-primary">
+          + Prospect
+        </button>
       </div>
     </div>
 
@@ -83,7 +86,9 @@
             <div v-for="item in stage.items" :key="`${stage.key}-${item.id}`" class="rounded-lg border border-white/80 bg-white/85 p-2 shadow-sm">
               <div class="flex items-start justify-between gap-2">
                 <div class="min-w-0">
-                  <div class="truncate text-sm font-semibold text-gray-900">{{ item.nom }}</div>
+                  <button type="button" class="truncate text-left text-sm font-semibold text-gray-900 hover:text-xelltekk-700 hover:underline" @click="openProspectDetail(item)">
+                    {{ item.nom }}
+                  </button>
                   <div class="truncate text-[11px] text-gray-500">{{ item.email || item.telephone || item.mobile || 'Contact non renseigné' }}</div>
                 </div>
                 <span class="rounded-full px-2 py-0.5 text-[10px] font-bold" :class="priorityClass(item.priorite || pipelinePriority(stage.key))">
@@ -102,7 +107,7 @@
                   dialog
                   compact
                 />
-                <button type="button" class="rounded-full bg-xelltekk-50 px-2 py-1 text-[11px] font-semibold text-xelltekk-700 hover:bg-xelltekk-100" @click="openPipelineAction(item, stage)">+ Action</button>
+                <button type="button" class="rounded-full bg-xelltekk-50 px-2 py-1 text-[11px] font-semibold text-xelltekk-700 hover:bg-xelltekk-100" @click="openProspectAction(item)">+ Action</button>
                 <button type="button" class="rounded-full bg-cyan-50 px-2 py-1 text-[11px] font-semibold text-cyan-700 hover:bg-cyan-100" @click="creerDevis(item)">+ Devis</button>
                 <button
                   v-if="stage.key !== 'converti'"
@@ -134,7 +139,7 @@
                   <div class="truncate text-sm font-semibold text-gray-900">{{ action.client?.nom || 'Prospect' }}</div>
                   <div class="text-xs text-red-700">{{ formatDateTime(action.date_relance) }} · {{ action.objet }}</div>
                 </div>
-                <button type="button" class="text-xs font-semibold text-xelltekk-700 hover:underline" @click="openEditAction(action)">Traiter</button>
+                <button type="button" class="text-xs font-semibold text-xelltekk-700 hover:underline" @click="openActionDetail(action)">Traiter</button>
               </div>
             </div>
             <div v-if="!relancesPrioritaires.length" class="py-3 text-center text-xs text-gray-400">Aucune relance prioritaire.</div>
@@ -210,7 +215,9 @@
             <tr v-for="p in visibleProspects" :key="p.id" class="hover:bg-gray-50">
               <td class="px-4 py-3 font-mono text-sm text-gray-600">{{ p.code }}</td>
               <td class="px-4 py-3">
-                <div class="font-medium text-gray-900">{{ p.nom }}</div>
+                <button type="button" class="font-medium text-gray-900 hover:text-xelltekk-700 hover:underline" @click="openProspectDetail(p)">
+                  {{ p.nom }}
+                </button>
                 <div class="text-xs text-gray-500">{{ p.email || p.telephone || '-' }}</div>
               </td>
               <td class="px-4 py-3 text-sm text-gray-700">{{ p.commercial?.name || 'Non affecté' }}</td>
@@ -237,7 +244,7 @@
                     compact
                   />
                   <button type="button" @click="creerDevis(p)" class="text-sm font-medium text-xelltekk-600 hover:text-xelltekk-800">+ Devis</button>
-                  <button @click="openAction(p)" class="text-sm font-medium text-xelltekk-600 hover:text-xelltekk-800">+ Action</button>
+                  <button @click="openProspectAction(p)" class="text-sm font-medium text-xelltekk-600 hover:text-xelltekk-800">+ Action</button>
                   <button type="button" @click="convertirProspect(p)" class="text-sm font-medium text-emerald-700 hover:text-emerald-900">Convertir</button>
                   <button v-if="isAdmin" @click="openAssignProspect(p)" class="text-sm font-medium text-indigo-600 hover:text-indigo-800">Affecter</button>
                 </div>
@@ -283,7 +290,9 @@
             <tr v-for="a in visibleActions" :key="a.id" class="hover:bg-gray-50">
               <td class="px-4 py-3 text-xs text-gray-600">{{ formatDateTime(a.date_action) }}</td>
               <td class="px-4 py-3">
-                <div class="text-sm font-medium text-gray-900">{{ a.client?.nom || 'Prospect' }}</div>
+                <button type="button" class="text-sm font-medium text-gray-900 hover:text-xelltekk-700 hover:underline" @click="openProspectDetail(a.client || { id: a.client_id })">
+                  {{ a.client?.nom || 'Prospect' }}
+                </button>
                 <div class="text-xs text-gray-500">{{ a.commercial?.name || '-' }}</div>
               </td>
               <td class="px-4 py-3 text-center"><span class="badge bg-blue-100 text-blue-800">{{ typeActionLabel(a.type_action) }}</span></td>
@@ -297,7 +306,7 @@
               <td class="px-4 py-3 text-center"><span class="badge" :class="statutActionClass(a.statut)">{{ statutActionLabel(a.statut) }}</span></td>
               <td class="px-4 py-3 text-right">
                 <div class="flex flex-wrap justify-end gap-2">
-                  <button type="button" @click="openEditAction(a)" class="text-sm font-medium text-xelltekk-600 hover:text-xelltekk-800">Modifier</button>
+                  <button type="button" @click="openActionDetail(a)" class="text-sm font-medium text-xelltekk-600 hover:text-xelltekk-800">Modifier</button>
                   <button v-if="a.statut !== 'effectuee'" type="button" @click="markActionDone(a)" class="text-sm font-medium text-green-700 hover:text-green-900">Terminer</button>
                   <button v-if="isAdmin" @click="openAssignAction(a)" class="text-sm font-medium text-indigo-600 hover:text-indigo-800">Affecter</button>
                   <button type="button" @click="deleteAction(a)" class="text-sm font-medium text-red-600 hover:text-red-800">Suppr.</button>
@@ -1029,6 +1038,42 @@ function loadActionPage(page = 1) {
   return loadActions(page)
 }
 
+function openProspectCreate() {
+  router.push({ name: 'prospect-create', query: { tab: 'saisie' } })
+}
+
+function openProspectDetail(prospect) {
+  const normalized = normalizeProspect(prospect)
+  if (!normalized.id) return
+
+  router.push({ name: 'prospect-detail', params: { id: normalized.id }, query: { tab: 'fiche' } })
+}
+
+function openProspectAction(prospect) {
+  const normalized = normalizeProspect(prospect)
+  if (!normalized.id) return
+
+  router.push({
+    name: 'prospect-detail',
+    params: { id: normalized.id },
+    query: { tab: 'actions', new_action: '1' },
+  })
+}
+
+function openActionDetail(action) {
+  const clientId = action?.client_id || action?.client?.id
+  if (!clientId) {
+    openEditAction(action)
+    return
+  }
+
+  router.push({
+    name: 'prospect-detail',
+    params: { id: clientId },
+    query: { tab: 'actions', action_id: action.id },
+  })
+}
+
 function openAction(prospect = null) {
   if (prospect) {
     ensureProspectOption(prospect)
@@ -1424,7 +1469,7 @@ function resultatClass(resultat) {
 function creerDevis(prospect) {
   const id = prospect?.id || prospect?.client_id
   if (!id) return
-  router.push({ path: '/devis', query: { create_client: id } })
+  router.push({ name: 'devis-create', query: { client_id: id } })
 }
 
 function relanceEmailDraft(prospect, action = null) {
