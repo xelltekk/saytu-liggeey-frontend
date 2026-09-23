@@ -100,7 +100,7 @@
                 {{ parseFloat(f.reste_a_payer) > 0 ? formatPrice(f.reste_a_payer) : '–' }}
               </td>
               <td class="px-3 py-3 text-center">
-                <span class="badge text-[10px]" :class="statutBadge(f.statut)">{{ statutLabel(f.statut) }}</span>
+                <span class="badge text-[10px]" :class="statutBadge(commercialStatus(f))">{{ statutLabel(commercialStatus(f)) }}</span>
               </td>
               <td class="px-3 py-3 text-right">
                 <div class="flex flex-wrap justify-end gap-2">
@@ -941,6 +941,9 @@ async function handleEnvoyer(f) {
 
 // ===== AVOIRS =====
 async function openCreateAvoir(f) {
+  router.push({ name: 'facture-detail', params: { id: f.id }, query: { tab: 'avoirs' } })
+  return
+
   showAvoirModal.value = true
   loadingAvoir.value = true
   avoirFacture.value = null
@@ -1108,6 +1111,9 @@ async function handleTracerRelance() {
 
 // ===== ANNULER =====
 function openAnnuler(f) {
+  router.push({ name: 'facture-detail', params: { id: f.id }, query: { tab: 'avoirs' } })
+  return
+
   annulFacture.value = f
   annulForm.motif = ''
   annulError.value = ''
@@ -1166,13 +1172,18 @@ function isEnRetard(f) {
 }
 function statutLabel(s) {
   return { brouillon: 'Brouillon', validee: 'Validée', envoyee: 'Envoyée',
-    partiellement_payee: 'Partiel.', payee: 'Payée', impayee: 'Impayée', annulee: 'Annulée' }[s] || s
+    partiellement_payee: 'Partiel.', payee: 'Payée', impayee: 'Impayée', annulee: 'Annulée',
+    avoir: 'Avoir', avoir_partiel: 'Avoir partiel', avoir_total: 'Avoir total' }[s] || s
 }
 function statutBadge(s) {
   return { brouillon: 'bg-gray-100 text-gray-700', validee: 'bg-blue-100 text-blue-800',
     envoyee: 'bg-indigo-100 text-indigo-800', partiellement_payee: 'bg-yellow-100 text-yellow-800',
     payee: 'bg-green-100 text-green-800', impayee: 'bg-orange-100 text-orange-800',
-    annulee: 'bg-red-100 text-red-800' }[s] || 'bg-gray-100'
+    annulee: 'bg-red-100 text-red-800', avoir: 'bg-red-50 text-red-700',
+    avoir_partiel: 'bg-rose-100 text-rose-800', avoir_total: 'bg-red-100 text-red-800' }[s] || 'bg-gray-100'
+}
+function commercialStatus(f) {
+  return f?.statut_commercial || f?.avoir_resume?.statut_commercial || f?.statut
 }
 
 function canRelancer(f) {

@@ -10,7 +10,7 @@
             <h1 class="text-2xl font-black text-slate-950">
               {{ isCreate ? 'Nouvelle facture' : facture?.numero || 'Facture' }}
             </h1>
-            <span v-if="facture" class="badge text-xs" :class="statutBadge(facture.statut)">{{ statutLabel(facture.statut) }}</span>
+            <span v-if="facture" class="badge text-xs" :class="statutBadge(commercialStatus(facture))">{{ statutLabel(commercialStatus(facture)) }}</span>
             <span v-if="facture?.type === 'avoir'" class="rounded-full bg-red-50 px-2 py-1 text-xs font-black text-red-700">AVOIR</span>
           </div>
           <p class="mt-1 text-sm text-slate-600">
@@ -59,6 +59,22 @@
           >
             Relancer
           </button>
+          <button
+            v-if="canCreateAvoir"
+            type="button"
+            class="btn-secondary"
+            @click="setTab('avoirs')"
+          >
+            Créer avoir
+          </button>
+          <button
+            v-if="canCancelInvoice"
+            type="button"
+            class="btn-secondary text-red-700"
+            @click="setTab('avoirs')"
+          >
+            Annuler
+          </button>
         </div>
       </div>
     </div>
@@ -77,6 +93,8 @@
           <button type="button" class="rounded-full border border-sky-200 px-3 py-1.5 text-xs font-black text-sky-800 hover:bg-sky-50" @click="setTab('saisie')">Modifier</button>
           <button v-if="canEncaisser" type="button" class="rounded-full bg-emerald-600 px-3 py-1.5 text-xs font-black text-white hover:bg-emerald-700" @click="setTab('paiements')">Encaisser</button>
           <button v-if="canRelancer(facture)" type="button" class="rounded-full border border-orange-200 px-3 py-1.5 text-xs font-black text-orange-800 hover:bg-orange-50" @click="setTab('suivi')">Relancer</button>
+          <button v-if="canCreateAvoir" type="button" class="rounded-full border border-red-200 px-3 py-1.5 text-xs font-black text-red-700 hover:bg-red-50" @click="setTab('avoirs')">Avoir</button>
+          <button v-if="canCancelInvoice" type="button" class="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-black text-slate-700 hover:bg-slate-50" @click="setTab('avoirs')">Annuler</button>
           <button v-if="canValidateInvoices && facture.type !== 'avoir' && facture.statut === 'brouillon'" type="button" class="rounded-full border border-blue-200 px-3 py-1.5 text-xs font-black text-blue-800 hover:bg-blue-50" :disabled="actionLoading === 'valider'" @click="handleValider">Valider</button>
           <button v-if="canValidateInvoices && facture.type !== 'avoir' && ['brouillon', 'validee'].includes(facture.statut)" type="button" class="rounded-full bg-indigo-600 px-3 py-1.5 text-xs font-black text-white hover:bg-indigo-700" :disabled="actionLoading === 'envoyer'" @click="handleEnvoyer">{{ facture.statut === 'brouillon' ? 'Valider + envoyée' : 'Marquer envoyée' }}</button>
         </div>
@@ -296,6 +314,140 @@
           </div>
         </section>
 
+        <section v-else-if="activeTab === 'avoirs' && facture" class="space-y-4">
+          <div class="grid grid-cols-1 gap-3 lg:grid-cols-3">
+            <div class="rounded-xl border border-red-100 bg-red-50 p-4">
+              <div class="text-xs font-black uppercase text-red-700">Situation avoir</div>
+              <div class="mt-2 text-lg font-black text-slate-950">{{ facture.avoir_resume?.libelle || statutLabel(commercialStatus(facture)) }}</div>
+              <p class="mt-1 text-sm text-slate-600">Avoirs : {{ formatPrice(facture.avoir_resume?.total_avoirs || 0) }}</p>
+            </div>
+            <div class="rounded-xl border border-orange-100 bg-orange-50 p-4">
+              <div class="text-xs font-black uppercase text-orange-700">Reste à avoiriser</div>
+              <div class="mt-2 text-lg font-black text-slate-950">{{ formatPrice(facture.avoir_resume?.reste_a_avoiriser || 0) }}</div>
+              <p class="mt-1 text-sm text-slate-600">{{ facture.avoir_resume?.taux_avoir || 0 }}% couvert par avoir</p>
+            </div>
+            <div class="rounded-xl border border-sky-100 bg-sky-50 p-4">
+              <div class="text-xs font-black uppercase text-sky-700">Document lié</div>
+              <button
+                v-if="facture.type === 'avoir' && facture.avoir_resume?.facture_origine"
+                type="button"
+                class="mt-2 font-mono text-sm font-black text-sky-800 hover:underline"
+                @click="openLinkedFacture(facture.avoir_resume.facture_origine)"
+              >
+                {{ facture.avoir_resume.facture_origine.numero }}
+              </button>
+              <p v-else class="mt-2 text-sm text-slate-600">{{ facture.avoir_resume?.avoirs_count || 0 }} avoir(s) lié(s)</p>
+            </div>
+          </div>
+
+          <div v-if="facture.type === 'avoir'" class="rounded-xl border border-sky-100 bg-white p-4">
+            <h2 class="mb-2 font-black text-slate-950">Cet avoir est lié à une facture d’origine</h2>
+            <p class="text-sm text-slate-600">
+              Les quantités de cet avoir ont déjà été remises en stock à la validation de l’avoir.
+            </p>
+            <div v-if="facture.avoir_resume?.facture_origine" class="mt-3 flex flex-wrap gap-2">
+              <button type="button" class="btn-secondary" @click="openLinkedFacture(facture.avoir_resume.facture_origine)">Ouvrir la facture d’origine</button>
+              <button type="button" class="btn-primary" @click="ouvrirPdf">PDF avoir</button>
+            </div>
+          </div>
+
+          <div v-else class="grid grid-cols-1 gap-4 xl:grid-cols-[1.2fr_0.8fr]">
+            <div class="rounded-xl border border-sky-100 bg-white p-4">
+              <h2 class="mb-2 font-black text-slate-950">Créer un avoir</h2>
+              <p class="mb-4 text-sm text-slate-600">
+                L’avoir est créé, validé automatiquement, lié à cette facture et remet les produits stockés en stock.
+              </p>
+
+              <div v-if="!canCreateAvoir" class="rounded-xl border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-900">
+                Aucun avoir disponible : la facture est peut-être brouillon, annulée ou déjà totalement avoirisée.
+              </div>
+
+              <form v-else class="space-y-4" @submit.prevent="handleCreerAvoir">
+                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <label class="cursor-pointer rounded-xl border p-3" :class="avoirForm.type_avoir === 'total' ? 'border-red-300 bg-red-50' : 'border-sky-100 bg-sky-50'">
+                    <input v-model="avoirForm.type_avoir" type="radio" value="total" class="mr-2" />
+                    <span class="font-black text-slate-950">Avoir total</span>
+                    <span class="mt-1 block text-xs text-slate-600">Crée l’avoir sur tout ce qui reste à avoiriser.</span>
+                  </label>
+                  <label class="cursor-pointer rounded-xl border p-3" :class="avoirForm.type_avoir === 'partiel' ? 'border-red-300 bg-red-50' : 'border-sky-100 bg-sky-50'">
+                    <input v-model="avoirForm.type_avoir" type="radio" value="partiel" class="mr-2" />
+                    <span class="font-black text-slate-950">Avoir partiel</span>
+                    <span class="mt-1 block text-xs text-slate-600">Sélectionne seulement certaines lignes/quantités.</span>
+                  </label>
+                </div>
+
+                <label class="block text-sm font-bold text-slate-700">
+                  Motif de l’avoir <span class="text-red-500">*</span>
+                  <input v-model="avoirForm.motif" type="text" class="input mt-1" placeholder="Ex : retour client, erreur de facturation..." required />
+                </label>
+
+                <div v-if="avoirForm.type_avoir === 'partiel'" class="overflow-hidden rounded-xl border border-sky-100">
+                  <div class="bg-sky-50 px-3 py-2 text-xs font-black uppercase text-sky-900">Lignes à avoiriser</div>
+                  <div class="divide-y divide-sky-100">
+                    <div v-for="ligne in lignesAvoirisables" :key="ligne.id" class="grid grid-cols-1 gap-3 p-3 sm:grid-cols-[auto_1fr_120px] sm:items-center">
+                      <input type="checkbox" :checked="Boolean(lignesAvoirPartiel[ligne.id])" class="h-4 w-4" @change="toggleLigneAvoir(ligne)" />
+                      <div>
+                        <div class="font-bold text-slate-950">{{ ligne.designation }}</div>
+                        <div class="text-xs text-slate-500">
+                          Facturée {{ formatQte(ligne.quantite) }} · déjà avoirisée {{ formatQte(ligne.quantite_avoirisee || 0) }} · reste {{ formatQte(quantiteRestanteAvoir(ligne)) }}
+                        </div>
+                      </div>
+                      <input
+                        v-if="lignesAvoirPartiel[ligne.id]"
+                        v-model.number="lignesAvoirPartiel[ligne.id]"
+                        type="number"
+                        min="0.001"
+                        step="0.001"
+                        :max="quantiteRestanteAvoir(ligne)"
+                        class="input text-right"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <button type="submit" class="btn-danger" :disabled="creatingAvoir || !canSubmitAvoir">
+                  {{ creatingAvoir ? 'Création...' : 'Créer l’avoir' }}
+                </button>
+              </form>
+            </div>
+
+            <div class="space-y-4">
+              <div class="rounded-xl border border-sky-100 bg-white p-4">
+                <h2 class="mb-3 font-black text-slate-950">Avoirs existants</h2>
+                <div v-if="facture.avoir_resume?.avoirs?.length" class="space-y-2">
+                  <div v-for="avoir in facture.avoir_resume.avoirs" :key="avoir.id" class="rounded-lg border border-red-100 bg-red-50 p-3 text-sm">
+                    <div class="flex items-center justify-between gap-2">
+                      <button type="button" class="font-mono font-black text-red-800 hover:underline" @click="openLinkedFacture(avoir)">{{ avoir.numero }}</button>
+                      <span class="font-mono font-black text-slate-950">{{ formatPrice(avoir.montant_abs) }}</span>
+                    </div>
+                    <div class="mt-1 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
+                      <span>{{ typeAvoirLabel(avoir.type_avoir) }} · {{ formatDate(avoir.date_facture) }}</span>
+                      <button type="button" class="font-black text-sky-700 hover:text-sky-900" @click="ouvrirDocumentLie(avoir)">PDF</button>
+                    </div>
+                  </div>
+                </div>
+                <p v-else class="text-sm text-slate-500">Aucun avoir créé.</p>
+              </div>
+
+              <div class="rounded-xl border border-red-100 bg-red-50 p-4">
+                <h2 class="mb-2 font-black text-red-950">Annuler la facture</h2>
+                <p class="mb-3 text-sm text-red-900">
+                  À utiliser seulement avant paiement. L’annulation remet le stock sorti en stock et garde une trace avec motif.
+                </p>
+                <div v-if="!canCancelInvoice" class="rounded-lg border border-red-200 bg-white/70 p-3 text-sm text-red-900">
+                  Annulation indisponible : facture déjà payée, annulée ou avec paiement lié. Utilise plutôt un avoir.
+                </div>
+                <form v-else class="space-y-3" @submit.prevent="handleAnnuler">
+                  <textarea v-model="annulationForm.motif" rows="3" class="input" placeholder="Motif obligatoire d’annulation..." required></textarea>
+                  <button type="submit" class="btn-danger" :disabled="annulationLoading || annulationForm.motif.trim().length < 3">
+                    {{ annulationLoading ? 'Annulation...' : 'Annuler la facture' }}
+                  </button>
+                </form>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <section v-else-if="activeTab === 'historique' && facture" class="space-y-2">
           <div v-if="pilotage?.historique?.length" class="space-y-2">
             <div v-for="(item, index) in pilotage.historique" :key="`${item.type}-${index}`" class="rounded-xl border border-sky-100 bg-white p-3 text-sm">
@@ -312,6 +464,32 @@
             <h2 class="mb-2 font-black text-slate-950">Documents facture</h2>
             <p class="mb-3 text-sm text-slate-600">PDF, reçu et documents associés à cette facture.</p>
             <button type="button" class="btn-primary" @click="ouvrirPdf">Ouvrir PDF facture</button>
+          </div>
+
+          <div v-if="facture.documents_lies?.facture_origine || facture.documents_lies?.avoirs?.length" class="rounded-xl border border-sky-100 bg-white p-4">
+            <h2 class="mb-3 font-black text-slate-950">Documents liés</h2>
+            <div class="space-y-2 text-sm">
+              <div v-if="facture.documents_lies?.facture_origine" class="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-sky-50 p-3">
+                <div>
+                  <div class="font-black text-slate-950">Facture d’origine {{ facture.documents_lies.facture_origine.numero }}</div>
+                  <div class="text-xs text-slate-500">{{ formatDate(facture.documents_lies.facture_origine.date_facture) }}</div>
+                </div>
+                <div class="flex gap-2">
+                  <button type="button" class="text-xs font-black text-sky-700 hover:text-sky-900" @click="openLinkedFacture(facture.documents_lies.facture_origine)">Ouvrir</button>
+                  <button type="button" class="text-xs font-black text-sky-700 hover:text-sky-900" @click="ouvrirDocumentLie(facture.documents_lies.facture_origine)">PDF</button>
+                </div>
+              </div>
+              <div v-for="avoir in facture.documents_lies?.avoirs || []" :key="avoir.id" class="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-red-50 p-3">
+                <div>
+                  <div class="font-black text-red-900">Avoir {{ avoir.numero }}</div>
+                  <div class="text-xs text-slate-500">{{ typeAvoirLabel(avoir.type_avoir) }} · {{ formatDate(avoir.date_facture) }}</div>
+                </div>
+                <div class="flex gap-2">
+                  <button type="button" class="text-xs font-black text-sky-700 hover:text-sky-900" @click="openLinkedFacture(avoir)">Ouvrir</button>
+                  <button type="button" class="text-xs font-black text-sky-700 hover:text-sky-900" @click="ouvrirDocumentLie(avoir)">PDF</button>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
       </div>
@@ -355,6 +533,15 @@ const encaissementForm = reactive({
   notes: '',
 })
 
+const avoirForm = reactive({
+  type_avoir: 'total',
+  motif: '',
+})
+const lignesAvoirPartiel = reactive({})
+const creatingAvoir = ref(false)
+const annulationForm = reactive({ motif: '' })
+const annulationLoading = ref(false)
+
 const isCreate = computed(() => route.name === 'facture-create')
 const isInvoiceDetailRoute = computed(() => ['facture-create', 'facture-detail'].includes(route.name))
 const formKey = computed(() => isCreate.value
@@ -368,6 +555,23 @@ const canEncaisser = computed(() => facture.value
   && facture.value.type !== 'avoir'
   && !['brouillon', 'payee', 'annulee'].includes(facture.value.statut)
   && parseFloat(facture.value.reste_a_payer || 0) > 0)
+const lignesAvoirisables = computed(() => (facture.value?.lignes || []).filter(ligne => quantiteRestanteAvoir(ligne) > 0.0001))
+const canCreateAvoir = computed(() => facture.value
+  && canValidateInvoices.value
+  && facture.value.type !== 'avoir'
+  && !['brouillon', 'annulee'].includes(facture.value.statut)
+  && parseFloat(facture.value.avoir_resume?.reste_a_avoiriser ?? facture.value.total_ttc ?? 0) > 0.01
+  && lignesAvoirisables.value.length > 0)
+const canCancelInvoice = computed(() => facture.value
+  && canValidateInvoices.value
+  && !['payee', 'annulee'].includes(facture.value.statut)
+  && parseFloat(facture.value.montant_paye || 0) <= 0.01
+  && !(pilotage.value?.paiements || []).length)
+const canSubmitAvoir = computed(() => {
+  if (!avoirForm.motif || avoirForm.motif.trim().length < 3) return false
+  if (avoirForm.type_avoir === 'total') return canCreateAvoir.value
+  return Object.entries(lignesAvoirPartiel).some(([id, qte]) => qte > 0 && qte <= quantiteRestanteAvoirById(id))
+})
 
 const tabs = computed(() => [
   { key: 'fiche', label: 'Fiche', count: null, create: false },
@@ -375,6 +579,7 @@ const tabs = computed(() => [
   { key: 'lignes', label: 'Lignes', count: facture.value?.lignes?.length ?? 0, create: false },
   { key: 'paiements', label: 'Paiements', count: pilotage.value?.paiements?.length ?? 0, create: false },
   { key: 'suivi', label: 'Relances / suivi', count: pilotage.value?.recouvrements?.length ?? 0, create: false },
+  { key: 'avoirs', label: 'Avoirs / annulation', count: facture.value?.avoir_resume?.avoirs_count ?? facture.value?.documents_lies?.avoirs?.length ?? 0, create: false },
   { key: 'historique', label: 'Historique', count: pilotage.value?.historique?.length ?? 0, create: false },
   { key: 'documents', label: 'Documents PDF', count: null, create: false },
 ])
@@ -390,6 +595,10 @@ function setTab(tab) {
   activeTab.value = tab
   router.replace({ query: { ...route.query, tab } })
   if (tab === 'paiements') resetEncaissementForm()
+  if (tab === 'avoirs') {
+    resetAvoirForm()
+    resetAnnulationForm()
+  }
 }
 
 async function loadAll() {
@@ -415,6 +624,8 @@ async function loadAll() {
     facture.value = factureResp.data
     pilotage.value = pilotageResp.data
     resetEncaissementForm()
+    resetAvoirForm()
+    resetAnnulationForm()
     activeTab.value = routeTab()
   } catch (err) {
     toast.error(err.response?.data?.message || 'Facture introuvable')
@@ -442,6 +653,16 @@ function resetEncaissementForm() {
   encaissementForm.date_paiement = new Date().toISOString().slice(0, 10)
   encaissementForm.reference_paiement = ''
   encaissementForm.notes = ''
+}
+
+function resetAvoirForm() {
+  avoirForm.type_avoir = 'total'
+  avoirForm.motif = ''
+  Object.keys(lignesAvoirPartiel).forEach(key => delete lignesAvoirPartiel[key])
+}
+
+function resetAnnulationForm() {
+  annulationForm.motif = ''
 }
 
 async function onSaved(saved) {
@@ -546,6 +767,82 @@ async function ouvrirRecuPaiement(paiement) {
   }
 }
 
+async function ouvrirDocumentLie(document) {
+  if (!document?.id) return
+  try {
+    await ouvrirPDF(`/factures/${document.id}/pdf`, `${document.numero || 'document-lie'}.pdf`)
+  } catch (e) {
+    toast.error('Impossible d’ouvrir le document lié')
+  }
+}
+
+function openLinkedFacture(document) {
+  if (!document?.id) return
+  router.push({ name: 'facture-detail', params: { id: document.id }, query: { tab: 'fiche' } })
+}
+
+function quantiteRestanteAvoir(ligne) {
+  return Math.max(parseFloat(ligne?.quantite_restant_avoir ?? Math.abs(parseFloat(ligne?.quantite || 0))), 0)
+}
+
+function quantiteRestanteAvoirById(id) {
+  const ligne = (facture.value?.lignes || []).find(item => Number(item.id) === Number(id))
+  return quantiteRestanteAvoir(ligne)
+}
+
+function toggleLigneAvoir(ligne) {
+  if (lignesAvoirPartiel[ligne.id]) {
+    delete lignesAvoirPartiel[ligne.id]
+  } else {
+    lignesAvoirPartiel[ligne.id] = quantiteRestanteAvoir(ligne)
+  }
+}
+
+async function handleCreerAvoir() {
+  if (!facture.value || !canSubmitAvoir.value) return
+  creatingAvoir.value = true
+  try {
+    const payload = {
+      type_avoir: avoirForm.type_avoir,
+      motif: avoirForm.motif.trim(),
+    }
+    if (avoirForm.type_avoir === 'partiel') {
+      payload.lignes_partielles = Object.entries(lignesAvoirPartiel)
+        .filter(([, quantite]) => parseFloat(quantite || 0) > 0)
+        .map(([ligne_id, quantite]) => ({
+          ligne_id: parseInt(ligne_id),
+          quantite: parseFloat(quantite),
+        }))
+    }
+
+    const { data } = await api.post(`/factures/${facture.value.id}/creer-avoir`, payload)
+    toast.success(data.message || 'Avoir créé')
+    await loadAll()
+    activeTab.value = 'avoirs'
+  } catch (err) {
+    toastError(err, 'Erreur lors de la création de l’avoir')
+  } finally {
+    creatingAvoir.value = false
+  }
+}
+
+async function handleAnnuler() {
+  if (!facture.value || annulationForm.motif.trim().length < 3) return
+  annulationLoading.value = true
+  try {
+    const { data } = await api.post(`/factures/${facture.value.id}/annuler`, {
+      motif: annulationForm.motif.trim(),
+    })
+    toast.success(data.message || 'Facture annulée')
+    await loadAll()
+    activeTab.value = 'avoirs'
+  } catch (err) {
+    toastError(err, 'Erreur lors de l’annulation')
+  } finally {
+    annulationLoading.value = false
+  }
+}
+
 function goBack() {
   router.push('/factures')
 }
@@ -560,6 +857,9 @@ function formatPrice(n) { return new Intl.NumberFormat('fr-FR').format(Math.roun
 function formatQte(n) { return parseFloat(n || 0).toLocaleString('fr-FR', { maximumFractionDigits: 3 }) }
 function formatDate(d) { return d ? new Date(d).toLocaleDateString('fr-FR') : '–' }
 function formatDateTime(d) { return d ? new Date(d).toLocaleString('fr-FR') : '–' }
+function commercialStatus(f) {
+  return f?.statut_commercial || f?.avoir_resume?.statut_commercial || f?.statut
+}
 function statutLabel(s) {
   return {
     brouillon: 'Brouillon',
@@ -569,6 +869,9 @@ function statutLabel(s) {
     payee: 'Payée',
     impayee: 'Impayée',
     annulee: 'Annulée',
+    avoir: 'Avoir',
+    avoir_partiel: 'Avoir partiel',
+    avoir_total: 'Avoir total',
   }[s] || s
 }
 function statutBadge(s) {
@@ -580,7 +883,13 @@ function statutBadge(s) {
     payee: 'bg-green-100 text-green-800',
     impayee: 'bg-orange-100 text-orange-800',
     annulee: 'bg-red-100 text-red-800',
+    avoir: 'bg-red-50 text-red-700',
+    avoir_partiel: 'bg-rose-100 text-rose-800',
+    avoir_total: 'bg-red-100 text-red-800',
   }[s] || 'bg-gray-100'
+}
+function typeAvoirLabel(type) {
+  return { total: 'Avoir total', partiel: 'Avoir partiel' }[type] || 'Avoir'
 }
 function modePaiementLabel(mode) {
   return {
