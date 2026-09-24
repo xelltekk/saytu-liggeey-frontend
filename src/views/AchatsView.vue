@@ -138,7 +138,7 @@
                 <button v-if="commande.statut === 'brouillon'" class="text-indigo-700" title="Soumettre" @click="submitCommande(commande)">Soumettre</button>
                 <button v-if="commande.statut === 'soumise' && canApprove" class="text-green-700" title="Approuver" @click="approveCommande(commande)">Approuver</button>
                 <button v-if="['approuvee', 'partiellement_recue'].includes(commande.statut) && canReceive" class="text-cyan-700" title="Réceptionner" @click="goToReception(commande)">Réceptionner</button>
-                <button v-if="['partiellement_recue', 'recue'].includes(commande.statut) && !commande.facture_fournisseur && canInvoice" class="text-violet-700" title="Générer la facture fournisseur" @click="openInvoiceCreate(commande)">Facturer</button>
+                <button v-if="['partiellement_recue', 'recue'].includes(commande.statut) && !commande.facture_fournisseur && canInvoice" class="text-violet-700" title="Générer la facture fournisseur" @click="goToSupplierInvoiceCreate(commande)">Facturer</button>
                 <button v-if="commande.facture_fournisseur" class="text-violet-700" title="Voir la facture fournisseur" @click="goToInvoice(commande.facture_fournisseur)">Voir facture</button>
                 <button v-if="commande.statut === 'recue' && canEvaluate" class="text-amber-700" title="Évaluer le fournisseur" @click="openEvaluation(commande)">{{ commande.evaluation_fournisseur ? 'Réévaluer' : 'Évaluer' }}</button>
                 <button class="inline-flex items-center gap-1 text-slate-700" title="Télécharger le bon de commande PDF" @click="downloadOrderPdf(commande)"><FileDown :size="16" /> BC</button>
@@ -837,6 +837,10 @@ function goToCommande(row, tab = 'fiche') {
 function goToReception(row) {
   if (!row?.id) return
   router.push({ name: 'achat-reception-create', params: { id: row.id } })
+}
+function goToSupplierInvoiceCreate(row) {
+  if (!row?.id) return
+  router.push({ name: 'achat-facture-create', params: { id: row.id } })
 }
 function openCreate() { router.push({ name: 'achat-commande-create', query: { tab: 'saisie' } }) }
 function editCommande(row) { goToCommande(row, 'saisie') }

@@ -29,6 +29,8 @@
           <button v-if="commande.statut === 'brouillon'" type="button" class="btn-primary" @click="submitCommande">Soumettre</button>
           <button v-if="commande.statut === 'soumise' && canApprove" type="button" class="btn-primary" @click="approveCommande">Approuver</button>
           <button v-if="['approuvee', 'partiellement_recue'].includes(commande.statut) && canReceive" type="button" class="btn-primary" @click="goToReception">Réceptionner</button>
+          <button v-if="['partiellement_recue', 'recue'].includes(commande.statut) && !commande.facture_fournisseur && canInvoice" type="button" class="btn-primary" @click="goToSupplierInvoiceCreate">Facturer</button>
+          <button v-if="commande.facture_fournisseur" type="button" class="btn-secondary" @click="goToInvoice(commande.facture_fournisseur)">Voir facture</button>
         </div>
       </div>
     </div>
@@ -239,6 +241,7 @@ const form = reactive(emptyForm())
 const isCreate = computed(() => route.name === 'achat-commande-create')
 const canApprove = computed(() => hasAnyRole(auth.user, ['admin', 'gerant', 'comptable']))
 const canReceive = computed(() => hasAnyRole(auth.user, ['admin', 'gerant', 'magasinier']))
+const canInvoice = computed(() => hasAnyRole(auth.user, ['admin', 'gerant', 'comptable']))
 const visibleTabs = computed(() => isCreate.value
   ? [{ key: 'saisie', label: 'Saisie commande' }]
   : [
@@ -351,6 +354,15 @@ function goBack() {
 function goToReception() {
   if (!commande.value?.id) return
   router.push({ name: 'achat-reception-create', params: { id: commande.value.id } })
+}
+
+function goToSupplierInvoiceCreate() {
+  if (!commande.value?.id) return
+  router.push({ name: 'achat-facture-create', params: { id: commande.value.id } })
+}
+
+function goToInvoice(invoice) {
+  router.push({ path: '/fournisseurs-reglements', query: invoice?.numero ? { search: invoice.numero } : {} })
 }
 
 function visibleProducts(line) {
