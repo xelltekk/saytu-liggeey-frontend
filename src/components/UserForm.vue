@@ -45,7 +45,7 @@
       <label class="label">Rôle <span class="text-red-500">*</span></label>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
         <label v-for="r in roles" :key="r.value" class="cursor-pointer">
-          <input type="radio" v-model="form.role" :value="r.value" class="sr-only peer" />
+          <input type="radio" name="user-role" v-model="form.role" :value="r.value" class="sr-only peer" required />
           <div class="border-2 border-gray-200 rounded-lg p-3 peer-checked:border-xelltekk-500 peer-checked:bg-xelltekk-50 transition-colors">
             <div class="flex items-center gap-2">
               <span class="text-xl">{{ r.emoji }}</span>
@@ -57,6 +57,9 @@
           </div>
         </label>
       </div>
+      <p v-if="!form.role" class="mt-2 text-xs font-semibold text-amber-700">
+        Sélectionnez le rôle à attribuer à ce compte.
+      </p>
     </div>
 
     <!-- Mot de passe (uniquement en création) -->
@@ -109,12 +112,12 @@ const fallbackRoles = [
   { value: 'commercial', label: 'Commercial', emoji: '🟢', description: 'Ventes' },
   { value: 'magasinier', label: 'Gestionnaire de stock', emoji: '🔵', description: 'Stock, produits et entrepots' },
   { value: 'comptable', label: 'Comptable', emoji: '🟡', description: 'Comptabilité' },
-  { value: 'caissier', label: 'Caissier', emoji: '', description: 'Caisse boutique' },
+  { value: 'caissier', label: 'Caissier', emoji: '🟠', description: 'Caisse boutique' },
 ]
 const roles = ref(fallbackRoles)
 
 const form = reactive({
-  name: '', email: '', phone: '', role: 'commercial',
+  name: '', email: '', phone: '', role: '',
   password: '', is_active: true, photo: '',
 })
 const passwordMode = ref('generate')
@@ -154,15 +157,36 @@ onMounted(async () => {
 async function loadRoles() {
   try {
     const { data } = await api.get('/access-control/role-options')
-    roles.value = data.map((role) => ({
+    const apiRoles = Array.isArray(data) ? data.map((role) => ({
       value: role.code,
       label: role.label,
       emoji: role.is_system ? roleEmoji(role.code) : '🔐',
       description: role.description || (role.is_system ? 'Rôle système' : 'Rôle personnalisé'),
-    }))
+    })) : []
+    roles.value = mergeRoleOptions(apiRoles)
   } catch (e) {
-    roles.value = fallbackRoles
+    roles.value = [...fallbackRoles]
   }
+}
+
+function mergeRoleOptions(apiRoles) {
+  const order = fallbackRoles.map((role) => role.value)
+  const byValue = new Map(fallbackRoles.map((role) => [role.value, { ...role }]))
+
+  apiRoles.forEach((role) => {
+    if (!role?.value) return
+    byValue.set(role.value, {
+      ...(byValue.get(role.value) || {}),
+      ...role,
+    })
+  })
+
+  return Array.from(byValue.values()).sort((a, b) => {
+    const aIndex = order.includes(a.value) ? order.indexOf(a.value) : 99
+    const bIndex = order.includes(b.value) ? order.indexOf(b.value) : 99
+    if (aIndex !== bIndex) return aIndex - bIndex
+    return String(a.label || '').localeCompare(String(b.label || ''))
+  })
 }
 
 function roleEmoji(role) {
@@ -172,7 +196,7 @@ function roleEmoji(role) {
     commercial: '🟢',
     magasinier: '🔵',
     comptable: '🟡',
-    caissier: '',
+    caissier: '🟠',
   }[role] || '🔐'
 }
 
