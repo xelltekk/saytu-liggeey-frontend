@@ -163,47 +163,12 @@
       </section>
       <section class="overflow-x-auto rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-surface,#ffffff)]">
         <table class="w-full min-w-[1150px]"><thead><tr><th>N°</th><th>Demandeur</th><th>Besoin</th><th>Objet</th><th>Priorité</th><th class="text-right">Estimation</th><th>Statut</th><th>Commande</th><th class="text-right">Actions</th></tr></thead><tbody>
-          <tr v-for="demand in demands" :key="demand.id"><td class="font-mono font-semibold">{{ demand.numero }}</td><td><strong>{{ demand.demandeur?.name || '-' }}</strong><p class="text-xs text-slate-500">{{ demand.service_demandeur || 'Service non précisé' }}</p></td><td>{{ formatDate(demand.date_besoin) }}</td><td><strong>{{ demand.objet }}</strong><p class="text-xs text-slate-500">{{ demand.lignes?.length || 0 }} ligne(s)</p></td><td><span class="badge" :class="priorityClass(demand.priorite)">{{ priorityLabel(demand.priorite) }}</span></td><td class="text-right font-semibold">{{ money(demand.montant_estime) }}</td><td><span class="badge" :class="demandStatusClass(demand.statut)">{{ demandStatusLabel(demand.statut) }}</span><p v-if="demand.motif_rejet" class="mt-1 max-w-48 truncate text-xs text-red-600" :title="demand.motif_rejet">{{ demand.motif_rejet }}</p></td><td><button v-if="demand.commande" class="font-mono text-blue-700 hover:underline" @click="goToCommande(demand.commande)">{{ demand.commande.numero }}</button><span v-else>-</span></td><td><div class="flex justify-end gap-2"><button v-if="demand.statut === 'brouillon'" class="text-blue-700" @click="editDemand(demand)">Modifier</button><button v-if="demand.statut === 'brouillon'" class="text-indigo-700" @click="submitDemand(demand)">Soumettre</button><button v-if="demand.statut === 'soumise' && canApprove" class="text-green-700" @click="approveDemand(demand)">Approuver</button><button v-if="demand.statut === 'soumise' && canApprove" class="text-red-600" @click="openRejectDemand(demand)">Rejeter</button><button v-if="demand.statut === 'approuvee' && canApprove" class="text-violet-700" @click="openConvertDemand(demand)">Convertir</button><button v-if="demand.statut === 'brouillon'" class="text-red-600" @click="deleteDemand(demand)"><Trash2 :size="16" /></button></div></td></tr>
+          <tr v-for="demand in demands" :key="demand.id"><td><button class="font-mono font-semibold text-blue-700 hover:underline" @click="goToDemand(demand)">{{ demand.numero }}</button></td><td><strong>{{ demand.demandeur?.name || '-' }}</strong><p class="text-xs text-slate-500">{{ demand.service_demandeur || 'Service non précisé' }}</p></td><td>{{ formatDate(demand.date_besoin) }}</td><td><strong>{{ demand.objet }}</strong><p class="text-xs text-slate-500">{{ demand.lignes?.length || 0 }} ligne(s)</p></td><td><span class="badge" :class="priorityClass(demand.priorite)">{{ priorityLabel(demand.priorite) }}</span></td><td class="text-right font-semibold">{{ money(demand.montant_estime) }}</td><td><span class="badge" :class="demandStatusClass(demand.statut)">{{ demandStatusLabel(demand.statut) }}</span><p v-if="demand.motif_rejet" class="mt-1 max-w-48 truncate text-xs text-red-600" :title="demand.motif_rejet">{{ demand.motif_rejet }}</p></td><td><button v-if="demand.commande" class="font-mono text-blue-700 hover:underline" @click="goToCommande(demand.commande)">{{ demand.commande.numero }}</button><span v-else>-</span></td><td><div class="flex justify-end gap-2"><button v-if="demand.statut === 'brouillon'" class="text-blue-700" @click="editDemand(demand)">Modifier</button><button v-if="demand.statut === 'brouillon'" class="text-indigo-700" @click="submitDemand(demand)">Soumettre</button><button v-if="demand.statut === 'soumise' && canApprove" class="text-green-700" @click="approveDemand(demand)">Approuver</button><button v-if="demand.statut === 'soumise' && canApprove" class="text-red-600" @click="openRejectDemand(demand)">Rejeter</button><button v-if="demand.statut === 'approuvee' && canApprove" class="text-violet-700" @click="openConvertDemand(demand)">Convertir</button><button v-if="demand.statut === 'brouillon'" class="text-red-600" @click="deleteDemand(demand)"><Trash2 :size="16" /></button></div></td></tr>
           <tr v-if="!demands.length"><td colspan="9" class="py-12 text-center text-slate-400">Aucune demande d’achat.</td></tr>
         </tbody></table>
         <AppPagination v-if="demandMeta.total" :meta="demandMeta" label="demandes d’achat" @page="loadDemands" />
       </section>
     </template>
-
-    <AppModal v-model="showDemandForm" :title="editingDemandId ? 'Modifier la demande d’achat' : 'Nouvelle demande d’achat'" size="xl">
-      <form class="space-y-4" @submit.prevent="saveDemand">
-        <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <label class="field-label">Date demande<input v-model="demandForm.date_demande" type="date" class="input" required /></label>
-          <label class="field-label">Date du besoin<input v-model="demandForm.date_besoin" type="date" class="input" /></label>
-          <label class="field-label">Service demandeur<input v-model="demandForm.service_demandeur" class="input" placeholder="Informatique, Stock..." /></label>
-          <label class="field-label">Priorité<select v-model="demandForm.priorite" class="input"><option value="basse">Basse</option><option value="normale">Normale</option><option value="haute">Haute</option><option value="urgente">Urgente</option></select></label>
-          <label class="field-label md:col-span-2">Objet<input v-model="demandForm.objet" class="input" required placeholder="Objet du besoin" /></label>
-          <label class="field-label md:col-span-2">Justification<textarea v-model="demandForm.justification" rows="2" class="input" placeholder="Pourquoi cet achat est nécessaire"></textarea></label>
-        </div>
-        <div class="border-y border-slate-200 py-4">
-          <div class="mb-3 flex items-center justify-between"><div><h3 class="font-bold">Produits demandés</h3><p class="text-sm text-slate-500">Les prix d’achat servent uniquement d’estimation.</p></div><button type="button" class="btn-secondary" @click="addDemandLine">Ajouter une ligne</button></div>
-          <div class="space-y-2.5">
-            <div v-for="(line, index) in demandForm.lignes" :key="line.key" class="document-line-card">
-              <div class="mb-2 flex items-center justify-between gap-2">
-                <span class="rounded-full px-2.5 py-1 text-xs font-bold" style="background: color-mix(in srgb, var(--saytu-primary) 10%, var(--saytu-surface)); color: var(--saytu-primary);">Ligne {{ index + 1 }}</span>
-                <div class="flex items-center gap-1">
-                  <button type="button" class="document-line-order-button" :disabled="index === 0 || demandForm.lignes.length < 2" title="Monter la ligne" @click="moveDemandLine(index, -1)">↑ Monter</button>
-                  <button type="button" class="document-line-order-button" :disabled="index === demandForm.lignes.length - 1 || demandForm.lignes.length < 2" title="Descendre la ligne" @click="moveDemandLine(index, 1)">↓ Descendre</button>
-                  <button type="button" class="document-line-delete-button" title="Supprimer la ligne" @click="removeDemandLine(index)"><Trash2 :size="17" /></button>
-                </div>
-              </div>
-              <div class="grid items-end gap-2 lg:grid-cols-[minmax(260px,1fr)_110px_150px_150px]">
-                <label class="block"><span class="document-line-label">Produit</span><select v-model.number="line.produit_id" class="input" required @change="selectDemandProduct(line)"><option :value="null">Choisir</option><option v-for="product in referentiels.produits" :key="product.id" :value="product.id">{{ product.reference }} - {{ product.libelle }}</option></select></label>
-                <label class="block"><span class="document-line-label">Quantité</span><input v-model.number="line.quantite" type="number" min="0.001" step="0.001" class="input text-right" required /></label>
-                <label class="block"><span class="document-line-label">Prix estimé HT</span><input v-model.number="line.prix_estime_ht" type="number" min="0" step="1" class="input text-right" /></label>
-                <div><span class="document-line-label">Estimation TTC</span><div class="document-line-total">{{ money(demandLineTotal(line)) }}</div></div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="flex flex-wrap items-center justify-between gap-3"><strong>Estimation totale : {{ money(demandEstimatedTotal) }}</strong><div class="flex gap-2"><button type="button" class="btn-secondary" @click="showDemandForm = false">Annuler</button><button class="btn-primary" :disabled="saving">{{ saving ? 'Enregistrement...' : 'Enregistrer la demande' }}</button></div></div>
-      </form>
-    </AppModal>
 
     <AppModal v-model="showDemandReject" title="Rejeter la demande" size="md">
       <form class="space-y-4" @submit.prevent="rejectDemand"><p class="text-sm text-slate-600">Demande <strong>{{ selectedDemand?.numero }}</strong></p><label class="field-label">Motif du rejet<textarea v-model="rejectReason" rows="4" class="input" required></textarea></label><div class="flex justify-end gap-2"><button type="button" class="btn-secondary" @click="showDemandReject = false">Annuler</button><button class="btn-primary bg-red-600" :disabled="saving">Confirmer le rejet</button></div></form>
@@ -534,7 +499,6 @@ const showPerformance = ref(false)
 const showRequests = ref(false)
 const showReports = ref(false)
 const showSupplier360 = ref(false)
-const showDemandForm = ref(false)
 const showDemandReject = ref(false)
 const showDemandConvert = ref(false)
 const loadingDashboard = ref(false)
@@ -549,7 +513,6 @@ const selectedEvaluationOrder = ref(null)
 const supplierPerformance = ref([])
 const demands = ref([])
 const selectedDemand = ref(null)
-const editingDemandId = ref(null)
 const rejectReason = ref('')
 const achatDashboard = reactive({ kpis: {}, top_fournisseurs: [], commandes_retard: [], factures_urgentes: [], litiges: [] })
 const supplier360 = reactive({ fournisseur: null, resume: {}, commandes: [], factures: [], reglements: [], retours: [], produits: [] })
@@ -569,13 +532,9 @@ const canReturn = computed(() => hasAnyRole(auth.user, ['admin', 'gerant', 'maga
 const canCredit = computed(() => hasAnyRole(auth.user, ['admin', 'gerant', 'comptable']))
 const canEvaluate = computed(() => hasAnyRole(auth.user, ['admin', 'gerant', 'magasinier', 'comptable']))
 let lineKey = 0
-let demandLineKey = 0
 const emptyLine = () => ({ key: ++lineKey, produit_id: null, quantite: 1, prix_unitaire_ht: 0, taux_tva: 0 })
 const emptyForm = () => ({ fournisseur_id: null, entrepot_id: null, date_commande: new Date().toISOString().slice(0, 10), date_livraison_prevue: '', objet: '', devise: 'XOF', notes: '', lignes: [emptyLine()] })
-const emptyDemandLine = () => ({ key: ++demandLineKey, produit_id: null, quantite: 1, prix_estime_ht: 0, notes: '' })
-const emptyDemandForm = () => ({ date_demande: new Date().toISOString().slice(0, 10), date_besoin: '', service_demandeur: '', objet: '', priorite: 'normale', justification: '', lignes: [emptyDemandLine()] })
 const form = reactive(emptyForm())
-const demandForm = reactive(emptyDemandForm())
 const receptionForm = reactive({ entrepot_id: null, emplacement_id: null, date_reception: new Date().toISOString().slice(0, 10), reference_bl: '', controle_qualite: 'conforme', reserve_reception: '', notes: '', lignes: [] })
 const invoiceForm = reactive({ reference_fournisseur: '', date_facture: new Date().toISOString().slice(0, 10), date_echeance: '', statut: 'validee', notes: '' })
 const returnForm = reactive({ date_retour: new Date().toISOString().slice(0, 10), motif: 'defectueux', litige_statut: 'ouvert', notes: '', lignes: [] })
@@ -622,7 +581,6 @@ const orderTotals = computed(() => form.lignes.reduce((totals, line) => { const 
 const receptionEmplacements = computed(() => { const warehouse = referentiels.entrepots.find(e => Number(e.id) === Number(receptionForm.entrepot_id)); return (warehouse?.zones || []).flatMap(z => (z.emplacements || []).map(e => ({ id: e.id, label: `${z.libelle} / ${e.code}${e.libelle ? ' - ' + e.libelle : ''}` }))) })
 const evaluationAverage = computed(() => number(evaluationCriteria.reduce((sum, criterion) => sum + Number(evaluationForm[criterion.key] || 0), 0) / evaluationCriteria.length))
 const performanceSummary = computed(() => { const scored = supplierPerformance.value.filter(item => item.score_global !== null); return { count: supplierPerformance.value.length, averageScore: scored.length ? Math.round(scored.reduce((sum, item) => sum + Number(item.score_global), 0) / scored.length) : null, best: scored[0]?.nom || null } })
-const demandEstimatedTotal = computed(() => demandForm.lignes.reduce((sum, line) => sum + demandLineTotal(line), 0))
 
 function money(value) { return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(Number(value || 0))  }
 function number(value) { return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 3 }).format(Number(value || 0)) }
@@ -644,11 +602,6 @@ function selectProduct(line) { const product = referentiels.produits.find(p => N
 function addLine() { form.lignes.push(emptyLine()) }
 function removeLine(index) { if (form.lignes.length === 1) return toast.error('Le bon doit contenir au moins une ligne.'); form.lignes.splice(index, 1) }
 function moveLine(index, direction) { const target = index + direction; if (target < 0 || target >= form.lignes.length) return; const [line] = form.lignes.splice(index, 1); form.lignes.splice(target, 0, line) }
-function demandLineTotal(line) { const product = referentiels.produits.find(item => Number(item.id) === Number(line.produit_id)); return Number(line.quantite || 0) * Number(line.prix_estime_ht || 0) * (1 + Number(product?.taux_tva || 0) / 100) }
-function selectDemandProduct(line) { const product = referentiels.produits.find(item => Number(item.id) === Number(line.produit_id)); if (product) line.prix_estime_ht = Number(product.prix_achat_ht || 0) }
-function addDemandLine() { demandForm.lignes.push(emptyDemandLine()) }
-function removeDemandLine(index) { if (demandForm.lignes.length === 1) return toast.error('La demande doit contenir au moins une ligne.'); demandForm.lignes.splice(index, 1) }
-function moveDemandLine(index, direction) { const target = index + direction; if (target < 0 || target >= demandForm.lignes.length) return; const [line] = demandForm.lignes.splice(index, 1); demandForm.lignes.splice(target, 0, line) }
 function statPillClass(card) {
   const active = (card.key === 'total' && !filters.statut) || filters.statut === card.key
   return active ? 'achat-stat-pill-active' : 'achat-stat-pill-idle'
@@ -818,9 +771,12 @@ async function setAchatsMode(mode) {
   }
 }
 async function refreshDemands() { await Promise.all([loadDemands(demandMeta.current_page || 1), loadDemandStats()]) }
-function openDemandCreate() { editingDemandId.value = null; Object.assign(demandForm, emptyDemandForm()); showDemandForm.value = true }
-async function editDemand(demand) { try { const { data } = await api.get('/achats/demandes/' + demand.id); editingDemandId.value = demand.id; Object.assign(demandForm, { date_demande: String(data.date_demande).slice(0, 10), date_besoin: data.date_besoin ? String(data.date_besoin).slice(0, 10) : '', service_demandeur: data.service_demandeur || '', objet: data.objet, priorite: data.priorite, justification: data.justification || '', lignes: data.lignes.map(line => ({ key: ++demandLineKey, produit_id: line.produit_id, quantite: Number(line.quantite), prix_estime_ht: Number(line.prix_estime_ht), notes: line.notes || '' })) }); showDemandForm.value = true } catch (e) { toast.error(e.response?.data?.message || 'Chargement impossible.') } }
-async function saveDemand() { saving.value = true; try { const payload = { ...demandForm, date_besoin: demandForm.date_besoin || null, service_demandeur: demandForm.service_demandeur || null, justification: demandForm.justification || null, lignes: demandForm.lignes.map(({ produit_id, quantite, prix_estime_ht, notes }) => ({ produit_id, quantite, prix_estime_ht, notes: notes || null })) }; if (editingDemandId.value) await api.put('/achats/demandes/' + editingDemandId.value, payload); else await api.post('/achats/demandes', payload); toast.success('Demande d’achat enregistrée.'); showDemandForm.value = false; await refreshDemands() } catch (e) { toast.error(Object.values(e.response?.data?.errors || {})[0]?.[0] || e.response?.data?.message || 'Enregistrement impossible.') } finally { saving.value = false } }
+function openDemandCreate() { router.push({ name: 'achat-demande-create', query: { tab: 'saisie' } }) }
+function goToDemand(demand, tab = 'fiche') {
+  if (!demand?.id) return
+  router.push({ name: 'achat-demande-detail', params: { id: demand.id }, query: { tab } })
+}
+function editDemand(demand) { goToDemand(demand, 'saisie') }
 async function submitDemand(demand) { if (!await askConfirm({ message: 'Soumettre ' + demand.numero + ' pour approbation ?', tone: 'primary' })) return; try { await api.post('/achats/demandes/' + demand.id + '/soumettre'); toast.success('Demande soumise.'); await refreshDemands() } catch (e) { toast.error(e.response?.data?.message || 'Soumission impossible.') } }
 async function approveDemand(demand) { if (!await askConfirm({ message: 'Approuver ' + demand.numero + ' ?', tone: 'primary' })) return; try { await api.post('/achats/demandes/' + demand.id + '/approuver'); toast.success('Demande approuvée.'); await refreshDemands() } catch (e) { toast.error(e.response?.data?.message || 'Approbation impossible.') } }
 function openRejectDemand(demand) { selectedDemand.value = demand; rejectReason.value = ''; showDemandReject.value = true }
