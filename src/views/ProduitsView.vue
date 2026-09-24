@@ -67,7 +67,30 @@
       </div>
     </section>
 
-    <div data-inline-modal-workspace></div>
+    <section
+      v-if="produitToDelete"
+      class="rounded-3xl border border-rose-200 bg-rose-50 p-4 shadow-sm"
+    >
+      <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <p class="text-xs font-black uppercase tracking-[0.18em] text-rose-700">Suppression produit</p>
+          <h2 class="mt-1 text-lg font-black text-slate-950">
+            Supprimer {{ produitToDelete.libelle }} ?
+          </h2>
+          <p class="mt-1 text-sm text-rose-700">
+            Le produit ne sera plus disponible dans les listes de vente et de stock.
+          </p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <button type="button" class="btn-secondary" @click="produitToDelete = null">
+            Annuler
+          </button>
+          <button type="button" class="btn-danger" :disabled="deleting" @click="handleDelete">
+            {{ deleting ? 'Suppression...' : 'Supprimer' }}
+          </button>
+        </div>
+      </div>
+    </section>
 
     <!-- Loader -->
     <div v-if="loading" class="rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-surface,#ffffff)] p-12 text-center text-[color:var(--saytu-topbar-subtitle,#64748b)]">
@@ -114,7 +137,9 @@
                     <span v-else>▣</span>
                   </div>
                   <div class="min-w-0">
-                    <div class="font-medium text-gray-900">{{ produit.libelle }}</div>
+                    <button type="button" class="font-medium text-gray-900 hover:text-xelltekk-700" @click="openFiche(produit)">
+                      {{ produit.libelle }}
+                    </button>
                     <div v-if="produit.marque || produit.modele" class="text-xs text-gray-500">
                       {{ [produit.marque, produit.modele].filter(Boolean).join(' • ') }}
                     </div>
@@ -137,8 +162,8 @@
                 <span v-else class="text-gray-300">✗</span>
               </td>
               <td class="px-4 py-3 text-right whitespace-nowrap">
-                <button @click="openEdit(produit)" class="text-xelltekk-600 hover:text-xelltekk-800 text-sm font-medium mr-3">
-                  ✏️
+                <button @click="openFiche(produit)" class="text-xelltekk-600 hover:text-xelltekk-800 text-sm font-medium mr-3">
+                  Fiche
                 </button>
                 <button @click="confirmDelete(produit)" class="text-red-600 hover:text-red-800 text-sm font-medium">
                   🗑️
@@ -180,28 +205,6 @@
       </div>
     </section>
 
-    <!-- Modal création/édition -->
-    <AppModal v-model="showModal" :title="editingProduit ? `Modifier : ${editingProduit.libelle}` : 'Nouveau produit'" size="lg">
-      <ProduitForm
-        :produit="editingProduit"
-        @saved="onSaved"
-        @cancel="showModal = false"
-      />
-    </AppModal>
-
-    <!-- Modal suppression -->
-    <AppModal v-model="showDeleteModal" title="Confirmer la suppression" size="sm">
-      <p class="text-gray-700">
-        Supprimer le produit <strong>{{ produitToDelete.libelle }}</strong> 
-      </p>
-      <template #footer>
-        <button @click="showDeleteModal = false" class="btn-secondary">Annuler</button>
-        <button @click="handleDelete" :disabled="deleting" class="btn-danger">
-          <span v-if="deleting">Suppression...</span>
-          <span v-else>Supprimer</span>
-        </button>
-      </template>
-    </AppModal>
   </div>
 </template>
 
@@ -209,8 +212,6 @@
 import { computed, ref, reactive, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '@/services/api'
-import AppModal from '@/components/InlinePanelModal.vue'
-import ProduitForm from '@/components/ProduitForm.vue'
 import SortableTh from '@/components/SortableTh.vue'
 import { useToast } from '@/composables/useToast'
 import { useTableSort } from '@/composables/useTableSort'
@@ -229,9 +230,6 @@ const stats = reactive({ total: 0, actifs: 0, produits: 0, services: 0 })
 const meta = reactive({ current_page: 1, last_page: 1, total: 0, from: 0, to: 0 })
 const filters = reactive({ search: '', type: '', categorie_id: '', actifs_seulement: false })
 
-const showModal = ref(false)
-const editingProduit = ref(null)
-const showDeleteModal = ref(false)
 const produitToDelete = ref(null)
 const deleting = ref(false)
 
@@ -362,36 +360,20 @@ async function exporterCSV() {
 }
 
 function openCreate() {
-  editingProduit.value = null
-  showModal.value = true
+  router.push({ name: 'produit-create', query: { tab: 'saisie' } })
 }
 
-function openEdit(produit) {
-  editingProduit.value = { ...produit }
-  showModal.value = true
+function openFiche(produit) {
+  router.push({ name: 'produit-detail', params: { id: produit.id }, query: { tab: 'fiche' } })
 }
 
 async function openFromRoute(id) {
   if (!id) return
-  try {
-    const { data } = await api.get(`/produits/${id}`)
-    editingProduit.value = data
-    showModal.value = true
-    router.replace({ path: '/produits', query: {} })
-  } catch (e) {
-    toast.error('Produit introuvable')
-  }
-}
-
-function onSaved() {
-  showModal.value = false
-  loadProduits(meta.current_page)
-  loadStats()
+  router.replace({ name: 'produit-detail', params: { id: parseInt(id) }, query: { tab: 'fiche' } })
 }
 
 function confirmDelete(produit) {
   produitToDelete.value = produit
-  showDeleteModal.value = true
 }
 
 async function handleDelete() {
@@ -399,7 +381,6 @@ async function handleDelete() {
   try {
     await api.delete(`/produits/${produitToDelete.value.id}`)
     toast.success(`Produit "${produitToDelete.value.libelle}" supprimé`)
-    showDeleteModal.value = false
     produitToDelete.value = null
     loadProduits(meta.current_page)
     loadStats()
