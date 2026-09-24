@@ -176,6 +176,8 @@
                     · {{ money(retour.total_ttc) }}
                   </span>
                   <span v-if="retour.avoir" class="font-semibold text-violet-700">Avoir {{ retour.avoir.numero }}</span>
+                  <button v-else-if="canCredit && commande.facture_fournisseur" type="button" class="font-semibold text-violet-700 hover:underline" @click="goToCredit(retour)">Générer l'avoir</button>
+                  <span v-else-if="!commande.facture_fournisseur" class="text-xs font-semibold text-slate-500">Facture requise pour l'avoir</span>
                   <span v-else class="text-xs font-semibold text-orange-700">Avoir à traiter</span>
                 </div>
               </div>
@@ -310,6 +312,7 @@ const canApprove = computed(() => hasAnyRole(auth.user, ['admin', 'gerant', 'com
 const canReceive = computed(() => hasAnyRole(auth.user, ['admin', 'gerant', 'magasinier']))
 const canReturn = computed(() => hasAnyRole(auth.user, ['admin', 'gerant', 'magasinier']))
 const canInvoice = computed(() => hasAnyRole(auth.user, ['admin', 'gerant', 'comptable']))
+const canCredit = computed(() => hasAnyRole(auth.user, ['admin', 'gerant', 'comptable']))
 const visibleTabs = computed(() => isCreate.value
   ? [{ key: 'saisie', label: 'Saisie commande' }]
   : [
@@ -440,6 +443,14 @@ function goToReturn(reception) {
   router.push({
     name: 'achat-retour-create',
     params: { commandeId: commande.value.id, receptionId: reception.id },
+  })
+}
+
+function goToCredit(retour) {
+  if (!commande.value?.id || !retour?.id) return
+  router.push({
+    name: 'achat-avoir-create',
+    params: { commandeId: commande.value.id, retourId: retour.id },
   })
 }
 

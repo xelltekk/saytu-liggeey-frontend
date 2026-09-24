@@ -195,6 +195,11 @@ const routes = [
         component: () => import('@/views/AchatRetourDetailView.vue'),
       },
       {
+        path: 'achats/commandes/:commandeId/retours/:retourId/avoir',
+        name: 'achat-avoir-create',
+        component: () => import('@/views/AchatAvoirDetailView.vue'),
+      },
+      {
         path: 'achats/commandes/:id',
         name: 'achat-commande-detail',
         component: () => import('@/views/AchatCommandeDetailView.vue'),
