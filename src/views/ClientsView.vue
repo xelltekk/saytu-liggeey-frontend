@@ -120,7 +120,7 @@
           <tbody class="divide-y divide-gray-100">
             <tr v-for="client in sortedClients" :key="client.id" class="hover:bg-gray-50/80">
               <td class="px-4 py-2.5">
-                <button type="button" class="flex min-w-[260px] items-center gap-3 text-left" @click="openClient360(client)">
+                <button type="button" class="flex min-w-[260px] items-center gap-3 text-left" @click="openClientFiche(client)">
                   <span class="font-mono text-xs font-semibold text-xelltekk-600">{{ client.code }}</span>
                   <span class="max-w-[300px] truncate font-semibold text-gray-900 hover:text-xelltekk-700">{{ client.nom }}</span>
                 </button>
@@ -160,8 +160,8 @@
                 <div v-else class="text-[11px] text-gray-400">RAS</div>
               </td>
               <td class="px-4 py-2.5 text-right whitespace-nowrap">
-                <button @click="openClient360(client)" class="text-slate-700 hover:text-xelltekk-700 text-sm font-semibold mr-2">
-                  Vue 360°
+                <button @click="openClientFiche(client)" class="text-slate-700 hover:text-xelltekk-700 text-sm font-semibold mr-2">
+                  Fiche
                 </button>
                 <button v-if="canSellTo(client)" @click="creerDevis(client)" class="text-emerald-600 hover:text-emerald-800 text-sm font-medium mr-2">
                   + Devis
@@ -178,9 +178,6 @@
                 />
                 <button v-if="isAdmin" @click="openAssignClient(client)" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium mr-2">
                   Affecter
-                </button>
-                <button @click="openEdit(client)" class="text-xelltekk-600 hover:text-xelltekk-800 text-sm font-medium mr-2">
-                  ✏️ Modifier
                 </button>
                 <button @click="confirmDelete(client)" class="text-red-600 hover:text-red-800 text-sm font-medium">
                   🗑️
@@ -643,10 +640,6 @@ function openCreate() {
   router.push({ name: 'client-create', query: { tab: 'saisie' } })
 }
 
-function openEdit(client) {
-  router.push({ name: 'client-detail', params: { id: client.id }, query: { tab: 'saisie' } })
-}
-
 function openAssignClient(client) {
   assignTarget.value = client
   showAssignModal.value = true
@@ -688,7 +681,7 @@ function creerIntervention(client) {
   router.push({ path: '/leasing', query: { tab: 'interventions', search: client.code || client.nom } })
 }
 
-async function openClient360(client) {
+async function openClientFiche(client) {
   if (!client?.id) return
   router.push({ name: 'client-detail', params: { id: client.id }, query: { tab: 'fiche' } })
 }
