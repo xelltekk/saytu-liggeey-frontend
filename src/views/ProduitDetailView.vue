@@ -167,6 +167,8 @@ async function loadProduit() {
     return
   }
 
+  if (route.name !== 'produit-detail' || !route.params.id) return
+
   loading.value = true
   try {
     const { data } = await api.get(`/produits/${route.params.id}`)
