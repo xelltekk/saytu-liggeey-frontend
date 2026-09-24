@@ -343,7 +343,7 @@
                   <div class="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
                     <span :class="productTypeBadgeClass(p.type)">{{ productTypeLabel(p.type) }}</span>
                     <span v-if="p.type === 'pack'">Stock via composants</span>
-                    <span v-else>Reste : {{ p.gere_stock ? stockDisponible(p) : '-' }}</span>
+                    <span v-else>Reste : {{ productStockManaged(p) ? stockDisponible(p) : '-' }}</span>
                     <span v-if="p.reference" class="font-mono">{{ p.reference }}</span>
                   </div>
                 </div>
@@ -1086,20 +1086,25 @@ function stockDisponible(produit) {
   return Number(produit.stock_disponible || 0)
 }
 
+function productStockManaged(produit) {
+  return produit?.type === 'produit' && (produit.gere_stock === true || produit.gere_stock === 1 || produit.gere_stock === '1')
+}
+
 function ajouterPremierProduit() {
   if (produits.value.length > 0) ajouterAuPanier(produits.value[0])
 }
 
 function ajouterAuPanier(produit) {
-  if (produit.gere_stock && stockDisponible(produit) <= 0) {
-    toast.error('Stock insuffisant pour ce produit')
+  const gereStock = productStockManaged(produit)
+  if (gereStock && stockDisponible(produit) <= 0) {
+    toast.error(`Stock insuffisant pour ${produit.libelle || 'ce produit'}`)
     return
   }
 
   const existante = panier.value.find(l => l.produit_id === produit.id)
   if (existante) {
-    if (produit.gere_stock && existante.quantite + 1 > stockDisponible(produit)) {
-      toast.error('Quantite superieure au stock disponible')
+    if (gereStock && existante.quantite + 1 > stockDisponible(produit)) {
+      toast.error(`Quantité supérieure au stock disponible pour ${produit.libelle || 'ce produit'}`)
       return
     }
     existante.quantite += 1
@@ -1111,6 +1116,8 @@ function ajouterAuPanier(produit) {
     reference: produit.reference,
     libelle: produit.libelle,
     type: produit.type || 'produit',
+    gere_stock: gereStock,
+    stock_disponible: stockDisponible(produit),
     quantite: 1,
     prix_ht: Number(produit.prix_vente_ht || 0),
     prix_ttc: prixTtc(produit),
@@ -1120,6 +1127,11 @@ function ajouterAuPanier(produit) {
 }
 
 function incrementerLigne(ligne) {
+  if (productStockManaged(ligne) && Number(ligne.quantite || 0) + 1 > stockDisponible(ligne)) {
+    toast.error(`Quantité supérieure au stock disponible pour ${ligne.libelle || 'ce produit'}`)
+    return
+  }
+
   ligne.quantite = Number(ligne.quantite || 0) + 1
 }
 
