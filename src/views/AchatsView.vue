@@ -44,7 +44,7 @@
         <div class="achat-mini-panel">
           <h4>Livraisons en retard</h4>
           <div v-for="row in achatDashboard.commandes_retard" :key="row.id" class="achat-mini-row">
-            <button type="button" @click="openDetails(row)">{{ row.numero }}</button>
+            <button type="button" @click="goToCommande(row)">{{ row.numero }}</button>
             <span>{{ row.fournisseur?.nom || '-' }} · {{ formatDate(row.date_livraison_prevue) }}</span>
           </div>
           <p v-if="!achatDashboard.commandes_retard.length" class="achat-empty">Aucune livraison en retard.</p>
@@ -116,7 +116,7 @@
         <thead><tr><th>N°</th><th>Fournisseur</th><th>Date</th><th>Livraison prévue</th><th>Entrepôt</th><th class="text-right">Total TTC</th><th>Réception</th><th>Facture</th><th>Statut</th><th class="text-right">Actions</th></tr></thead>
         <tbody>
           <tr v-for="commande in commandes" :key="commande.id">
-            <td><button class="font-mono font-semibold text-blue-700 hover:underline" @click="openDetails(commande)">{{ commande.numero }}</button></td>
+            <td><button class="font-mono font-semibold text-blue-700 hover:underline" @click="goToCommande(commande)">{{ commande.numero }}</button></td>
             <td>
               <button v-if="commande.fournisseur?.id" type="button" class="font-black text-[color:var(--saytu-primary,#2563eb)] hover:underline" @click="openSupplier360(commande.fournisseur.id)">{{ commande.fournisseur?.nom || '-' }}</button>
               <strong v-else>{{ commande.fournisseur?.nom || '-' }}</strong>
@@ -163,7 +163,7 @@
       </section>
       <section class="overflow-x-auto rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-surface,#ffffff)]">
         <table class="w-full min-w-[1150px]"><thead><tr><th>N°</th><th>Demandeur</th><th>Besoin</th><th>Objet</th><th>Priorité</th><th class="text-right">Estimation</th><th>Statut</th><th>Commande</th><th class="text-right">Actions</th></tr></thead><tbody>
-          <tr v-for="demand in demands" :key="demand.id"><td class="font-mono font-semibold">{{ demand.numero }}</td><td><strong>{{ demand.demandeur?.name || '-' }}</strong><p class="text-xs text-slate-500">{{ demand.service_demandeur || 'Service non précisé' }}</p></td><td>{{ formatDate(demand.date_besoin) }}</td><td><strong>{{ demand.objet }}</strong><p class="text-xs text-slate-500">{{ demand.lignes?.length || 0 }} ligne(s)</p></td><td><span class="badge" :class="priorityClass(demand.priorite)">{{ priorityLabel(demand.priorite) }}</span></td><td class="text-right font-semibold">{{ money(demand.montant_estime) }}</td><td><span class="badge" :class="demandStatusClass(demand.statut)">{{ demandStatusLabel(demand.statut) }}</span><p v-if="demand.motif_rejet" class="mt-1 max-w-48 truncate text-xs text-red-600" :title="demand.motif_rejet">{{ demand.motif_rejet }}</p></td><td><button v-if="demand.commande" class="font-mono text-blue-700 hover:underline" @click="openDetails(demand.commande)">{{ demand.commande.numero }}</button><span v-else>-</span></td><td><div class="flex justify-end gap-2"><button v-if="demand.statut === 'brouillon'" class="text-blue-700" @click="editDemand(demand)">Modifier</button><button v-if="demand.statut === 'brouillon'" class="text-indigo-700" @click="submitDemand(demand)">Soumettre</button><button v-if="demand.statut === 'soumise' && canApprove" class="text-green-700" @click="approveDemand(demand)">Approuver</button><button v-if="demand.statut === 'soumise' && canApprove" class="text-red-600" @click="openRejectDemand(demand)">Rejeter</button><button v-if="demand.statut === 'approuvee' && canApprove" class="text-violet-700" @click="openConvertDemand(demand)">Convertir</button><button v-if="demand.statut === 'brouillon'" class="text-red-600" @click="deleteDemand(demand)"><Trash2 :size="16" /></button></div></td></tr>
+          <tr v-for="demand in demands" :key="demand.id"><td class="font-mono font-semibold">{{ demand.numero }}</td><td><strong>{{ demand.demandeur?.name || '-' }}</strong><p class="text-xs text-slate-500">{{ demand.service_demandeur || 'Service non précisé' }}</p></td><td>{{ formatDate(demand.date_besoin) }}</td><td><strong>{{ demand.objet }}</strong><p class="text-xs text-slate-500">{{ demand.lignes?.length || 0 }} ligne(s)</p></td><td><span class="badge" :class="priorityClass(demand.priorite)">{{ priorityLabel(demand.priorite) }}</span></td><td class="text-right font-semibold">{{ money(demand.montant_estime) }}</td><td><span class="badge" :class="demandStatusClass(demand.statut)">{{ demandStatusLabel(demand.statut) }}</span><p v-if="demand.motif_rejet" class="mt-1 max-w-48 truncate text-xs text-red-600" :title="demand.motif_rejet">{{ demand.motif_rejet }}</p></td><td><button v-if="demand.commande" class="font-mono text-blue-700 hover:underline" @click="goToCommande(demand.commande)">{{ demand.commande.numero }}</button><span v-else>-</span></td><td><div class="flex justify-end gap-2"><button v-if="demand.statut === 'brouillon'" class="text-blue-700" @click="editDemand(demand)">Modifier</button><button v-if="demand.statut === 'brouillon'" class="text-indigo-700" @click="submitDemand(demand)">Soumettre</button><button v-if="demand.statut === 'soumise' && canApprove" class="text-green-700" @click="approveDemand(demand)">Approuver</button><button v-if="demand.statut === 'soumise' && canApprove" class="text-red-600" @click="openRejectDemand(demand)">Rejeter</button><button v-if="demand.statut === 'approuvee' && canApprove" class="text-violet-700" @click="openConvertDemand(demand)">Convertir</button><button v-if="demand.statut === 'brouillon'" class="text-red-600" @click="deleteDemand(demand)"><Trash2 :size="16" /></button></div></td></tr>
           <tr v-if="!demands.length"><td colspan="9" class="py-12 text-center text-slate-400">Aucune demande d’achat.</td></tr>
         </tbody></table>
         <AppPagination v-if="demandMeta.total" :meta="demandMeta" label="demandes d’achat" @page="loadDemands" />
@@ -475,7 +475,7 @@
           <div class="achat-mini-panel">
             <h4>Dernières commandes</h4>
             <div v-for="row in supplier360.commandes" :key="row.id" class="achat-mini-row">
-              <button type="button" @click="openDetails(row); showSupplier360 = false">{{ row.numero }}</button>
+              <button type="button" @click="goToCommande(row); showSupplier360 = false">{{ row.numero }}</button>
               <span>{{ statusLabel(row.statut) }} · {{ money(row.total_ttc) }}</span>
             </div>
             <p v-if="!supplier360.commandes?.length" class="achat-empty">Aucune commande.</p>
@@ -830,8 +830,12 @@ async function convertDemand() { saving.value = true; try { const { data } = awa
 async function deleteDemand(demand) { if (!await askConfirm({ message: 'Supprimer le brouillon ' + demand.numero + ' ?', tone: 'danger', confirmLabel: 'Supprimer' })) return; try { await api.delete('/achats/demandes/' + demand.id); toast.success('Demande supprimée.'); await refreshDemands() } catch (e) { toast.error(e.response?.data?.message || 'Suppression impossible.') } }
 async function loadCommandes(page = 1) { try { const { data } = await api.get('/achats/commandes', { params: { page, per_page: 20, ...filters, fournisseur_id: filters.fournisseur_id || undefined } }); commandes.value = data.data || []; Object.assign(meta, data) } catch (e) { toast.error(e.response?.data?.message || 'Impossible de charger les achats.') } }
 async function refresh(page = meta.current_page || 1) { await Promise.all([loadCommandes(page), loadStats(), loadDashboard()]) }
-function openCreate() { editingId.value = null; Object.assign(form, emptyForm()); productSearch.value = ''; showForm.value = true }
-async function editCommande(row) { try { const { data } = await api.get(`/achats/commandes/${row.id}`); editingId.value = row.id; Object.assign(form, { fournisseur_id: data.fournisseur_id, entrepot_id: data.entrepot_id || null, date_commande: String(data.date_commande).slice(0, 10), date_livraison_prevue: data.date_livraison_prevue ? String(data.date_livraison_prevue).slice(0, 10) : '', objet: data.objet || '', devise: data.devise || 'XOF', notes: data.notes || '', lignes: data.lignes.map(l => ({ key: ++lineKey, produit_id: l.produit_id, quantite: Number(l.quantite), prix_unitaire_ht: Number(l.prix_unitaire_ht), taux_tva: Number(l.taux_tva) })) }); showForm.value = true } catch (e) { toast.error(e.response?.data?.message || 'Chargement impossible.') } }
+function goToCommande(row, tab = 'fiche') {
+  if (!row?.id) return
+  router.push({ name: 'achat-commande-detail', params: { id: row.id }, query: { tab } })
+}
+function openCreate() { router.push({ name: 'achat-commande-create', query: { tab: 'saisie' } }) }
+function editCommande(row) { goToCommande(row, 'saisie') }
 async function saveCommande() { saving.value = true; try { const payload = { ...form, date_livraison_prevue: form.date_livraison_prevue || null, entrepot_id: form.entrepot_id || null, lignes: form.lignes.map(({ produit_id, quantite, prix_unitaire_ht, taux_tva }) => ({ produit_id, quantite, prix_unitaire_ht, taux_tva })) }; if (editingId.value) await api.put(`/achats/commandes/${editingId.value}`, payload); else await api.post('/achats/commandes', payload); toast.success('Bon de commande enregistré.'); showForm.value = false; await refresh() } catch (e) { toast.error(Object.values(e.response?.data?.errors || {})[0]?.[0] || e.response?.data?.message || 'Enregistrement impossible.') } finally { saving.value = false } }
 async function runAction(row, action, message) { try { await api.post(`/achats/commandes/${row.id}/${action}`); toast.success(message); await refresh() } catch (e) { toast.error(Object.values(e.response?.data?.errors || {})[0]?.[0] || e.response?.data?.message || 'Action impossible.') } }
 async function submitCommande(row) { if (await askConfirm({ message: `Soumettre ${row.numero} pour approbation ?`, tone: 'primary' })) runAction(row, 'soumettre', 'Commande soumise.') }
@@ -1001,7 +1005,7 @@ async function downloadReceptionPdf(reception) {
 }
 
 async function openFromRoute(id) {
-  if (id) await openDetails({ id })
+  if (id) await router.replace({ name: 'achat-commande-detail', params: { id }, query: { tab: 'fiche' } })
 }
 
 watch(() => route.query.open, (id, previousId) => {

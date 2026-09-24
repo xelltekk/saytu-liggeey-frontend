@@ -175,6 +175,16 @@ const routes = [
         component: () => import('@/views/AchatsView.vue'),
       },
       {
+        path: 'achats/commandes/nouveau',
+        name: 'achat-commande-create',
+        component: () => import('@/views/AchatCommandeDetailView.vue'),
+      },
+      {
+        path: 'achats/commandes/:id',
+        name: 'achat-commande-detail',
+        component: () => import('@/views/AchatCommandeDetailView.vue'),
+      },
+      {
         path: 'leasing',
         name: 'leasing',
         component: () => import('@/views/LeasingView.vue'),
