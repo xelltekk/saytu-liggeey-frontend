@@ -377,6 +377,8 @@ async function loadCommande() {
     return
   }
 
+  if (route.name !== 'achat-commande-detail' || !route.params.id) return
+
   loading.value = true
   try {
     const { data } = await api.get(`/achats/commandes/${route.params.id}`)
