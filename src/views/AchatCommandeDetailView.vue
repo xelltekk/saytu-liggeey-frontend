@@ -117,6 +117,73 @@
             </table>
           </div>
         </section>
+
+        <section v-if="commande.facture_fournisseur" class="rounded-2xl border border-violet-200 bg-violet-50/70 p-4 text-sm text-violet-950">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p class="text-xs font-black uppercase tracking-[0.2em] text-violet-700">Facture fournisseur</p>
+              <p class="mt-2">
+                <strong class="font-mono">{{ commande.facture_fournisseur.numero }}</strong>
+                · {{ statusInvoiceLabel(commande.facture_fournisseur.statut) }}
+                · Reste {{ money(commande.facture_fournisseur.reste_a_payer) }}
+              </p>
+            </div>
+            <button type="button" class="font-semibold text-violet-700 hover:underline" @click="goToInvoice(commande.facture_fournisseur)">Ouvrir la facture</button>
+          </div>
+        </section>
+
+        <section class="overflow-hidden rounded-2xl border border-slate-200">
+          <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-slate-50 px-4 py-3">
+            <div>
+              <h3 class="font-black text-slate-900">Réceptions et retours</h3>
+              <p class="text-sm text-slate-500">Historique des bons de réception, retours fournisseur et avoirs associés.</p>
+            </div>
+            <button v-if="['approuvee', 'partiellement_recue'].includes(commande.statut) && canReceive" type="button" class="btn-secondary" @click="goToReception">
+              Nouvelle réception
+            </button>
+          </div>
+
+          <div v-if="commande.receptions?.length" class="divide-y divide-slate-100">
+            <div v-for="reception in commande.receptions" :key="reception.id" class="p-4 text-sm">
+              <div class="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <strong class="font-mono text-slate-950">{{ reception.numero }}</strong>
+                  <p class="mt-1 text-slate-600">
+                    {{ formatDate(reception.date_reception) }}
+                    · {{ reception.entrepot?.libelle || 'Entrepôt non renseigné' }}
+                    <span v-if="reception.emplacement"> · {{ reception.emplacement?.zone?.libelle || 'Zone' }} / {{ reception.emplacement?.code || reception.emplacement?.libelle }}</span>
+                  </p>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                  <button v-if="canReturn && availableReturnLines(reception).length" type="button" class="font-semibold text-orange-700 hover:underline" @click="goToReturn(reception)">Retourner</button>
+                  <button type="button" class="font-semibold text-cyan-700 hover:underline" @click="downloadReceptionPdf(reception)">PDF BR</button>
+                </div>
+              </div>
+
+              <div class="mt-3 flex flex-wrap gap-2 text-xs">
+                <span class="rounded-full bg-slate-100 px-2 py-1 font-bold text-slate-700">BL : {{ reception.reference_bl || '-' }}</span>
+                <span class="rounded-full px-2 py-1 font-bold" :class="qualityBadge(reception.controle_qualite)">Contrôle : {{ qualityLabel(reception.controle_qualite) }}</span>
+                <span v-if="reception.reserve_reception" class="rounded-full bg-amber-100 px-2 py-1 font-bold text-amber-800">Réserve : {{ reception.reserve_reception }}</span>
+              </div>
+
+              <div v-if="reception.retours?.length" class="mt-3 space-y-2">
+                <div v-for="retour in reception.retours" :key="retour.id" class="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-orange-200 bg-orange-50 p-3 text-orange-950">
+                  <span>
+                    <strong class="font-mono">{{ retour.numero }}</strong>
+                    · {{ formatDate(retour.date_retour) }}
+                    · {{ motifRetourLabel(retour.motif) }}
+                    · {{ litigeLabel(retour.litige_statut) }}
+                    · {{ money(retour.total_ttc) }}
+                  </span>
+                  <span v-if="retour.avoir" class="font-semibold text-violet-700">Avoir {{ retour.avoir.numero }}</span>
+                  <span v-else class="text-xs font-semibold text-orange-700">Avoir à traiter</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <p v-else class="p-8 text-center text-sm text-slate-400">Aucune réception enregistrée pour cette commande.</p>
+        </section>
       </div>
 
       <form v-else class="space-y-4 p-4" @submit.prevent="saveCommande">
@@ -241,6 +308,7 @@ const form = reactive(emptyForm())
 const isCreate = computed(() => route.name === 'achat-commande-create')
 const canApprove = computed(() => hasAnyRole(auth.user, ['admin', 'gerant', 'comptable']))
 const canReceive = computed(() => hasAnyRole(auth.user, ['admin', 'gerant', 'magasinier']))
+const canReturn = computed(() => hasAnyRole(auth.user, ['admin', 'gerant', 'magasinier']))
 const canInvoice = computed(() => hasAnyRole(auth.user, ['admin', 'gerant', 'comptable']))
 const visibleTabs = computed(() => isCreate.value
   ? [{ key: 'saisie', label: 'Saisie commande' }]
@@ -365,6 +433,14 @@ function goToInvoice(invoice) {
   router.push({ path: '/fournisseurs-reglements', query: invoice?.numero ? { search: invoice.numero } : {} })
 }
 
+function goToReturn(reception) {
+  if (!commande.value?.id || !reception?.id) return
+  router.push({
+    name: 'achat-retour-create',
+    params: { commandeId: commande.value.id, receptionId: reception.id },
+  })
+}
+
 function visibleProducts(line) {
   const term = productSearch.value.trim().toLowerCase()
   const filtered = !term
@@ -466,6 +542,33 @@ async function downloadOrderPdf() {
   }
 }
 
+async function downloadReceptionPdf(reception) {
+  try {
+    await ouvrirPDF(`/achats/receptions/${reception.id}/pdf`, `${reception.numero}.pdf`)
+  } catch (error) {
+    toast.error('Impossible de générer le bon de réception PDF.')
+  }
+}
+
+function availableReturnLines(reception) {
+  const returned = new Map()
+  for (const retour of reception.retours || []) {
+    if (retour.statut !== 'valide') continue
+    for (const line of retour.lignes || []) {
+      returned.set(Number(line.reception_ligne_id), (returned.get(Number(line.reception_ligne_id)) || 0) + Number(line.quantite || 0))
+    }
+  }
+
+  return (reception.lignes || []).map((line) => {
+    const dejaRetourne = returned.get(Number(line.id)) || 0
+    const recu = Number(line.quantite || 0)
+    return {
+      reception_ligne_id: line.id,
+      disponible: Math.max(0, recu - dejaRetourne),
+    }
+  }).filter((line) => line.disponible > 0.0001)
+}
+
 function lineTotal(line) {
   const ht = Number(line.quantite || 0) * Number(line.prix_unitaire_ht || 0)
   return ht * (1 + Number(line.taux_tva || 0) / 100)
@@ -492,6 +595,50 @@ function statusLabel(status) {
     recue: 'Reçue',
     annulee: 'Annulée',
   }[status] || status
+}
+
+function statusInvoiceLabel(status) {
+  return {
+    brouillon: 'Brouillon',
+    validee: 'Validée',
+    partiellement_payee: 'Partiellement payée',
+    payee: 'Payée',
+    annulee: 'Annulée',
+  }[status] || status
+}
+
+function qualityLabel(status) {
+  return {
+    conforme: 'Conforme',
+    reserve: 'Avec réserve',
+    non_conforme: 'Non conforme',
+  }[status] || 'Conforme'
+}
+
+function qualityBadge(status) {
+  return {
+    conforme: 'bg-emerald-100 text-emerald-800',
+    reserve: 'bg-amber-100 text-amber-800',
+    non_conforme: 'bg-red-100 text-red-700',
+  }[status] || 'bg-emerald-100 text-emerald-800'
+}
+
+function motifRetourLabel(value) {
+  return {
+    defectueux: 'Défectueux',
+    non_conforme: 'Non conforme',
+    excedent: 'Excédent',
+    erreur: 'Erreur',
+    autre: 'Autre',
+  }[value] || value
+}
+
+function litigeLabel(status) {
+  return {
+    ouvert: 'Litige ouvert',
+    en_attente_avoir: 'Avoir attendu',
+    clos: 'Clos',
+  }[status] || 'Litige ouvert'
 }
 
 function statusClass(status) {

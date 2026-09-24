@@ -190,6 +190,11 @@ const routes = [
         component: () => import('@/views/AchatFactureDetailView.vue'),
       },
       {
+        path: 'achats/commandes/:commandeId/receptions/:receptionId/retour',
+        name: 'achat-retour-create',
+        component: () => import('@/views/AchatRetourDetailView.vue'),
+      },
+      {
         path: 'achats/commandes/:id',
         name: 'achat-commande-detail',
         component: () => import('@/views/AchatCommandeDetailView.vue'),
