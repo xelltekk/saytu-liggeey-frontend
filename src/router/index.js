@@ -180,6 +180,11 @@ const routes = [
         component: () => import('@/views/AchatCommandeDetailView.vue'),
       },
       {
+        path: 'achats/commandes/:id/reception',
+        name: 'achat-reception-create',
+        component: () => import('@/views/AchatReceptionDetailView.vue'),
+      },
+      {
         path: 'achats/commandes/:id',
         name: 'achat-commande-detail',
         component: () => import('@/views/AchatCommandeDetailView.vue'),

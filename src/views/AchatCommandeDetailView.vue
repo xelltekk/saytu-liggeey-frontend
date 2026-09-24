@@ -28,6 +28,7 @@
           <button v-if="commande.statut === 'brouillon'" type="button" class="btn-secondary" @click="setTab('saisie')">Modifier</button>
           <button v-if="commande.statut === 'brouillon'" type="button" class="btn-primary" @click="submitCommande">Soumettre</button>
           <button v-if="commande.statut === 'soumise' && canApprove" type="button" class="btn-primary" @click="approveCommande">Approuver</button>
+          <button v-if="['approuvee', 'partiellement_recue'].includes(commande.statut) && canReceive" type="button" class="btn-primary" @click="goToReception">Réceptionner</button>
         </div>
       </div>
     </div>
@@ -237,6 +238,7 @@ const form = reactive(emptyForm())
 
 const isCreate = computed(() => route.name === 'achat-commande-create')
 const canApprove = computed(() => hasAnyRole(auth.user, ['admin', 'gerant', 'comptable']))
+const canReceive = computed(() => hasAnyRole(auth.user, ['admin', 'gerant', 'magasinier']))
 const visibleTabs = computed(() => isCreate.value
   ? [{ key: 'saisie', label: 'Saisie commande' }]
   : [
@@ -344,6 +346,11 @@ function setTab(tab) {
 
 function goBack() {
   router.push({ name: 'achats' })
+}
+
+function goToReception() {
+  if (!commande.value?.id) return
+  router.push({ name: 'achat-reception-create', params: { id: commande.value.id } })
 }
 
 function visibleProducts(line) {
