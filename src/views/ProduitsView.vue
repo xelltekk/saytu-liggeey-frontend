@@ -33,6 +33,7 @@
           <option value="">Tous types</option>
           <option value="produit">Produits</option>
           <option value="service">Services</option>
+          <option value="pack">Packs de vente</option>
         </select>
 
         <select v-model="filters.categorie_id" @change="loadProduits(1)" class="input">
@@ -149,7 +150,7 @@
               <td class="px-4 py-3 text-sm text-gray-600">{{ produit.categorie?.libelle || '–' }}</td>
               <td class="px-4 py-3">
                 <span class="badge" :class="typeBadgeClass(produit.type)">
-                  {{ produit.type }}
+                  {{ typeLabel(produit.type) }}
                 </span>
               </td>
               <td class="px-4 py-3 text-sm text-right font-mono">{{ formatPrice(produit.prix_vente_ht) }}</td>
@@ -226,7 +227,7 @@ const { sort, toggleSort, sortIcon, sortedRows } = useTableSort('created_at', 'd
 const loading = ref(false)
 const exportLoading = ref(false)
 const categories = ref([])
-const stats = reactive({ total: 0, actifs: 0, produits: 0, services: 0 })
+const stats = reactive({ total: 0, actifs: 0, produits: 0, services: 0, packs: 0 })
 const meta = reactive({ current_page: 1, last_page: 1, total: 0, from: 0, to: 0 })
 const filters = reactive({ search: '', type: '', categorie_id: '', actifs_seulement: false })
 
@@ -250,6 +251,7 @@ const produitStatCards = computed(() => [
   { key: 'actifs', label: 'Actifs', value: stats.actifs, type: '', actifs: true },
   { key: 'produits', label: 'Produits', value: stats.produits, type: 'produit', actifs: false },
   { key: 'services', label: 'Services', value: stats.services, type: 'service', actifs: false },
+  { key: 'packs', label: 'Packs', value: stats.packs, type: 'pack', actifs: false },
 ])
 
 const produitsInsights = computed(() => {
@@ -409,7 +411,16 @@ function typeBadgeClass(type) {
   return {
     produit: 'bg-blue-100 text-blue-800',
     service: 'bg-purple-100 text-purple-800',
+    pack: 'bg-cyan-100 text-cyan-800',
   }[type] || 'bg-gray-100'
+}
+
+function typeLabel(type) {
+  return {
+    produit: 'Produit',
+    service: 'Service',
+    pack: 'Pack de vente',
+  }[type] || type || '—'
 }
 
 onMounted(() => {

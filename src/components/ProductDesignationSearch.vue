@@ -43,7 +43,7 @@
           <span class="min-w-0 flex-1">
             <span class="block truncate font-medium text-gray-900">{{ product.libelle }}</span>
             <span class="block truncate text-xs text-gray-500">
-              {{ product.type || 'produit' }} · {{ formatPrice(product.prix_vente_ht) }} HT · TVA {{ Number(product.taux_tva || 0) }}%
+              {{ typeLabel(product.type) }} · {{ formatPrice(product.prix_vente_ht) }} HT · TVA {{ Number(product.taux_tva || 0) }}%
             </span>
           </span>
         </button>
@@ -179,6 +179,14 @@ function onDocumentMouseDown(event) {
 
 function formatPrice(value) {
   return new Intl.NumberFormat('fr-FR').format(Math.round(Number(value || 0)))
+}
+
+function typeLabel(type) {
+  return {
+    produit: 'Produit',
+    service: 'Service',
+    pack: 'Pack',
+  }[type] || 'Produit'
 }
 
 watch(() => props.products, () => {

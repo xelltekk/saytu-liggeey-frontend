@@ -75,11 +75,48 @@
                 <strong>{{ Number(produit.taux_tva || 0) }}%</strong>
               </div>
               <div class="product-detail-kpi">
-                <span>Stock alerte</span>
-                <strong>{{ produit.stock_alerte ?? 0 }}</strong>
+                <span>{{ produit.type === 'pack' ? 'Composants' : 'Stock alerte' }}</span>
+                <strong>{{ produit.type === 'pack' ? (produit.pack_items?.length || 0) : (produit.stock_alerte ?? 0) }}</strong>
               </div>
             </div>
           </div>
+        </section>
+
+        <section v-if="produit.type === 'pack'" class="rounded-3xl border border-cyan-100 bg-cyan-50/70 p-4">
+          <div class="mb-3 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p class="text-xs font-black uppercase tracking-[0.2em] text-cyan-700">Pack de vente</p>
+              <h2 class="text-lg font-black text-slate-950">Composition du pack</h2>
+            </div>
+            <span class="rounded-full bg-white px-3 py-1 text-xs font-black text-cyan-700">
+              Déduction automatique à la validation facture
+            </span>
+          </div>
+
+          <div v-if="produit.pack_items?.length" class="overflow-x-auto rounded-2xl border border-cyan-100 bg-white">
+            <table class="w-full text-sm">
+              <thead class="bg-cyan-100/70 text-left text-xs uppercase tracking-wide text-cyan-900">
+                <tr>
+                  <th class="px-3 py-2">Composant</th>
+                  <th class="px-3 py-2 text-right">Qté par pack</th>
+                  <th class="px-3 py-2 text-right">Prix achat HT</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-cyan-100">
+                <tr v-for="item in produit.pack_items" :key="item.id || item.composant_id">
+                  <td class="px-3 py-3">
+                    <strong>{{ item.composant?.libelle || 'Produit' }}</strong>
+                    <p class="font-mono text-xs text-slate-500">{{ item.composant?.reference || '-' }}</p>
+                  </td>
+                  <td class="px-3 py-3 text-right font-mono font-bold">{{ number(item.quantite) }} {{ item.composant?.unite || '' }}</td>
+                  <td class="px-3 py-3 text-right font-mono">{{ formatPrice(item.composant?.prix_achat_ht || 0) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p v-else class="rounded-2xl border border-dashed border-cyan-200 bg-white p-4 text-sm text-slate-500">
+            Aucun composant renseigné pour ce pack.
+          </p>
         </section>
 
         <section class="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
@@ -214,6 +251,10 @@ function formatPrice(n) {
   return new Intl.NumberFormat('fr-FR').format(n || 0)
 }
 
+function number(n) {
+  return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 3 }).format(Number(n || 0))
+}
+
 function imageUrl(image) {
   if (!image) return ''
   if (String(image).startsWith('http') || String(image).startsWith('data:') || String(image).startsWith('blob:')) return image
@@ -221,13 +262,14 @@ function imageUrl(image) {
 }
 
 function typeLabel(type) {
-  return { produit: 'Produit', service: 'Service' }[type] || type || '—'
+  return { produit: 'Produit', service: 'Service', pack: 'Pack de vente' }[type] || type || '—'
 }
 
 function typeBadgeClass(type) {
   return {
     produit: 'bg-blue-100 text-blue-800',
     service: 'bg-purple-100 text-purple-800',
+    pack: 'bg-cyan-100 text-cyan-800',
   }[type] || 'bg-slate-100 text-slate-600'
 }
 </script>

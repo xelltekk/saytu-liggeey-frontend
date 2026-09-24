@@ -341,7 +341,9 @@
                   <h3 class="line-clamp-2 text-sm font-black uppercase tracking-tight text-slate-950">{{ p.libelle }}</h3>
                   <p class="mt-1 font-mono text-sm font-black text-violet-600">{{ formatPrice(prixTtc(p)) }}</p>
                   <div class="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                    <span>Reste : {{ p.gere_stock ? stockDisponible(p) : '-' }}</span>
+                    <span :class="productTypeBadgeClass(p.type)">{{ productTypeLabel(p.type) }}</span>
+                    <span v-if="p.type === 'pack'">Stock via composants</span>
+                    <span v-else>Reste : {{ p.gere_stock ? stockDisponible(p) : '-' }}</span>
                     <span v-if="p.reference" class="font-mono">{{ p.reference }}</span>
                   </div>
                 </div>
@@ -402,7 +404,10 @@
                 <div class="flex items-start justify-between gap-3">
                   <div class="min-w-0">
                     <p class="truncate text-sm font-bold text-slate-900">{{ ligne.libelle }}</p>
-                    <p class="font-mono text-xs text-slate-500">{{ formatPrice(ligne.prix_ttc) }}</p>
+                    <p class="font-mono text-xs text-slate-500">
+                      {{ formatPrice(ligne.prix_ttc) }}
+                      <span v-if="ligne.type === 'pack'" class="ml-1 rounded-full bg-cyan-100 px-2 py-0.5 font-sans font-black uppercase tracking-wide text-cyan-700">Pack</span>
+                    </p>
                   </div>
                   <button class="rounded-full px-2 py-1 text-xs font-bold text-red-500 hover:bg-red-50" @click="retirerDuPanier(ligne.produit_id)">&times;</button>
                 </div>
@@ -1105,6 +1110,7 @@ function ajouterAuPanier(produit) {
     produit_id: produit.id,
     reference: produit.reference,
     libelle: produit.libelle,
+    type: produit.type || 'produit',
     quantite: 1,
     prix_ht: Number(produit.prix_vente_ht || 0),
     prix_ttc: prixTtc(produit),
@@ -1174,6 +1180,22 @@ function imageProduit(produit) {
   if (!image) return ''
   if (String(image).startsWith('http') || String(image).startsWith('data:')) return image
   return String(image).startsWith('/') ? image : `/${image}`
+}
+
+function productTypeLabel(type) {
+  return {
+    produit: 'Produit',
+    service: 'Service',
+    pack: 'Pack',
+  }[type] || 'Produit'
+}
+
+function productTypeBadgeClass(type) {
+  return {
+    produit: 'rounded-full bg-blue-50 px-2 py-0.5 font-bold text-blue-700',
+    service: 'rounded-full bg-purple-50 px-2 py-0.5 font-bold text-purple-700',
+    pack: 'rounded-full bg-cyan-100 px-2 py-0.5 font-bold text-cyan-700',
+  }[type] || 'rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-600'
 }
 
 function totalLigne(ligne) {

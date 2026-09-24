@@ -49,6 +49,7 @@
           <select v-model="form.type" class="input" required>
             <option value="produit">Produit</option>
             <option value="service">Service</option>
+            <option value="pack">Pack de vente</option>
           </select>
         </div>
 
@@ -254,6 +255,72 @@
       </div>
     </fieldset>
 
+    <!-- Composition pack -->
+    <fieldset v-if="form.type === 'pack'" class="border border-cyan-200 bg-cyan-50/50 rounded-lg p-4">
+      <legend class="px-2 text-sm font-semibold text-cyan-900">Composition du pack de vente</legend>
+
+      <div class="mb-4 rounded-2xl border border-cyan-100 bg-white/80 p-3 text-sm text-cyan-900">
+        Chaque vente de ce pack déduira automatiquement le stock de chaque composant renseigné ici.
+      </div>
+
+      <div class="space-y-3">
+        <div
+          v-for="(item, index) in form.pack_items"
+          :key="item._key"
+          class="grid grid-cols-1 gap-3 rounded-2xl border border-cyan-100 bg-white p-3 md:grid-cols-[minmax(260px,1fr)_150px_auto]"
+        >
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+              Composant {{ index + 1 }} <span class="text-red-500">*</span>
+            </label>
+            <select v-model.number="item.composant_id" class="input" required>
+              <option :value="null">— Choisir un produit en stock —</option>
+              <option v-for="component in componentOptions(item)" :key="component.id" :value="component.id">
+                {{ component.reference }} — {{ component.libelle }}
+              </option>
+            </select>
+            <p v-if="selectedComponent(item)" class="mt-1 text-xs text-slate-500">
+              {{ selectedComponent(item).unite || 'pièce' }} · Prix achat {{ formatPrice(selectedComponent(item).prix_achat_ht || 0) }} · Vente {{ formatPrice(selectedComponent(item).prix_vente_ht || 0) }}
+            </p>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+              Qté par pack <span class="text-red-500">*</span>
+            </label>
+            <input v-model.number="item.quantite" type="number" class="input text-right" step="0.001" min="0.001" required />
+          </div>
+
+          <div class="flex items-end justify-end">
+            <button type="button" class="btn-secondary text-sm" :disabled="form.pack_items.length <= 1" @click="removePackItem(index)">
+              Retirer
+            </button>
+          </div>
+        </div>
+
+        <button type="button" class="btn-secondary w-full justify-center" @click="addPackItem">
+          + Ajouter un composant
+        </button>
+      </div>
+
+      <div v-if="packSummary.totalItems" class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div class="rounded-2xl border border-cyan-100 bg-white p-3">
+          <span class="block text-xs font-black uppercase tracking-wide text-cyan-700">Composants</span>
+          <strong class="mt-1 block text-xl text-slate-950">{{ packSummary.totalItems }}</strong>
+        </div>
+        <div class="rounded-2xl border border-cyan-100 bg-white p-3">
+          <span class="block text-xs font-black uppercase tracking-wide text-cyan-700">Coût estimé HT</span>
+          <strong class="mt-1 block text-xl text-slate-950">{{ formatPrice(packSummary.costHt) }}</strong>
+        </div>
+        <div class="rounded-2xl border border-cyan-100 bg-white p-3">
+          <span class="block text-xs font-black uppercase tracking-wide text-cyan-700">Marge pack</span>
+          <strong class="mt-1 block text-xl" :class="packSummary.margin >= 0 ? 'text-emerald-700' : 'text-red-700'">
+            {{ formatPrice(packSummary.margin) }}
+          </strong>
+        </div>
+      </div>
+    </fieldset>
+
     <!-- État -->
     <fieldset class="border border-gray-200 rounded-lg p-4">
       <legend class="px-2 text-sm font-semibold text-gray-700">État</legend>
@@ -310,6 +377,7 @@ const defaultForm = () => ({
   est_serialise: false,
   is_active: true,
   image: '',
+  pack_items: [],
 })
 
 const defaultStockInitial = () => ({
@@ -331,7 +399,9 @@ const selectedImagePreview = ref('')
 const removeImage = ref(false)
 const entrepots = ref([])
 const emplacements = ref([])
+const componentProducts = ref([])
 const loadingEmplacements = ref(false)
+let packItemKey = 0
 const errorLabels = {
   reference: 'Référence',
   code_barre: 'Code-barres',
@@ -353,11 +423,33 @@ const errorLabels = {
   'stock_initial.quantite': 'Quantité initiale',
   'stock_initial.prix_unitaire': 'Prix unitaire du stock initial',
   'stock_initial.motif': 'Motif du stock initial',
+  pack_items: 'Composition du pack',
+  'pack_items.0.composant_id': 'Composant du pack',
+  'pack_items.0.quantite': 'Quantité du composant',
 }
 const categories = ref([])
 
 const showStockInitialOption = computed(() => !props.produit?.id && form.type === 'produit')
 const hasStockInitialEmplacements = computed(() => emplacements.value.length > 0)
+
+const packSummary = computed(() => {
+  return form.pack_items.reduce((summary, item) => {
+    const component = selectedComponent(item)
+    const quantity = Number(item.quantite || 0)
+    if (!component || quantity <= 0) return summary
+
+    summary.totalItems += 1
+    summary.costHt += quantity * Number(component.prix_achat_ht || 0)
+
+    return summary
+  }, {
+    totalItems: 0,
+    costHt: 0,
+    get margin() {
+      return Number(form.prix_vente_ht || 0) - this.costHt
+    },
+  })
+})
 
 const prixTtc = computed(() => {
   return Math.round(form.prix_vente_ht * (1 + form.taux_tva / 100))
@@ -392,7 +484,7 @@ function imageUrl(image) {
 
 watch(() => props.produit, (val) => {
   if (val) {
-    Object.assign(form, defaultForm(), val)
+    Object.assign(form, defaultForm(), normalizeProduitForForm(val))
   } else {
     Object.assign(form, defaultForm())
     resetStockInitial()
@@ -405,6 +497,13 @@ watch(() => form.type, (type) => {
   if (type !== 'produit') {
     stockInitial.enabled = false
     form.gere_stock = false
+  }
+
+  if (type === 'pack') {
+    form.gere_stock = false
+    if (!form.pack_items.length) addPackItem()
+  } else {
+    form.pack_items = []
   }
 })
 
@@ -445,7 +544,66 @@ onMounted(async () => {
   }
 
   loadEntrepots()
+  loadComponentProducts()
 })
+
+function normalizeProduitForForm(produit) {
+  return {
+    ...produit,
+    pack_items: (produit.pack_items || produit.packItems || []).map((item) => packItemFromPayload(item)),
+  }
+}
+
+function packItemFromPayload(item = {}) {
+  if (item.composant && !componentProducts.value.some((component) => Number(component.id) === Number(item.composant.id))) {
+    componentProducts.value.push(item.composant)
+  }
+
+  return {
+    _key: `pack-item-${++packItemKey}`,
+    composant_id: item.composant_id || item.composant?.id || null,
+    quantite: Number(item.quantite || 1),
+  }
+}
+
+function emptyPackItem() {
+  return {
+    _key: `pack-item-${++packItemKey}`,
+    composant_id: null,
+    quantite: 1,
+  }
+}
+
+function addPackItem() {
+  form.pack_items.push(emptyPackItem())
+}
+
+function removePackItem(index) {
+  if (form.pack_items.length <= 1) return
+  form.pack_items.splice(index, 1)
+}
+
+function selectedComponent(item) {
+  return componentProducts.value.find((component) => Number(component.id) === Number(item?.composant_id))
+}
+
+function componentOptions(currentItem) {
+  const currentId = Number(currentItem?.composant_id || 0)
+  const currentProduitId = Number(props.produit?.id || 0)
+  const usedIds = new Set(
+    form.pack_items
+      .filter((item) => item !== currentItem)
+      .map((item) => Number(item.composant_id || 0))
+      .filter(Boolean)
+  )
+
+  return componentProducts.value.filter((component) => {
+    const id = Number(component.id)
+    if (currentProduitId && id === currentProduitId) return false
+    if (usedIds.has(id) && id !== currentId) return false
+    return component.type === 'produit' && component.gere_stock !== false
+  })
+}
 
 function resetStockInitial() {
   Object.assign(stockInitial, defaultStockInitial())
@@ -530,6 +688,28 @@ async function loadEntrepots() {
   }
 }
 
+async function loadComponentProducts() {
+  try {
+    const { data } = await api.get('/produits', {
+      params: {
+        per_page: 500,
+        actifs_seulement: 1,
+        type: 'produit',
+        gere_stock: 1,
+      },
+    })
+    const rows = data.data || []
+    const existing = new Set(componentProducts.value.map((component) => Number(component.id)))
+    rows.forEach((component) => {
+      if (!existing.has(Number(component.id))) {
+        componentProducts.value.push(component)
+      }
+    })
+  } catch (e) {
+    console.error('Erreur chargement composants pack', e)
+  }
+}
+
 async function loadStockInitialEmplacements() {
   emplacements.value = []
   if (!stockInitial.entrepot_id) return
@@ -564,6 +744,13 @@ async function handleSubmit() {
 
   try {
     const payload = { ...form }
+    payload.pack_items = form.type === 'pack'
+      ? form.pack_items.map((item) => ({
+          composant_id: item.composant_id,
+          quantite: item.quantite,
+        }))
+      : []
+
     // Nettoyer les chaînes vides → null
     Object.keys(payload).forEach(k => {
       if (payload[k] === '') payload[k] = null
