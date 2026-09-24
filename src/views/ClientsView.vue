@@ -65,6 +65,31 @@
       </div>
     </div>
 
+    <section
+      v-if="clientToDelete"
+      class="mb-4 rounded-3xl border border-rose-200 bg-rose-50 p-4 shadow-sm"
+    >
+      <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <p class="text-xs font-black uppercase tracking-[0.18em] text-rose-700">Suppression client</p>
+          <h2 class="mt-1 text-lg font-black text-slate-950">
+            Supprimer {{ clientToDelete.nom }} ?
+          </h2>
+          <p class="mt-1 text-sm text-rose-700">
+            Cette action est réversible : le client sera masqué de la liste courante.
+          </p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <button type="button" class="btn-secondary" @click="clientToDelete = null">
+            Annuler
+          </button>
+          <button type="button" class="btn-danger" :disabled="deleting" @click="handleDelete">
+            {{ deleting ? 'Suppression...' : 'Supprimer' }}
+          </button>
+        </div>
+      </div>
+    </section>
+
     <!-- Loader -->
     <div v-if="loading" class="client-theme-panel rounded-lg p-12 text-center text-gray-500">
       Chargement...
@@ -199,15 +224,6 @@
       </div>
     </div>
 
-    <!-- Modal création / édition -->
-    <AppModal v-model="showModal" :title="editingClient ? `Modifier : ${editingClient.nom}` : 'Nouveau client'" size="lg">
-      <ClientForm
-        :client="editingClient"
-        @saved="onClientSaved"
-        @cancel="showModal = false"
-      />
-    </AppModal>
-
     <AssignCommercialModal
       v-if="assignTarget"
       v-model="showAssignModal"
@@ -218,11 +234,7 @@
       @assigned="onAssigned"
     />
 
-    <AppModal
-      v-model="showClient360Modal"
-      :title="client360 ? `Client 360° : ${client360.nom}` : 'Client 360°'"
-      size="xl"
-    >
+    <template v-if="false">
       <div v-if="client360Loading" class="rounded-2xl bg-white p-10 text-center text-slate-500">
         Chargement de la fiche client...
       </div>
@@ -487,26 +499,8 @@
           </div>
         </section>
       </div>
-    </AppModal>
+    </template>
 
-    <!-- Modal confirmation suppression -->
-    <AppModal v-model="showDeleteModal" title="Confirmer la suppression" size="sm">
-      <p class="text-gray-700">
-        Êtes-vous sûr de vouloir supprimer le client
-        <strong>{{ clientToDelete.nom }}</strong> 
-      </p>
-      <p class="mt-2 text-xs text-gray-500">
-        Cette action est réversible (soft delete) mais le client ne sera plus visible.
-      </p>
-
-      <template #footer>
-        <button @click="showDeleteModal = false" class="btn-secondary">Annuler</button>
-        <button @click="handleDelete" :disabled="deleting" class="btn-danger">
-          <span v-if="deleting">Suppression...</span>
-          <span v-else>Supprimer</span>
-        </button>
-      </template>
-    </AppModal>
   </div>
 </template>
 
@@ -514,8 +508,6 @@
 import { computed, ref, reactive, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '@/services/api'
-import AppModal from '@/components/AppModal.vue'
-import ClientForm from '@/components/ClientForm.vue'
 import Client360List from '@/components/Client360List.vue'
 import AssignCommercialModal from '@/components/AssignCommercialModal.vue'
 import EmailActionButtons from '@/components/EmailActionButtons.vue'
@@ -545,9 +537,6 @@ const exportLoading = ref(false)
 const meta = reactive({ current_page: 1, last_page: 1, total: 0, from: 0, to: 0 })
 const filters = reactive({ search: '', type: '', statut: '', tag_id: '' })
 
-const showModal = ref(false)
-const editingClient = ref(null)
-const showDeleteModal = ref(false)
 const clientToDelete = ref(null)
 const deleting = ref(false)
 const showAssignModal = ref(false)
@@ -829,17 +818,8 @@ async function openFromRoute(id) {
   }
 }
 
-function onClientSaved() {
-  showModal.value = false
-  loadClients(meta.current_page)
-  if (showClient360Modal.value && client360.value?.id) {
-    openClient360(client360.value)
-  }
-}
-
 function confirmDelete(client) {
   clientToDelete.value = client
-  showDeleteModal.value = true
 }
 
 async function handleDelete() {
@@ -847,7 +827,6 @@ async function handleDelete() {
   try {
     await api.delete(`/clients/${clientToDelete.value.id}`)
     toast.success(`Client "${clientToDelete.value.nom}" supprimé`)
-    showDeleteModal.value = false
     clientToDelete.value = null
     loadClients(meta.current_page)
   } catch (err) {
