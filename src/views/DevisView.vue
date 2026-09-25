@@ -417,10 +417,11 @@
                 <button
                   v-if="devi.statut !== 'facture' && devi.statut !== 'refuse'"
                   @click="confirmConvertir(devi)"
+                  :disabled="convertingId === devi.id"
                   class="text-green-600 hover:text-green-800 text-sm font-medium mr-2"
                   title="Convertir en facture"
                 >
-                  🔄
+                  {{ convertingId === devi.id ? '...' : '🔄' }}
                 </button>
                 <button
                   @click="handleCloner(devi)"
@@ -529,24 +530,6 @@
       </template>
     </AppModal>
 
-    <!-- Modal conversion devis → facture -->
-    <AppModal v-model="showConvertModal" title="Convertir en facture" size="sm">
-      <p class="text-gray-700">
-        Convertir le devis <strong>{{ devisToConvert.numero }}</strong> en facture 
-      </p>
-      <div class="mt-3 p-3 bg-blue-50 rounded text-sm text-blue-800">
-        <p class="mb-1">✓ Une nouvelle facture sera créée en brouillon</p>
-        <p class="mb-1">✓ Toutes les lignes du devis seront copiées</p>
-        <p>✓ Le devis passera au statut "Facturé"</p>
-      </div>
-      <template #footer>
-        <button @click="showConvertModal = false" class="btn-secondary">Annuler</button>
-        <button @click="handleConvertir" :disabled="converting" class="btn-primary">
-          <span v-if="converting">Conversion...</span>
-          <span v-else>Confirmer la conversion</span>
-        </button>
-      </template>
-    </AppModal>
   </div>
 </template>
 
@@ -619,9 +602,7 @@ const showDeleteModal = ref(false)
 const devisToDelete = ref(null)
 const deleting = ref(false)
 
-const showConvertModal = ref(false)
-const devisToConvert = ref(null)
-const converting = ref(false)
+const convertingId = ref(null)
 const cloningId = ref(null)
 const statusChangingId = ref(null)
 const showAssignModal = ref(false)
@@ -944,18 +925,18 @@ async function handleDelete() {
   }
 }
 
-function confirmConvertir(devi) {
-  devisToConvert.value = devi
-  showConvertModal.value = true
+async function confirmConvertir(devi) {
+  if (!devi?.id) return
+  const confirmed = window.confirm(`Convertir le devis ${devi.numero} en facture ?`)
+  if (!confirmed) return
+  await handleConvertir(devi)
 }
 
-async function handleConvertir() {
-  converting.value = true
+async function handleConvertir(devi) {
+  convertingId.value = devi.id
   try {
-    const { data } = await api.post(`/devis/${devisToConvert.value.id}/convertir-en-facture`)
+    const { data } = await api.post(`/devis/${devi.id}/convertir-en-facture`)
     toast.success(`Facture ${data.facture?.numero || ''} créée !`)
-    showConvertModal.value = false
-    devisToConvert.value = null
     if (detailDevis.value?.id) await refreshDetail('documents')
     if (data.facture?.id) {
       router.push({ name: 'facture-detail', params: { id: data.facture.id }, query: { tab: 'saisie' } })
@@ -965,7 +946,7 @@ async function handleConvertir() {
   } catch (err) {
     toast.error(err.response?.data?.message || 'Erreur de conversion')
   } finally {
-    converting.value = false
+    convertingId.value = null
   }
 }
 
