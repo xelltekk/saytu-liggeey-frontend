@@ -17,7 +17,7 @@
         </div>
         <button v-if="!showRequests" class="btn-secondary rounded-full px-4 py-2 text-sm" @click="togglePerformance">{{ showPerformance ? 'Masquer performance' : 'Performance' }}</button>
         <button v-if="!showRequests" class="btn-secondary rounded-full px-4 py-2 text-sm" @click="goToDebtPilotage">Pilotage dettes</button>
-        <button v-if="!showRequests" class="btn-secondary rounded-full px-4 py-2 text-sm" @click="showReports = true">Rapports</button>
+        <button v-if="!showRequests" class="btn-secondary rounded-full px-4 py-2 text-sm" @click="goToAchatReports">Rapports</button>
         <button v-if="!showRequests" class="btn-secondary rounded-full px-4 py-2 text-sm" :disabled="loadingDashboard" @click="loadDashboard">{{ loadingDashboard ? 'Pilotage...' : 'Actualiser pilotage' }}</button>
         <button class="btn-primary inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm" @click="showRequests ? openDemandCreate() : openCreate()"><Plus :size="18" /> {{ showRequests ? 'Demande' : 'Bon de commande' }}</button>
       </div>
@@ -388,18 +388,6 @@
       </div>
     </AppModal>
 
-    <AppModal v-model="showReports" title="Rapports achats fournisseurs" size="md">
-      <div class="space-y-3">
-        <p class="text-sm text-slate-600">Téléchargez les états de contrôle pour les achats, factures fournisseurs, retours et litiges.</p>
-        <div class="grid gap-2">
-          <button v-for="report in reportExports" :key="report.url" type="button" class="btn-secondary justify-between" @click="downloadAchatReport(report)">
-            <span>{{ report.label }}</span>
-            <FileDown :size="16" />
-          </button>
-        </div>
-      </div>
-    </AppModal>
-
   </div>
 </template>
 
@@ -433,7 +421,6 @@ const showCredit = ref(false)
 const showDetails = ref(false)
 const showPerformance = ref(false)
 const showRequests = ref(false)
-const showReports = ref(false)
 const loadingDashboard = ref(false)
 const loadingPerformance = ref(false)
 const loadingReferentiels = ref(false)
@@ -467,13 +454,6 @@ const receptionForm = reactive({ entrepot_id: null, emplacement_id: null, date_r
 const invoiceForm = reactive({ reference_fournisseur: '', date_facture: new Date().toISOString().slice(0, 10), date_echeance: '', statut: 'validee', notes: '' })
 const returnForm = reactive({ date_retour: new Date().toISOString().slice(0, 10), motif: 'defectueux', litige_statut: 'ouvert', notes: '', lignes: [] })
 const creditForm = reactive({ reference_fournisseur: '', date_avoir: new Date().toISOString().slice(0, 10), notes: '' })
-const reportExports = [
-  { label: 'Synthèse achats PDF', url: '/achats/rapport.pdf?type=synthese' },
-  { label: 'Fournisseurs PDF', url: '/achats/rapport.pdf?type=fournisseurs' },
-  { label: 'Factures impayées PDF', url: '/achats/rapport.pdf?type=factures' },
-  { label: 'Retours & litiges PDF', url: '/achats/rapport.pdf?type=litiges' },
-]
-
 const statCards = computed(() => [
   { key: 'total', label: 'Commandes', value: stats.total, color: 'text-slate-900' },
   { key: 'soumise', label: 'À approuver', value: stats.a_approuver, color: 'text-amber-700' },
@@ -632,7 +612,7 @@ function applyDashboardShortcut(card) {
   } else if (card.action === 'invoice') {
     router.push({ path: '/fournisseurs-reglements', query: { etat: 'retard' } })
   } else if (card.action === 'report') {
-    showReports.value = true
+    goToAchatReports()
   } else if (card.action === 'retard') {
     filters.statut = ''
     loadCommandes(1)
@@ -643,16 +623,13 @@ function goToDebtPilotage() {
   router.push({ path: '/fournisseurs-reglements', query: { tab: 'pilotage' } })
 }
 
+function goToAchatReports() {
+  router.push({ name: 'achat-rapports' })
+}
+
 function goToSupplier360(id) {
   if (!id) return
   router.push({ name: 'achat-fournisseur-360', params: { id } })
-}
-async function downloadAchatReport(report) {
-  try {
-    await ouvrirPDF(report.url, `${report.label}.pdf`)
-  } catch (e) {
-    toast.error('Impossible de générer le rapport achats.')
-  }
 }
 async function loadPerformance() { loadingPerformance.value = true; try { supplierPerformance.value = (await api.get('/achats/fournisseurs-performance')).data.data || [] } catch (e) { toast.error(e.response?.data?.message || 'Impossible de charger la performance fournisseurs.') } finally { loadingPerformance.value = false } }
 async function togglePerformance() { showPerformance.value = !showPerformance.value; if (showPerformance.value && !supplierPerformance.value.length) await loadPerformance() }

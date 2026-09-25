@@ -210,6 +210,11 @@ const routes = [
         component: () => import('@/views/AchatAvoirDetailView.vue'),
       },
       {
+        path: 'achats/rapports',
+        name: 'achat-rapports',
+        component: () => import('@/views/AchatRapportsView.vue'),
+      },
+      {
         path: 'achats/fournisseurs/:id/360',
         name: 'achat-fournisseur-360',
         component: () => import('@/views/AchatFournisseur360View.vue'),
