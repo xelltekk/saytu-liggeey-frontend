@@ -213,33 +213,6 @@
       </div>
     </div>
 
-    <AppModal
-      v-model="showModal"
-      :title="editingFacture ? `Modifier ${editingFacture.numero}` : 'Nouvelle facture'"
-      size="xl"
-      :before-close="requestCloseSaisie"
-      @minimized-change="saisieModalMinimized = $event"
-    >
-      <FactureForm
-        :facture="editingFacture"
-        :client="creatingClient"
-        @saved="onSaved"
-        @cancel="closeSaisie"
-        @dirty-change="formDirty = $event"
-      />
-    </AppModal>
-
-    <AppConfirmModal
-      v-model="showLeaveConfirm"
-      title="Quitter la saisie ?"
-      message="Voulez-vous quitter la saisie de la facture ? Les informations non enregistrées seront perdues."
-      hint="Choisissez « Rester » pour continuer votre saisie."
-      cancel-label="Rester"
-      confirm-label="Quitter sans enregistrer"
-      tone="danger"
-      @confirm="discardInvoiceForm"
-    />
-
     <AssignCommercialModal
       v-if="assignTarget"
       v-model="showAssignModal"
@@ -260,311 +233,16 @@
       </template>
     </AppModal>
 
-    <!-- Modal création d'avoir -->
-    <AppModal v-model="showAvoirModal" :title="avoirFacture ? `Créer un avoir sur ${avoirFacture.numero}` : 'Créer un avoir'" size="lg">
-      <div v-if="loadingAvoir" class="text-center py-8 text-gray-500">Chargement...</div>
-      <div v-else class="space-y-4">
-        <div class="flex gap-2">
-          <label class="flex-1 cursor-pointer">
-            <input type="radio" v-model="avoirForm.type_avoir" value="total" class="sr-only peer" />
-            <div class="border-2 border-gray-200 rounded-lg p-3 peer-checked:border-red-500 peer-checked:bg-red-50 transition-colors">
-              <div class="font-semibold text-gray-900">Avoir total</div>
-              <div class="text-xs text-gray-600">Annule totalement la facture (toutes les lignes)</div>
-            </div>
-          </label>
-          <label class="flex-1 cursor-pointer">
-            <input type="radio" v-model="avoirForm.type_avoir" value="partiel" class="sr-only peer" />
-            <div class="border-2 border-gray-200 rounded-lg p-3 peer-checked:border-red-500 peer-checked:bg-red-50 transition-colors">
-              <div class="font-semibold text-gray-900">Avoir partiel</div>
-              <div class="text-xs text-gray-600">Sélectionnez les lignes à avoiriser</div>
-            </div>
-          </label>
-        </div>
-
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Motif de l'avoir</label>
-          <input v-model="avoirForm.motif" type="text" class="input" placeholder="Ex: Produit défectueux, erreur de facturation..." />
-        </div>
-
-        <div v-if="avoirForm.type_avoir === 'partiel'" class="border border-gray-200 rounded-lg">
-          <div class="px-3 py-2 bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-600 uppercase">
-            Lignes à avoiriser
-          </div>
-          <div class="max-h-72 overflow-y-auto divide-y divide-gray-100">
-            <div v-for="ligne in avoirFacture.lignes" :key="ligne.id" ?
-                 class="flex items-center gap-3 p-3 hover:bg-gray-50"
-                 :class="lignesPartielles[ligne.id] ? 'bg-red-50' : ''">
-              <input type="checkbox" :checked="!!lignesPartielles[ligne.id]" @change="toggleLignePartielle(ligne)" class="h-4 w-4" />
-              <div class="flex-1">
-                <div class="font-medium text-sm">{{ ligne.designation }}</div>
-                <div class="text-xs text-gray-500">
-                  Qté facturée : <strong>{{ formatQte(ligne.quantite) }}</strong> {{ ligne.unite }} ×
-                  {{ formatPrice(ligne.prix_unitaire_ht) }} HT
-                </div>
-              </div>
-              <div v-if="lignesPartielles[ligne.id]" class="w-24">
-                <input v-model.number="lignesPartielles[ligne.id]" type="number" step="0.001" min="0.001" :max="ligne.quantite"
-                       class="input text-sm text-right" :placeholder="`Max ${ligne.quantite}`" />
-              </div>
-            </div>
-          </div>
-          <div v-if="!avoirFacture.lignes.length" class="p-4 text-center text-gray-400 text-sm">
-            Aucune ligne à afficher
-          </div>
-        </div>
-
-        <div class="p-3 bg-blue-50 rounded text-sm text-blue-800">
-          <p class="font-semibold mb-1">📋 Ce qui va se passer :</p>
-          <p class="mb-1">✓ Un nouvel avoir sera créé en brouillon</p>
-          <p class="mb-1">✓ Les quantités seront négatives (déduction du compte client)</p>
-          <p>✓ La facture d'origine ne sera pas modifiée (l'avoir est lié)</p>
-        </div>
-
-        <div v-if="errorMessage" class="bg-red-50 border border-red-200 rounded text-sm text-red-700 p-3">
-          {{ errorMessage }}
-        </div>
-      </div>
-
-      <template #footer>
-        <button @click="showAvoirModal = false" class="btn-secondary">Annuler</button>
-        <button @click="handleCreerAvoir" :disabled="creatingAvoir || !canSubmitAvoir" class="btn-danger">
-          <span v-if="creatingAvoir">Création...</span>
-          <span v-else>Créer l'avoir</span>
-        </button>
-      </template>
-    </AppModal>
-
-    <!-- Modal "Marquer comme payée" -->
-    <AppModal v-model="showMarquerPayeeModal" :title="payeeFacture ? `Marquer ${payeeFacture.numero} comme payée` : ''" size="md">
-      <div v-if="payeeFacture" class="space-y-4">
-        <div class="p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-800">
-          <p class="font-semibold mb-1">💡 Action de régularisation</p>
-          <p>Un paiement automatique sera créé pour solder le montant restant <strong>{{ formatPrice(payeeFacture.reste_a_payer || payeeFacture.total_ttc) }}</strong>.</p>
-          <p class="mt-1">L'écriture comptable correspondante sera générée.</p>
-        </div>
-
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Mode de paiement</label>
-          <select v-model="payeeForm.mode_paiement" class="input">
-            <option value="especes">Espèces</option>
-            <option value="virement">Virement</option>
-            <option value="cheque">Chèque</option>
-            <option value="wave">Wave 🌊</option>
-            <option value="orange_money">Orange Money 🟠</option>
-            <option value="free_money">Free Money</option>
-            <option value="carte_bancaire">Carte bancaire</option>
-            <option value="compensation">Compensation</option>
-            <option value="autre">Autre</option>
-          </select>
-        </div>
-
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Date du paiement</label>
-          <input v-model="payeeForm.date_paiement" type="date" class="input" />
-        </div>
-
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Notes (optionnel)</label>
-          <textarea v-model="payeeForm.notes" rows="2" class="input" placeholder="Ex: Paiement reçu en cash le 15/05, régularisation..."></textarea>
-        </div>
-      </div>
-
-      <template #footer>
-        <button @click="showMarquerPayeeModal = false" class="btn-secondary">Annuler</button>
-        <button @click="handleMarquerPayee" :disabled="marquantPayee" class="btn-primary bg-green-600 hover:bg-green-700">
-          <span v-if="marquantPayee">...</span>
-          <span v-else>✅ Confirmer le paiement</span>
-        </button>
-      </template>
-    </AppModal>
-
-    <!-- Modal encaissement partiel/direct -->
-    <AppModal v-model="showEncaisserModal" :title="encaissementFacture ? `Encaisser ${encaissementFacture.numero}` : 'Encaisser une facture'" size="md">
-      <div v-if="encaissementFacture" class="space-y-4">
-        <div class="grid grid-cols-3 gap-2 text-sm">
-          <div class="rounded-lg border border-sky-100 bg-sky-50 p-3">
-            <div class="text-[10px] font-bold uppercase text-sky-700">Total</div>
-            <div class="font-black text-slate-900">{{ formatPrice(encaissementFacture.total_ttc) }}</div>
-          </div>
-          <div class="rounded-lg border border-emerald-100 bg-emerald-50 p-3">
-            <div class="text-[10px] font-bold uppercase text-emerald-700">Payé</div>
-            <div class="font-black text-slate-900">{{ formatPrice(encaissementFacture.montant_paye) }}</div>
-          </div>
-          <div class="rounded-lg border border-orange-100 bg-orange-50 p-3">
-            <div class="text-[10px] font-bold uppercase text-orange-700">Reste</div>
-            <div class="font-black text-slate-900">{{ formatPrice(encaissementFacture.reste_a_payer) }}</div>
-          </div>
-        </div>
-
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Montant encaissé <span class="text-red-500">*</span></label>
-          <input v-model.number="encaissementForm.montant" type="number" min="0.01" step="0.01" class="input" />
-          <p class="mt-1 text-xs text-gray-500">Vous pouvez saisir un paiement partiel ou le reste total.</p>
-        </div>
-
-        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Mode de paiement</label>
-            <select v-model="encaissementForm.mode_paiement" class="input">
-              <option value="especes">Espèces</option>
-              <option value="virement">Virement</option>
-              <option value="cheque">Chèque</option>
-              <option value="wave">Wave</option>
-              <option value="orange_money">Orange Money</option>
-              <option value="free_money">Free Money</option>
-              <option value="carte_bancaire">Carte bancaire</option>
-              <option value="compensation">Compensation</option>
-              <option value="autre">Autre</option>
-            </select>
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Date</label>
-            <input v-model="encaissementForm.date_paiement" type="date" class="input" />
-          </div>
-        </div>
-
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Référence paiement</label>
-          <input v-model="encaissementForm.reference_paiement" type="text" class="input" placeholder="Ex: N° transaction Wave, chèque, virement..." />
-        </div>
-
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-          <textarea v-model="encaissementForm.notes" rows="2" class="input" placeholder="Commentaire interne sur l'encaissement..."></textarea>
-        </div>
-      </div>
-
-      <template #footer>
-        <button @click="showEncaisserModal = false" class="btn-secondary">Annuler</button>
-        <button @click="handleEncaisser" :disabled="encaissementLoading || !encaissementForm.montant" class="btn-primary">
-          <span v-if="encaissementLoading">Enregistrement...</span>
-          <span v-else>Enregistrer paiement</span>
-        </button>
-      </template>
-    </AppModal>
-
-    <!-- Modal pilotage facture -->
-    <AppModal v-model="showPilotageModal" :title="pilotageFacture ? `Suivi facture ${pilotageFacture.numero}` : 'Suivi facture'" size="xl">
-      <div v-if="pilotageLoading" class="py-10 text-center text-gray-500">Chargement du suivi...</div>
-      <div v-else-if="pilotageData" class="space-y-4">
-        <div class="grid grid-cols-1 gap-3 lg:grid-cols-4">
-          <div class="rounded-xl border border-sky-100 bg-sky-50 p-4">
-            <div class="text-[11px] font-black uppercase tracking-wide text-sky-700">Contrôle</div>
-            <div class="mt-2 text-lg font-black" :class="pilotageData.validation_controle?.pret_validation ? 'text-emerald-700' : 'text-red-700'">
-              {{ pilotageData.validation_controle?.pret_validation ? 'Prête' : 'À corriger' }}
-            </div>
-            <p class="mt-1 text-xs text-slate-600">{{ (pilotageData.validation_controle?.alertes || []).length }} alerte(s)</p>
-          </div>
-          <div class="rounded-xl border border-cyan-100 bg-cyan-50 p-4">
-            <div class="text-[11px] font-black uppercase tracking-wide text-cyan-700">Client</div>
-            <div class="mt-2 text-lg font-black text-slate-900">{{ formatPrice(pilotageData.etat_client?.reste_du) }}</div>
-            <p class="mt-1 text-xs text-slate-600">{{ pilotageData.etat_client?.factures_ouvertes || 0 }} facture(s) ouverte(s)</p>
-          </div>
-          <div class="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
-            <div class="text-[11px] font-black uppercase tracking-wide text-emerald-700">Encaissement</div>
-            <div class="mt-2 text-lg font-black text-slate-900">{{ pilotageData.analyse_encaissement?.taux_paiement || 0 }}%</div>
-            <p class="mt-1 text-xs text-slate-600">Reste {{ formatPrice(pilotageData.analyse_encaissement?.reste) }}</p>
-          </div>
-          <div class="rounded-xl border border-orange-100 bg-orange-50 p-4">
-            <div class="text-[11px] font-black uppercase tracking-wide text-orange-700">Relance</div>
-            <div class="mt-2 text-sm font-bold text-slate-900">{{ pilotageData.relance_auto?.urgence || 'aucune' }}</div>
-            <p class="mt-1 text-xs text-slate-600">{{ pilotageData.relance_auto?.message }}</p>
-          </div>
-        </div>
-
-        <div v-if="(pilotageData.validation_controle?.erreurs || []).length || (pilotageData.validation_controle?.alertes || []).length" class="rounded-xl border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-900">
-          <div class="font-black">Points de contrôle</div>
-          <ul class="mt-1 list-disc pl-5">
-            <li v-for="item in [...(pilotageData.validation_controle?.erreurs || []), ...(pilotageData.validation_controle?.alertes || [])]" :key="item">{{ item }}</li>
-          </ul>
-        </div>
-
-        <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
-          <div class="rounded-xl border border-gray-200 bg-white p-4">
-            <div class="mb-3 flex items-center justify-between">
-              <h3 class="font-black text-slate-900">Paiements</h3>
-              <button v-if="canManagePayments && pilotageFacture && !['brouillon','payee','annulee'].includes(pilotageFacture.statut)" type="button" class="text-xs font-bold text-emerald-700 hover:text-emerald-900" @click="openEncaisser(pilotageFacture)">Encaisser</button>
-            </div>
-            <div v-if="pilotageData.paiements?.length" class="space-y-2">
-              <div v-for="paiement in pilotageData.paiements" :key="paiement.id" class="rounded-lg bg-slate-50 p-2 text-sm">
-                <div class="font-bold text-slate-900">{{ paiement.reference }} · {{ formatPrice(paiement.montant) }}</div>
-                <div class="text-xs text-slate-500">{{ formatDate(paiement.date_paiement) }} · {{ modePaiementLabel(paiement.mode_paiement) }}</div>
-              </div>
-            </div>
-            <p v-else class="text-sm text-gray-500">Aucun paiement enregistré.</p>
-          </div>
-
-          <div class="rounded-xl border border-gray-200 bg-white p-4">
-            <div class="mb-3 flex items-center justify-between">
-              <h3 class="font-black text-slate-900">Relances</h3>
-              <button v-if="canRelancer(pilotageFacture || {})" type="button" class="text-xs font-bold text-sky-700 hover:text-sky-900" :disabled="tracingRelance" @click="handleTracerRelance">Tracer</button>
-            </div>
-            <div v-if="pilotageData.recouvrements?.length" class="space-y-2">
-              <div v-for="suivi in pilotageData.recouvrements" :key="suivi.id" class="rounded-lg bg-slate-50 p-2 text-sm">
-                <div class="font-bold text-slate-900">{{ actionLabel(suivi.type_action) }}</div>
-                <div class="text-xs text-slate-500">{{ formatDateTime(suivi.date_action) }} · {{ suivi.user?.name || '—' }}</div>
-                <p v-if="suivi.commentaire" class="mt-1 text-xs text-slate-600">{{ suivi.commentaire }}</p>
-              </div>
-            </div>
-            <p v-else class="text-sm text-gray-500">Aucune relance tracée.</p>
-          </div>
-
-          <div class="rounded-xl border border-gray-200 bg-white p-4">
-            <h3 class="mb-3 font-black text-slate-900">Historique</h3>
-            <div v-if="pilotageData.historique?.length" class="max-h-80 space-y-2 overflow-y-auto">
-              <div v-for="(item, index) in pilotageData.historique" :key="`${item.type}-${index}`" class="rounded-lg bg-slate-50 p-2 text-sm">
-                <div class="font-bold text-slate-900">{{ item.titre }}</div>
-                <div class="text-xs text-slate-500">{{ formatDateTime(item.date) }} · {{ item.utilisateur || 'Système' }}</div>
-                <p v-if="item.detail" class="mt-1 text-xs text-slate-600">{{ item.detail }}</p>
-              </div>
-            </div>
-            <p v-else class="text-sm text-gray-500">Aucun historique disponible.</p>
-          </div>
-        </div>
-      </div>
-    </AppModal>
-
-    <!-- Modal "Annuler la facture" -->
-    <AppModal v-model="showAnnulerModal" :title="annulFacture ? `Annuler la facture ${annulFacture.numero}` : ''" size="md">
-      <div v-if="annulFacture" class="space-y-4">
-        <div class="p-3 bg-orange-50 border border-orange-200 rounded-lg text-sm text-orange-800">
-          <p class="font-semibold mb-1">⚠️ Annulation de facture</p>
-          <p>La facture sera marquée <strong>"Annulée"</strong> et l'écriture comptable correspondante sera supprimée. Cette action est traçable dans les notes privées.</p>
-        </div>
-
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">
-            Motif de l'annulation <span class="text-red-500">*</span>
-          </label>
-          <textarea v-model="annulForm.motif" rows="3" class="input" required
-                    placeholder="Ex: Erreur de saisie, doublon, client refuse, facture obsolète..."></textarea>
-        </div>
-
-        <div v-if="annulError" class="bg-red-50 border border-red-200 rounded text-sm text-red-700 p-3">
-          {{ annulError }}
-        </div>
-      </div>
-
-      <template #footer>
-        <button @click="showAnnulerModal = false" class="btn-secondary">Retour</button>
-        <button @click="handleAnnuler" :disabled="annulant || !annulForm.motif || annulForm.motif.length < 3" class="btn-danger">
-          <span v-if="annulant">...</span>
-          <span v-else>🚫 Confirmer l'annulation</span>
-        </button>
-      </template>
-    </AppModal>
   </div>
 </template>
 
 <script setup>
-import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ref, reactive, onMounted, computed, watch } from 'vue'
 import api from '@/services/api'
 import { ouvrirPDF } from '@/services/pdf'
 import { telechargerCSV } from '@/services/exports'
 import AppModal from '@/components/InlinePanelModal.vue'
-import AppConfirmModal from '@/components/AppConfirmModal.vue'
-import FactureForm from '@/components/FactureForm.vue'
 import AssignCommercialModal from '@/components/AssignCommercialModal.vue'
 import EmailActionButtons from '@/components/EmailActionButtons.vue'
 import SortableTh from '@/components/SortableTh.vue'
@@ -613,13 +291,6 @@ const stats = reactive({
 const meta = reactive({ current_page: 1, last_page: 1, total: 0, from: 0, to: 0 })
 const filters = reactive({ search: '', statut: '', type: '', quick: '' })
 
-const showModal = ref(false)
-const editingFacture = ref(null)
-const creatingClient = ref(null)
-const formDirty = ref(false)
-const saisieModalMinimized = ref(false)
-const showLeaveConfirm = ref(false)
-const pendingLeaveRoute = ref(null)
 const showDeleteModal = ref(false)
 const factureToDelete = ref(null)
 const deleting = ref(false)
@@ -627,15 +298,6 @@ const cloningId = ref(null)
 const showAssignModal = ref(false)
 const assignTarget = ref(null)
 const assignEndpoint = computed(() => assignTarget.value ? `/factures/${assignTarget.value.id}/assign-commercial` : '/factures/0/assign-commercial')
-
-// Avoirs
-const showAvoirModal = ref(false)
-const avoirFacture = ref(null)
-const loadingAvoir = ref(false)
-const avoirForm = reactive({ type_avoir: 'total', motif: '' })
-const lignesPartielles = reactive({})
-const creatingAvoir = ref(false)
-const errorMessage = ref('')
 
 const sortedFactures = computed(() => sortedRows(factures.value, {
   numero: 'numero',
@@ -672,47 +334,6 @@ const filterChips = computed(() => {
 })
 
 const hasActiveFilters = computed(() => Boolean(filters.quick || filters.statut || filters.type || filters.search))
-
-// Marquer payée
-const showMarquerPayeeModal = ref(false)
-const payeeFacture = ref(null)
-const payeeForm = reactive({
-  mode_paiement: 'especes',
-  date_paiement: new Date().toISOString().slice(0, 10),
-  notes: '',
-})
-const marquantPayee = ref(false)
-
-// Encaissement direct
-const showEncaisserModal = ref(false)
-const encaissementFacture = ref(null)
-const encaissementLoading = ref(false)
-const encaissementForm = reactive({
-  montant: null,
-  mode_paiement: 'especes',
-  date_paiement: new Date().toISOString().slice(0, 10),
-  reference_paiement: '',
-  notes: '',
-})
-
-// Pilotage facture
-const showPilotageModal = ref(false)
-const pilotageFacture = ref(null)
-const pilotageData = ref(null)
-const pilotageLoading = ref(false)
-const tracingRelance = ref(false)
-
-// Annuler
-const showAnnulerModal = ref(false)
-const annulFacture = ref(null)
-const annulForm = reactive({ motif: '' })
-const annulant = ref(false)
-const annulError = ref('')
-
-const canSubmitAvoir = computed(() => {
-  if (avoirForm.type_avoir === 'total') return true
-  return Object.values(lignesPartielles).some(q => q > 0)
-})
 
 const allowedQuickFilters = computed(() => (
   isCommercial.value ?
@@ -852,24 +473,6 @@ function onAssigned() {
   loadStats()
 }
 
-function onSaved() { formDirty.value = false; saisieModalMinimized.value = false; showModal.value = false; loadFactures(meta.current_page); loadStats() }
-function requestCloseSaisie() {
-  if (!formDirty.value) return true
-  showLeaveConfirm.value = true
-  return false
-}
-function closeSaisie() {
-  requestCloseSaisie()
-}
-function discardInvoiceForm() {
-  showLeaveConfirm.value = false
-  formDirty.value = false
-  saisieModalMinimized.value = false
-  showModal.value = false
-  const nextRoute = pendingLeaveRoute.value
-  pendingLeaveRoute.value = null
-  if (nextRoute) router.push(nextRoute)
-}
 function confirmDelete(f) { factureToDelete.value = f; showDeleteModal.value = true }
 
 async function handleCloner(f) {
@@ -914,7 +517,6 @@ async function handleValider(f) {
     toast.success(`Facture ${f.numero} validée`)
     await loadFactures(meta.current_page)
     loadStats()
-    if (showPilotageModal.value && pilotageFacture.value?.id === f.id) await loadPilotage(f.id)
   } catch (err) {
     const errors = err.response?.data?.errors || err.response?.data?.validation_controle?.erreurs
     const firstError = Array.isArray(errors) ? errors[0] : errors ? Object.values(errors).flat()[0] : null
@@ -931,7 +533,6 @@ async function handleEnvoyer(f) {
     toast.success(data.message || `Facture ${f.numero} marquée envoyée`)
     await loadFactures(meta.current_page)
     loadStats()
-    if (showPilotageModal.value && pilotageFacture.value?.id === f.id) await loadPilotage(f.id)
   } catch (err) {
     const errors = err.response?.data?.errors || err.response?.data?.validation_controle?.erreurs
     const firstError = Array.isArray(errors) ? errors[0] : errors ? Object.values(errors).flat()[0] : null
@@ -941,233 +542,28 @@ async function handleEnvoyer(f) {
   }
 }
 
-// ===== AVOIRS =====
-async function openCreateAvoir(f) {
+function openCreateAvoir(f) {
   router.push({ name: 'facture-detail', params: { id: f.id }, query: { tab: 'avoirs' } })
-  return
-
-  showAvoirModal.value = true
-  loadingAvoir.value = true
-  avoirFacture.value = null
-  avoirForm.type_avoir = 'total'
-  avoirForm.motif = ''
-  Object.keys(lignesPartielles).forEach(k => delete lignesPartielles[k])
-  errorMessage.value = ''
-
-  try {
-    const { data } = await api.get(`/factures/${f.id}`)
-    avoirFacture.value = data
-  } catch (e) {
-    toast.error('Erreur de chargement de la facture')
-    showAvoirModal.value = false
-  } finally {
-    loadingAvoir.value = false
-  }
 }
 
-function toggleLignePartielle(ligne) {
-  if (lignesPartielles[ligne.id]) {
-    delete lignesPartielles[ligne.id]
-  } else {
-    lignesPartielles[ligne.id] = parseFloat(ligne.quantite)
-  }
-}
-
-async function handleCreerAvoir() {
-  if (!canSubmitAvoir.value) {
-    errorMessage.value = 'Sélectionnez au moins une ligne pour un avoir partiel'
-    return
-  }
-
-  creatingAvoir.value = true
-  errorMessage.value = ''
-
-  try {
-    const payload = {
-      type_avoir: avoirForm.type_avoir,
-      motif: avoirForm.motif || null,
-    }
-
-    if (avoirForm.type_avoir === 'partiel') {
-      payload.lignes_partielles = Object.entries(lignesPartielles)
-        .filter(([_, q]) => q > 0)
-        .map(([ligne_id, quantite]) => ({
-          ligne_id: parseInt(ligne_id),
-          quantite: parseFloat(quantite),
-        }))
-    }
-
-    const { data } = await api.post(`/factures/${avoirFacture.value.id}/creer-avoir`, payload)
-    toast.success(`Avoir ${data.avoir.numero} créé !`)
-    showAvoirModal.value = false
-    loadFactures(meta.current_page)
-    loadStats()
-  } catch (err) {
-    errorMessage.value = err.response?.data?.message || 'Erreur lors de la création'
-  } finally {
-    creatingAvoir.value = false
-  }
-}
-
-// ===== MARQUER PAYÉE =====
 function openMarquerPayee(f) {
-  payeeFacture.value = f
-  payeeForm.mode_paiement = 'especes'
-  payeeForm.date_paiement = new Date().toISOString().slice(0, 10)
-  payeeForm.notes = ''
-  showMarquerPayeeModal.value = true
+  router.push({ name: 'facture-detail', params: { id: f.id }, query: { tab: 'paiements' } })
 }
 
-async function handleMarquerPayee() {
-  marquantPayee.value = true
-  try {
-    const { data } = await api.post(`/factures/${payeeFacture.value.id}/marquer-payee`, payeeForm)
-    toast.success(data.message || 'Facture marquée payée')
-    showMarquerPayeeModal.value = false
-    loadFactures(meta.current_page)
-    loadStats()
-  } catch (err) {
-    toast.error(err.response?.data?.message || 'Erreur')
-  } finally {
-    marquantPayee.value = false
-  }
-}
-
-// ===== ENCAISSER =====
 function openEncaisser(f) {
-  encaissementFacture.value = f
-  encaissementForm.montant = Math.max(parseFloat(f?.reste_a_payer || f?.total_ttc || 0), 0)
-  encaissementForm.mode_paiement = 'especes'
-  encaissementForm.date_paiement = new Date().toISOString().slice(0, 10)
-  encaissementForm.reference_paiement = ''
-  encaissementForm.notes = ''
-  showEncaisserModal.value = true
+  router.push({ name: 'facture-detail', params: { id: f.id }, query: { tab: 'paiements' } })
 }
 
-async function handleEncaisser() {
-  if (!encaissementFacture.value) return
-  encaissementLoading.value = true
-  try {
-    const payload = {
-      montant: encaissementForm.montant,
-      mode_paiement: encaissementForm.mode_paiement,
-      date_paiement: encaissementForm.date_paiement || undefined,
-      reference_paiement: encaissementForm.reference_paiement || undefined,
-      notes: encaissementForm.notes || undefined,
-    }
-    const { data } = await api.post(`/factures/${encaissementFacture.value.id}/encaisser`, payload)
-    toast.success(data.message || 'Paiement enregistré')
-    showEncaisserModal.value = false
-    await loadFactures(meta.current_page)
-    loadStats()
-    if (showPilotageModal.value && pilotageFacture.value?.id === encaissementFacture.value.id) {
-      await loadPilotage(encaissementFacture.value.id)
-    }
-  } catch (err) {
-    const errors = err.response?.data?.errors
-    const firstError = errors ? Object.values(errors).flat()[0] : null
-    toast.error(firstError || err.response?.data?.message || 'Erreur lors de l’encaissement')
-  } finally {
-    encaissementLoading.value = false
-  }
-}
-
-// ===== PILOTAGE FACTURE =====
-async function openPilotage(f) {
+function openPilotage(f) {
   router.push({ name: 'facture-detail', params: { id: f.id }, query: { tab: 'suivi' } })
 }
 
-async function loadPilotage(id) {
-  pilotageLoading.value = true
-  try {
-    const { data } = await api.get(`/factures/${id}/pilotage`)
-    pilotageData.value = data
-    pilotageFacture.value = data.facture || pilotageFacture.value
-  } catch (err) {
-    toast.error(err.response?.data?.message || 'Erreur de chargement du suivi facture')
-    showPilotageModal.value = false
-  } finally {
-    pilotageLoading.value = false
-  }
-}
-
-async function handleTracerRelance() {
-  if (!pilotageFacture.value) return
-  tracingRelance.value = true
-  try {
-    const { data } = await api.post(`/recouvrement/factures/${pilotageFacture.value.id}/suivis`, {
-      statut: 'relance',
-      type_action: 'relance_email',
-      commentaire: `Relance préparée pour la facture ${pilotageFacture.value.numero}.`,
-      prochain_rappel: pilotageData.value?.relance_auto?.prochain_rappel_suggere || undefined,
-    })
-    toast.success(data.message || 'Relance tracée')
-    await loadPilotage(pilotageFacture.value.id)
-    await loadFactures(meta.current_page)
-  } catch (err) {
-    toast.error(err.response?.data?.message || 'Erreur lors du traçage de la relance')
-  } finally {
-    tracingRelance.value = false
-  }
-}
-
-// ===== ANNULER =====
 function openAnnuler(f) {
   router.push({ name: 'facture-detail', params: { id: f.id }, query: { tab: 'avoirs' } })
-  return
-
-  annulFacture.value = f
-  annulForm.motif = ''
-  annulError.value = ''
-  showAnnulerModal.value = true
-}
-
-async function handleAnnuler() {
-  annulant.value = true
-  annulError.value = ''
-  try {
-    const { data } = await api.post(`/factures/${annulFacture.value.id}/annuler`, annulForm)
-    toast.success(data.message || 'Facture annulée')
-    showAnnulerModal.value = false
-    loadFactures(meta.current_page)
-    loadStats()
-  } catch (err) {
-    annulError.value = err.response?.data?.message || 'Erreur'
-  } finally {
-    annulant.value = false
-  }
 }
 
 function formatPrice(n) { return new Intl.NumberFormat('fr-FR').format(Math.round(n || 0)) }
-function formatQte(n) { return parseFloat(n || 0).toLocaleString('fr-FR', { maximumFractionDigits: 3 }) }
 function formatDate(d) { return d ? new Date(d).toLocaleDateString('fr-FR') : '–' }
-function formatDateTime(d) { return d ? new Date(d).toLocaleString('fr-FR') : '–' }
-function modePaiementLabel(mode) {
-  return {
-    especes: 'Espèces',
-    cheque: 'Chèque',
-    virement: 'Virement',
-    carte_bancaire: 'Carte bancaire',
-    mobile_money: 'Mobile money',
-    wave: 'Wave',
-    orange_money: 'Orange Money',
-    free_money: 'Free Money',
-    compensation: 'Compensation',
-    autre: 'Autre',
-  }[mode] || mode || 'Paiement'
-}
-function actionLabel(action) {
-  return {
-    note: 'Note',
-    relance_email: 'Relance email',
-    appel: 'Appel',
-    whatsapp: 'WhatsApp',
-    promesse_paiement: 'Promesse de paiement',
-    litige: 'Litige',
-    paiement_recu: 'Paiement reçu',
-    cloture: 'Clôture',
-  }[action] || action || 'Suivi'
-}
 function isEnRetard(f) {
   if (!['validee', 'envoyee', 'partiellement_payee', 'impayee'].includes(f.statut)) return false
   return new Date(f.date_echeance) < new Date()
@@ -1258,14 +654,4 @@ watch(
     await loadFactures(1)
   }
 )
-
-onBeforeRouteLeave((to) => {
-  if (showModal.value && formDirty.value && !saisieModalMinimized.value) {
-    pendingLeaveRoute.value = to.fullPath
-    showLeaveConfirm.value = true
-    return false
-  }
-  if (!saisieModalMinimized.value) formDirty.value = false
-  return true
-})
 </script>
