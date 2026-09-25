@@ -255,6 +255,16 @@ const routes = [
         component: () => import('@/views/TresorerieComptesView.vue'),
       },
       {
+        path: 'tresorerie-comptes/nouveau',
+        name: 'tresorerie-compte-create',
+        component: () => import('@/views/TresorerieCompteDetailView.vue'),
+      },
+      {
+        path: 'tresorerie-comptes/:id',
+        name: 'tresorerie-compte-detail',
+        component: () => import('@/views/TresorerieCompteDetailView.vue'),
+      },
+      {
         path: 'caisse',
         name: 'caisse',
         component: () => import('@/views/CaisseView.vue'),

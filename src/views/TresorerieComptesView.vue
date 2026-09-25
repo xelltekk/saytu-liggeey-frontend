@@ -184,90 +184,6 @@
       </div>
     </section>
 
-    <AppModal v-model="showModal" :title="editing ? 'Modifier compte de trésorerie' : 'Nouveau compte de trésorerie'" size="lg">
-      <form class="space-y-4" @submit.prevent="saveCompte">
-        <div class="grid gap-4 md:grid-cols-2">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Code</label>
-            <input v-model="form.code" class="input" required placeholder="Ex: ORABANK, CAISSE01, WAVE01" />
-            <p v-if="errors.code" class="mt-1 text-xs text-red-600">{{ errors.code }}</p>
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Type</label>
-            <select v-model="form.type" class="input" required @change="syncModeFromType">
-              <option v-for="(label, key) in types" :key="key" :value="key">{{ label }}</option>
-            </select>
-          </div>
-          <div class="md:col-span-2">
-            <label class="block text-sm font-medium text-gray-700 mb-1">Libellé</label>
-            <input v-model="form.libelle" class="input" required placeholder="Ex: Compte Orabank principal" />
-            <p v-if="errors.libelle" class="mt-1 text-xs text-red-600">{{ errors.libelle }}</p>
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Mode de paiement lié</label>
-            <select v-model="form.mode_paiement" class="input" required>
-              <option value="virement">Virement</option>
-              <option value="cheque">Chèque</option>
-              <option value="especes">Espèces</option>
-              <option value="carte_bancaire">Carte bancaire</option>
-              <option value="wave">Wave</option>
-              <option value="orange_money">Orange Money</option>
-              <option value="free_money">Free Money</option>
-              <option value="mobile_money">Mobile money</option>
-              <option value="autre">Autre</option>
-            </select>
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Solde initial</label>
-            <input v-model.number="form.solde_initial" type="number" step="1" class="input" />
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Banque / Opérateur</label>
-            <input v-model="form.banque_nom" class="input" placeholder="Ex: Orabank, Wave" />
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Numéro compte / wallet</label>
-            <input v-model="form.numero_compte" class="input" />
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Titulaire</label>
-            <input v-model="form.titulaire" class="input" />
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Telephone</label>
-            <input v-model="form.telephone" type="tel" data-phone-input class="input" placeholder="77 123 45 67" />
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">IBAN</label>
-            <input v-model="form.iban" class="input" />
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">BIC / SWIFT</label>
-            <input v-model="form.bic_swift" class="input" />
-          </div>
-          <div class="md:col-span-2 flex flex-wrap gap-4">
-            <label class="inline-flex items-center gap-2 text-sm text-gray-700">
-              <input v-model="form.is_default" type="checkbox" class="rounded border-gray-300" />
-              Compte par défaut pour ce mode de paiement
-            </label>
-            <label class="inline-flex items-center gap-2 text-sm text-gray-700">
-              <input v-model="form.is_active" type="checkbox" class="rounded border-gray-300" />
-              Actif
-            </label>
-          </div>
-          <div class="md:col-span-2">
-            <label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-            <textarea v-model="form.notes" class="input min-h-24"></textarea>
-          </div>
-        </div>
-
-        <div class="flex justify-end gap-2 border-t pt-4">
-          <button type="button" class="btn-secondary" @click="showModal = false">Annuler</button>
-          <button type="submit" class="btn-primary" :disabled="saving">{{ saving ? 'Enregistrement...' : 'Enregistrer' }}</button>
-        </div>
-      </form>
-    </AppModal>
-
     <AppModal v-model="showRapprochementModal" :title="rapprochementCompte ? `Rapprocher : ${rapprochementCompte.libelle}` : 'Rapprochement'" size="md">
       <form class="space-y-4" @submit.prevent="saveRapprochement">
         <div class="rounded-2xl border border-cyan-100 bg-cyan-50 p-3 text-sm text-cyan-900">
@@ -310,6 +226,7 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import api from '@/services/api'
 import AppModal from '@/components/InlinePanelModal.vue'
 import AppPagination from '@/components/AppPagination.vue'
@@ -318,6 +235,7 @@ import { useToast } from '@/composables/useToast'
 import { useTableSort } from '@/composables/useTableSort'
 
 const toast = useToast()
+const router = useRouter()
 const comptes = ref([])
 const types = ref({})
 const stats = reactive({ total: 0, actifs: 0, par_type: {}, solde_initial_total: 0, total_entrees: 0, total_sorties: 0, solde_actuel_total: 0 })
@@ -325,15 +243,11 @@ const filters = reactive({ search: '', type: '', is_active: '1' })
 const meta = reactive({ current_page: 1, last_page: 1, total: 0, from: 0, to: 0 })
 const errors = reactive({})
 const loading = ref(false)
-const saving = ref(false)
 const rapprochementsLoading = ref(false)
 const rapprochementSaving = ref(false)
-const showModal = ref(false)
 const showRapprochementModal = ref(false)
-const editing = ref(null)
 const rapprochementCompte = ref(null)
 const rapprochements = ref([])
-const form = reactive(defaultForm())
 const rapprochementForm = reactive(defaultRapprochementForm())
 const { sort, toggleSort, sortIcon, sortedRows } = useTableSort('created_at', 'desc')
 
@@ -395,38 +309,12 @@ function onSearchInput() {
   searchTimeout = setTimeout(() => loadComptes(1), 350)
 }
 
-function defaultForm() {
-  return {
-    code: '',
-    libelle: '',
-    type: 'banque',
-    mode_paiement: 'virement',
-    solde_initial: 0,
-    devise: 'XOF',
-    banque_nom: '',
-    numero_compte: '',
-    iban: '',
-    bic_swift: '',
-    titulaire: '',
-    telephone: '',
-    is_default: false,
-    is_active: true,
-    notes: '',
-  }
-}
-
 function defaultRapprochementForm() {
   return {
     date_rapprochement: new Date().toISOString().slice(0, 10),
     solde_reel: 0,
     justification: '',
   }
-}
-
-function resetForm() {
-  Object.keys(errors).forEach((key) => delete errors[key])
-  Object.assign(form, defaultForm())
-  editing.value = null
 }
 
 async function loadComptes(page = 1) {
@@ -469,57 +357,11 @@ async function loadStats() {
 }
 
 function openCreate() {
-  resetForm()
-  showModal.value = true
+  router.push({ name: 'tresorerie-compte-create' })
 }
 
 function openEdit(compte) {
-  resetForm()
-  editing.value = compte
-  Object.assign(form, {
-    code: compte.code,
-    libelle: compte.libelle,
-    type: compte.type,
-    mode_paiement: compte.mode_paiement,
-    solde_initial: parseFloat(compte.solde_initial || 0),
-    devise: compte.devise || 'XOF',
-    banque_nom: compte.banque_nom || '',
-    numero_compte: compte.numero_compte || '',
-    iban: compte.iban || '',
-    bic_swift: compte.bic_swift || '',
-    titulaire: compte.titulaire || '',
-    telephone: compte.telephone || '',
-    is_default: !!compte.is_default,
-    is_active: !!compte.is_active,
-    notes: compte.notes || '',
-  })
-  showModal.value = true
-}
-
-async function saveCompte() {
-  saving.value = true
-  Object.keys(errors).forEach((key) => delete errors[key])
-  try {
-    const payload = { ...form }
-    if (editing.value) {
-      await api.put(`/tresorerie-comptes/${editing.value.id}`, payload)
-      toast.success('Compte mis à jour')
-    } else {
-      await api.post('/tresorerie-comptes', payload)
-      toast.success('Compte créé')
-    }
-    showModal.value = false
-    await loadComptes(meta.current_page)
-    loadStats()
-  } catch (err) {
-    const data = err.response.data
-    if (data.errors) {
-      Object.entries(data.errors).forEach(([key, value]) => { errors[key] = Array.isArray(value) ? value[0] : value })
-    }
-    toast.error(data.message || "Erreur lors de l'enregistrement")
-  } finally {
-    saving.value = false
-  }
+  router.push({ name: 'tresorerie-compte-detail', params: { id: compte.id } })
 }
 
 function openRapprochement(compte) {
@@ -594,20 +436,6 @@ async function desactiver(compte) {
   } catch (e) {
     toast.error('Désactivation impossible')
   }
-}
-
-function syncModeFromType() {
-  const map = {
-    banque: 'virement',
-    caisse: 'especes',
-    wave: 'wave',
-    orange_money: 'orange_money',
-    free_money: 'free_money',
-    mobile_money: 'mobile_money',
-    carte_bancaire: 'carte_bancaire',
-    autre: 'autre',
-  }
-  form.mode_paiement = map[form.type] || 'virement'
 }
 
 function typeLabel(type) { return types.value[type] || type || '-' }
