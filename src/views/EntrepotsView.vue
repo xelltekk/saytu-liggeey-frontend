@@ -92,19 +92,6 @@
 
     <AppPagination v-if="meta.total > 0" :meta="meta" label="entrepôts" @page="loadEntrepots" />
 
-    <AppModal v-model="showModal" :title="editingEntrepot ? `Modifier ${editingEntrepot.libelle}` : 'Nouvel entrepôt'" size="md">
-      <EntrepotForm :entrepot="editingEntrepot" @saved="onSaved" @cancel="showModal = false" />
-    </AppModal>
-
-    <AppModal v-model="showDetailsModal" :title="detailsEntrepot ? `Détails : ${detailsEntrepot.libelle}` : ''" size="lg">
-      <EntrepotDetails
-        v-if="detailsEntrepot"
-        :entrepot="detailsEntrepot"
-        :can-manage="canManage"
-        @refresh="refreshDetails"
-      />
-    </AppModal>
-
     <AppModal v-model="showDeleteModal" title="Supprimer l'entrepôt" size="sm">
       <p class="text-gray-700">Supprimer l'entrepôt <strong>{{ entrepotToDelete?.libelle }}</strong> ?</p>
       <p class="mt-2 text-xs text-gray-500">Impossible si un stock positif existe encore dans cet entrepôt.</p>
@@ -120,17 +107,17 @@
 
 <script setup>
 import { computed, reactive, ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import api from '@/services/api'
 import AppModal from '@/components/InlinePanelModal.vue'
 import AppPagination from '@/components/AppPagination.vue'
-import EntrepotForm from '@/components/EntrepotForm.vue'
-import EntrepotDetails from '@/components/EntrepotDetails.vue'
 import { useToast } from '@/composables/useToast'
 import { useAuthStore } from '@/stores/auth'
 import { hasAnyRole } from '@/utils/access'
 
 const toast = useToast()
 const auth = useAuthStore()
+const router = useRouter()
 const canManage = computed(() => hasAnyRole(auth.user, ['admin', 'magasinier']))
 
 const entrepots = ref([])
@@ -138,10 +125,6 @@ const loading = ref(false)
 const filters = reactive({ search: '', actifs_seulement: false })
 const meta = reactive({ current_page: 1, last_page: 1, total: 0, from: 0, to: 0 })
 
-const showModal = ref(false)
-const editingEntrepot = ref(null)
-const showDetailsModal = ref(false)
-const detailsEntrepot = ref(null)
 const showDeleteModal = ref(false)
 const entrepotToDelete = ref(null)
 const deleting = ref(false)
@@ -204,31 +187,15 @@ function locationLabel(entrepot) {
 }
 
 function openCreate() {
-  editingEntrepot.value = null
-  showModal.value = true
+  router.push({ name: 'entrepot-create' })
 }
 
 function openEdit(entrepot) {
-  editingEntrepot.value = { ...entrepot }
-  showModal.value = true
+  router.push({ name: 'entrepot-detail', params: { id: entrepot.id }, query: { tab: 'saisie' } })
 }
 
-async function openDetails(entrepot) {
-  const { data } = await api.get(`/entrepots/${entrepot.id}`)
-  detailsEntrepot.value = { ...data.entrepot, stats: data.stats || {} }
-  showDetailsModal.value = true
-}
-
-async function refreshDetails() {
-  if (!detailsEntrepot.value.id) return
-  const { data } = await api.get(`/entrepots/${detailsEntrepot.value.id}`)
-  detailsEntrepot.value = { ...data.entrepot, stats: data.stats || {} }
-  await loadEntrepots(meta.current_page)
-}
-
-function onSaved() {
-  showModal.value = false
-  loadEntrepots(meta.current_page)
+function openDetails(entrepot) {
+  router.push({ name: 'entrepot-detail', params: { id: entrepot.id } })
 }
 
 function confirmDelete(entrepot) {

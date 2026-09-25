@@ -133,61 +133,6 @@
       </div>
     </section>
 
-    <AppModal v-model="showModal" :title="form.id ? 'Modifier la catégorie' : 'Nouvelle catégorie'" size="md">
-      <form class="space-y-4" @submit.prevent="saveCategory">
-        <div class="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label class="mb-1 block text-sm font-semibold text-slate-700">Libellé *</label>
-            <input v-model="form.libelle" class="input" required placeholder="Ex : Imprimantes" @input="syncCodeFromLabel" />
-            <p v-if="errors.libelle" class="mt-1 text-xs text-red-600">{{ errors.libelle }}</p>
-          </div>
-
-          <div>
-            <label class="mb-1 block text-sm font-semibold text-slate-700">Code *</label>
-            <input v-model="form.code" class="input font-mono uppercase" required placeholder="EX : IMPRIMANTES" @input="codeTouched = true" />
-            <p v-if="errors.code" class="mt-1 text-xs text-red-600">{{ errors.code }}</p>
-          </div>
-        </div>
-
-        <div class="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label class="mb-1 block text-sm font-semibold text-slate-700">Catégorie parent</label>
-            <select v-model="form.parent_id" class="input">
-              <option value="">Aucun parent</option>
-              <option
-                v-for="category in parentOptions"
-                :key="category.id"
-                :value="category.id"
-              >
-                {{ '— '.repeat(category.level) }}{{ category.libelle }}
-              </option>
-            </select>
-            <p v-if="errors.parent_id" class="mt-1 text-xs text-red-600">{{ errors.parent_id }}</p>
-          </div>
-
-          <div>
-            <label class="mb-1 block text-sm font-semibold text-slate-700">Statut</label>
-            <select v-model="form.is_active" class="input">
-              <option :value="true">Actif</option>
-              <option :value="false">Inactif</option>
-            </select>
-          </div>
-        </div>
-
-        <div>
-          <label class="mb-1 block text-sm font-semibold text-slate-700">Description</label>
-          <textarea v-model="form.description" class="input min-h-[96px]" placeholder="Description optionnelle"></textarea>
-        </div>
-      </form>
-
-      <template #footer>
-        <button type="button" class="btn-secondary" @click="showModal = false">Annuler</button>
-        <button type="button" class="btn-primary" :disabled="saving" @click="saveCategory">
-          {{ saving ? 'Enregistrement...' : 'Enregistrer' }}
-        </button>
-      </template>
-    </AppModal>
-
     <AppModal v-model="showDeleteModal" title="Supprimer la catégorie" size="sm" stack="confirm">
       <p class="text-sm text-slate-700">
         Supprimer <strong>{{ categoryToDelete?.libelle }}</strong> ?
@@ -207,7 +152,8 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { CheckCircle, Folder, FolderTree, Pencil, Trash2, XCircle } from 'lucide-vue-next'
 import api from '@/services/api'
 import AppModal from '@/components/InlinePanelModal.vue'
@@ -217,18 +163,14 @@ import { hasAnyRole, hasPermission } from '@/utils/access'
 
 const auth = useAuthStore()
 const toast = useToast()
+const router = useRouter()
 
 const loading = ref(false)
-const saving = ref(false)
 const deleting = ref(false)
 const search = ref('')
 const categories = ref([])
-const showModal = ref(false)
 const showDeleteModal = ref(false)
 const categoryToDelete = ref(null)
-const codeTouched = ref(false)
-const errors = reactive({})
-const form = reactive(emptyForm())
 
 const canManage = computed(() => {
   if (hasAnyRole(auth.user, ['admin', 'gerant', 'magasinier'])) return true
@@ -240,7 +182,6 @@ const canManage = computed(() => {
 const flatCategories = computed(() => flattenCategories(categories.value))
 const parentCategories = computed(() => flatCategories.value.filter((category) => category.level === 0))
 const childCategories = computed(() => flatCategories.value.filter((category) => category.level > 0))
-const parentOptions = computed(() => flatCategories.value.filter((category) => category.id !== form.id))
 
 const filteredCategories = computed(() => {
   const term = search.value.trim().toLowerCase()
@@ -251,27 +192,6 @@ const filteredCategories = computed(() => {
       .some((value) => String(value || '').toLowerCase().includes(term))
   })
 })
-
-function emptyForm() {
-  return {
-    id: null,
-    code: '',
-    libelle: '',
-    parent_id: '',
-    description: '',
-    is_active: true,
-  }
-}
-
-function resetForm() {
-  Object.assign(form, emptyForm())
-  codeTouched.value = false
-  clearErrors()
-}
-
-function clearErrors() {
-  Object.keys(errors).forEach((key) => delete errors[key])
-}
 
 function flattenCategories(items, level = 0, parent = null) {
   return (items || []).flatMap((category) => {
@@ -300,58 +220,12 @@ async function loadCategories() {
   }
 }
 
-function openCreate(parent = null) {
-  resetForm()
-  if (parent) form.parent_id = parent.id
-  showModal.value = true
+function openCreate() {
+  router.push({ name: 'categorie-produit-create' })
 }
 
 function openEdit(category) {
-  clearErrors()
-  Object.assign(form, {
-    id: category.id,
-    code: category.code || '',
-    libelle: category.libelle || '',
-    parent_id: category.parent_id || '',
-    description: category.description || '',
-    is_active: category.is_active !== false,
-  })
-  codeTouched.value = true
-  showModal.value = true
-}
-
-async function saveCategory() {
-  clearErrors()
-  saving.value = true
-
-  const payload = {
-    code: normalizeCode(form.code || form.libelle),
-    libelle: String(form.libelle || '').trim(),
-    parent_id: form.parent_id || null,
-    description: String(form.description || '').trim() || null,
-    is_active: Boolean(form.is_active),
-  }
-
-  try {
-    if (form.id) {
-      await api.put(`/categories-produits/${form.id}`, payload)
-      toast.success('Catégorie modifiée.')
-    } else {
-      await api.post('/categories-produits', payload)
-      toast.success('Catégorie créée.')
-    }
-
-    showModal.value = false
-    await loadCategories()
-  } catch (error) {
-    const responseErrors = error.response?.data?.errors || {}
-    Object.entries(responseErrors).forEach(([key, messages]) => {
-      errors[key] = Array.isArray(messages) ? messages[0] : messages
-    })
-    toast.error(error.response?.data?.message || 'Enregistrement impossible.')
-  } finally {
-    saving.value = false
-  }
+  router.push({ name: 'categorie-produit-detail', params: { id: category.id } })
 }
 
 function confirmDelete(category) {
@@ -374,21 +248,6 @@ async function deleteCategory() {
   } finally {
     deleting.value = false
   }
-}
-
-function syncCodeFromLabel() {
-  if (codeTouched.value || form.code) return
-  form.code = normalizeCode(form.libelle)
-}
-
-function normalizeCode(value) {
-  return String(value || '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-zA-Z0-9]+/g, '_')
-    .replace(/^_+|_+$/g, '')
-    .slice(0, 30)
-    .toUpperCase()
 }
 
 function parentLabel(category) {

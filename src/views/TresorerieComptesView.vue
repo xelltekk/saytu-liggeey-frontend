@@ -56,8 +56,6 @@
       </div>
     </div>
 
-    <div data-inline-modal-workspace></div>
-
     <div v-if="loading" class="rounded-3xl bg-white p-12 text-center text-gray-500 shadow-sm">Chargement...</div>
 
     <div v-else class="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm">
@@ -183,44 +181,6 @@
         </table>
       </div>
     </section>
-
-    <AppModal v-model="showRapprochementModal" :title="rapprochementCompte ? `Rapprocher : ${rapprochementCompte.libelle}` : 'Rapprochement'" size="md">
-      <form class="space-y-4" @submit.prevent="saveRapprochement">
-        <div class="rounded-2xl border border-cyan-100 bg-cyan-50 p-3 text-sm text-cyan-900">
-          <div class="flex justify-between gap-3">
-            <span>Solde théorique</span>
-            <strong class="font-mono">{{ formatPrice(rapprochementCompte?.solde_actuel) }}</strong>
-          </div>
-          <div class="mt-2 flex justify-between gap-3">
-            <span>Écart prévu</span>
-            <strong class="font-mono" :class="rapprochementEcart === 0 ? 'text-slate-700' : rapprochementEcart > 0 ? 'text-emerald-700' : 'text-red-700'">
-              {{ formatPrice(rapprochementEcart) }}
-            </strong>
-          </div>
-        </div>
-
-        <div class="grid gap-4 md:grid-cols-2">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Date de contrôle</label>
-            <input v-model="rapprochementForm.date_rapprochement" type="date" class="input" required />
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Solde réel compté</label>
-            <input v-model.number="rapprochementForm.solde_reel" type="number" step="0.01" class="input" required />
-          </div>
-          <div class="md:col-span-2">
-            <label class="block text-sm font-medium text-gray-700 mb-1">Justification de l’écart</label>
-            <textarea v-model="rapprochementForm.justification" class="input min-h-24" placeholder="Obligatoire s’il y a un écart."></textarea>
-            <p v-if="errors.justification" class="mt-1 text-xs text-red-600">{{ errors.justification }}</p>
-          </div>
-        </div>
-
-        <div class="flex justify-end gap-2 border-t pt-4">
-          <button type="button" class="btn-secondary" @click="showRapprochementModal = false">Annuler</button>
-          <button type="submit" class="btn-primary" :disabled="rapprochementSaving">{{ rapprochementSaving ? 'Enregistrement...' : 'Enregistrer le contrôle' }}</button>
-        </div>
-      </form>
-    </AppModal>
   </div>
 </template>
 
@@ -228,7 +188,6 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/services/api'
-import AppModal from '@/components/InlinePanelModal.vue'
 import AppPagination from '@/components/AppPagination.vue'
 import SortableTh from '@/components/SortableTh.vue'
 import { useToast } from '@/composables/useToast'
@@ -241,14 +200,9 @@ const types = ref({})
 const stats = reactive({ total: 0, actifs: 0, par_type: {}, solde_initial_total: 0, total_entrees: 0, total_sorties: 0, solde_actuel_total: 0 })
 const filters = reactive({ search: '', type: '', is_active: '1' })
 const meta = reactive({ current_page: 1, last_page: 1, total: 0, from: 0, to: 0 })
-const errors = reactive({})
 const loading = ref(false)
 const rapprochementsLoading = ref(false)
-const rapprochementSaving = ref(false)
-const showRapprochementModal = ref(false)
-const rapprochementCompte = ref(null)
 const rapprochements = ref([])
-const rapprochementForm = reactive(defaultRapprochementForm())
 const { sort, toggleSort, sortIcon, sortedRows } = useTableSort('created_at', 'desc')
 
 const overviewCards = computed(() => [
@@ -299,22 +253,10 @@ const sortedComptes = computed(() => sortedRows(comptes.value, {
   statut: (row) => row.is_active ? 1 : 0,
 }))
 
-const rapprochementEcart = computed(() => {
-  return Number(rapprochementForm.solde_reel || 0) - Number(rapprochementCompte.value?.solde_actuel || 0)
-})
-
 let searchTimeout = null
 function onSearchInput() {
   clearTimeout(searchTimeout)
   searchTimeout = setTimeout(() => loadComptes(1), 350)
-}
-
-function defaultRapprochementForm() {
-  return {
-    date_rapprochement: new Date().toISOString().slice(0, 10),
-    solde_reel: 0,
-    justification: '',
-  }
 }
 
 async function loadComptes(page = 1) {
@@ -365,12 +307,7 @@ function openEdit(compte) {
 }
 
 function openRapprochement(compte) {
-  Object.keys(errors).forEach((key) => delete errors[key])
-  rapprochementCompte.value = compte
-  Object.assign(rapprochementForm, defaultRapprochementForm(), {
-    solde_reel: Number(compte.solde_actuel || compte.solde_initial || 0),
-  })
-  showRapprochementModal.value = true
+  router.push({ name: 'tresorerie-rapprochement-create', params: { id: compte.id } })
 }
 
 async function loadRapprochements() {
@@ -384,26 +321,6 @@ async function loadRapprochements() {
     toast.error('Erreur de chargement des rapprochements')
   } finally {
     rapprochementsLoading.value = false
-  }
-}
-
-async function saveRapprochement() {
-  if (!rapprochementCompte.value) return
-  rapprochementSaving.value = true
-  Object.keys(errors).forEach((key) => delete errors[key])
-  try {
-    await api.post(`/tresorerie-comptes/${rapprochementCompte.value.id}/rapprochements`, { ...rapprochementForm })
-    toast.success('Rapprochement enregistré')
-    showRapprochementModal.value = false
-    await Promise.all([loadRapprochements(), loadComptes(meta.current_page), loadStats()])
-  } catch (err) {
-    const data = err.response?.data || {}
-    if (data.errors) {
-      Object.entries(data.errors).forEach(([key, value]) => { errors[key] = Array.isArray(value) ? value[0] : value })
-    }
-    toast.error(data.message || 'Rapprochement impossible')
-  } finally {
-    rapprochementSaving.value = false
   }
 }
 

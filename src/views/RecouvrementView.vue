@@ -201,132 +201,6 @@
       </div>
     </section>
 
-    <AppModal v-model="showSuiviModal" :title="selectedFacture ? `Suivi ${selectedFacture.numero}` : 'Suivi recouvrement'" size="md" centered>
-      <form class="space-y-4" @submit.prevent="saveSuivi">
-        <div v-if="selectedFacture" class="rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-soft,#eef6ff)] p-3 text-sm">
-          <div class="font-bold text-slate-950">{{ selectedFacture.client?.nom }}</div>
-          <div class="mt-1 text-slate-500">
-            Reste à payer : <strong>{{ formatPrice(selectedFacture.reste_a_payer) }}</strong>
-            · Échéance : {{ formatDate(selectedFacture.date_echeance) }}
-          </div>
-        </div>
-
-        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <label class="text-sm font-semibold text-slate-700">
-            Statut recouvrement
-            <select v-model="suiviForm.statut" class="input mt-1 rounded-2xl" required>
-              <option value="a_surveiller">À surveiller</option>
-              <option value="a_relancer">À relancer</option>
-              <option value="relance">Relancé</option>
-              <option value="promesse_paiement">Promesse de paiement</option>
-              <option value="litige">Litige</option>
-              <option value="paye">Payé / clôturé</option>
-            </select>
-          </label>
-          <label class="text-sm font-semibold text-slate-700">
-            Type d’action
-            <select v-model="suiviForm.type_action" class="input mt-1 rounded-2xl" required>
-              <option value="note">Note</option>
-              <option value="relance_email">Relance email</option>
-              <option value="appel">Appel</option>
-              <option value="whatsapp">WhatsApp</option>
-              <option value="promesse_paiement">Promesse paiement</option>
-              <option value="litige">Litige</option>
-              <option value="paiement_recu">Paiement reçu</option>
-              <option value="cloture">Clôture</option>
-            </select>
-          </label>
-          <label class="text-sm font-semibold text-slate-700">
-            Date promise
-            <input v-model="suiviForm.date_promesse" type="date" class="input mt-1 rounded-2xl" />
-          </label>
-          <label class="text-sm font-semibold text-slate-700">
-            Prochain rappel
-            <input v-model="suiviForm.prochain_rappel" type="date" class="input mt-1 rounded-2xl" />
-          </label>
-        </div>
-
-        <label class="text-sm font-semibold text-slate-700">
-          Commentaire
-          <textarea v-model="suiviForm.commentaire" rows="4" class="input mt-1 rounded-2xl" placeholder="Ex : client relancé, promesse de virement vendredi, litige sur BL..."></textarea>
-        </label>
-
-        <div class="flex justify-end gap-2">
-          <button type="button" class="btn-secondary rounded-full px-4 py-2" @click="showSuiviModal = false">Annuler</button>
-          <button type="submit" class="btn-primary rounded-full px-4 py-2" :disabled="savingSuivi">
-            {{ savingSuivi ? 'Enregistrement...' : 'Enregistrer le suivi' }}
-          </button>
-        </div>
-      </form>
-    </AppModal>
-
-    <AppModal v-model="showHistoryModal" :title="selectedFacture ? `Historique ${selectedFacture.numero}` : 'Historique recouvrement'" size="lg" centered>
-      <div v-if="historyLoading" class="py-10 text-center text-sm text-slate-500">Chargement de l’historique...</div>
-      <div v-else class="space-y-4">
-        <div v-if="history.facture" class="grid grid-cols-1 gap-3 rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-soft,#eef6ff)] p-3 text-sm sm:grid-cols-3">
-          <div>
-            <p class="text-xs text-slate-500">Client</p>
-            <p class="font-bold text-slate-950">{{ history.facture.client?.nom || '-' }}</p>
-          </div>
-          <div>
-            <p class="text-xs text-slate-500">Reste à payer</p>
-            <p class="font-mono font-black text-[color:var(--saytu-primary,#2563eb)]">{{ formatPrice(history.facture.reste_a_payer) }}</p>
-          </div>
-          <div class="sm:text-right">
-            <p class="text-xs text-slate-500">Échéance</p>
-            <p class="font-bold text-slate-950">{{ formatDate(history.facture.date_echeance) }}</p>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <div>
-            <h3 class="text-sm font-black uppercase tracking-wide text-slate-500">Actions de recouvrement</h3>
-            <div class="mt-2 space-y-2">
-              <div v-if="!history.suivis?.length" class="rounded-2xl border border-dashed border-[color:var(--saytu-border,#e2e8f0)] p-4 text-center text-sm text-slate-500">
-                Aucun suivi enregistré.
-              </div>
-              <div v-for="suivi in history.suivis" :key="suivi.id" class="rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] p-3">
-                <div class="flex items-start justify-between gap-3">
-                  <div>
-                    <p class="font-bold text-slate-950">{{ typeActionLabel(suivi.type_action) }}</p>
-                    <p class="text-xs text-slate-500">{{ statusLabel(suivi.statut) }} · {{ suivi.user?.name || 'Utilisateur' }}</p>
-                  </div>
-                  <span class="text-xs text-slate-400">{{ formatDateTime(suivi.date_action) }}</span>
-                </div>
-                <p v-if="suivi.commentaire" class="mt-2 text-sm text-slate-600">{{ suivi.commentaire }}</p>
-                <div v-if="suivi.date_promesse || suivi.prochain_rappel" class="mt-2 flex flex-wrap gap-2 text-xs">
-                  <span v-if="suivi.date_promesse" class="rounded-full bg-emerald-50 px-2 py-1 font-semibold text-emerald-700">Promesse : {{ formatDate(suivi.date_promesse) }}</span>
-                  <span v-if="suivi.prochain_rappel" class="rounded-full bg-amber-50 px-2 py-1 font-semibold text-amber-700">Rappel : {{ formatDate(suivi.prochain_rappel) }}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <h3 class="text-sm font-black uppercase tracking-wide text-slate-500">Paiements liés</h3>
-            <div class="mt-2 space-y-2">
-              <div v-if="!history.paiements?.length" class="rounded-2xl border border-dashed border-[color:var(--saytu-border,#e2e8f0)] p-4 text-center text-sm text-slate-500">
-                Aucun paiement affecté.
-              </div>
-              <div v-for="paiement in history.paiements" :key="paiement.id" class="rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] p-3">
-                <div class="flex items-start justify-between gap-3">
-                  <div>
-                    <p class="font-mono font-bold text-slate-950">{{ paiement.reference }}</p>
-                    <p class="text-xs text-slate-500">{{ modePaiementLabel(paiement.mode_paiement) }} · {{ formatDate(paiement.date_paiement) }}</p>
-                  </div>
-                  <span class="font-mono font-black text-emerald-700">{{ formatPrice(paiement.montant_affecte || paiement.montant) }}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="flex justify-end gap-2">
-          <button type="button" class="btn-secondary rounded-full px-4 py-2" @click="openFacture(history.facture || selectedFacture)">Ouvrir la facture</button>
-          <button type="button" class="btn-primary rounded-full px-4 py-2" @click="openSuivi(history.facture || selectedFacture)">Ajouter un suivi</button>
-        </div>
-      </div>
-    </AppModal>
   </div>
 </template>
 
@@ -335,7 +209,6 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { AlertTriangle, CalendarClock, CreditCard, FileWarning } from 'lucide-vue-next'
 import api from '@/services/api'
-import AppModal from '@/components/AppModal.vue'
 import EmailActionButtons from '@/components/EmailActionButtons.vue'
 import { useCurrency } from '@/composables/useCurrency'
 import { useToast } from '@/composables/useToast'
@@ -347,9 +220,6 @@ const { amountNoteText, formatMoney } = useCurrency()
 
 const factures = ref([])
 const loading = ref(false)
-const historyLoading = ref(false)
-const savingSuivi = ref(false)
-const relanceLoading = ref(null)
 const quick = ref('')
 const stats = reactive({
   factures_a_suivre: 0,
@@ -374,22 +244,6 @@ const meta = reactive({
   total: 0,
   from: 0,
   to: 0,
-})
-
-const showSuiviModal = ref(false)
-const showHistoryModal = ref(false)
-const selectedFacture = ref(null)
-const history = reactive({
-  facture: null,
-  suivis: [],
-  paiements: [],
-})
-const suiviForm = reactive({
-  statut: 'relance',
-  type_action: 'relance_email',
-  date_promesse: '',
-  prochain_rappel: '',
-  commentaire: '',
 })
 
 let searchTimer = null
@@ -458,17 +312,6 @@ function datePlus(days) {
   return date.toISOString().slice(0, 10)
 }
 
-function resetSuiviForm(overrides = {}) {
-  Object.assign(suiviForm, {
-    statut: 'relance',
-    type_action: 'relance_email',
-    date_promesse: '',
-    prochain_rappel: datePlus(7),
-    commentaire: '',
-    ...overrides,
-  })
-}
-
 function statusLabel(status) {
   return {
     a_surveiller: 'À surveiller',
@@ -491,21 +334,6 @@ function typeActionLabel(type) {
     paiement_recu: 'Paiement reçu',
     cloture: 'Clôture',
   }[type] || type || 'Action'
-}
-
-function modePaiementLabel(mode) {
-  return {
-    especes: 'Espèces',
-    cheque: 'Chèque',
-    virement: 'Virement',
-    virement_bancaire: 'Virement bancaire',
-    carte_bancaire: 'Carte bancaire',
-    wave: 'Wave',
-    orange_money: 'Orange Money',
-    free_money: 'YAS',
-    mobile_money: 'Mobile money',
-    compensation: 'Compensation',
-  }[mode] || mode || 'Paiement'
 }
 
 function riskBadge(level) {
@@ -606,38 +434,16 @@ function goPaiement() {
 
 function openFacture(facture) {
   if (!facture?.id) return
-  router.push({ path: '/factures', query: { open: facture.id } })
+  router.push({ name: 'facture-detail', params: { id: facture.id } })
 }
 
 function openSuivi(facture, overrides = {}) {
-  selectedFacture.value = facture
-  resetSuiviForm(overrides)
-  showHistoryModal.value = false
-  showSuiviModal.value = true
-}
-
-async function saveSuivi() {
-  if (!selectedFacture.value?.id) return
-  savingSuivi.value = true
-  try {
-    const payload = {
-      statut: suiviForm.statut,
-      type_action: suiviForm.type_action,
-      date_promesse: suiviForm.date_promesse || null,
-      prochain_rappel: suiviForm.prochain_rappel || null,
-      commentaire: suiviForm.commentaire || null,
-    }
-    const { data } = await api.post(`/recouvrement/factures/${selectedFacture.value.id}/suivis`, payload)
-    const index = factures.value.findIndex((item) => Number(item.id) === Number(data.facture?.id))
-    if (index >= 0 && data.facture) factures.value.splice(index, 1, data.facture)
-    toast.success('Suivi enregistré.')
-    showSuiviModal.value = false
-    await loadStats()
-  } catch (error) {
-    toast.error(error.response?.data?.message || 'Impossible d’enregistrer le suivi.')
-  } finally {
-    savingSuivi.value = false
-  }
+  if (!facture?.id) return
+  router.push({
+    name: 'recouvrement-detail',
+    params: { id: facture.id },
+    query: { tab: 'suivi', ...overrides },
+  })
 }
 
 function relanceEmailDraft(facture) {
@@ -683,7 +489,6 @@ async function prepareRelance(facture, mode = 'send') {
   }
 
   const draft = relanceEmailDraft(facture)
-  relanceLoading.value = `${mode}-${facture.id}`
   try {
     if (mode === 'send') {
       await api.post('/emails/send', draft)
@@ -703,29 +508,12 @@ async function prepareRelance(facture, mode = 'send') {
     toast.success(mode === 'send' ? 'Relance envoyée depuis Saytu.' : 'Fichier .eml téléchargé pour Outlook classique.')
   } catch (error) {
     toast.error(error.response?.data?.message || 'Relance impossible.')
-  } finally {
-    relanceLoading.value = null
   }
 }
 
-async function openHistory(facture) {
+function openHistory(facture) {
   if (!facture?.id) return
-  selectedFacture.value = facture
-  showHistoryModal.value = true
-  historyLoading.value = true
-  Object.assign(history, { facture, suivis: [], paiements: [] })
-  try {
-    const { data } = await api.get(`/recouvrement/factures/${facture.id}/historique`)
-    Object.assign(history, {
-      facture: data.facture || facture,
-      suivis: data.suivis || [],
-      paiements: data.paiements || [],
-    })
-  } catch (error) {
-    toast.error(error.response?.data?.message || 'Impossible de charger l’historique.')
-  } finally {
-    historyLoading.value = false
-  }
+  router.push({ name: 'recouvrement-detail', params: { id: facture.id }, query: { tab: 'historique' } })
 }
 
 onMounted(reloadAll)

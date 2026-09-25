@@ -231,11 +231,6 @@
       </div>
     </div>
 
-    <!-- Modal création/édition -->
-    <AppModal v-model="showModal" :title="editingUser ? `Modifier ${editingUser.name}` : 'Nouvel utilisateur'" size="md">
-      <UserForm :user="editingUser" @saved="onSaved" @cancel="showModal = false" />
-    </AppModal>
-
     <!-- Modal mot de passe affiché -->
     <AppModal v-model="showPasswordModal" title="🔑 Mot de passe généré" size="sm">
       <div class="space-y-3">
@@ -291,17 +286,16 @@
 
 <script setup>
 import { computed, ref, reactive, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import api from '@/services/api'
 import AppModal from '@/components/InlinePanelModal.vue'
-import UserForm from '@/components/UserForm.vue'
 import SortableTh from '@/components/SortableTh.vue'
 import { useToast } from '@/composables/useToast'
-import { useAuthStore } from '@/stores/auth'
 import { useTableSort } from '@/composables/useTableSort'
 import { telechargerCSV } from '@/services/exports'
 
 const toast = useToast()
-const auth = useAuthStore()
+const router = useRouter()
 const users = ref([])
 const roleOptions = ref([])
 const { sort, toggleSort, sortIcon, sortedRows } = useTableSort('created_at', 'desc')
@@ -310,9 +304,6 @@ const exportLoading = ref(false)
 const stats = reactive({ total: 0, actifs: 0, par_role: {} })
 const meta = reactive({ current_page: 1, last_page: 1, total: 0, from: 0, to: 0 })
 const filters = reactive({ search: '', role: '', is_active: '' })
-
-const showModal = ref(false)
-const editingUser = ref(null)
 
 const showDeleteModal = ref(false)
 const userToDelete = ref(null)
@@ -537,27 +528,8 @@ async function loadUserActivities(notify = false) {
   }
 }
 
-function openCreate() { editingUser.value = null; showModal.value = true }
-function openEdit(u) { editingUser.value = { ...u }; showModal.value = true }
-
-function onSaved(payload) {
-  showModal.value = false
-  loadUsers(meta.current_page)
-  loadStats()
-  loadUserActivities()
-
-  if (payload.user?.id === auth.user?.id) {
-    auth.user = payload.user
-    localStorage.setItem('xelltekk_user', JSON.stringify(payload.user))
-  }
-
-  // Si un mot de passe a été généré (nouvelle création), l'afficher
-  if (payload.password_genere) {
-    passwordUserName.value = payload.user?.name || ''
-    generatedPassword.value = payload.password_genere
-    showPasswordModal.value = true
-  }
-}
+function openCreate() { router.push({ name: 'utilisateur-create' }) }
+function openEdit(u) { router.push({ name: 'utilisateur-detail', params: { id: u.id } }) }
 
 function confirmDelete(u) { userToDelete.value = u; showDeleteModal.value = true }
 

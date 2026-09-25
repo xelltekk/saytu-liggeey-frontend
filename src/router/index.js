@@ -130,6 +130,16 @@ const routes = [
         component: () => import('@/views/CategoriesProduitsView.vue'),
       },
       {
+        path: 'categories-produits/nouveau',
+        name: 'categorie-produit-create',
+        component: () => import('@/views/CategorieProduitDetailView.vue'),
+      },
+      {
+        path: 'categories-produits/:id',
+        name: 'categorie-produit-detail',
+        component: () => import('@/views/CategorieProduitDetailView.vue'),
+      },
+      {
         path: 'devis',
         name: 'devis',
         component: () => import('@/views/DevisView.vue'),
@@ -173,6 +183,11 @@ const routes = [
         path: 'recouvrement',
         name: 'recouvrement',
         component: () => import('@/views/RecouvrementView.vue'),
+      },
+      {
+        path: 'recouvrement/factures/:id',
+        name: 'recouvrement-detail',
+        component: () => import('@/views/RecouvrementDetailView.vue'),
       },
       {
         path: 'achats',
@@ -265,6 +280,11 @@ const routes = [
         component: () => import('@/views/TresorerieCompteDetailView.vue'),
       },
       {
+        path: 'tresorerie-comptes/:id/rapprochement',
+        name: 'tresorerie-rapprochement-create',
+        component: () => import('@/views/TresorerieRapprochementDetailView.vue'),
+      },
+      {
         path: 'caisse',
         name: 'caisse',
         component: () => import('@/views/CaisseView.vue'),
@@ -273,6 +293,16 @@ const routes = [
         path: 'entrepots',
         name: 'entrepots',
         component: () => import('@/views/EntrepotsView.vue'),
+      },
+      {
+        path: 'entrepots/nouveau',
+        name: 'entrepot-create',
+        component: () => import('@/views/EntrepotDetailView.vue'),
+      },
+      {
+        path: 'entrepots/:id',
+        name: 'entrepot-detail',
+        component: () => import('@/views/EntrepotDetailView.vue'),
       },
       {
         path: 'stock',
@@ -317,6 +347,16 @@ const routes = [
         path: 'utilisateurs',
         name: 'utilisateurs',
         component: () => import('@/views/UtilisateursView.vue'),
+      },
+      {
+        path: 'utilisateurs/nouveau',
+        name: 'utilisateur-create',
+        component: () => import('@/views/UtilisateurDetailView.vue'),
+      },
+      {
+        path: 'utilisateurs/:id',
+        name: 'utilisateur-detail',
+        component: () => import('@/views/UtilisateurDetailView.vue'),
       },
       {
         path: 'roles-permissions',
