@@ -245,6 +245,11 @@ const routes = [
         component: () => import('@/views/DepensesView.vue'),
       },
       {
+        path: 'depenses/nouveau',
+        name: 'depense-create',
+        component: () => import('@/views/DepenseDetailView.vue'),
+      },
+      {
         path: 'tresorerie-comptes',
         name: 'tresorerie-comptes',
         component: () => import('@/views/TresorerieComptesView.vue'),
