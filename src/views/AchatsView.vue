@@ -60,7 +60,7 @@
         <div class="achat-mini-panel">
           <h4>Top fournisseurs</h4>
           <div v-for="row in achatDashboard.top_fournisseurs" :key="row.id" class="achat-mini-row">
-            <button type="button" @click="openSupplier360(row.id)">{{ row.nom }}</button>
+            <button type="button" @click="goToSupplier360(row.id)">{{ row.nom }}</button>
             <span>{{ row.commandes_count }} commande(s) · {{ money(row.montant_total) }}</span>
           </div>
           <p v-if="!achatDashboard.top_fournisseurs.length" class="achat-empty">Aucun achat historisé.</p>
@@ -118,7 +118,7 @@
           <tr v-for="commande in commandes" :key="commande.id">
             <td><button class="font-mono font-semibold text-blue-700 hover:underline" @click="goToCommande(commande)">{{ commande.numero }}</button></td>
             <td>
-              <button v-if="commande.fournisseur?.id" type="button" class="font-black text-[color:var(--saytu-primary,#2563eb)] hover:underline" @click="openSupplier360(commande.fournisseur.id)">{{ commande.fournisseur?.nom || '-' }}</button>
+              <button v-if="commande.fournisseur?.id" type="button" class="font-black text-[color:var(--saytu-primary,#2563eb)] hover:underline" @click="goToSupplier360(commande.fournisseur.id)">{{ commande.fournisseur?.nom || '-' }}</button>
               <strong v-else>{{ commande.fournisseur?.nom || '-' }}</strong>
               <p class="text-xs text-slate-500">{{ commande.objet || 'Sans objet' }}</p>
             </td>
@@ -400,46 +400,6 @@
       </div>
     </AppModal>
 
-    <AppModal v-model="showSupplier360" title="Fiche fournisseur 360" size="lg">
-      <div v-if="loadingSupplier360" class="py-10 text-center text-sm text-slate-500">Chargement fournisseur...</div>
-      <div v-else-if="supplier360.fournisseur" class="space-y-4">
-        <div class="rounded-xl border border-cyan-200 bg-cyan-50 p-4 text-cyan-950">
-          <h3 class="text-lg font-black">{{ supplier360.fournisseur.nom }}</h3>
-          <p class="text-sm">{{ supplier360.fournisseur.code || '-' }} · {{ supplier360.fournisseur.email || 'Email non renseigné' }} · {{ supplier360.fournisseur.telephone || supplier360.fournisseur.mobile || 'Téléphone non renseigné' }}</p>
-        </div>
-        <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-          <div v-for="card in supplier360Cards" :key="card.label" class="rounded-xl border border-slate-200 bg-white p-3">
-            <span class="text-xs font-black uppercase tracking-wide text-slate-500">{{ card.label }}</span>
-            <strong class="block text-lg font-black text-slate-900">{{ card.value }}</strong>
-          </div>
-        </div>
-        <div class="grid gap-3 xl:grid-cols-2">
-          <div class="achat-mini-panel">
-            <h4>Dernières commandes</h4>
-            <div v-for="row in supplier360.commandes" :key="row.id" class="achat-mini-row">
-              <button type="button" @click="goToCommande(row); showSupplier360 = false">{{ row.numero }}</button>
-              <span>{{ statusLabel(row.statut) }} · {{ money(row.total_ttc) }}</span>
-            </div>
-            <p v-if="!supplier360.commandes?.length" class="achat-empty">Aucune commande.</p>
-          </div>
-          <div class="achat-mini-panel">
-            <h4>Factures récentes</h4>
-            <div v-for="row in supplier360.factures" :key="row.id" class="achat-mini-row">
-              <button type="button" @click="goToInvoice(row)">{{ row.numero }}</button>
-              <span>{{ statusInvoiceLabel(row.statut) }} · reste {{ money(row.reste_a_payer) }}</span>
-            </div>
-            <p v-if="!supplier360.factures?.length" class="achat-empty">Aucune facture.</p>
-          </div>
-        </div>
-        <div class="achat-mini-panel">
-          <h4>Produits rattachés au fournisseur</h4>
-          <div class="flex flex-wrap gap-2">
-            <span v-for="product in supplier360.produits" :key="product.id" class="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">{{ product.reference }} · {{ product.libelle }}</span>
-            <span v-if="!supplier360.produits?.length" class="achat-empty">Aucun produit rattaché.</span>
-          </div>
-        </div>
-      </div>
-    </AppModal>
   </div>
 </template>
 
@@ -474,9 +434,7 @@ const showDetails = ref(false)
 const showPerformance = ref(false)
 const showRequests = ref(false)
 const showReports = ref(false)
-const showSupplier360 = ref(false)
 const loadingDashboard = ref(false)
-const loadingSupplier360 = ref(false)
 const loadingPerformance = ref(false)
 const loadingReferentiels = ref(false)
 const referentielsError = ref('')
@@ -486,7 +444,6 @@ const selectedReturn = ref(null)
 const supplierPerformance = ref([])
 const demands = ref([])
 const achatDashboard = reactive({ kpis: {}, top_fournisseurs: [], commandes_retard: [], factures_urgentes: [], litiges: [] })
-const supplier360 = reactive({ fournisseur: null, resume: {}, commandes: [], factures: [], reglements: [], retours: [], produits: [] })
 const stats = reactive({ total: 0, a_approuver: 0, a_receptionner: 0, recues_mois: 0, engagement_total: 0 })
 const demandStats = reactive({ total: 0, brouillons: 0, a_approuver: 0, approuvees: 0, urgentes: 0 })
 const meta = reactive({})
@@ -531,12 +488,6 @@ const dashboardCards = computed(() => [
   { key: 'dette', label: 'Dette fournisseurs', value: money(achatDashboard.kpis.dette_fournisseurs), hint: 'Reste à payer', color: 'text-violet-700', action: 'invoice' },
   { key: 'factures', label: 'Factures en retard', value: achatDashboard.kpis.factures_en_retard || 0, hint: 'À régler', color: 'text-orange-700', action: 'invoice' },
   { key: 'litiges', label: 'Litiges ouverts', value: achatDashboard.kpis.litiges_ouverts || 0, hint: 'Retours sans avoir', color: 'text-rose-700', action: 'report' },
-])
-const supplier360Cards = computed(() => [
-  { label: 'Commandes', value: supplier360.resume?.commandes || 0 },
-  { label: 'Volume achats', value: money(supplier360.resume?.montant_achats) },
-  { label: 'Reste à payer', value: money(supplier360.resume?.reste_a_payer) },
-  { label: 'Litiges ouverts', value: supplier360.resume?.litiges_ouverts || 0 },
 ])
 const demandStatCards = computed(() => [
   { key: 'total', label: 'Demandes', value: demandStats.total, color: 'text-slate-900' },
@@ -692,27 +643,9 @@ function goToDebtPilotage() {
   router.push({ path: '/fournisseurs-reglements', query: { tab: 'pilotage' } })
 }
 
-async function openSupplier360(id) {
+function goToSupplier360(id) {
   if (!id) return
-  loadingSupplier360.value = true
-  showSupplier360.value = true
-  try {
-    const { data } = await api.get(`/achats/fournisseurs/${id}/360`)
-    Object.assign(supplier360, {
-      fournisseur: data.fournisseur || null,
-      resume: data.resume || {},
-      commandes: data.commandes || [],
-      factures: data.factures || [],
-      reglements: data.reglements || [],
-      retours: data.retours || [],
-      produits: data.produits || [],
-    })
-  } catch (e) {
-    toast.error(e.response?.data?.message || 'Impossible de charger la fiche fournisseur.')
-    showSupplier360.value = false
-  } finally {
-    loadingSupplier360.value = false
-  }
+  router.push({ name: 'achat-fournisseur-360', params: { id } })
 }
 async function downloadAchatReport(report) {
   try {
