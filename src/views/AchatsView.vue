@@ -163,20 +163,12 @@
       </section>
       <section class="overflow-x-auto rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-surface,#ffffff)]">
         <table class="w-full min-w-[1150px]"><thead><tr><th>N°</th><th>Demandeur</th><th>Besoin</th><th>Objet</th><th>Priorité</th><th class="text-right">Estimation</th><th>Statut</th><th>Commande</th><th class="text-right">Actions</th></tr></thead><tbody>
-          <tr v-for="demand in demands" :key="demand.id"><td><button class="font-mono font-semibold text-blue-700 hover:underline" @click="goToDemand(demand)">{{ demand.numero }}</button></td><td><strong>{{ demand.demandeur?.name || '-' }}</strong><p class="text-xs text-slate-500">{{ demand.service_demandeur || 'Service non précisé' }}</p></td><td>{{ formatDate(demand.date_besoin) }}</td><td><strong>{{ demand.objet }}</strong><p class="text-xs text-slate-500">{{ demand.lignes?.length || 0 }} ligne(s)</p></td><td><span class="badge" :class="priorityClass(demand.priorite)">{{ priorityLabel(demand.priorite) }}</span></td><td class="text-right font-semibold">{{ money(demand.montant_estime) }}</td><td><span class="badge" :class="demandStatusClass(demand.statut)">{{ demandStatusLabel(demand.statut) }}</span><p v-if="demand.motif_rejet" class="mt-1 max-w-48 truncate text-xs text-red-600" :title="demand.motif_rejet">{{ demand.motif_rejet }}</p></td><td><button v-if="demand.commande" class="font-mono text-blue-700 hover:underline" @click="goToCommande(demand.commande)">{{ demand.commande.numero }}</button><span v-else>-</span></td><td><div class="flex justify-end gap-2"><button v-if="demand.statut === 'brouillon'" class="text-blue-700" @click="editDemand(demand)">Modifier</button><button v-if="demand.statut === 'brouillon'" class="text-indigo-700" @click="submitDemand(demand)">Soumettre</button><button v-if="demand.statut === 'soumise' && canApprove" class="text-green-700" @click="approveDemand(demand)">Approuver</button><button v-if="demand.statut === 'soumise' && canApprove" class="text-red-600" @click="openRejectDemand(demand)">Rejeter</button><button v-if="demand.statut === 'approuvee' && canApprove" class="text-violet-700" @click="openConvertDemand(demand)">Convertir</button><button v-if="demand.statut === 'brouillon'" class="text-red-600" @click="deleteDemand(demand)"><Trash2 :size="16" /></button></div></td></tr>
+          <tr v-for="demand in demands" :key="demand.id"><td><button class="font-mono font-semibold text-blue-700 hover:underline" @click="goToDemand(demand)">{{ demand.numero }}</button></td><td><strong>{{ demand.demandeur?.name || '-' }}</strong><p class="text-xs text-slate-500">{{ demand.service_demandeur || 'Service non précisé' }}</p></td><td>{{ formatDate(demand.date_besoin) }}</td><td><strong>{{ demand.objet }}</strong><p class="text-xs text-slate-500">{{ demand.lignes?.length || 0 }} ligne(s)</p></td><td><span class="badge" :class="priorityClass(demand.priorite)">{{ priorityLabel(demand.priorite) }}</span></td><td class="text-right font-semibold">{{ money(demand.montant_estime) }}</td><td><span class="badge" :class="demandStatusClass(demand.statut)">{{ demandStatusLabel(demand.statut) }}</span><p v-if="demand.motif_rejet" class="mt-1 max-w-48 truncate text-xs text-red-600" :title="demand.motif_rejet">{{ demand.motif_rejet }}</p></td><td><button v-if="demand.commande" class="font-mono text-blue-700 hover:underline" @click="goToCommande(demand.commande)">{{ demand.commande.numero }}</button><span v-else>-</span></td><td><div class="flex justify-end gap-2"><button v-if="demand.statut === 'brouillon'" class="text-blue-700" @click="editDemand(demand)">Modifier</button><button v-if="demand.statut === 'brouillon'" class="text-indigo-700" @click="submitDemand(demand)">Soumettre</button><button v-if="demand.statut === 'soumise' && canApprove" class="text-green-700" @click="approveDemand(demand)">Approuver</button><button v-if="demand.statut === 'soumise' && canApprove" class="text-red-600" @click="goToDemand(demand, 'fiche', 'reject')">Rejeter</button><button v-if="demand.statut === 'approuvee' && canApprove" class="text-violet-700" @click="goToDemand(demand, 'conversion')">Convertir</button><button v-if="demand.statut === 'brouillon'" class="text-red-600" @click="deleteDemand(demand)"><Trash2 :size="16" /></button></div></td></tr>
           <tr v-if="!demands.length"><td colspan="9" class="py-12 text-center text-slate-400">Aucune demande d’achat.</td></tr>
         </tbody></table>
         <AppPagination v-if="demandMeta.total" :meta="demandMeta" label="demandes d’achat" @page="loadDemands" />
       </section>
     </template>
-
-    <AppModal v-model="showDemandReject" title="Rejeter la demande" size="md">
-      <form class="space-y-4" @submit.prevent="rejectDemand"><p class="text-sm text-slate-600">Demande <strong>{{ selectedDemand?.numero }}</strong></p><label class="field-label">Motif du rejet<textarea v-model="rejectReason" rows="4" class="input" required></textarea></label><div class="flex justify-end gap-2"><button type="button" class="btn-secondary" @click="showDemandReject = false">Annuler</button><button class="btn-primary bg-red-600" :disabled="saving">Confirmer le rejet</button></div></form>
-    </AppModal>
-
-    <AppModal v-model="showDemandConvert" title="Convertir en bon de commande" size="md">
-      <form class="space-y-4" @submit.prevent="convertDemand"><div class="rounded-lg border border-violet-200 bg-violet-50 p-3 text-sm text-violet-900"><strong>{{ selectedDemand?.numero }}</strong><p>{{ selectedDemand?.objet }} · {{ money(selectedDemand?.montant_estime) }}</p></div><label class="field-label">Fournisseur<select v-model.number="convertForm.fournisseur_id" class="input" required><option :value="null">Choisir</option><option v-for="supplier in referentiels.fournisseurs" :key="supplier.id" :value="supplier.id">{{ supplier.code }} - {{ supplier.nom }}</option></select></label><label class="field-label">Entrepôt prévu<select v-model.number="convertForm.entrepot_id" class="input"><option :value="null">À définir</option><option v-for="warehouse in referentiels.entrepots" :key="warehouse.id" :value="warehouse.id">{{ warehouse.code }} - {{ warehouse.libelle }}</option></select></label><div class="grid grid-cols-2 gap-3"><label class="field-label">Date commande<input v-model="convertForm.date_commande" type="date" class="input" required /></label><label class="field-label">Livraison prévue<input v-model="convertForm.date_livraison_prevue" type="date" class="input" /></label></div><div class="flex justify-end gap-2"><button type="button" class="btn-secondary" @click="showDemandConvert = false">Annuler</button><button class="btn-primary" :disabled="saving">Créer le bon de commande</button></div></form>
-    </AppModal>
 
     <AppModal v-model="showForm" :title="editingId ? 'Modifier le bon de commande' : 'Nouveau bon de commande'" size="xl">
       <div v-if="referentielsError" class="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
@@ -499,8 +491,6 @@ const showPerformance = ref(false)
 const showRequests = ref(false)
 const showReports = ref(false)
 const showSupplier360 = ref(false)
-const showDemandReject = ref(false)
-const showDemandConvert = ref(false)
 const loadingDashboard = ref(false)
 const loadingSupplier360 = ref(false)
 const loadingPerformance = ref(false)
@@ -512,8 +502,6 @@ const selectedReturn = ref(null)
 const selectedEvaluationOrder = ref(null)
 const supplierPerformance = ref([])
 const demands = ref([])
-const selectedDemand = ref(null)
-const rejectReason = ref('')
 const achatDashboard = reactive({ kpis: {}, top_fournisseurs: [], commandes_retard: [], factures_urgentes: [], litiges: [] })
 const supplier360 = reactive({ fournisseur: null, resume: {}, commandes: [], factures: [], reglements: [], retours: [], produits: [] })
 const stats = reactive({ total: 0, a_approuver: 0, a_receptionner: 0, recues_mois: 0, engagement_total: 0 })
@@ -540,7 +528,6 @@ const invoiceForm = reactive({ reference_fournisseur: '', date_facture: new Date
 const returnForm = reactive({ date_retour: new Date().toISOString().slice(0, 10), motif: 'defectueux', litige_statut: 'ouvert', notes: '', lignes: [] })
 const creditForm = reactive({ reference_fournisseur: '', date_avoir: new Date().toISOString().slice(0, 10), notes: '' })
 const evaluationForm = reactive({ date_evaluation: new Date().toISOString().slice(0, 10), note_qualite: 3, note_delai: 3, note_prix: 3, note_service: 3, commentaire: '' })
-const convertForm = reactive({ fournisseur_id: null, entrepot_id: null, date_commande: new Date().toISOString().slice(0, 10), date_livraison_prevue: '' })
 const evaluationCriteria = [{ key: 'note_qualite', label: 'Qualité' }, { key: 'note_delai', label: 'Délais' }, { key: 'note_prix', label: 'Prix' }, { key: 'note_service', label: 'Service' }]
 const reportExports = [
   { label: 'Synthèse achats PDF', url: '/achats/rapport.pdf?type=synthese' },
@@ -772,17 +759,15 @@ async function setAchatsMode(mode) {
 }
 async function refreshDemands() { await Promise.all([loadDemands(demandMeta.current_page || 1), loadDemandStats()]) }
 function openDemandCreate() { router.push({ name: 'achat-demande-create', query: { tab: 'saisie' } }) }
-function goToDemand(demand, tab = 'fiche') {
+function goToDemand(demand, tab = 'fiche', action = null) {
   if (!demand?.id) return
-  router.push({ name: 'achat-demande-detail', params: { id: demand.id }, query: { tab } })
+  const query = { tab }
+  if (action) query.action = action
+  router.push({ name: 'achat-demande-detail', params: { id: demand.id }, query })
 }
 function editDemand(demand) { goToDemand(demand, 'saisie') }
 async function submitDemand(demand) { if (!await askConfirm({ message: 'Soumettre ' + demand.numero + ' pour approbation ?', tone: 'primary' })) return; try { await api.post('/achats/demandes/' + demand.id + '/soumettre'); toast.success('Demande soumise.'); await refreshDemands() } catch (e) { toast.error(e.response?.data?.message || 'Soumission impossible.') } }
 async function approveDemand(demand) { if (!await askConfirm({ message: 'Approuver ' + demand.numero + ' ?', tone: 'primary' })) return; try { await api.post('/achats/demandes/' + demand.id + '/approuver'); toast.success('Demande approuvée.'); await refreshDemands() } catch (e) { toast.error(e.response?.data?.message || 'Approbation impossible.') } }
-function openRejectDemand(demand) { selectedDemand.value = demand; rejectReason.value = ''; showDemandReject.value = true }
-async function rejectDemand() { saving.value = true; try { await api.post('/achats/demandes/' + selectedDemand.value.id + '/rejeter', { motif_rejet: rejectReason.value }); toast.success('Demande rejetée.'); showDemandReject.value = false; await refreshDemands() } catch (e) { toast.error(e.response?.data?.message || 'Rejet impossible.') } finally { saving.value = false } }
-function openConvertDemand(demand) { selectedDemand.value = demand; Object.assign(convertForm, { fournisseur_id: null, entrepot_id: null, date_commande: new Date().toISOString().slice(0, 10), date_livraison_prevue: demand.date_besoin ? String(demand.date_besoin).slice(0, 10) : '' }); showDemandConvert.value = true }
-async function convertDemand() { saving.value = true; try { const { data } = await api.post('/achats/demandes/' + selectedDemand.value.id + '/convertir', { ...convertForm, entrepot_id: convertForm.entrepot_id || null, date_livraison_prevue: convertForm.date_livraison_prevue || null }); toast.success('Bon de commande ' + data.numero + ' créé en brouillon.'); showDemandConvert.value = false; await Promise.all([refreshDemands(), refresh()]) } catch (e) { toast.error(Object.values(e.response?.data?.errors || {})[0]?.[0] || e.response?.data?.message || 'Conversion impossible.') } finally { saving.value = false } }
 async function deleteDemand(demand) { if (!await askConfirm({ message: 'Supprimer le brouillon ' + demand.numero + ' ?', tone: 'danger', confirmLabel: 'Supprimer' })) return; try { await api.delete('/achats/demandes/' + demand.id); toast.success('Demande supprimée.'); await refreshDemands() } catch (e) { toast.error(e.response?.data?.message || 'Suppression impossible.') } }
 async function loadCommandes(page = 1) { try { const { data } = await api.get('/achats/commandes', { params: { page, per_page: 20, ...filters, fournisseur_id: filters.fournisseur_id || undefined } }); commandes.value = data.data || []; Object.assign(meta, data) } catch (e) { toast.error(e.response?.data?.message || 'Impossible de charger les achats.') } }
 async function refresh(page = meta.current_page || 1) { await Promise.all([loadCommandes(page), loadStats(), loadDashboard()]) }

@@ -299,6 +299,7 @@ watch(() => route.query.tab, (tab) => {
   const next = typeof tab === 'string' ? tab : (isCreate.value ? 'saisie' : 'fiche')
   if (visibleTabs.value.some((item) => item.key === next)) activeTab.value = next
 }, { immediate: true })
+watch(() => route.query.action, applyRouteAction)
 
 function emptyLine() {
   return { key: ++lineKey, produit_id: null, quantite: 1, prix_estime_ht: 0, notes: '' }
@@ -353,6 +354,7 @@ async function loadDemande() {
       date_commande: new Date().toISOString().slice(0, 10),
       date_livraison_prevue: data.date_besoin ? String(data.date_besoin).slice(0, 10) : '',
     })
+    applyRouteAction()
   } catch (error) {
     toast.error(error.response?.data?.message || 'Demande d’achat introuvable.')
     router.replace({ name: 'achats', query: { demandes: 1 } })
@@ -382,7 +384,23 @@ function fillFormFromDemande(row) {
 
 function setTab(tab) {
   activeTab.value = tab
-  router.replace({ query: { ...route.query, tab } })
+  router.replace({ query: routeQueryWithoutAction({ tab }) })
+}
+
+function routeQueryWithoutAction(extra = {}) {
+  const query = { ...route.query }
+  delete query.action
+  return { ...query, ...extra }
+}
+
+function applyRouteAction() {
+  if (route.query.action !== 'reject' || !demande.value) return
+
+  activeTab.value = 'fiche'
+  if (demande.value.statut === 'soumise' && canApprove.value) {
+    showRejectBox.value = true
+  }
+  router.replace({ query: routeQueryWithoutAction({ tab: 'fiche' }) })
 }
 
 function goBack() {
@@ -454,7 +472,7 @@ async function saveDemand() {
       await api.put(`/achats/demandes/${route.params.id}`, payload)
       toast.success('Demande d’achat mise à jour.')
       activeTab.value = 'fiche'
-      await router.replace({ query: { ...route.query, tab: 'fiche' } })
+      await router.replace({ query: routeQueryWithoutAction({ tab: 'fiche' }) })
       await loadDemande()
     }
   } catch (error) {
