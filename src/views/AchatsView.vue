@@ -170,233 +170,14 @@
       </section>
     </template>
 
-    <AppModal v-model="showForm" :title="editingId ? 'Modifier le bon de commande' : 'Nouveau bon de commande'" size="xl">
-      <div v-if="referentielsError" class="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-        {{ referentielsError }}
-      </div>
-      <form class="space-y-4" @submit.prevent="saveCommande">
-        <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <label class="field-label md:col-span-2">Fournisseur
-            <select v-model.number="form.fournisseur_id" class="input" required><option :value="null">{{ loadingReferentiels ? 'Chargement des fournisseurs...' : 'Choisir un fournisseur' }}</option><option v-if="!loadingReferentiels && !referentiels.fournisseurs.length" disabled>Aucun fournisseur disponible</option><option v-for="f in referentiels.fournisseurs" :key="f.id" :value="f.id">{{ f.code }} - {{ f.nom }}</option></select>
-          </label>
-          <label class="field-label">Date commande<input v-model="form.date_commande" type="date" class="input" required /></label>
-          <label class="field-label">Livraison prévue<input v-model="form.date_livraison_prevue" type="date" class="input" /></label>
-          <label class="field-label md:col-span-2">Objet<input v-model="form.objet" class="input" placeholder="Ex. Réapprovisionnement mensuel" /></label>
-          <label class="field-label">Entrepôt prévu<select v-model.number="form.entrepot_id" class="input"><option :value="null">À définir à la réception</option><option v-for="e in referentiels.entrepots" :key="e.id" :value="e.id">{{ e.code }} - {{ e.libelle }}</option></select></label>
-          <label class="field-label">Devise<select v-model="form.devise" class="input"><option>XOF</option><option>EUR</option><option>USD</option></select></label>
-        </div>
-
-        <div class="border-y border-slate-200 py-4">
-          <div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div><h3 class="font-bold text-slate-900">Produits commandés</h3><p class="text-sm text-slate-500">Les prix d’achat sont préremplis depuis les fiches produits.</p></div>
-            <div class="flex gap-2"><input v-model="productSearch" class="input sm:w-72" placeholder="Filtrer les produits..." /><button type="button" class="btn-secondary inline-flex items-center gap-2" @click="addLine"><Plus :size="16" /> Ligne</button></div>
-          </div>
-          <div class="space-y-2.5">
-            <div v-for="(line, index) in form.lignes" :key="line.key" class="document-line-card">
-              <div class="mb-2 flex items-center justify-between gap-2">
-                <span class="rounded-full px-2.5 py-1 text-xs font-bold" style="background: color-mix(in srgb, var(--saytu-primary) 10%, var(--saytu-surface)); color: var(--saytu-primary);">Ligne {{ index + 1 }}</span>
-                <div class="flex items-center gap-1">
-                  <button type="button" class="document-line-order-button" :disabled="index === 0 || form.lignes.length < 2" title="Monter la ligne" @click="moveLine(index, -1)">↑ Monter</button>
-                  <button type="button" class="document-line-order-button" :disabled="index === form.lignes.length - 1 || form.lignes.length < 2" title="Descendre la ligne" @click="moveLine(index, 1)">↓ Descendre</button>
-                  <button type="button" class="document-line-delete-button" title="Supprimer la ligne" @click="removeLine(index)"><Trash2 :size="18" /></button>
-                </div>
-              </div>
-              <div class="grid items-end gap-2 lg:grid-cols-[minmax(260px,1fr)_110px_150px_110px_150px]">
-                <label class="block"><span class="document-line-label">Produit</span><select v-model.number="line.produit_id" class="input" required @change="selectProduct(line)"><option :value="null">{{ loadingReferentiels ? 'Chargement des produits...' : 'Choisir un produit' }}</option><option v-if="!loadingReferentiels && !referentiels.produits.length" disabled>Aucun produit disponible</option><option v-for="p in visibleProducts(line)" :key="p.id" :value="p.id">{{ p.reference }} - {{ p.libelle }}</option></select></label>
-                <label class="block"><span class="document-line-label">Quantité</span><input v-model.number="line.quantite" type="number" min="0.001" step="0.001" class="input text-right" required /></label>
-                <label class="block"><span class="document-line-label">Prix achat HT</span><input v-model.number="line.prix_unitaire_ht" type="number" min="0" step="1" class="input text-right" required /></label>
-                <label class="block"><span class="document-line-label">TVA %</span><input v-model.number="line.taux_tva" type="number" min="0" max="100" step="0.01" class="input text-right" /></label>
-                <div><span class="document-line-label">Total TTC</span><div class="document-line-total">{{ money(lineTotal(line)) }}</div></div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="grid gap-4 md:grid-cols-[1fr_320px]">
-          <label class="field-label">Notes<textarea v-model="form.notes" rows="4" class="input" placeholder="Conditions, références ou instructions au fournisseur"></textarea></label>
-          <div class="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm">
-            <div class="flex justify-between"><span>Total HT</span><strong>{{ money(orderTotals.ht) }}</strong></div>
-            <div class="mt-2 flex justify-between"><span>TVA</span><strong>{{ money(orderTotals.tva) }}</strong></div>
-            <div class="mt-3 flex justify-between border-t border-slate-300 pt-3 text-lg"><span>Total TTC</span><strong class="text-blue-700">{{ money(orderTotals.ttc) }}</strong></div>
-          </div>
-        </div>
-        <div class="flex justify-end gap-2"><button type="button" class="btn-secondary" @click="showForm = false">Annuler</button><button class="btn-primary" :disabled="saving">{{ saving ? 'Enregistrement...' : 'Enregistrer le brouillon' }}</button></div>
-      </form>
-    </AppModal>
-
-    <AppModal v-model="showReception" title="Réception fournisseur" size="lg">
-      <form class="space-y-4" @submit.prevent="saveReception">
-        <div class="rounded-lg border border-slate-200 bg-slate-50 p-3"><strong>{{ selected?.numero }}</strong><span class="ml-2 text-sm text-slate-500">{{ selected?.fournisseur?.nom }}</span></div>
-        <div class="grid gap-3 md:grid-cols-2">
-          <label class="field-label">Entrepôt<select v-model.number="receptionForm.entrepot_id" class="input" required @change="receptionForm.emplacement_id = null"><option :value="null">Choisir</option><option v-for="e in referentiels.entrepots" :key="e.id" :value="e.id">{{ e.code }} - {{ e.libelle }}</option></select></label>
-          <label class="field-label">Emplacement<select v-model.number="receptionForm.emplacement_id" class="input"><option :value="null">Sans emplacement</option><option v-for="e in receptionEmplacements" :key="e.id" :value="e.id">{{ e.label }}</option></select></label>
-          <label class="field-label">Date réception<input v-model="receptionForm.date_reception" type="date" class="input" required /></label>
-          <label class="field-label">N° BL fournisseur<input v-model="receptionForm.reference_bl" class="input" placeholder="Ex: BL-2026-001" /></label>
-          <label class="field-label">Contrôle qualité
-            <select v-model="receptionForm.controle_qualite" class="input">
-              <option value="conforme">Conforme</option>
-              <option value="reserve">Avec réserve</option>
-              <option value="non_conforme">Non conforme</option>
-            </select>
-          </label>
-          <label class="field-label">Notes<input v-model="receptionForm.notes" class="input" placeholder="Observation rapide..." /></label>
-          <label class="field-label md:col-span-2">Réserve réception<textarea v-model="receptionForm.reserve_reception" rows="2" class="input" placeholder="Décrire l’écart, produit abîmé, quantité litigieuse..."></textarea></label>
-        </div>
-        <div class="overflow-x-auto rounded-lg border border-slate-200">
-          <table class="w-full"><thead><tr><th>Produit</th><th class="text-right">Commandé</th><th class="text-right">Déjà reçu</th><th class="text-right">Reliquat</th><th class="text-right">À recevoir</th></tr></thead><tbody>
-            <tr v-for="line in receptionForm.lignes" :key="line.ligne_id"><td><strong>{{ line.designation }}</strong><p class="text-xs text-slate-500">{{ line.reference }}</p></td><td class="text-right">{{ number(line.commande) }}</td><td class="text-right">{{ number(line.deja_recu) }}</td><td class="text-right">{{ number(line.restant) }}</td><td><input v-model.number="line.quantite" type="number" min="0" :max="line.restant" step="0.001" class="input ml-auto w-32 text-right" /></td></tr>
-          </tbody></table>
-        </div>
-        <div class="flex justify-end gap-2"><button type="button" class="btn-secondary" @click="showReception = false">Annuler</button><button class="btn-primary inline-flex items-center gap-2" :disabled="saving"><PackageCheck :size="18" /> Enregistrer la réception</button></div>
-      </form>
-    </AppModal>
-
-    <AppModal v-model="showInvoice" title="Générer la facture fournisseur" size="md">
-      <form class="space-y-4" @submit.prevent="saveInvoice">
-        <div class="rounded-lg border border-violet-200 bg-violet-50 p-3 text-sm text-violet-900">
-          <strong>{{ selected?.numero }}</strong>
-          <span class="ml-2">{{ selected?.fournisseur?.nom }}</span>
-          <p class="mt-1">Montant à facturer : <strong>{{ money(selected?.total_ttc) }}</strong></p>
-        </div>
-        <div class="grid gap-3 md:grid-cols-2">
-          <label class="field-label md:col-span-2">Référence de la facture fournisseur
-            <input v-model="invoiceForm.reference_fournisseur" class="input" placeholder="N° figurant sur la facture reçue" required />
-          </label>
-          <label class="field-label">Date facture
-            <input v-model="invoiceForm.date_facture" type="date" class="input" required />
-          </label>
-          <label class="field-label">Date échéance
-            <input v-model="invoiceForm.date_echeance" type="date" class="input" />
-          </label>
-          <label class="field-label">Statut
-            <select v-model="invoiceForm.statut" class="input">
-              <option value="validee">Validée et comptabilisée</option>
-              <option value="brouillon">Brouillon</option>
-            </select>
-          </label>
-          <label class="field-label md:col-span-2">Notes
-            <textarea v-model="invoiceForm.notes" rows="3" class="input" placeholder="Informations complémentaires"></textarea>
-          </label>
-        </div>
-        <p class="text-xs text-slate-500">Le fournisseur, les montants et la devise proviennent automatiquement de la commande et ne peuvent pas être altérés.</p>
-        <div class="flex justify-end gap-2">
-          <button type="button" class="btn-secondary" @click="showInvoice = false">Annuler</button>
-          <button class="btn-primary" :disabled="saving">{{ saving ? 'Génération...' : 'Générer la facture' }}</button>
-        </div>
-      </form>
-    </AppModal>
-
-    <AppModal v-model="showReturn" title="Retour fournisseur" size="lg">
-      <form class="space-y-4" @submit.prevent="saveReturn">
-        <div class="rounded-lg border border-orange-200 bg-orange-50 p-3 text-sm text-orange-900">
-          <strong>{{ selectedReturnReception?.numero }}</strong>
-          <span class="ml-2">{{ selected?.fournisseur?.nom }}</span>
-          <p class="mt-1">Le stock sera diminué dès la validation du retour.</p>
-        </div>
-        <div class="grid gap-3 md:grid-cols-3">
-          <label class="field-label">Date retour<input v-model="returnForm.date_retour" type="date" class="input" required /></label>
-          <label class="field-label">Motif
-            <select v-model="returnForm.motif" class="input" required>
-              <option value="defectueux">Produit défectueux</option>
-              <option value="non_conforme">Non conforme</option>
-              <option value="excedent">Excédent livré</option>
-              <option value="erreur">Erreur de commande</option>
-              <option value="autre">Autre</option>
-            </select>
-          </label>
-          <label class="field-label">Litige
-            <select v-model="returnForm.litige_statut" class="input">
-              <option value="ouvert">Ouvert</option>
-              <option value="en_attente_avoir">En attente d’avoir</option>
-              <option value="clos">Clos</option>
-            </select>
-          </label>
-          <label class="field-label">Notes<input v-model="returnForm.notes" class="input" placeholder="Précisions sur le retour" /></label>
-        </div>
-        <div class="overflow-x-auto rounded-lg border border-slate-200">
-          <table class="w-full"><thead><tr><th>Produit</th><th class="text-right">Reçu</th><th class="text-right">Déjà retourné</th><th class="text-right">Disponible</th><th class="text-right">À retourner</th></tr></thead><tbody>
-            <tr v-for="line in returnForm.lignes" :key="line.reception_ligne_id">
-              <td><strong>{{ line.designation }}</strong><p class="text-xs text-slate-500">{{ line.reference }}</p></td>
-              <td class="text-right">{{ number(line.recu) }}</td><td class="text-right">{{ number(line.deja_retourne) }}</td><td class="text-right">{{ number(line.disponible) }}</td>
-              <td><input v-model.number="line.quantite" type="number" min="0" :max="line.disponible" step="0.001" class="input ml-auto w-32 text-right" /></td>
-            </tr>
-          </tbody></table>
-        </div>
-        <div class="flex justify-end gap-2"><button type="button" class="btn-secondary" @click="showReturn = false; showDetails = true">Annuler</button><button class="btn-primary" :disabled="saving">{{ saving ? 'Validation...' : 'Valider le retour' }}</button></div>
-      </form>
-    </AppModal>
-
-    <AppModal v-model="showCredit" title="Générer l'avoir fournisseur" size="md">
-      <form class="space-y-4" @submit.prevent="saveCredit">
-        <div class="rounded-lg border border-violet-200 bg-violet-50 p-3 text-sm text-violet-900">
-          <strong>{{ selectedReturn?.numero }}</strong>
-          <p class="mt-1">Montant de l'avoir : <strong>{{ money(selectedReturn?.total_ttc) }}</strong></p>
-          <p>L'avoir réduira automatiquement le reste à payer de la facture liée.</p>
-        </div>
-        <label class="field-label">Référence fournisseur<input v-model="creditForm.reference_fournisseur" class="input" placeholder="Référence figurant sur l'avoir reçu" /></label>
-        <label class="field-label">Date avoir<input v-model="creditForm.date_avoir" type="date" class="input" required /></label>
-        <label class="field-label">Notes<textarea v-model="creditForm.notes" rows="3" class="input"></textarea></label>
-        <div class="flex justify-end gap-2"><button type="button" class="btn-secondary" @click="showCredit = false; showDetails = true">Annuler</button><button class="btn-primary" :disabled="saving">{{ saving ? 'Génération...' : 'Générer et comptabiliser' }}</button></div>
-      </form>
-    </AppModal>
-
-    <AppModal v-model="showDetails" title="Détail du bon de commande" size="lg">
-      <div v-if="selected" class="space-y-4">
-        <div class="grid grid-cols-2 gap-3 md:grid-cols-4"><div><span class="caption">Numéro</span><strong>{{ selected.numero }}</strong></div><div><span class="caption">Fournisseur</span><strong>{{ selected.fournisseur?.nom }}</strong></div><div><span class="caption">Statut</span><span class="badge" :class="statusClass(selected.statut)">{{ statusLabel(selected.statut) }}</span></div><div><span class="caption">Total TTC</span><strong>{{ money(selected.total_ttc) }}</strong></div></div>
-        <div><button class="btn-secondary inline-flex items-center gap-2" @click="downloadOrderPdf(selected)"><FileDown :size="17" /> Télécharger le bon de commande</button></div>
-        <div class="overflow-x-auto rounded-lg border border-slate-200"><table class="w-full"><thead><tr><th>Produit</th><th class="text-right">Qté</th><th class="text-right">Reçue</th><th class="text-right">PU HT</th><th class="text-right">Total TTC</th></tr></thead><tbody><tr v-for="line in selected.lignes" :key="line.id"><td>{{ line.reference }} - {{ line.designation }}</td><td class="text-right">{{ number(line.quantite) }}</td><td class="text-right">{{ number(line.quantite_recue) }}</td><td class="text-right">{{ money(line.prix_unitaire_ht) }}</td><td class="text-right">{{ money(line.total_ttc) }}</td></tr></tbody></table></div>
-        <div v-if="selected.facture_fournisseur" class="rounded-lg border border-violet-200 bg-violet-50 p-3 text-sm text-violet-900">
-          <div class="flex flex-wrap items-center justify-between gap-2">
-            <span>Facture liée : <strong class="font-mono">{{ selected.facture_fournisseur.numero }}</strong> · {{ statusInvoiceLabel(selected.facture_fournisseur.statut) }} · Avoirs {{ money(selected.facture_fournisseur.montant_avoirs) }} · Reste {{ money(selected.facture_fournisseur.reste_a_payer) }}</span>
-            <button class="font-semibold text-violet-700 hover:underline" @click="goToInvoice(selected.facture_fournisseur)">Ouvrir la facture</button>
-          </div>
-        </div>
-        <div class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-          <div class="flex flex-wrap items-center justify-between gap-2">
-            <span v-if="selected.evaluation_fournisseur">Évaluation fournisseur : <strong>{{ selected.evaluation_fournisseur.note_moyenne }} / 5</strong> · {{ selected.evaluation_fournisseur.evaluateur?.name }}</span>
-            <span v-else>Ce fournisseur n'a pas encore été évalué pour cette commande.</span>
-            <button v-if="selected.statut === 'recue' && canEvaluate" class="font-semibold text-amber-800 hover:underline" @click="goToCommande(selected, 'evaluation')">{{ selected.evaluation_fournisseur ? 'Modifier' : 'Évaluer' }}</button>
-          </div>
-        </div>
-        <div v-if="selected.receptions?.length">
-          <h3 class="font-bold text-slate-900">Réceptions et retours</h3>
-          <div class="mt-2 divide-y divide-slate-100 rounded-lg border border-slate-200">
-            <div v-for="r in selected.receptions" :key="r.id" class="p-3 text-sm">
-              <div class="flex flex-wrap items-center justify-between gap-2">
-                <span><strong>{{ r.numero }}</strong> · {{ formatDate(r.date_reception) }} · {{ r.entrepot?.libelle }}</span>
-                <span class="flex items-center gap-3">
-                  <button v-if="canReturn && availableReturnLines(r).length" class="font-semibold text-orange-700 hover:underline" @click="openReturn(r)">Retourner</button>
-                  <button class="inline-flex items-center gap-1 font-semibold text-cyan-700 hover:underline" @click="downloadReceptionPdf(r)"><FileDown :size="15" /> PDF BR</button>
-                </span>
-              </div>
-              <div class="mt-2 flex flex-wrap gap-2 text-xs">
-                <span class="rounded-full bg-slate-100 px-2 py-1 font-bold text-slate-700">BL : {{ r.reference_bl || '-' }}</span>
-                <span class="rounded-full px-2 py-1 font-bold" :class="qualityBadge(r.controle_qualite)">Contrôle : {{ qualityLabel(r.controle_qualite) }}</span>
-                <span v-if="r.reserve_reception" class="rounded-full bg-amber-100 px-2 py-1 font-bold text-amber-800">Réserve : {{ r.reserve_reception }}</span>
-              </div>
-              <div v-if="r.retours?.length" class="mt-3 space-y-2">
-                <div v-for="retour in r.retours" :key="retour.id" class="flex flex-wrap items-center justify-between gap-2 rounded-md border border-orange-200 bg-orange-50 p-2 text-orange-900">
-                  <span><strong class="font-mono">{{ retour.numero }}</strong> · {{ formatDate(retour.date_retour) }} · {{ motifRetourLabel(retour.motif) }} · {{ litigeLabel(retour.litige_statut) }} · {{ money(retour.total_ttc) }}</span>
-                  <span v-if="retour.avoir" class="font-semibold text-violet-700">Avoir {{ retour.avoir.numero }}</span>
-                  <button v-else-if="canCredit && selected.facture_fournisseur" class="font-semibold text-violet-700 hover:underline" @click="openCredit(retour)">Générer l'avoir</button>
-                  <span v-else-if="!selected.facture_fournisseur" class="text-xs text-slate-500">Facture requise pour l'avoir</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </AppModal>
-
   </div>
 </template>
 
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { FileDown, PackageCheck, Plus, Trash2 } from 'lucide-vue-next'
+import { FileDown, Plus, Trash2 } from 'lucide-vue-next'
 import api from '@/services/api'
-import AppModal from '@/components/InlinePanelModal.vue'
 import AppPagination from '@/components/AppPagination.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
@@ -410,24 +191,12 @@ const { confirm: askConfirm } = useConfirm()
 const router = useRouter()
 const route = useRoute()
 const commandes = ref([])
-const selected = ref(null)
-const editingId = ref(null)
-const saving = ref(false)
-const showForm = ref(false)
-const showReception = ref(false)
-const showInvoice = ref(false)
-const showReturn = ref(false)
-const showCredit = ref(false)
-const showDetails = ref(false)
 const showPerformance = ref(false)
 const showRequests = ref(false)
 const loadingDashboard = ref(false)
 const loadingPerformance = ref(false)
 const loadingReferentiels = ref(false)
 const referentielsError = ref('')
-const productSearch = ref('')
-const selectedReturnReception = ref(null)
-const selectedReturn = ref(null)
 const supplierPerformance = ref([])
 const demands = ref([])
 const achatDashboard = reactive({ kpis: {}, top_fournisseurs: [], commandes_retard: [], factures_urgentes: [], litiges: [] })
@@ -443,17 +212,7 @@ const demandStatuses = ['brouillon', 'soumise', 'approuvee', 'rejetee', 'convert
 const canApprove = computed(() => hasAnyRole(auth.user, ['admin', 'gerant', 'comptable']))
 const canReceive = computed(() => hasAnyRole(auth.user, ['admin', 'gerant', 'magasinier']))
 const canInvoice = computed(() => hasAnyRole(auth.user, ['admin', 'gerant', 'comptable']))
-const canReturn = computed(() => hasAnyRole(auth.user, ['admin', 'gerant', 'magasinier']))
-const canCredit = computed(() => hasAnyRole(auth.user, ['admin', 'gerant', 'comptable']))
 const canEvaluate = computed(() => hasAnyRole(auth.user, ['admin', 'gerant', 'magasinier', 'comptable']))
-let lineKey = 0
-const emptyLine = () => ({ key: ++lineKey, produit_id: null, quantite: 1, prix_unitaire_ht: 0, taux_tva: 0 })
-const emptyForm = () => ({ fournisseur_id: null, entrepot_id: null, date_commande: new Date().toISOString().slice(0, 10), date_livraison_prevue: '', objet: '', devise: 'XOF', notes: '', lignes: [emptyLine()] })
-const form = reactive(emptyForm())
-const receptionForm = reactive({ entrepot_id: null, emplacement_id: null, date_reception: new Date().toISOString().slice(0, 10), reference_bl: '', controle_qualite: 'conforme', reserve_reception: '', notes: '', lignes: [] })
-const invoiceForm = reactive({ reference_fournisseur: '', date_facture: new Date().toISOString().slice(0, 10), date_echeance: '', statut: 'validee', notes: '' })
-const returnForm = reactive({ date_retour: new Date().toISOString().slice(0, 10), motif: 'defectueux', litige_statut: 'ouvert', notes: '', lignes: [] })
-const creditForm = reactive({ reference_fournisseur: '', date_avoir: new Date().toISOString().slice(0, 10), notes: '' })
 const statCards = computed(() => [
   { key: 'total', label: 'Commandes', value: stats.total, color: 'text-slate-900' },
   { key: 'soumise', label: 'À approuver', value: stats.a_approuver, color: 'text-amber-700' },
@@ -476,30 +235,17 @@ const demandStatCards = computed(() => [
   { key: 'approuvee', label: 'Approuvées', value: demandStats.approuvees, color: 'text-green-700' },
   { key: 'urgente', label: 'Urgentes', value: demandStats.urgentes, color: 'text-red-700' },
 ])
-const orderTotals = computed(() => form.lignes.reduce((totals, line) => { const ht = Number(line.quantite || 0) * Number(line.prix_unitaire_ht || 0); const tva = ht * Number(line.taux_tva || 0) / 100; totals.ht += ht; totals.tva += tva; totals.ttc += ht + tva; return totals }, { ht: 0, tva: 0, ttc: 0 }))
-const receptionEmplacements = computed(() => { const warehouse = referentiels.entrepots.find(e => Number(e.id) === Number(receptionForm.entrepot_id)); return (warehouse?.zones || []).flatMap(z => (z.emplacements || []).map(e => ({ id: e.id, label: `${z.libelle} / ${e.code}${e.libelle ? ' - ' + e.libelle : ''}` }))) })
 const performanceSummary = computed(() => { const scored = supplierPerformance.value.filter(item => item.score_global !== null); return { count: supplierPerformance.value.length, averageScore: scored.length ? Math.round(scored.reduce((sum, item) => sum + Number(item.score_global), 0) / scored.length) : null, best: scored[0]?.nom || null } })
 
 function money(value) { return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(Number(value || 0))  }
-function number(value) { return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 3 }).format(Number(value || 0)) }
 function formatDate(value) { return value ? new Date(value).toLocaleDateString('fr-FR') : '-' }
 function statusLabel(status) { return { brouillon: 'Brouillon', soumise: 'Soumise', approuvee: 'Approuvée', partiellement_recue: 'Partiellement reçue', recue: 'Reçue', annulee: 'Annulée' }[status] || status }
 function statusClass(status) { return { brouillon: 'bg-slate-100 text-slate-700', soumise: 'bg-amber-100 text-amber-800', approuvee: 'bg-blue-100 text-blue-800', partiellement_recue: 'bg-cyan-100 text-cyan-800', recue: 'bg-green-100 text-green-800', annulee: 'bg-red-100 text-red-700' }[status] || 'bg-slate-100 text-slate-700' }
-function statusInvoiceLabel(status) { return { brouillon: 'Brouillon', validee: 'Validée', partiellement_payee: 'Partiellement payée', payee: 'Payée', annulee: 'Annulée' }[status] || status }
-function qualityLabel(status) { return { conforme: 'Conforme', reserve: 'Avec réserve', non_conforme: 'Non conforme' }[status] || 'Conforme' }
-function qualityBadge(status) { return { conforme: 'bg-emerald-100 text-emerald-800', reserve: 'bg-amber-100 text-amber-800', non_conforme: 'bg-red-100 text-red-700' }[status] || 'bg-emerald-100 text-emerald-800' }
-function litigeLabel(status) { return { ouvert: 'Litige ouvert', en_attente_avoir: 'Avoir attendu', clos: 'Clos' }[status] || 'Litige ouvert' }
 function performanceClass(score) { if (score === null) return 'bg-slate-100 text-slate-600'; if (score >= 80) return 'bg-green-100 text-green-800'; if (score >= 60) return 'bg-amber-100 text-amber-800'; return 'bg-red-100 text-red-800' }
 function demandStatusLabel(status) { return { brouillon: 'Brouillon', soumise: 'Soumise', approuvee: 'Approuvée', rejetee: 'Rejetée', convertie: 'Convertie', annulee: 'Annulée' }[status] || status }
 function demandStatusClass(status) { return { brouillon: 'bg-slate-100 text-slate-700', soumise: 'bg-amber-100 text-amber-800', approuvee: 'bg-green-100 text-green-800', rejetee: 'bg-red-100 text-red-700', convertie: 'bg-blue-100 text-blue-800', annulee: 'bg-slate-100 text-slate-500' }[status] || 'bg-slate-100 text-slate-700' }
 function priorityLabel(value) { return { basse: 'Basse', normale: 'Normale', haute: 'Haute', urgente: 'Urgente' }[value] || value }
 function priorityClass(value) { return { basse: 'bg-slate-100 text-slate-600', normale: 'bg-blue-100 text-blue-700', haute: 'bg-orange-100 text-orange-700', urgente: 'bg-red-100 text-red-700' }[value] || 'bg-slate-100 text-slate-600' }
-function lineTotal(line) { const ht = Number(line.quantite || 0) * Number(line.prix_unitaire_ht || 0); return ht * (1 + Number(line.taux_tva || 0) / 100) }
-function visibleProducts(line) { const term = productSearch.value.trim().toLowerCase(); const filtered = !term ? referentiels.produits : referentiels.produits.filter(p => `${p.reference} ${p.libelle}`.toLowerCase().includes(term)); const current = referentiels.produits.find(p => Number(p.id) === Number(line.produit_id)); return current && !filtered.some(p => p.id === current.id) ? [current, ...filtered] : filtered }
-function selectProduct(line) { const product = referentiels.produits.find(p => Number(p.id) === Number(line.produit_id)); if (!product) return; line.prix_unitaire_ht = Number(product.prix_achat_ht || 0); line.taux_tva = Number(product.taux_tva || 0) }
-function addLine() { form.lignes.push(emptyLine()) }
-function removeLine(index) { if (form.lignes.length === 1) return toast.error('Le bon doit contenir au moins une ligne.'); form.lignes.splice(index, 1) }
-function moveLine(index, direction) { const target = index + direction; if (target < 0 || target >= form.lignes.length) return; const [line] = form.lignes.splice(index, 1); form.lignes.splice(target, 0, line) }
 function statPillClass(card) {
   const active = (card.key === 'total' && !filters.statut) || filters.statut === card.key
   return active ? 'achat-stat-pill-active' : 'achat-stat-pill-idle'
@@ -675,127 +421,10 @@ function goToSupplierInvoiceCreate(row) {
 }
 function openCreate() { router.push({ name: 'achat-commande-create', query: { tab: 'saisie' } }) }
 function editCommande(row) { goToCommande(row, 'saisie') }
-async function saveCommande() { saving.value = true; try { const payload = { ...form, date_livraison_prevue: form.date_livraison_prevue || null, entrepot_id: form.entrepot_id || null, lignes: form.lignes.map(({ produit_id, quantite, prix_unitaire_ht, taux_tva }) => ({ produit_id, quantite, prix_unitaire_ht, taux_tva })) }; if (editingId.value) await api.put(`/achats/commandes/${editingId.value}`, payload); else await api.post('/achats/commandes', payload); toast.success('Bon de commande enregistré.'); showForm.value = false; await refresh() } catch (e) { toast.error(Object.values(e.response?.data?.errors || {})[0]?.[0] || e.response?.data?.message || 'Enregistrement impossible.') } finally { saving.value = false } }
 async function runAction(row, action, message) { try { await api.post(`/achats/commandes/${row.id}/${action}`); toast.success(message); await refresh() } catch (e) { toast.error(Object.values(e.response?.data?.errors || {})[0]?.[0] || e.response?.data?.message || 'Action impossible.') } }
 async function submitCommande(row) { if (await askConfirm({ message: `Soumettre ${row.numero} pour approbation ?`, tone: 'primary' })) runAction(row, 'soumettre', 'Commande soumise.') }
 async function approveCommande(row) { if (await askConfirm({ message: `Approuver ${row.numero} ?`, tone: 'primary' })) runAction(row, 'approuver', 'Commande approuvée.') }
 async function deleteCommande(row) { if (!await askConfirm({ message: `Supprimer le brouillon ${row.numero} ?`, tone: 'danger', confirmLabel: 'Supprimer' })) return; try { await api.delete(`/achats/commandes/${row.id}`); toast.success('Bon de commande supprimé.'); await refresh() } catch (e) { toast.error(e.response?.data?.message || 'Suppression impossible.') } }
-async function openDetails(row) { try { selected.value = (await api.get(`/achats/commandes/${row.id}`)).data; showDetails.value = true } catch (e) { toast.error(e.response?.data?.message || 'Chargement impossible.') } }
-async function openReception(row) { try { selected.value = (await api.get(`/achats/commandes/${row.id}`)).data; const lines = selected.value.lignes.map(l => { const restant = Math.max(0, Number(l.quantite) - Number(l.quantite_recue)); return { ligne_id: l.id, reference: l.reference, designation: l.designation, commande: Number(l.quantite), deja_recu: Number(l.quantite_recue), restant, quantite: restant } }).filter(l => l.restant > 0); Object.assign(receptionForm, { entrepot_id: selected.value.entrepot_id || referentiels.entrepots[0]?.id || null, emplacement_id: null, date_reception: new Date().toISOString().slice(0, 10), reference_bl: '', controle_qualite: 'conforme', reserve_reception: '', notes: '', lignes: lines }); showReception.value = true } catch (e) { toast.error(e.response?.data?.message || 'Chargement impossible.') } }
-async function saveReception() { const lines = receptionForm.lignes.filter(l => Number(l.quantite || 0) > 0).map(l => ({ ligne_id: l.ligne_id, quantite: Number(l.quantite) })); if (!lines.length) return toast.error('Saisissez au moins une quantité reçue.'); saving.value = true; try { await api.post(`/achats/commandes/${selected.value.id}/receptions`, { entrepot_id: receptionForm.entrepot_id, emplacement_id: receptionForm.emplacement_id || null, date_reception: receptionForm.date_reception, reference_bl: receptionForm.reference_bl || null, controle_qualite: receptionForm.controle_qualite || 'conforme', reserve_reception: receptionForm.reserve_reception || null, notes: receptionForm.notes || null, lignes: lines }); toast.success('Réception enregistrée et stock mis à jour.'); showReception.value = false; await Promise.all([refresh(), loadDashboard()]) } catch (e) { toast.error(Object.values(e.response?.data?.errors || {})[0]?.[0] || e.response?.data?.message || 'Réception impossible.') } finally { saving.value = false } }
-
-async function openInvoiceCreate(row) {
-  try {
-    selected.value = (await api.get(`/achats/commandes/${row.id}`)).data
-    Object.assign(invoiceForm, {
-      reference_fournisseur: '',
-      date_facture: new Date().toISOString().slice(0, 10),
-      date_echeance: '',
-      statut: 'validee',
-      notes: `Facture liée à la commande ${selected.value.numero}.`,
-    })
-    showInvoice.value = true
-  } catch (e) {
-    toast.error(e.response?.data?.message || 'Chargement impossible.')
-  }
-}
-
-async function saveInvoice() {
-  saving.value = true
-  try {
-    const { data } = await api.post(`/achats/commandes/${selected.value.id}/facture`, {
-      ...invoiceForm,
-      date_echeance: invoiceForm.date_echeance || null,
-      notes: invoiceForm.notes || null,
-    })
-    toast.success(`Facture fournisseur ${data.numero} générée.`)
-    showInvoice.value = false
-    await refresh()
-  } catch (e) {
-    toast.error(Object.values(e.response?.data?.errors || {})[0]?.[0] || e.response?.data?.message || 'Génération de la facture impossible.')
-  } finally {
-    saving.value = false
-  }
-}
-
-
-function motifRetourLabel(value) {
-  return { defectueux: 'Défectueux', non_conforme: 'Non conforme', excedent: 'Excédent', erreur: 'Erreur', autre: 'Autre' }[value] || value
-}
-
-function availableReturnLines(reception) {
-  const returned = new Map()
-  for (const retour of reception.retours || []) {
-    if (retour.statut !== 'valide') continue
-    for (const line of retour.lignes || []) {
-      returned.set(Number(line.reception_ligne_id), (returned.get(Number(line.reception_ligne_id)) || 0) + Number(line.quantite || 0))
-    }
-  }
-  return (reception.lignes || []).map(line => {
-    const dejaRetourne = returned.get(Number(line.id)) || 0
-    const recu = Number(line.quantite || 0)
-    const commandeLine = line.commande_ligne || {}
-    return {
-      reception_ligne_id: line.id,
-      reference: commandeLine.reference || commandeLine.produit?.reference || '',
-      designation: commandeLine.designation || commandeLine.produit?.libelle || 'Produit',
-      recu,
-      deja_retourne: dejaRetourne,
-      disponible: Math.max(0, recu - dejaRetourne),
-      quantite: 0,
-    }
-  }).filter(line => line.disponible > 0.0001)
-}
-
-function openReturn(reception) {
-  selectedReturnReception.value = reception
-  Object.assign(returnForm, { date_retour: new Date().toISOString().slice(0, 10), motif: 'defectueux', litige_statut: 'ouvert', notes: '', lignes: availableReturnLines(reception) })
-  showDetails.value = false
-  showReturn.value = true
-}
-
-async function saveReturn() {
-  const lignes = returnForm.lignes.filter(line => Number(line.quantite || 0) > 0).map(line => ({ reception_ligne_id: line.reception_ligne_id, quantite: Number(line.quantite) }))
-  if (!lignes.length) return toast.error('Saisissez au moins une quantité à retourner.')
-  saving.value = true
-  try {
-    await api.post('/achats/receptions/' + selectedReturnReception.value.id + '/retours', {
-      date_retour: returnForm.date_retour, motif: returnForm.motif, litige_statut: returnForm.litige_statut || 'ouvert', avoir_attendu: returnForm.litige_statut !== 'clos', notes: returnForm.notes || null, lignes,
-    })
-    toast.success('Retour fournisseur enregistré et stock corrigé.')
-    showReturn.value = false
-    await Promise.all([refresh(), loadDashboard()])
-    await openDetails({ id: selected.value.id })
-  } catch (e) {
-    toast.error(Object.values(e.response?.data?.errors || {})[0]?.[0] || e.response?.data?.message || 'Retour impossible.')
-  } finally {
-    saving.value = false
-  }
-}
-
-function openCredit(retour) {
-  selectedReturn.value = retour
-  Object.assign(creditForm, { reference_fournisseur: '', date_avoir: new Date().toISOString().slice(0, 10), notes: 'Avoir lié au retour ' + retour.numero + '.' })
-  showDetails.value = false
-  showCredit.value = true
-}
-
-async function saveCredit() {
-  saving.value = true
-  try {
-    const { data } = await api.post('/achats/retours/' + selectedReturn.value.id + '/avoir', {
-      ...creditForm, reference_fournisseur: creditForm.reference_fournisseur || null, notes: creditForm.notes || null,
-    })
-    toast.success('Avoir fournisseur ' + data.numero + ' généré et comptabilisé.')
-    showCredit.value = false
-    await Promise.all([refresh(), loadDashboard()])
-    await openDetails({ id: selected.value.id })
-  } catch (e) {
-    toast.error(Object.values(e.response?.data?.errors || {})[0]?.[0] || e.response?.data?.message || 'Génération de l avoir impossible.')
-  } finally {
-    saving.value = false
-  }
-}
 
 function goToInvoice(invoice) {
   router.push({ path: '/fournisseurs-reglements', query: { search: invoice.numero } })
@@ -806,14 +435,6 @@ async function downloadOrderPdf(commande) {
     await ouvrirPDF(`/achats/commandes/${commande.id}/pdf`, `${commande.numero}.pdf`)
   } catch (e) {
     toast.error('Impossible de générer le bon de commande PDF.')
-  }
-}
-
-async function downloadReceptionPdf(reception) {
-  try {
-    await ouvrirPDF(`/achats/receptions/${reception.id}/pdf`, `${reception.numero}.pdf`)
-  } catch (e) {
-    toast.error('Impossible de générer le bon de réception PDF.')
   }
 }
 
