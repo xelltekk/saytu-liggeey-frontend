@@ -165,6 +165,11 @@ const routes = [
         component: () => import('@/views/PaiementsView.vue'),
       },
       {
+        path: 'paiements/nouveau',
+        name: 'paiement-create',
+        component: () => import('@/views/PaiementDetailView.vue'),
+      },
+      {
         path: 'recouvrement',
         name: 'recouvrement',
         component: () => import('@/views/RecouvrementView.vue'),

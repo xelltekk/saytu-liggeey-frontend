@@ -125,10 +125,6 @@
       </div>
     </div>
 
-    <AppModal v-model="showModal" title="Nouveau paiement" size="lg">
-      <PaiementForm @saved="onSaved" @cancel="showModal = false" />
-    </AppModal>
-
     <AppModal v-model="showDeleteModal" title="Supprimer le paiement" size="sm">
       <p class="text-gray-700">Supprimer le paiement <strong>{{ paiementToDelete.reference }}</strong> </p>
       <p class="text-xs text-gray-500 mt-2">Les factures liées seront recalculées automatiquement.</p>
@@ -147,7 +143,6 @@ import { computed, ref, reactive, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '@/services/api'
 import AppModal from '@/components/InlinePanelModal.vue'
-import PaiementForm from '@/components/PaiementForm.vue'
 import SortableTh from '@/components/SortableTh.vue'
 import { useToast } from '@/composables/useToast'
 import { telechargerCSV } from '@/services/exports'
@@ -169,7 +164,6 @@ const stats = reactive({ total: 0, mois: 0, annee: 0 })
 const meta = reactive({ current_page: 1, last_page: 1, total: 0, from: 0, to: 0 })
 const filters = reactive({ search: '', mode_paiement: '', statut: '', date_from: '', date_to: '', period: '' })
 
-const showModal = ref(false)
 const showDeleteModal = ref(false)
 const paiementToDelete = ref(null)
 const deleting = ref(false)
@@ -261,8 +255,7 @@ async function exporterCSV() {
   }
 }
 
-function openCreate() { showModal.value = true }
-function onSaved() { showModal.value = false; loadPaiements(meta.current_page); loadStats() }
+function openCreate() { router.push({ name: 'paiement-create' }) }
 function confirmDelete(p) { paiementToDelete.value = p; showDeleteModal.value = true }
 
 async function downloadReceipt(p) {
