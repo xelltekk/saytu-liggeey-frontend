@@ -30,6 +30,7 @@
           <button v-if="commande.statut === 'soumise' && canApprove" type="button" class="btn-primary" @click="approveCommande">Approuver</button>
           <button v-if="['approuvee', 'partiellement_recue'].includes(commande.statut) && canReceive" type="button" class="btn-primary" @click="goToReception">Réceptionner</button>
           <button v-if="['partiellement_recue', 'recue'].includes(commande.statut) && !commande.facture_fournisseur && canInvoice" type="button" class="btn-primary" @click="goToSupplierInvoiceCreate">Facturer</button>
+          <button v-if="commande.statut === 'recue' && canEvaluate" type="button" class="btn-secondary" @click="setTab('evaluation')">{{ commande.evaluation_fournisseur ? 'Réévaluer' : 'Évaluer' }}</button>
           <button v-if="commande.facture_fournisseur" type="button" class="btn-secondary" @click="goToInvoice(commande.facture_fournisseur)">Voir facture</button>
         </div>
       </div>
@@ -132,6 +133,22 @@
           </div>
         </section>
 
+        <section class="rounded-2xl border border-amber-200 bg-amber-50/70 p-4 text-sm text-amber-950">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p class="text-xs font-black uppercase tracking-[0.2em] text-amber-700">Évaluation fournisseur</p>
+              <p v-if="commande.evaluation_fournisseur" class="mt-2">
+                Note moyenne : <strong>{{ number(commande.evaluation_fournisseur.note_moyenne) }} / 5</strong>
+                <span v-if="commande.evaluation_fournisseur.evaluateur"> · {{ commande.evaluation_fournisseur.evaluateur.name }}</span>
+              </p>
+              <p v-else class="mt-2 text-amber-800">Aucune évaluation enregistrée pour cette commande.</p>
+            </div>
+            <button v-if="commande.statut === 'recue' && canEvaluate" type="button" class="font-semibold text-amber-800 hover:underline" @click="setTab('evaluation')">
+              {{ commande.evaluation_fournisseur ? 'Modifier l’évaluation' : 'Évaluer' }}
+            </button>
+          </div>
+        </section>
+
         <section class="overflow-hidden rounded-2xl border border-slate-200">
           <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-slate-50 px-4 py-3">
             <div>
@@ -187,6 +204,38 @@
           <p v-else class="p-8 text-center text-sm text-slate-400">Aucune réception enregistrée pour cette commande.</p>
         </section>
       </div>
+
+      <form v-else-if="activeTab === 'evaluation' && commande" class="space-y-4 p-4" @submit.prevent="saveEvaluation">
+        <section class="rounded-2xl border border-amber-200 bg-amber-50/70 p-4">
+          <p class="text-xs font-black uppercase tracking-[0.2em] text-amber-700">Évaluation fournisseur</p>
+          <h2 class="mt-2 text-xl font-black text-slate-950">{{ commande.fournisseur?.nom || 'Fournisseur' }}</h2>
+          <p class="mt-1 text-sm text-slate-600">{{ commande.numero }} · {{ money(commande.total_ttc) }}</p>
+        </section>
+
+        <div class="grid gap-3 md:grid-cols-2">
+          <label class="field-label">Date d'évaluation
+            <input v-model="evaluationForm.date_evaluation" type="date" class="input" required />
+          </label>
+          <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-center">
+            <span class="text-sm font-bold text-slate-500">Note moyenne</span>
+            <strong class="ml-2 text-xl text-amber-700">{{ evaluationAverage }} / 5</strong>
+          </div>
+          <label v-for="criterion in evaluationCriteria" :key="criterion.key" class="field-label">{{ criterion.label }}
+            <select v-model.number="evaluationForm[criterion.key]" class="input" required>
+              <option v-for="score in [1, 2, 3, 4, 5]" :key="score" :value="score">{{ score }} / 5</option>
+            </select>
+          </label>
+        </div>
+
+        <label class="field-label">Commentaire
+          <textarea v-model="evaluationForm.commentaire" rows="5" class="input" placeholder="Points forts, difficultés, actions à suivre..."></textarea>
+        </label>
+
+        <div class="flex justify-end gap-2">
+          <button type="button" class="btn-secondary" @click="setTab('fiche')">Annuler</button>
+          <button class="btn-primary" :disabled="saving">{{ saving ? 'Enregistrement...' : 'Enregistrer l’évaluation' }}</button>
+        </div>
+      </form>
 
       <form v-else class="space-y-4 p-4" @submit.prevent="saveCommande">
         <div v-if="referentielsError" class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
@@ -313,12 +362,29 @@ const canReceive = computed(() => hasAnyRole(auth.user, ['admin', 'gerant', 'mag
 const canReturn = computed(() => hasAnyRole(auth.user, ['admin', 'gerant', 'magasinier']))
 const canInvoice = computed(() => hasAnyRole(auth.user, ['admin', 'gerant', 'comptable']))
 const canCredit = computed(() => hasAnyRole(auth.user, ['admin', 'gerant', 'comptable']))
+const canEvaluate = computed(() => hasAnyRole(auth.user, ['admin', 'gerant', 'magasinier', 'comptable']))
 const visibleTabs = computed(() => isCreate.value
   ? [{ key: 'saisie', label: 'Saisie commande' }]
   : [
       { key: 'fiche', label: 'Fiche' },
       ...(commande.value?.statut === 'brouillon' ? [{ key: 'saisie', label: 'Saisie commande' }] : []),
+      ...(commande.value?.statut === 'recue' && canEvaluate.value ? [{ key: 'evaluation', label: 'Évaluation' }] : []),
     ])
+const evaluationCriteria = [
+  { key: 'note_qualite', label: 'Qualité' },
+  { key: 'note_delai', label: 'Délais' },
+  { key: 'note_prix', label: 'Prix' },
+  { key: 'note_service', label: 'Service' },
+]
+const evaluationForm = reactive({
+  date_evaluation: new Date().toISOString().slice(0, 10),
+  note_qualite: 3,
+  note_delai: 3,
+  note_prix: 3,
+  note_service: 3,
+  commentaire: '',
+})
+const evaluationAverage = computed(() => number(evaluationCriteria.reduce((sum, criterion) => sum + Number(evaluationForm[criterion.key] || 0), 0) / evaluationCriteria.length))
 const orderTotals = computed(() => form.lignes.reduce((totals, line) => {
   const ht = Number(line.quantite || 0) * Number(line.prix_unitaire_ht || 0)
   const tva = ht * Number(line.taux_tva || 0) / 100
@@ -387,6 +453,8 @@ async function loadCommande() {
     const { data } = await api.get(`/achats/commandes/${route.params.id}`)
     commande.value = data
     fillFormFromCommande(data)
+    fillEvaluationFromCommande(data)
+    ensureVisibleTab()
   } catch (error) {
     toast.error(error.response?.data?.message || 'Bon de commande introuvable.')
     router.replace({ name: 'achats' })
@@ -415,9 +483,26 @@ function fillFormFromCommande(row) {
   if (!form.lignes.length) form.lignes = [emptyLine()]
 }
 
+function fillEvaluationFromCommande(row) {
+  const evaluation = row?.evaluation_fournisseur
+  Object.assign(evaluationForm, {
+    date_evaluation: evaluation?.date_evaluation ? String(evaluation.date_evaluation).slice(0, 10) : new Date().toISOString().slice(0, 10),
+    note_qualite: Number(evaluation?.note_qualite || 3),
+    note_delai: Number(evaluation?.note_delai || 3),
+    note_prix: Number(evaluation?.note_prix || 3),
+    note_service: Number(evaluation?.note_service || 3),
+    commentaire: evaluation?.commentaire || '',
+  })
+}
+
 function setTab(tab) {
   activeTab.value = tab
   router.replace({ query: { ...route.query, tab } })
+}
+
+function ensureVisibleTab() {
+  if (visibleTabs.value.some((item) => item.key === activeTab.value)) return
+  activeTab.value = isCreate.value ? 'saisie' : 'fiche'
 }
 
 function goBack() {
@@ -544,6 +629,25 @@ async function submitCommande() {
 async function approveCommande() {
   if (await askConfirm({ message: `Approuver ${commande.value.numero} ?`, tone: 'primary' })) {
     await runAction('approuver', 'Commande approuvée.')
+  }
+}
+
+async function saveEvaluation() {
+  if (!commande.value?.id) return
+  saving.value = true
+  try {
+    await api.put(`/achats/commandes/${commande.value.id}/evaluation`, {
+      ...evaluationForm,
+      commentaire: evaluationForm.commentaire || null,
+    })
+    toast.success('Évaluation fournisseur enregistrée.')
+    activeTab.value = 'fiche'
+    await router.replace({ query: { ...route.query, tab: 'fiche' } })
+    await loadCommande()
+  } catch (error) {
+    toast.error(Object.values(error.response?.data?.errors || {})[0]?.[0] || error.response?.data?.message || 'Évaluation impossible.')
+  } finally {
+    saving.value = false
   }
 }
 

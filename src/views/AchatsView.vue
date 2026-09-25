@@ -140,7 +140,7 @@
                 <button v-if="['approuvee', 'partiellement_recue'].includes(commande.statut) && canReceive" class="text-cyan-700" title="Réceptionner" @click="goToReception(commande)">Réceptionner</button>
                 <button v-if="['partiellement_recue', 'recue'].includes(commande.statut) && !commande.facture_fournisseur && canInvoice" class="text-violet-700" title="Générer la facture fournisseur" @click="goToSupplierInvoiceCreate(commande)">Facturer</button>
                 <button v-if="commande.facture_fournisseur" class="text-violet-700" title="Voir la facture fournisseur" @click="goToInvoice(commande.facture_fournisseur)">Voir facture</button>
-                <button v-if="commande.statut === 'recue' && canEvaluate" class="text-amber-700" title="Évaluer le fournisseur" @click="openEvaluation(commande)">{{ commande.evaluation_fournisseur ? 'Réévaluer' : 'Évaluer' }}</button>
+                <button v-if="commande.statut === 'recue' && canEvaluate" class="text-amber-700" title="Évaluer le fournisseur" @click="goToCommande(commande, 'evaluation')">{{ commande.evaluation_fournisseur ? 'Réévaluer' : 'Évaluer' }}</button>
                 <button class="inline-flex items-center gap-1 text-slate-700" title="Télécharger le bon de commande PDF" @click="downloadOrderPdf(commande)"><FileDown :size="16" /> BC</button>
                 <button v-if="commande.statut === 'brouillon'" class="text-red-600" title="Supprimer" @click="deleteCommande(commande)"><Trash2 :size="17" /></button>
               </div>
@@ -340,21 +340,6 @@
       </form>
     </AppModal>
 
-    <AppModal v-model="showEvaluation" title="Évaluer le fournisseur" size="md">
-      <form class="space-y-4" @submit.prevent="saveEvaluation">
-        <div class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"><strong>{{ selectedEvaluationOrder?.numero }}</strong><span class="ml-2">{{ selectedEvaluationOrder?.fournisseur?.nom }}</span></div>
-        <label class="field-label">Date d'évaluation<input v-model="evaluationForm.date_evaluation" type="date" class="input" required /></label>
-        <div class="grid grid-cols-2 gap-3">
-          <label v-for="criterion in evaluationCriteria" :key="criterion.key" class="field-label">{{ criterion.label }}
-            <select v-model.number="evaluationForm[criterion.key]" class="input" required><option v-for="score in [1,2,3,4,5]" :key="score" :value="score">{{ score }} / 5</option></select>
-          </label>
-        </div>
-        <label class="field-label">Commentaire<textarea v-model="evaluationForm.commentaire" rows="4" class="input" placeholder="Points forts, difficultés, actions à suivre..."></textarea></label>
-        <div class="rounded-lg bg-slate-50 p-3 text-center"><span class="text-sm text-slate-500">Note moyenne</span><strong class="ml-2 text-xl text-amber-700">{{ evaluationAverage }} / 5</strong></div>
-        <div class="flex justify-end gap-2"><button type="button" class="btn-secondary" @click="showEvaluation = false; showDetails = Boolean(selected)">Annuler</button><button class="btn-primary" :disabled="saving">{{ saving ? 'Enregistrement...' : 'Enregistrer l’évaluation' }}</button></div>
-      </form>
-    </AppModal>
-
     <AppModal v-model="showDetails" title="Détail du bon de commande" size="lg">
       <div v-if="selected" class="space-y-4">
         <div class="grid grid-cols-2 gap-3 md:grid-cols-4"><div><span class="caption">Numéro</span><strong>{{ selected.numero }}</strong></div><div><span class="caption">Fournisseur</span><strong>{{ selected.fournisseur?.nom }}</strong></div><div><span class="caption">Statut</span><span class="badge" :class="statusClass(selected.statut)">{{ statusLabel(selected.statut) }}</span></div><div><span class="caption">Total TTC</span><strong>{{ money(selected.total_ttc) }}</strong></div></div>
@@ -370,7 +355,7 @@
           <div class="flex flex-wrap items-center justify-between gap-2">
             <span v-if="selected.evaluation_fournisseur">Évaluation fournisseur : <strong>{{ selected.evaluation_fournisseur.note_moyenne }} / 5</strong> · {{ selected.evaluation_fournisseur.evaluateur?.name }}</span>
             <span v-else>Ce fournisseur n'a pas encore été évalué pour cette commande.</span>
-            <button v-if="selected.statut === 'recue' && canEvaluate" class="font-semibold text-amber-800 hover:underline" @click="openEvaluation(selected)">{{ selected.evaluation_fournisseur ? 'Modifier' : 'Évaluer' }}</button>
+            <button v-if="selected.statut === 'recue' && canEvaluate" class="font-semibold text-amber-800 hover:underline" @click="goToCommande(selected, 'evaluation')">{{ selected.evaluation_fournisseur ? 'Modifier' : 'Évaluer' }}</button>
           </div>
         </div>
         <div v-if="selected.receptions?.length">
@@ -485,7 +470,6 @@ const showReception = ref(false)
 const showInvoice = ref(false)
 const showReturn = ref(false)
 const showCredit = ref(false)
-const showEvaluation = ref(false)
 const showDetails = ref(false)
 const showPerformance = ref(false)
 const showRequests = ref(false)
@@ -499,7 +483,6 @@ const referentielsError = ref('')
 const productSearch = ref('')
 const selectedReturnReception = ref(null)
 const selectedReturn = ref(null)
-const selectedEvaluationOrder = ref(null)
 const supplierPerformance = ref([])
 const demands = ref([])
 const achatDashboard = reactive({ kpis: {}, top_fournisseurs: [], commandes_retard: [], factures_urgentes: [], litiges: [] })
@@ -527,8 +510,6 @@ const receptionForm = reactive({ entrepot_id: null, emplacement_id: null, date_r
 const invoiceForm = reactive({ reference_fournisseur: '', date_facture: new Date().toISOString().slice(0, 10), date_echeance: '', statut: 'validee', notes: '' })
 const returnForm = reactive({ date_retour: new Date().toISOString().slice(0, 10), motif: 'defectueux', litige_statut: 'ouvert', notes: '', lignes: [] })
 const creditForm = reactive({ reference_fournisseur: '', date_avoir: new Date().toISOString().slice(0, 10), notes: '' })
-const evaluationForm = reactive({ date_evaluation: new Date().toISOString().slice(0, 10), note_qualite: 3, note_delai: 3, note_prix: 3, note_service: 3, commentaire: '' })
-const evaluationCriteria = [{ key: 'note_qualite', label: 'Qualité' }, { key: 'note_delai', label: 'Délais' }, { key: 'note_prix', label: 'Prix' }, { key: 'note_service', label: 'Service' }]
 const reportExports = [
   { label: 'Synthèse achats PDF', url: '/achats/rapport.pdf?type=synthese' },
   { label: 'Fournisseurs PDF', url: '/achats/rapport.pdf?type=fournisseurs' },
@@ -566,7 +547,6 @@ const demandStatCards = computed(() => [
 ])
 const orderTotals = computed(() => form.lignes.reduce((totals, line) => { const ht = Number(line.quantite || 0) * Number(line.prix_unitaire_ht || 0); const tva = ht * Number(line.taux_tva || 0) / 100; totals.ht += ht; totals.tva += tva; totals.ttc += ht + tva; return totals }, { ht: 0, tva: 0, ttc: 0 }))
 const receptionEmplacements = computed(() => { const warehouse = referentiels.entrepots.find(e => Number(e.id) === Number(receptionForm.entrepot_id)); return (warehouse?.zones || []).flatMap(z => (z.emplacements || []).map(e => ({ id: e.id, label: `${z.libelle} / ${e.code}${e.libelle ? ' - ' + e.libelle : ''}` }))) })
-const evaluationAverage = computed(() => number(evaluationCriteria.reduce((sum, criterion) => sum + Number(evaluationForm[criterion.key] || 0), 0) / evaluationCriteria.length))
 const performanceSummary = computed(() => { const scored = supplierPerformance.value.filter(item => item.score_global !== null); return { count: supplierPerformance.value.length, averageScore: scored.length ? Math.round(scored.reduce((sum, item) => sum + Number(item.score_global), 0) / scored.length) : null, best: scored[0]?.nom || null } })
 
 function money(value) { return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(Number(value || 0))  }
@@ -905,32 +885,6 @@ async function saveCredit() {
   } finally {
     saving.value = false
   }
-}
-
-function openEvaluation(order) {
-  selectedEvaluationOrder.value = order
-  const evaluation = order.evaluation_fournisseur
-  Object.assign(evaluationForm, {
-    date_evaluation: evaluation?.date_evaluation ? String(evaluation.date_evaluation).slice(0, 10) : new Date().toISOString().slice(0, 10),
-    note_qualite: Number(evaluation?.note_qualite || 3), note_delai: Number(evaluation?.note_delai || 3),
-    note_prix: Number(evaluation?.note_prix || 3), note_service: Number(evaluation?.note_service || 3), commentaire: evaluation?.commentaire || '',
-  })
-  showDetails.value = false
-  showEvaluation.value = true
-}
-
-async function saveEvaluation() {
-  saving.value = true
-  try {
-    await api.put('/achats/commandes/' + selectedEvaluationOrder.value.id + '/evaluation', { ...evaluationForm, commentaire: evaluationForm.commentaire || null })
-    toast.success('Évaluation fournisseur enregistrée.')
-    showEvaluation.value = false
-    await refresh()
-    if (showPerformance.value) await loadPerformance()
-    if (selected.value?.id === selectedEvaluationOrder.value.id) await openDetails({ id: selected.value.id })
-  } catch (e) {
-    toast.error(Object.values(e.response?.data?.errors || {})[0]?.[0] || e.response?.data?.message || 'Évaluation impossible.')
-  } finally { saving.value = false }
 }
 
 function goToInvoice(invoice) {
