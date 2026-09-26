@@ -1,12 +1,14 @@
 <template>
-  <div class="relative">
+  <div ref="root" class="relative">
     <input
       v-model="search"
       type="search"
       class="input"
       :required="required && !modelValue"
       :placeholder="placeholder"
+      autocomplete="off"
       @focus="openDropdown"
+      @blur="closeDropdownSoon"
       @keydown.escape="open = false"
     />
 
@@ -39,13 +41,13 @@
       </button>
 
       <div v-if="loading" class="px-3 py-3 text-sm text-gray-500">Recherche...</div>
-      <div v-else-if="results.length === 0" class="px-3 py-3 text-sm text-gray-500">Aucun client trouve</div>
+      <div v-else-if="results.length === 0" class="px-3 py-3 text-sm text-gray-500">Aucun client trouvé</div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { onBeforeUnmount, ref, watch } from 'vue'
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import api from '@/services/api'
 
 const props = defineProps({
@@ -58,16 +60,20 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue', 'selected', 'cleared'])
 
 const search = ref('')
+const root = ref(null)
 const open = ref(false)
 const loading = ref(false)
 const results = ref([])
 const selectedClient = ref(null)
 let timer = null
+let suppressSearchWatch = false
+let suppressTimer = null
 
 watch(() => props.clients, syncSelectedFromOptions, { immediate: true })
 watch(() => props.modelValue, syncSelectedFromOptions, { immediate: true })
 
 watch(search, (value) => {
+  if (suppressSearchWatch) return
   if (selectedClient.value && value === clientLabel(selectedClient.value)) return
   if (selectedClient.value) {
     selectedClient.value = null
@@ -81,14 +87,17 @@ watch(search, (value) => {
 async function syncSelectedFromOptions() {
   if (!props.modelValue) {
     selectedClient.value = null
-    search.value = ''
+    setSearchSilently('')
+    open.value = false
+    results.value = []
     return
   }
 
   const current = props.clients.find(client => Number(client.id) === Number(props.modelValue))
   if (current) {
     selectedClient.value = current
-    search.value = clientLabel(current)
+    setSearchSilently(clientLabel(current))
+    open.value = false
     return
   }
 
@@ -96,7 +105,8 @@ async function syncSelectedFromOptions() {
     try {
       const { data } = await api.get(`/clients/${props.modelValue}`)
       selectedClient.value = data
-      search.value = clientLabel(data)
+      setSearchSilently(clientLabel(data))
+      open.value = false
     } catch {
       selectedClient.value = null
     }
@@ -147,5 +157,33 @@ function clearSelection() {
   loadClients()
 }
 
-onBeforeUnmount(() => clearTimeout(timer))
+function setSearchSilently(value) {
+  suppressSearchWatch = true
+  clearTimeout(suppressTimer)
+  search.value = value
+  suppressTimer = setTimeout(() => {
+    suppressSearchWatch = false
+  }, 0)
+}
+
+function closeDropdownSoon() {
+  setTimeout(() => {
+    if (!root.value?.contains(document.activeElement)) {
+      open.value = false
+    }
+  }, 120)
+}
+
+function onDocumentMouseDown(event) {
+  if (root.value && !root.value.contains(event.target)) {
+    open.value = false
+  }
+}
+
+onMounted(() => document.addEventListener('mousedown', onDocumentMouseDown))
+onBeforeUnmount(() => {
+  document.removeEventListener('mousedown', onDocumentMouseDown)
+  clearTimeout(timer)
+  clearTimeout(suppressTimer)
+})
 </script>
