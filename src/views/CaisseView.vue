@@ -420,8 +420,33 @@
                   </button>
                 </div>
                 <p class="text-xs text-slate-500">
-                  Les 4 boutons rapides restent fixes. Les nouveaux moyens apparaissent ici et dans le paiement fractionné.
+                  Le bloc reste limité à 4 boutons, mais vous pouvez choisir quels moyens apparaissent en raccourci.
                 </p>
+                <div class="rounded-2xl border border-sky-100 bg-white/80 p-3">
+                  <div class="flex items-center justify-between gap-3">
+                    <p class="text-xs font-black uppercase tracking-wide text-sky-700">Boutons rapides</p>
+                    <span class="text-[11px] font-bold text-slate-400">4 maximum</span>
+                  </div>
+                  <div class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <label v-for="slot in 4" :key="`quick-mode-${slot}`" class="space-y-1 text-xs font-bold text-slate-500">
+                      <span>Bouton {{ slot }}</span>
+                      <select
+                        class="input rounded-full text-sm"
+                        :value="modesPaiementRapidesCodes[slot - 1]"
+                        @change="changerModePaiementRapide(slot - 1, $event.target.value)"
+                      >
+                        <option
+                          v-for="mode in modesPaiementDisponibles"
+                          :key="`quick-${slot}-${mode.value}`"
+                          :value="mode.value"
+                          :disabled="modePaiementRapideDejaSelectionne(mode.value, slot - 1)"
+                        >
+                          {{ mode.label }}
+                        </option>
+                      </select>
+                    </label>
+                  </div>
+                </div>
                 <div v-if="modesPaiementSecondaires.length" class="flex flex-wrap gap-2">
                   <button
                     v-for="mode in modesPaiementSecondaires"
@@ -912,6 +937,7 @@ const caisseTabs = computed(() => [
   { key: 'cloture', label: 'Clôture', badge: '' },
 ])
 const customPaymentModesStorageKey = 'saytu:caisse:modes-paiement-personnalises'
+const quickPaymentModesStorageKey = 'saytu:caisse:modes-paiement-rapides'
 const modesPaiementBase = [
   { value: 'especes', label: 'Espèces' },
   { value: 'wave', label: 'Wave' },
@@ -925,7 +951,7 @@ const modesPaiementBase = [
   { value: 'autre', label: 'Autre' },
 ]
 const modesPaiementPersonnalises = ref(chargerModesPaiementPersonnalises())
-const modesPaiementRapides = computed(() => modesPaiementBase.slice(0, 4))
+const modesPaiementRapidesCodes = ref(chargerModesPaiementRapides())
 const modesPaiementDisponibles = computed(() => {
   const seen = new Set()
   return [...modesPaiementBase, ...modesPaiementPersonnalises.value]
@@ -935,7 +961,13 @@ const modesPaiementDisponibles = computed(() => {
       return true
     })
 })
-const modesPaiementSecondaires = computed(() => modesPaiementDisponibles.value.slice(4))
+const modesPaiementRapides = computed(() => normaliserModesPaiementRapides(modesPaiementRapidesCodes.value)
+  .map(value => modesPaiementDisponibles.value.find(mode => mode.value === value))
+  .filter(Boolean))
+const modesPaiementSecondaires = computed(() => {
+  const rapides = new Set(modesPaiementRapides.value.map(mode => mode.value))
+  return modesPaiementDisponibles.value.filter(mode => !rapides.has(mode.value))
+})
 
 const ecartPrevu = computed(() => {
   return Number(closeForm.solde_fermeture_reel || 0) - Number(session.value.solde_fermeture_theorique || 0)
@@ -1043,15 +1075,87 @@ function sauvegarderModesPaiementPersonnalises() {
   window.localStorage.setItem(customPaymentModesStorageKey, JSON.stringify(modesPaiementPersonnalises.value))
 }
 
+function chargerModesPaiementRapides() {
+  if (typeof window === 'undefined') return modesPaiementBase.slice(0, 4).map(mode => mode.value)
+
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(quickPaymentModesStorageKey) || '[]')
+    return Array.isArray(parsed) && parsed.length
+      ? parsed.map(mode => String(mode || '').trim()).filter(Boolean)
+      : modesPaiementBase.slice(0, 4).map(mode => mode.value)
+  } catch (e) {
+    return modesPaiementBase.slice(0, 4).map(mode => mode.value)
+  }
+}
+
+function sauvegarderModesPaiementRapides() {
+  if (typeof window === 'undefined') return
+
+  window.localStorage.setItem(quickPaymentModesStorageKey, JSON.stringify(modesPaiementRapidesCodes.value))
+}
+
+function normaliserModesPaiementRapides(codes = []) {
+  const disponibles = modesPaiementDisponibles.value.map(mode => mode.value)
+  const defaults = modesPaiementBase.slice(0, 4).map(mode => mode.value)
+  const rapides = []
+
+  ;[...codes, ...defaults, ...disponibles].forEach((value) => {
+    if (rapides.length >= 4) return
+    if (!value || !disponibles.includes(value) || rapides.includes(value)) return
+    rapides.push(value)
+  })
+
+  return rapides
+}
+
+function appliquerPayloadModesPaiement(data) {
+  if (Array.isArray(data?.personnalises)) {
+    modesPaiementPersonnalises.value = data.personnalises
+    sauvegarderModesPaiementPersonnalises()
+  }
+
+  if (Array.isArray(data?.rapides)) {
+    modesPaiementRapidesCodes.value = normaliserModesPaiementRapides(data.rapides)
+    sauvegarderModesPaiementRapides()
+  } else {
+    modesPaiementRapidesCodes.value = normaliserModesPaiementRapides(modesPaiementRapidesCodes.value)
+    sauvegarderModesPaiementRapides()
+  }
+}
+
 async function chargerModesPaiementServeur() {
   try {
     const { data } = await api.get('/caisse/modes-paiement')
-    if (Array.isArray(data.personnalises)) {
-      modesPaiementPersonnalises.value = data.personnalises
-      sauvegarderModesPaiementPersonnalises()
-    }
+    appliquerPayloadModesPaiement(data)
   } catch (e) {
     // Le cache local garde la caisse utilisable si l'API n'est pas encore migrée.
+  }
+}
+
+function modePaiementRapideDejaSelectionne(value, index) {
+  return normaliserModesPaiementRapides(modesPaiementRapidesCodes.value)
+    .some((selected, selectedIndex) => selected === value && selectedIndex !== index)
+}
+
+async function changerModePaiementRapide(index, value) {
+  if (!value || modePaiementRapideDejaSelectionne(value, index)) {
+    toast.error('Ce moyen est déjà utilisé dans les 4 boutons rapides.')
+    return
+  }
+
+  const rapides = normaliserModesPaiementRapides(modesPaiementRapidesCodes.value)
+  rapides[index] = value
+  modesPaiementRapidesCodes.value = normaliserModesPaiementRapides(rapides)
+  sauvegarderModesPaiementRapides()
+
+  try {
+    const { data } = await api.put('/caisse/modes-paiement/rapides', {
+      modes: modesPaiementRapidesCodes.value,
+    })
+    appliquerPayloadModesPaiement(data)
+    toast.success('Boutons rapides mis à jour.')
+  } catch (e) {
+    toast.error(e.response?.data?.message || 'Raccourcis enregistrés sur ce poste uniquement.')
   }
 }
 
@@ -1103,10 +1207,7 @@ async function ajouterModePaiement() {
 
   try {
     const { data } = await api.post('/caisse/modes-paiement', { label })
-    if (Array.isArray(data.personnalises)) {
-      modesPaiementPersonnalises.value = data.personnalises
-      sauvegarderModesPaiementPersonnalises()
-    }
+    appliquerPayloadModesPaiement(data)
     if (data.mode?.value) {
       mode = data.mode
     }
@@ -1127,7 +1228,9 @@ async function ajouterModePaiement() {
 
 async function supprimerModePaiement(value) {
   modesPaiementPersonnalises.value = modesPaiementPersonnalises.value.filter(mode => mode.value !== value)
+  modesPaiementRapidesCodes.value = normaliserModesPaiementRapides(modesPaiementRapidesCodes.value.filter(mode => mode !== value))
   sauvegarderModesPaiementPersonnalises()
+  sauvegarderModesPaiementRapides()
 
   encaissements.value.forEach((encaissement) => {
     if (encaissement.mode_paiement === value) {
@@ -1143,10 +1246,7 @@ async function supprimerModePaiement(value) {
 
   try {
     const { data } = await api.delete(`/caisse/modes-paiement/${encodeURIComponent(value)}`)
-    if (Array.isArray(data.personnalises)) {
-      modesPaiementPersonnalises.value = data.personnalises
-      sauvegarderModesPaiementPersonnalises()
-    }
+    appliquerPayloadModesPaiement(data)
   } catch (e) {
     // La suppression locale suffit pour ne plus proposer le mode sur ce poste.
   }
