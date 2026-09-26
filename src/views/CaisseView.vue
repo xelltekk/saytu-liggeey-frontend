@@ -366,6 +366,7 @@
             <div class="mt-3 space-y-2">
               <ClientSearchSelect
                 v-model="posForm.client_id"
+                endpoint="/caisse/clients"
                 placeholder="Rechercher client existant (nom, téléphone...)"
                 @selected="selectionnerClientCaisse"
                 @cleared="effacerClientSelectionne"

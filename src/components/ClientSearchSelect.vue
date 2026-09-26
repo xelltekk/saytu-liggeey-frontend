@@ -55,6 +55,7 @@ const props = defineProps({
   clients: { type: Array, default: () => [] },
   required: { type: Boolean, default: false },
   placeholder: { type: String, default: 'Rechercher un client...' },
+  endpoint: { type: String, default: '/clients' },
 })
 
 const emit = defineEmits(['update:modelValue', 'selected', 'cleared'])
@@ -127,13 +128,15 @@ async function openDropdown() {
 async function loadClients(value = '') {
   loading.value = true
   try {
-    const { data } = await api.get('/clients', {
+    const { data } = await api.get(props.endpoint, {
       params: {
         search: value.trim() || undefined,
         per_page: 12,
       },
     })
     results.value = data.data || []
+  } catch {
+    results.value = []
   } finally {
     loading.value = false
   }
