@@ -339,7 +339,7 @@
                 </div>
                 <div class="mt-2 min-h-[72px]">
                   <h3 class="line-clamp-2 text-sm font-black uppercase tracking-tight text-slate-950">{{ p.libelle }}</h3>
-                  <p class="mt-1 font-mono text-sm font-black text-violet-600">{{ formatPrice(prixTtc(p)) }}</p>
+                  <p class="mt-1 font-mono text-sm font-black text-violet-600">{{ formatPrice(prixCaisse(p)) }}</p>
                   <div class="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
                     <span :class="productTypeBadgeClass(p.type)">{{ productTypeLabel(p.type) }}</span>
                     <span v-if="p.type === 'pack'">Stock via composants</span>
@@ -513,9 +513,9 @@
               <label class="text-xs font-semibold uppercase tracking-wide text-slate-500">Remise %</label>
               <input v-if="panier.length" v-model.number="panier[0].remise_pourcent" type="number" min="0" max="100" step="0.01" class="input mt-1 rounded-full" placeholder="Remise globale" @input="appliquerRemiseGlobale" />
               <div class="mt-2 rounded-2xl bg-slate-50 p-3 text-sm">
-                <div class="flex justify-between text-slate-500"><span>Sous-total HT</span><strong>{{ formatPrice(totauxPanier.ht) }}</strong></div>
-                <div class="mt-1 flex justify-between text-slate-500"><span>TVA</span><strong>{{ formatPrice(totauxPanier.tva) }}</strong></div>
-                <div class="mt-3 flex justify-between text-lg font-black text-slate-950"><span>Total</span><strong class="text-violet-600">{{ formatPrice(totauxPanier.ttc) }}</strong></div>
+                <div class="flex justify-between text-slate-500"><span>Sous-total</span><strong>{{ formatPrice(totauxPanier.ht) }}</strong></div>
+                <div class="mt-1 flex justify-between text-slate-500"><span>TVA caisse</span><strong>0</strong></div>
+                <div class="mt-3 flex justify-between text-lg font-black text-slate-950"><span>Total sans TVA</span><strong class="text-violet-600">{{ formatPrice(totauxPanier.ttc) }}</strong></div>
               </div>
             </div>
 
@@ -1062,10 +1062,9 @@ const totauxPanier = computed(() => {
     const quantite = Number(ligne.quantite || 0)
     const ht = quantite * Number(ligne.prix_ht || 0)
     const htRemise = ht * (1 - Number(ligne.remise_pourcent || 0) / 100)
-    const tva = htRemise * Number(ligne.taux_tva || 0) / 100
     acc.ht += htRemise
-    acc.tva += tva
-    acc.ttc += htRemise + tva
+    acc.tva += 0
+    acc.ttc += htRemise
     return acc
   }, { ht: 0, tva: 0, ttc: 0 })
 })
@@ -1463,8 +1462,8 @@ async function loadProduits() {
   produits.value = data
 }
 
-function prixTtc(produit) {
-  return Number(produit.prix_vente_ht || 0) * (1 + Number(produit.taux_tva || 0) / 100)
+function prixCaisse(produit) {
+  return Number(produit.prix_vente_ht || 0)
 }
 
 function stockDisponible(produit) {
@@ -1505,8 +1504,8 @@ function ajouterAuPanier(produit) {
     stock_disponible: stockDisponible(produit),
     quantite: 1,
     prix_ht: Number(produit.prix_vente_ht || 0),
-    prix_ttc: prixTtc(produit),
-    taux_tva: Number(produit.taux_tva || 0),
+    prix_ttc: prixCaisse(produit),
+    taux_tva: 0,
     remise_pourcent: 0,
   })
 }
@@ -1610,7 +1609,7 @@ function productTypeBadgeClass(type) {
 function totalLigne(ligne) {
   const ht = Number(ligne.quantite || 0) * Number(ligne.prix_ht || 0)
   const htRemise = ht * (1 - Number(ligne.remise_pourcent || 0) / 100)
-  return htRemise * (1 + Number(ligne.taux_tva || 0) / 100)
+  return htRemise
 }
 
 async function encaisserVente() {
