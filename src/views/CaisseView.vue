@@ -728,14 +728,28 @@
                 <p class="text-xs">{{ sessionFactureComptoir(facture) }}</p>
               </td>
               <td class="px-4 py-3 text-[color:var(--saytu-topbar-subtitle,#64748b)]">{{ modesFactureComptoir(facture) }}</td>
-              <td class="px-4 py-3 text-right font-mono font-black text-[color:var(--saytu-shell-text,#0f172a)]">{{ formatPrice(facture.total_ttc) }}</td>
+              <td class="px-4 py-3 text-right">
+                <p class="font-mono font-black text-[color:var(--saytu-shell-text,#0f172a)]">{{ formatPrice(facture.total_ttc) }}</p>
+                <p v-if="montantAvoirFacture(facture) > 0" class="text-xs font-bold text-red-600">
+                  Avoirs : {{ formatPrice(montantAvoirFacture(facture)) }}
+                </p>
+              </td>
               <td class="px-4 py-3">
-                <div class="flex justify-end gap-2">
+                <div class="flex flex-wrap justify-end gap-2">
                   <button type="button" class="btn-secondary px-3 py-1.5 text-xs" @click="reimprimerFactureComptoir(facture)">
                     Ticket
                   </button>
                   <button type="button" class="btn-secondary px-3 py-1.5 text-xs" @click="ouvrirPdfFactureComptoir(facture)">
                     PDF
+                  </button>
+                  <button
+                    type="button"
+                    class="btn-danger px-3 py-1.5 text-xs"
+                    :disabled="!session || remboursementFactureLoading === facture.id || factureDejaRemboursee(facture)"
+                    :title="!session ? 'Ouvrez une caisse pour enregistrer le remboursement' : factureDejaRemboursee(facture) ? 'Facture déjà totalement remboursée' : 'Créer un avoir et une sortie caisse'"
+                    @click="ouvrirRemboursementFacture(facture)"
+                  >
+                    {{ factureDejaRemboursee(facture) ? 'Remboursée' : 'Avoir' }}
                   </button>
                 </div>
               </td>
@@ -846,6 +860,56 @@
         <button type="button" class="btn-primary" @click="lancerImpressionTicket">Imprimer</button>
       </template>
     </AppModal>
+
+    <AppModal v-model="showRefundModal" title="Remboursement caisse" size="sm" centered>
+      <div v-if="refundFacture" class="space-y-4">
+        <div class="rounded-2xl border border-red-100 bg-red-50 p-4">
+          <p class="text-xs font-black uppercase tracking-wide text-red-700">Facture comptoir</p>
+          <h3 class="mt-1 text-lg font-black text-slate-950">{{ refundFacture.numero }}</h3>
+          <p class="mt-1 text-sm text-slate-600">
+            {{ refundFacture.client?.nom || 'Client comptoir' }} · Total {{ formatPrice(refundFacture.total_ttc) }}
+          </p>
+          <p v-if="montantAvoirFacture(refundFacture) > 0" class="mt-1 text-xs font-bold text-red-700">
+            Déjà remboursé : {{ formatPrice(montantAvoirFacture(refundFacture)) }}
+          </p>
+        </div>
+
+        <label class="field-label">
+          Motif du remboursement <span class="text-red-500">*</span>
+          <textarea
+            v-model="refundForm.motif"
+            rows="3"
+            class="input mt-1"
+            placeholder="Ex : retour client, erreur de vente..."
+          ></textarea>
+        </label>
+
+        <label class="field-label">
+          Mode de remboursement
+          <select v-model="refundForm.mode_paiement" class="input mt-1 rounded-full">
+            <option v-for="mode in modesPaiementDisponibles" :key="`refund-${mode.value}`" :value="mode.value">
+              {{ mode.label }}
+            </option>
+          </select>
+        </label>
+
+        <label class="field-label">
+          Référence remboursement
+          <input v-model="refundForm.reference_paiement" class="input mt-1 rounded-full" placeholder="N° transaction, note interne..." />
+        </label>
+
+        <p class="rounded-xl bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
+          Cette action crée un avoir total, remet les produits stockés en stock, puis enregistre une sortie caisse.
+        </p>
+      </div>
+
+      <template #footer>
+        <button type="button" class="btn-secondary" :disabled="remboursementFactureLoading" @click="showRefundModal = false">Annuler</button>
+        <button type="button" class="btn-danger" :disabled="remboursementFactureLoading || refundForm.motif.trim().length < 3" @click="rembourserFactureComptoir">
+          {{ remboursementFactureLoading ? 'Remboursement...' : 'Créer l’avoir + sortie caisse' }}
+        </button>
+      </template>
+    </AppModal>
   </div>
 </template>
 
@@ -878,6 +942,9 @@ const panier = ref([])
 const productSearch = ref('')
 const showTicketPreview = ref(false)
 const ticketPreview = ref(null)
+const showRefundModal = ref(false)
+const refundFacture = ref(null)
+const remboursementFactureLoading = ref(null)
 const stats = reactive({
   sessions_ouvertes: 0,
   entrees_jour: 0,
@@ -896,6 +963,11 @@ const facturesComptoirMeta = reactive({ current_page: 1, last_page: 1, total: 0,
 
 const openForm = reactive({ solde_ouverture: 0, notes_ouverture: '' })
 const closeForm = reactive({ solde_fermeture_reel: 0, notes_fermeture: '' })
+const refundForm = reactive({
+  motif: '',
+  mode_paiement: 'especes',
+  reference_paiement: '',
+})
 const movementForm = reactive({
   sens: 'entree',
   type: 'vente',
@@ -1752,11 +1824,73 @@ function sessionFactureComptoir(facture) {
   return mouvementVente?.session?.reference || '-'
 }
 
+function montantAvoirFacture(facture) {
+  return (facture?.avoirs || [])
+    .filter(avoir => avoir.statut !== 'annulee')
+    .reduce((total, avoir) => total + Math.abs(Number(avoir.total_ttc || 0)), 0)
+}
+
+function factureDejaRemboursee(facture) {
+  const total = Math.abs(Number(facture?.total_ttc || 0))
+  if (total <= 0) return true
+
+  return montantAvoirFacture(facture) >= total - 0.01
+}
+
 async function ouvrirPdfFactureComptoir(facture) {
   try {
     await ouvrirPDF(`/caisse/factures/${facture.id}/pdf`, `${facture.numero}.pdf`)
   } catch (e) {
     toast.error('PDF impossible pour cette facture comptoir')
+  }
+}
+
+function ouvrirRemboursementFacture(facture) {
+  if (!session.value) {
+    toast.error('Ouvrez une caisse avant d’enregistrer un remboursement.')
+    return
+  }
+  if (factureDejaRemboursee(facture)) {
+    toast.error('Cette facture est déjà totalement remboursée.')
+    return
+  }
+
+  const mouvementVente = mouvementsFactureComptoir(facture).find(m => m.type === 'vente')
+  refundFacture.value = facture
+  Object.assign(refundForm, {
+    motif: `Remboursement / retour client ${facture.numero}`,
+    mode_paiement: mouvementVente?.mode_paiement || 'especes',
+    reference_paiement: '',
+  })
+  showRefundModal.value = true
+}
+
+async function rembourserFactureComptoir() {
+  if (!refundFacture.value || refundForm.motif.trim().length < 3) return
+
+  remboursementFactureLoading.value = refundFacture.value.id
+  try {
+    const { data } = await api.post(`/caisse/factures/${refundFacture.value.id}/rembourser`, {
+      motif: refundForm.motif.trim(),
+      mode_paiement: refundForm.mode_paiement,
+      reference_paiement: refundForm.reference_paiement.trim() || undefined,
+    })
+    toast.success(data.message || 'Remboursement enregistré')
+    showRefundModal.value = false
+    refundFacture.value = null
+    Object.assign(refundForm, { motif: '', mode_paiement: 'especes', reference_paiement: '' })
+    await Promise.all([
+      loadFacturesComptoir(facturesComptoirMeta.current_page || 1),
+      loadCaisse(),
+    ])
+  } catch (e) {
+    toast.error(
+      Object.values(e.response?.data?.errors || {})[0]?.[0]
+      || e.response?.data?.message
+      || 'Remboursement impossible'
+    )
+  } finally {
+    remboursementFactureLoading.value = null
   }
 }
 
