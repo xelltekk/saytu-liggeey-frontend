@@ -55,7 +55,7 @@ const props = defineProps({
   placeholder: { type: String, default: 'Rechercher un client...' },
 })
 
-const emit = defineEmits(['update:modelValue'])
+const emit = defineEmits(['update:modelValue', 'selected', 'cleared'])
 
 const search = ref('')
 const open = ref(false)
@@ -81,6 +81,7 @@ watch(search, (value) => {
 async function syncSelectedFromOptions() {
   if (!props.modelValue) {
     selectedClient.value = null
+    search.value = ''
     return
   }
 
@@ -133,6 +134,7 @@ function selectClient(client) {
   search.value = clientLabel(client)
   open.value = false
   emit('update:modelValue', Number(client.id))
+  emit('selected', client)
 }
 
 function clearSelection() {
@@ -141,6 +143,7 @@ function clearSelection() {
   results.value = []
   open.value = true
   emit('update:modelValue', null)
+  emit('cleared')
   loadClients()
 }
 

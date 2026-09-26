@@ -364,6 +364,16 @@
             </div>
 
             <div class="mt-3 space-y-2">
+              <ClientSearchSelect
+                v-model="posForm.client_id"
+                placeholder="Rechercher client existant (nom, téléphone...)"
+                @selected="selectionnerClientCaisse"
+                @cleared="effacerClientSelectionne"
+              />
+              <div v-if="posForm.client_id" class="flex items-center justify-between rounded-2xl bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700">
+                <span>Client existant sélectionné</span>
+                <button type="button" class="text-emerald-800 underline" @click="effacerClientSelectionne">Saisie libre</button>
+              </div>
               <input v-model="posForm.client_nom" class="input rounded-full" :placeholder="posForm.document_type === 'facture' ? 'Nom du client obligatoire' : 'Nom du client (optionnel)'" />
               <input
                 v-model="posForm.client_telephone"
@@ -916,6 +926,7 @@
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import AppModal from '@/components/AppModal.vue'
+import ClientSearchSelect from '@/components/ClientSearchSelect.vue'
 import api from '@/services/api'
 import { useToast } from '@/composables/useToast'
 import { useAuthStore } from '@/stores/auth'
@@ -977,7 +988,7 @@ const movementForm = reactive({
   reference: '',
   description: '',
 })
-const posForm = reactive({ client_nom: '', client_telephone: '', mode_paiement: 'especes', reference_paiement: '', document_type: 'ticket' })
+const posForm = reactive({ client_id: null, client_nom: '', client_telephone: '', mode_paiement: 'especes', reference_paiement: '', document_type: 'ticket' })
 const modePaiementForm = reactive({ label: '' })
 let encaissementSequence = 0
 const creerEncaissement = (montant = 0, mode = 'especes') => ({
@@ -1560,6 +1571,18 @@ function appliquerRemiseGlobale() {
   })
 }
 
+function selectionnerClientCaisse(client) {
+  if (!client?.id) return
+
+  posForm.client_id = Number(client.id)
+  posForm.client_nom = client.nom || ''
+  posForm.client_telephone = client.telephone || client.mobile || ''
+}
+
+function effacerClientSelectionne() {
+  posForm.client_id = null
+}
+
 function imageProduit(produit) {
   const image = produit?.image_url || produit?.image || produit?.photo_url || produit?.photo || produit?.image_path || produit?.photo_path
   if (!image) return ''
@@ -1604,6 +1627,7 @@ async function encaisserVente() {
   try {
     const premierPaiement = encaissements.value[0]
     const { data } = await api.post('/caisse/vente', {
+      client_id: posForm.client_id || undefined,
       client_nom: posForm.client_nom.trim() || undefined,
       client_telephone: posForm.client_telephone.trim() || undefined,
       mode_paiement: premierPaiement.mode_paiement,
@@ -1629,7 +1653,7 @@ async function encaisserVente() {
       afficherTicket(data)
     }
     viderPanier()
-    Object.assign(posForm, { client_nom: '', client_telephone: '', mode_paiement: 'especes', reference_paiement: '', document_type: 'ticket' })
+    Object.assign(posForm, { client_id: null, client_nom: '', client_telephone: '', mode_paiement: 'especes', reference_paiement: '', document_type: 'ticket' })
     reinitialiserEncaissements()
     await loadCaisse()
   } catch (e) {
