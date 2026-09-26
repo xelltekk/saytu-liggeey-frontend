@@ -366,6 +366,13 @@
             <div class="mt-3 space-y-2">
               <input v-model="posForm.client_nom" class="input rounded-full" :placeholder="posForm.document_type === 'facture' ? 'Nom du client obligatoire' : 'Nom du client (optionnel)'" />
               <input
+                v-model="posForm.client_telephone"
+                type="tel"
+                inputmode="tel"
+                class="input rounded-full"
+                placeholder="Téléphone client (optionnel)"
+              />
+              <input
                 v-if="encaissements.length === 1 && encaissements[0].mode_paiement !== 'especes'"
                 v-model="encaissements[0].reference_paiement"
                 class="input rounded-full"
@@ -388,7 +395,7 @@
             </div>
             <div v-if="encaissements.length === 1" class="mt-2 grid grid-cols-2 gap-2">
               <button
-                v-for="mode in modesPaiementTactiles.slice(0, 4)"
+                v-for="mode in modesPaiementRapides"
                 :key="mode.value"
                 type="button"
                 class="touch-pay-btn rounded-full"
@@ -398,6 +405,47 @@
                 {{ mode.label }}
               </button>
             </div>
+            <details v-if="encaissements.length === 1" class="mt-3 rounded-2xl border border-dashed border-sky-200 bg-sky-50/40 p-3">
+              <summary class="cursor-pointer text-sm font-black text-sky-700">Autres moyens / ajouter</summary>
+              <div class="mt-3 space-y-3">
+                <div class="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto]">
+                  <input
+                    v-model="modePaiementForm.label"
+                    class="input rounded-full"
+                    placeholder="Ex: YAS Money, Free Money..."
+                    @keyup.enter.prevent="ajouterModePaiement"
+                  />
+                  <button type="button" class="btn-secondary rounded-full px-4 py-2 text-xs" @click="ajouterModePaiement">
+                    Ajouter
+                  </button>
+                </div>
+                <p class="text-xs text-slate-500">
+                  Les 4 boutons rapides restent fixes. Les nouveaux moyens apparaissent ici et dans le paiement fractionné.
+                </p>
+                <div v-if="modesPaiementSecondaires.length" class="flex flex-wrap gap-2">
+                  <button
+                    v-for="mode in modesPaiementSecondaires"
+                    :key="mode.value"
+                    type="button"
+                    class="rounded-full border border-sky-200 px-3 py-1.5 text-xs font-black text-sky-700 transition hover:bg-white"
+                    :class="encaissements[0].mode_paiement === mode.value ? 'bg-white ring-2 ring-sky-300' : 'bg-sky-50/80'"
+                    @click="encaissements[0].mode_paiement = mode.value"
+                  >
+                    {{ mode.label }}
+                  </button>
+                </div>
+                <div v-if="modesPaiementPersonnalises.length" class="flex flex-wrap gap-2 border-t border-sky-100 pt-2">
+                  <span
+                    v-for="mode in modesPaiementPersonnalises"
+                    :key="`custom-${mode.value}`"
+                    class="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-xs font-bold text-slate-600"
+                  >
+                    {{ mode.label }}
+                    <button type="button" class="text-red-500 hover:text-red-700" title="Retirer ce moyen" @click="supprimerModePaiement(mode.value)">&times;</button>
+                  </span>
+                </div>
+              </div>
+            </details>
 
             <div class="mt-4 max-h-[30vh] space-y-2 overflow-y-auto pr-1">
               <div v-for="ligne in panier" :key="ligne.produit_id" class="rounded-2xl border border-slate-100 bg-slate-50 p-3">
@@ -449,13 +497,9 @@
                 <div v-for="(encaissement, index) in encaissements" v-if="isPaiementFractionne" :key="encaissement.id" class="space-y-2 rounded-xl border border-slate-200 p-2">
                   <div class="grid grid-cols-[1fr_auto] gap-2">
                     <select v-model="encaissement.mode_paiement" class="input rounded-full">
-                      <option value="especes">Esp&egrave;ces</option>
-                      <option value="wave">Wave</option>
-                      <option value="orange_money">Orange Money</option>
-                      <option value="carte_bancaire">Carte bancaire</option>
-                      <option value="cheque">Ch&egrave;que</option>
-                      <option value="virement">Virement</option>
-                      <option value="autre">Autre</option>
+                      <option v-for="mode in modesPaiementDisponibles" :key="mode.value" :value="mode.value">
+                        {{ mode.label }}
+                      </option>
                     </select>
                     <button v-if="encaissements.length > 1" type="button" class="px-2 text-red-600" title="Supprimer ce paiement" @click="retirerEncaissement(index)">&times;</button>
                   </div>
@@ -510,13 +554,9 @@
           <input v-model="movementForm.libelle" class="input md:col-span-2" placeholder="Libell&eacute;" />
           <input v-model.number="movementForm.montant" type="number" min="0.01" step="0.01" class="input" placeholder="Montant" />
           <select v-model="movementForm.mode_paiement" class="input">
-            <option value="especes">Esp&egrave;ces</option>
-            <option value="wave">Wave</option>
-            <option value="orange_money">Orange Money</option>
-            <option value="carte_bancaire">Carte bancaire</option>
-            <option value="cheque">Ch&egrave;que</option>
-            <option value="virement">Virement</option>
-            <option value="autre">Autre</option>
+            <option v-for="mode in modesPaiementDisponibles" :key="mode.value" :value="mode.value">
+              {{ mode.label }}
+            </option>
           </select>
           <input v-model="movementForm.reference" class="input md:col-span-2" placeholder="R&eacute;f&eacute;rence ticket, facture ou transaction" />
           <textarea v-model="movementForm.description" class="input md:col-span-2" rows="2" placeholder="Description (optionnel)"></textarea>
@@ -732,6 +772,10 @@
               <span>Client</span>
               <strong>{{ ticketClientLabel }}</strong>
             </div>
+            <div v-if="ticketClientPhoneLabel">
+              <span>Téléphone</span>
+              <strong>{{ ticketClientPhoneLabel }}</strong>
+            </div>
           </div>
 
           <div class="ticket-divider"></div>
@@ -836,7 +880,8 @@ const movementForm = reactive({
   reference: '',
   description: '',
 })
-const posForm = reactive({ client_nom: '', mode_paiement: 'especes', reference_paiement: '', document_type: 'ticket' })
+const posForm = reactive({ client_nom: '', client_telephone: '', mode_paiement: 'especes', reference_paiement: '', document_type: 'ticket' })
+const modePaiementForm = reactive({ label: '' })
 let encaissementSequence = 0
 const creerEncaissement = (montant = 0, mode = 'especes') => ({
   id: ++encaissementSequence,
@@ -866,14 +911,31 @@ const caisseTabs = computed(() => [
   { key: 'factures-comptoir', label: 'Factures comptoir', badge: facturesComptoirTotal.value ? `${facturesComptoirTotal.value}` : '' },
   { key: 'cloture', label: 'Clôture', badge: '' },
 ])
-const modesPaiementTactiles = [
-  { value: 'especes', label: 'Especes' },
+const customPaymentModesStorageKey = 'saytu:caisse:modes-paiement-personnalises'
+const modesPaiementBase = [
+  { value: 'especes', label: 'Espèces' },
   { value: 'wave', label: 'Wave' },
   { value: 'orange_money', label: 'Orange Money' },
   { value: 'carte_bancaire', label: 'Carte' },
-  { value: 'cheque', label: 'Cheque' },
+  { value: 'cheque', label: 'Chèque' },
+  { value: 'virement', label: 'Virement' },
+  { value: 'mobile_money', label: 'Mobile Money' },
+  { value: 'free_money', label: 'Free Money' },
+  { value: 'compensation', label: 'Compensation' },
   { value: 'autre', label: 'Autre' },
 ]
+const modesPaiementPersonnalises = ref(chargerModesPaiementPersonnalises())
+const modesPaiementRapides = computed(() => modesPaiementBase.slice(0, 4))
+const modesPaiementDisponibles = computed(() => {
+  const seen = new Set()
+  return [...modesPaiementBase, ...modesPaiementPersonnalises.value]
+    .filter((mode) => {
+      if (!mode?.value || seen.has(mode.value)) return false
+      seen.add(mode.value)
+      return true
+    })
+})
+const modesPaiementSecondaires = computed(() => modesPaiementDisponibles.value.slice(4))
 
 const ecartPrevu = computed(() => {
   return Number(closeForm.solde_fermeture_reel || 0) - Number(session.value.solde_fermeture_theorique || 0)
@@ -928,6 +990,10 @@ const ticketClientLabel = computed(() => {
   const data = ticketPreview.value
   return data?.facture?.client?.nom || data?.facture?.client_nom || data?.ticket?.client_nom || ''
 })
+const ticketClientPhoneLabel = computed(() => {
+  const data = ticketPreview.value
+  return data?.facture?.client?.telephone || data?.facture?.client?.mobile || data?.ticket?.client_telephone || ''
+})
 
 watch(() => totauxPanier.value.ttc, (nouveauTotal, ancienTotal) => {
   if (encaissements.value.length !== 1) return
@@ -952,6 +1018,141 @@ watch(activeCaisseTab, (tab) => {
     loadFacturesComptoir(1).catch(() => toast.error('Erreur de chargement des factures comptoir'))
   }
 })
+
+function chargerModesPaiementPersonnalises() {
+  if (typeof window === 'undefined') return []
+
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(customPaymentModesStorageKey) || '[]')
+    if (!Array.isArray(parsed)) return []
+
+    return parsed
+      .map((mode) => ({
+        value: String(mode?.value || '').trim(),
+        label: String(mode?.label || '').trim(),
+      }))
+      .filter((mode) => mode.value && mode.label)
+  } catch (e) {
+    return []
+  }
+}
+
+function sauvegarderModesPaiementPersonnalises() {
+  if (typeof window === 'undefined') return
+
+  window.localStorage.setItem(customPaymentModesStorageKey, JSON.stringify(modesPaiementPersonnalises.value))
+}
+
+async function chargerModesPaiementServeur() {
+  try {
+    const { data } = await api.get('/caisse/modes-paiement')
+    if (Array.isArray(data.personnalises)) {
+      modesPaiementPersonnalises.value = data.personnalises
+      sauvegarderModesPaiementPersonnalises()
+    }
+  } catch (e) {
+    // Le cache local garde la caisse utilisable si l'API n'est pas encore migrée.
+  }
+}
+
+function slugModePaiement(label) {
+  const normalized = String(label || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+
+  return (normalized || 'paiement').slice(0, 30)
+}
+
+function valeurModePaiementDisponible(label) {
+  const existing = new Set(modesPaiementDisponibles.value.map(mode => mode.value))
+  const base = slugModePaiement(label)
+  let value = base
+  let counter = 2
+
+  while (existing.has(value)) {
+    const suffix = `_${counter}`
+    value = `${base.slice(0, Math.max(1, 30 - suffix.length))}${suffix}`
+    counter += 1
+  }
+
+  return value
+}
+
+async function ajouterModePaiement() {
+  const label = modePaiementForm.label.trim()
+  if (!label) {
+    toast.error('Renseignez le nom du moyen de paiement.')
+    return
+  }
+
+  const existing = modesPaiementDisponibles.value.find(mode => mode.label.toLowerCase() === label.toLowerCase())
+  if (existing) {
+    if (encaissements.value[0]) encaissements.value[0].mode_paiement = existing.value
+    modePaiementForm.label = ''
+    toast.success('Moyen de paiement déjà disponible.')
+    return
+  }
+
+  let mode = {
+    value: valeurModePaiementDisponible(label),
+    label,
+  }
+
+  try {
+    const { data } = await api.post('/caisse/modes-paiement', { label })
+    if (Array.isArray(data.personnalises)) {
+      modesPaiementPersonnalises.value = data.personnalises
+      sauvegarderModesPaiementPersonnalises()
+    }
+    if (data.mode?.value) {
+      mode = data.mode
+    }
+  } catch (e) {
+    modesPaiementPersonnalises.value = [...modesPaiementPersonnalises.value, mode]
+    sauvegarderModesPaiementPersonnalises()
+  }
+
+  if (!modesPaiementPersonnalises.value.some(item => item.value === mode.value) && !modesPaiementBase.some(item => item.value === mode.value)) {
+    modesPaiementPersonnalises.value = [...modesPaiementPersonnalises.value, mode]
+    sauvegarderModesPaiementPersonnalises()
+  }
+
+  if (encaissements.value[0]) encaissements.value[0].mode_paiement = mode.value
+  modePaiementForm.label = ''
+  toast.success('Moyen de paiement ajouté.')
+}
+
+async function supprimerModePaiement(value) {
+  modesPaiementPersonnalises.value = modesPaiementPersonnalises.value.filter(mode => mode.value !== value)
+  sauvegarderModesPaiementPersonnalises()
+
+  encaissements.value.forEach((encaissement) => {
+    if (encaissement.mode_paiement === value) {
+      encaissement.mode_paiement = 'especes'
+      encaissement.reference_paiement = ''
+      encaissement.montant_recu = Number(encaissement.montant || 0)
+    }
+  })
+
+  if (movementForm.mode_paiement === value) {
+    movementForm.mode_paiement = 'especes'
+  }
+
+  try {
+    const { data } = await api.delete(`/caisse/modes-paiement/${encodeURIComponent(value)}`)
+    if (Array.isArray(data.personnalises)) {
+      modesPaiementPersonnalises.value = data.personnalises
+      sauvegarderModesPaiementPersonnalises()
+    }
+  } catch (e) {
+    // La suppression locale suffit pour ne plus proposer le mode sur ce poste.
+  }
+
+  toast.success('Moyen de paiement retiré de cette caisse.')
+}
 
 async function loadCaisse() {
   loading.value = true
@@ -1231,7 +1432,8 @@ async function encaisserVente() {
   try {
     const premierPaiement = encaissements.value[0]
     const { data } = await api.post('/caisse/vente', {
-      client_nom: posForm.client_nom || undefined,
+      client_nom: posForm.client_nom.trim() || undefined,
+      client_telephone: posForm.client_telephone.trim() || undefined,
       mode_paiement: premierPaiement.mode_paiement,
       reference_paiement: premierPaiement.reference_paiement || undefined,
       paiements: encaissements.value.map(item => ({
@@ -1255,7 +1457,7 @@ async function encaisserVente() {
       afficherTicket(data)
     }
     viderPanier()
-    Object.assign(posForm, { client_nom: '', mode_paiement: 'especes', reference_paiement: '', document_type: 'ticket' })
+    Object.assign(posForm, { client_nom: '', client_telephone: '', mode_paiement: 'especes', reference_paiement: '', document_type: 'ticket' })
     reinitialiserEncaissements()
     await loadCaisse()
   } catch (e) {
@@ -1304,6 +1506,8 @@ function imprimerTicket(data = ticketPreview.value) {
   if (!data?.ticket) return false
   const lignes = extraireLignesTicket(data)
   const paiements = extrairePaiementsTicket(data)
+  const client = data?.facture?.client?.nom || data?.facture?.client_nom || data?.ticket?.client_nom || ''
+  const clientTelephone = data?.facture?.client?.telephone || data?.facture?.client?.mobile || data?.ticket?.client_telephone || ''
   const html = `
     <html>
       <head>
@@ -1324,6 +1528,8 @@ function imprimerTicket(data = ticketPreview.value) {
         <h1>Saytu Liggéey 2.0</h1>
         <div class="center"><small>Ticket ${escapeHtml(data.ticket.numero)}</small></div>
         <div class="center"><small>${escapeHtml(data.ticket.date)} - ${escapeHtml(data.ticket.caissier)}</small></div>
+        ${client ? `<div class="center"><small>Client : ${escapeHtml(client)}</small></div>` : ''}
+        ${clientTelephone ? `<div class="center"><small>Tél : ${escapeHtml(clientTelephone)}</small></div>` : ''}
         <div class="line"></div>
         ${lignes.map(l => `
           <div class="row">
@@ -1375,17 +1581,8 @@ function imprimerTicket(data = ticketPreview.value) {
 }
 
 function modePaiementLabel(mode) {
-  return {
-    especes: 'Espèces',
-    wave: 'Wave',
-    orange_money: 'Orange Money',
-    carte_bancaire: 'Carte bancaire',
-    cheque: 'Chèque',
-    virement: 'Virement',
-    mobile_money: 'Mobile Money',
-    compensation: 'Compensation',
-    autre: 'Autre',
-  }[mode] || mode
+  const paiement = modesPaiementDisponibles.value.find(item => item.value === mode)
+  return paiement?.label || mode
 }
 
 async function reimprimerTicket(mouvement) {
@@ -1573,7 +1770,10 @@ function produitsMouvement(mouvement) {
     .join(', ') + (lignes.length > 3 ? '...' : '')
 }
 
-onMounted(loadCaisse)
+onMounted(async () => {
+  await chargerModesPaiementServeur()
+  await loadCaisse()
+})
 </script>
 
 <style scoped>
