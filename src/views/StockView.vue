@@ -1291,159 +1291,13 @@
       </div>
     </div>
 
-    <!-- Modal mouvement -->
-    <AppModal v-model="showMouvementModal" :title="mouvementTitle" size="md">
-      <MouvementForm :type="mouvementType" :entrepots="entrepots" @saved="onMouvementSaved" @cancel="showMouvementModal = false" />
-    </AppModal>
-
-    <AppModal v-model="showSerieModal" title="Ajouter une série / un lot" size="md">
-      <form class="space-y-4" @submit.prevent="saveSerie">
-        <div>
-          <label class="mb-1 block text-sm font-medium text-gray-700">Ligne de stock <span class="text-red-500">*</span></label>
-          <select v-model.number="serieForm.stock_id" class="input" required @change="syncSerieProductFromStock">
-            <option value="">— Sélectionnez une ligne —</option>
-            <option v-for="stock in stockOptions" :key="stock.id" :value="stock.id">
-              {{ stock.produit?.reference || '-' }} — {{ stock.produit?.libelle || 'Produit' }} · {{ stock.entrepot?.libelle || '-' }} · {{ emplacementLabel(stock.emplacement) }}
-            </option>
-          </select>
-        </div>
-        <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
-          <label class="block text-sm font-medium text-gray-700">
-            Numéro de série
-            <input v-model="serieForm.serial_number" class="input mt-1" placeholder="SN, IMEI, clé..." />
-          </label>
-          <label class="block text-sm font-medium text-gray-700">
-            Numéro de lot
-            <input v-model="serieForm.lot_number" class="input mt-1" placeholder="Lot, batch..." />
-          </label>
-        </div>
-        <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
-          <label class="block text-sm font-medium text-gray-700">
-            Statut
-            <select v-model="serieForm.statut" class="input mt-1">
-              <option value="disponible">Disponible</option>
-              <option value="reserve">Réservé</option>
-              <option value="vendu">Vendu</option>
-              <option value="sav">SAV</option>
-              <option value="sorti">Sorti</option>
-              <option value="perdu">Perdu</option>
-            </select>
-          </label>
-          <label class="block text-sm font-medium text-gray-700">
-            Garantie jusqu’au
-            <input v-model="serieForm.garantie_jusquau" type="date" class="input mt-1" />
-          </label>
-        </div>
-        <label class="block text-sm font-medium text-gray-700">
-          Notes
-          <textarea v-model="serieForm.notes" class="input mt-1 min-h-20" placeholder="État, provenance, remarque SAV..."></textarea>
-        </label>
-        <div class="flex justify-end gap-2 border-t border-gray-200 pt-3">
-          <button type="button" class="btn-secondary" @click="showSerieModal = false">Annuler</button>
-          <button class="btn-primary" :disabled="serieSaving">{{ serieSaving ? 'Enregistrement...' : 'Enregistrer' }}</button>
-        </div>
-      </form>
-    </AppModal>
-
-    <AppModal v-model="showDeplacementModal" title="Déplacer le stock" size="md">
-      <form class="space-y-4" @submit.prevent="deplacerStock">
-        <div class="rounded-lg bg-blue-50 p-3 text-sm text-blue-800">
-          <strong>{{ stockADeplacer.produit?.reference || '' }} — {{ stockADeplacer.produit?.libelle || 'Produit' }}</strong>
-          <p class="mt-1">Quantité à déplacer : {{ formatQte(stockADeplacer.quantite) }} {{ stockADeplacer.produit?.unite || '' }}</p>
-          <p>Entrepôt : {{ stockADeplacer.entrepot?.libelle || '-' }}</p>
-        </div>
-        <div>
-          <label class="mb-1 block text-sm font-medium text-gray-700">Nouvel emplacement <span class="text-red-500">*</span></label>
-          <select v-model.number="deplacementForm.emplacement_id" class="input" required>
-            <option :value="null">— Sélectionnez —</option>
-            <option v-for="emp in emplacementsDeplacement" :key="emp.id" :value="emp.id">{{ emplacementLabel(emp) }}</option>
-          </select>
-        </div>
-        <div>
-          <label class="mb-1 block text-sm font-medium text-gray-700">Motif</label>
-          <input v-model="deplacementForm.motif" class="input" placeholder="Rangement, correction d'emplacement..." />
-        </div>
-        <div class="flex justify-end gap-2 border-t border-gray-200 pt-3">
-          <button type="button" class="btn-secondary" @click="showDeplacementModal = false">Annuler</button>
-          <button class="btn-primary" :disabled="deplacementSaving">{{ deplacementSaving ? 'Déplacement...' : 'Déplacer le stock' }}</button>
-        </div>
-      </form>
-    </AppModal>
-
-    <AppModal v-model="showTransfertModal" title="Envoyer vers un autre entrepôt" size="md">
-      <form class="space-y-4" @submit.prevent="transfererStock">
-        <div class="rounded-lg bg-blue-50 p-3 text-sm text-blue-800">
-          <strong>{{ stockATransferer?.produit?.reference || '' }} — {{ stockATransferer?.produit?.libelle || 'Produit' }}</strong>
-          <p class="mt-1">Source : {{ stockATransferer?.entrepot?.libelle || '-' }} · {{ emplacementLabel(stockATransferer?.emplacement) }}</p>
-          <p>Disponible : {{ formatQte(transfertDisponible) }} {{ stockATransferer?.produit?.unite || '' }}</p>
-          <p class="mt-2 text-xs font-bold">Le stock destination sera augmenté seulement après réception du transfert.</p>
-        </div>
-
-        <div>
-          <label class="mb-1 block text-sm font-medium text-gray-700">Entrepôt destination <span class="text-red-500">*</span></label>
-          <select v-model.number="transfertForm.destination_entrepot_id" class="input" required @change="loadEmplacementsTransfert">
-            <option :value="null">— Sélectionnez —</option>
-            <option v-for="entrepot in entrepotsDestination" :key="entrepot.id" :value="entrepot.id">
-              {{ entrepot.libelle }}
-            </option>
-          </select>
-        </div>
-
-        <div>
-          <label class="mb-1 block text-sm font-medium text-gray-700">Emplacement destination</label>
-          <select
-            v-model.number="transfertForm.destination_emplacement_id"
-            class="input"
-            :required="hasTransfertEmplacements"
-            :disabled="transfertLoadingEmplacements || !hasTransfertEmplacements"
-          >
-            <option :value="null">
-              {{ transfertLoadingEmplacements ? 'Chargement...' : hasTransfertEmplacements ? '— Sélectionnez un emplacement —' : 'Aucun emplacement configuré' }}
-            </option>
-            <option v-for="emp in emplacementsTransfert" :key="emp.id" :value="emp.id">
-              {{ emplacementLabel(emp) }}
-            </option>
-          </select>
-          <p class="mt-1 text-xs" :class="hasTransfertEmplacements ? 'text-blue-700' : 'text-gray-500'">
-            {{ hasTransfertEmplacements ? 'Obligatoire : l’entrepôt destination possède des rayons.' : 'Le stock sera transféré sans emplacement précis.' }}
-          </p>
-        </div>
-
-        <div>
-          <label class="mb-1 block text-sm font-medium text-gray-700">Quantité à transférer <span class="text-red-500">*</span></label>
-          <input
-            v-model.number="transfertForm.quantite"
-            type="number"
-            step="0.001"
-            min="0.001"
-            :max="transfertDisponible || undefined"
-            class="input"
-            required
-          />
-        </div>
-
-        <div>
-          <label class="mb-1 block text-sm font-medium text-gray-700">Motif</label>
-          <input v-model="transfertForm.motif" class="input" placeholder="Réapprovisionnement, transfert boutique, SAV..." />
-        </div>
-
-        <div class="flex justify-end gap-2 border-t border-gray-200 pt-3">
-          <button type="button" class="btn-secondary" @click="showTransfertModal = false">Annuler</button>
-          <button class="btn-primary" :disabled="transfertSaving || !transfertForm.destination_entrepot_id">
-            {{ transfertSaving ? 'Envoi...' : 'Envoyer le transfert' }}
-          </button>
-        </div>
-      </form>
-    </AppModal>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted, onUnmounted, computed, h, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import api from '@/services/api'
-import AppModal from '@/components/InlinePanelModal.vue'
-import MouvementForm from '@/components/MouvementForm.vue'
 import SortableTh from '@/components/SortableTh.vue'
 import { useToast } from '@/composables/useToast'
 import { useTableSort } from '@/composables/useTableSort'
@@ -1451,7 +1305,10 @@ import { telechargerCSV } from '@/services/exports'
 
 const toast = useToast()
 const router = useRouter()
-const onglet = ref('overview')
+const route = useRoute()
+const validTabs = ['overview', 'valorisation', 'stock', 'inventaire', 'transferts', 'mouvements', 'alertes', 'reappro', 'reservations', 'historique', 'series', 'etiquettes', 'validations', 'rapports']
+const initialTab = typeof route.query.tab === 'string' && validTabs.includes(route.query.tab) ? route.query.tab : 'overview'
+const onglet = ref(initialTab)
 const stocks = ref([])
 const mouvements = ref([])
 const transferts = ref([])
@@ -1784,8 +1641,7 @@ async function exporterCSV() {
 }
 
 function openMouvement(type) {
-  mouvementType.value = type
-  showMouvementModal.value = true
+  router.push({ name: 'stock-mouvement-create', params: { type } })
 }
 
 function onMouvementSaved() {
@@ -1856,22 +1712,8 @@ function mouvementEmplacementLabel(mouvement) {
 }
 
 async function openDeplacement(stock) {
-  stockADeplacer.value = stock
-  deplacementForm.emplacement_id = null
-  deplacementForm.motif = stock.emplacement ? 'Déplacement de stock' : 'Affectation d’un emplacement'
-  try {
-    const { data } = await api.get(`/entrepots/${stock.entrepot_id}`)
-    emplacementsDeplacement.value = (data.entrepot?.zones || []).filter(zone => zone.is_active !== false).flatMap(zone =>
-      (zone.emplacements || []).filter(emp => emp.is_active !== false && emp.id !== stock.emplacement_id).map(emp => ({ ...emp, zone }))
-    )
-    if (emplacementsDeplacement.value.length === 0) {
-      toast.error('Aucun autre emplacement disponible dans cet entrepôt.')
-      return
-    }
-    showDeplacementModal.value = true
-  } catch (e) {
-    toast.error('Impossible de charger les emplacements.')
-  }
+  if (!stock?.id) return
+  router.push({ name: 'stock-deplacement-create', params: { stockId: stock.id } })
 }
 
 async function deplacerStock() {
@@ -1890,27 +1732,8 @@ async function deplacerStock() {
 }
 
 async function openTransfert(stock) {
-  stockATransferer.value = stock
-  emplacementsTransfert.value = []
-  transfertForm.destination_emplacement_id = null
-  transfertForm.quantite = transfertDisponible.value >= 1 ? 1 : transfertDisponible.value
-  transfertForm.motif = 'Transfert inter-entrepôts'
-
-  if (transfertDisponible.value <= 0) {
-    toast.error('Aucune quantité disponible à transférer sur cette ligne.')
-    return
-  }
-
-  const destination = entrepotsDestination.value[0]
-  transfertForm.destination_entrepot_id = destination?.id || null
-
-  if (!destination) {
-    toast.error('Ajoutez au moins un autre entrepôt actif avant de transférer.')
-    return
-  }
-
-  await loadEmplacementsTransfert()
-  showTransfertModal.value = true
+  if (!stock?.id) return
+  router.push({ name: 'stock-transfert-create', params: { stockId: stock.id } })
 }
 
 async function loadEmplacementsTransfert() {
@@ -2289,17 +2112,7 @@ function serieStatusBadge(statut) {
 }
 
 async function openSerieModal() {
-  Object.assign(serieForm, {
-    produit_id: '',
-    stock_id: '',
-    serial_number: '',
-    lot_number: '',
-    statut: 'disponible',
-    garantie_jusquau: '',
-    notes: '',
-  })
-  await loadStockOptions()
-  showSerieModal.value = true
+  router.push({ name: 'stock-serie-create' })
 }
 
 async function loadStockOptions() {

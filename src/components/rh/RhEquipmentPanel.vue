@@ -67,13 +67,26 @@
       </tbody></table>
     </section>
 
-    <AppModal v-model="showReturn" title="Restituer le materiel" size="sm"><form class="space-y-3" @submit.prevent="returnEquipment"><input v-model="returnForm.date_restitution" type="date" class="input" required /><select v-model="returnForm.etat_restitution" class="input"><option v-for="e in etats" :key="e" :value="e">{{ stateLabel(e) }}</option></select><textarea v-model="returnForm.note" class="input" placeholder="Observation"></textarea><div class="flex justify-end gap-2"><button type="button" class="btn-secondary" @click="showReturn = false">Annuler</button><button class="btn-primary">Confirmer</button></div></form></AppModal>
+    <section v-if="showReturn" class="panel border-cyan-200 bg-cyan-50/70">
+      <div class="mb-3 flex items-center justify-between gap-3">
+        <div>
+          <h3 class="title">Restituer le matériel</h3>
+          <p class="text-sm text-slate-500">{{ activeAssignment?.materiel?.reference || '-' }} - {{ activeAssignment?.materiel?.libelle || 'Matériel' }}</p>
+        </div>
+        <button type="button" class="btn-secondary" @click="showReturn = false">Fermer</button>
+      </div>
+      <form class="grid gap-3 sm:grid-cols-3" @submit.prevent="returnEquipment">
+        <input v-model="returnForm.date_restitution" type="date" class="input" required />
+        <select v-model="returnForm.etat_restitution" class="input"><option v-for="e in etats" :key="e" :value="e">{{ stateLabel(e) }}</option></select>
+        <textarea v-model="returnForm.note" class="input sm:col-span-3" placeholder="Observation"></textarea>
+        <div class="flex justify-end gap-2 sm:col-span-3"><button type="button" class="btn-secondary" @click="showReturn = false">Annuler</button><button class="btn-primary">Confirmer</button></div>
+      </form>
+    </section>
   </div>
 </template>
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 import api from '@/services/api'
-import AppModal from '@/components/InlinePanelModal.vue'
 import { useToast } from '@/composables/useToast'
 const props = defineProps({ canManage: Boolean, employes: { type: Array, default: () => [] } }), toast = useToast(), equipments = ref([]), assignments = ref([]), showReturn = ref(false), activeAssignment = ref(null)
 const categories = ['ordinateur', 'telephone', 'badge', 'mobilier', 'accessoire', 'autre'], etats = ['neuf', 'bon', 'moyen', 'a_reparer', 'hors_service'], statuts = ['disponible', 'attribue', 'maintenance', 'reforme']

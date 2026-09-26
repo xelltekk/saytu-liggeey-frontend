@@ -60,6 +60,16 @@ const routes = [
         component: () => import('@/views/AgendaView.vue'),
       },
       {
+        path: 'agenda/nouveau',
+        name: 'agenda-rdv-create',
+        component: () => import('@/views/AgendaRdvDetailView.vue'),
+      },
+      {
+        path: 'agenda/evenements/:id',
+        name: 'agenda-event-detail',
+        component: () => import('@/views/AgendaEventDetailView.vue'),
+      },
+      {
         path: 'clients',
         name: 'clients',
         component: () => import('@/views/ClientsView.vue'),
@@ -250,9 +260,59 @@ const routes = [
         component: () => import('@/views/LeasingView.vue'),
       },
       {
+        path: 'leasing/imprimantes/nouveau',
+        name: 'leasing-imprimante-create',
+        component: () => import('@/views/LeasingImprimanteDetailView.vue'),
+      },
+      {
+        path: 'leasing/imprimantes/:id',
+        name: 'leasing-imprimante-detail',
+        component: () => import('@/views/LeasingImprimanteDetailView.vue'),
+      },
+      {
+        path: 'leasing/contrats/nouveau',
+        name: 'leasing-contrat-create',
+        component: () => import('@/views/LeasingContratDetailView.vue'),
+      },
+      {
+        path: 'leasing/releves/nouveau',
+        name: 'leasing-releve-create',
+        component: () => import('@/views/LeasingReleveDetailView.vue'),
+      },
+      {
+        path: 'leasing/interventions/nouveau',
+        name: 'leasing-intervention-create',
+        component: () => import('@/views/LeasingInterventionDetailView.vue'),
+      },
+      {
+        path: 'leasing/interventions/:id',
+        name: 'leasing-intervention-detail',
+        component: () => import('@/views/LeasingInterventionDetailView.vue'),
+      },
+      {
         path: 'fournisseurs-reglements',
         name: 'fournisseurs-reglements',
         component: () => import('@/views/FournisseurReglementsView.vue'),
+      },
+      {
+        path: 'fournisseurs-reglements/factures/nouveau',
+        name: 'fournisseur-facture-create',
+        component: () => import('@/views/FournisseurFactureDetailView.vue'),
+      },
+      {
+        path: 'fournisseurs-reglements/factures/:id',
+        name: 'fournisseur-facture-detail',
+        component: () => import('@/views/FournisseurFactureDetailView.vue'),
+      },
+      {
+        path: 'fournisseurs-reglements/reglements/nouveau',
+        name: 'fournisseur-reglement-create',
+        component: () => import('@/views/FournisseurReglementDetailView.vue'),
+      },
+      {
+        path: 'fournisseurs-reglements/fournisseurs/:id/situation',
+        name: 'fournisseur-situation-detail',
+        component: () => import('@/views/FournisseurSituationDetailView.vue'),
       },
       {
         path: 'depenses',
@@ -310,6 +370,26 @@ const routes = [
         component: () => import('@/views/StockView.vue'),
       },
       {
+        path: 'stock/mouvements/:type',
+        name: 'stock-mouvement-create',
+        component: () => import('@/views/StockMouvementDetailView.vue'),
+      },
+      {
+        path: 'stock/series/nouveau',
+        name: 'stock-serie-create',
+        component: () => import('@/views/StockSerieDetailView.vue'),
+      },
+      {
+        path: 'stock/:stockId/deplacement',
+        name: 'stock-deplacement-create',
+        component: () => import('@/views/StockDeplacementDetailView.vue'),
+      },
+      {
+        path: 'stock/:stockId/transfert',
+        name: 'stock-transfert-create',
+        component: () => import('@/views/StockTransfertDetailView.vue'),
+      },
+      {
         path: 'compta/plan',
         name: 'compta-plan',
         component: () => import('@/views/PlanComptableView.vue'),
@@ -318,6 +398,11 @@ const routes = [
         path: 'compta/ecritures',
         name: 'compta-ecritures',
         component: () => import('@/views/EcrituresView.vue'),
+      },
+      {
+        path: 'compta/ecritures/:id',
+        name: 'compta-ecriture-detail',
+        component: () => import('@/views/EcritureDetailView.vue'),
       },
       {
         path: 'ecritures',
@@ -392,6 +477,21 @@ const routes = [
         path: 'rh',
         name: 'rh',
         component: () => import('@/views/RhView.vue'),
+      },
+      {
+        path: 'rh/conges/nouveau',
+        name: 'rh-conge-create',
+        component: () => import('@/views/RhCongeDetailView.vue'),
+      },
+      {
+        path: 'rh/employes/nouveau',
+        name: 'rh-employe-create',
+        component: () => import('@/views/RhEmployeDetailView.vue'),
+      },
+      {
+        path: 'rh/employes/:id',
+        name: 'rh-employe-detail',
+        component: () => import('@/views/RhEmployeDetailView.vue'),
       },
     ],
   },

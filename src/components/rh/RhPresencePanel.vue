@@ -32,7 +32,14 @@
       </table>
     </section>
 
-    <AppModal v-model="showCorrection" title="Corriger un pointage" size="md">
+    <section v-if="showCorrection" class="rounded-lg border border-cyan-200 bg-cyan-50/70 p-4">
+      <div class="mb-3 flex items-center justify-between gap-3">
+        <div>
+          <h3 class="font-bold text-slate-900">Corriger un pointage</h3>
+          <p class="text-sm text-slate-500">Saisie intégrée dans la page, sans fenêtre flottante.</p>
+        </div>
+        <button type="button" class="btn-secondary" @click="showCorrection = false">Fermer</button>
+      </div>
       <form class="grid gap-3 sm:grid-cols-2" @submit.prevent="saveCorrection">
         <label class="label">Employé<select v-model.number="correction.employe_id" class="input" required><option v-for="e in employes" :key="e.id" :value="e.id">{{ nom(e) }}</option></select></label><label class="label">Date<input v-model="correction.date" type="date" class="input" required /></label>
         <label class="label">Arrivée<input v-model="correction.arrivee_at" type="datetime-local" class="input" /></label><label class="label">Début pause<input v-model="correction.pause_debut_at" type="datetime-local" class="input" /></label>
@@ -40,14 +47,13 @@
         <label class="label sm:col-span-2">Note<textarea v-model="correction.note" rows="2" class="input"></textarea></label>
         <div class="flex justify-end gap-2 sm:col-span-2"><button type="button" class="btn-secondary" @click="showCorrection = false">Annuler</button><button class="btn-primary">Enregistrer</button></div>
       </form>
-    </AppModal>
+    </section>
   </div>
 </template>
 
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 import api from '@/services/api'
-import AppModal from '@/components/InlinePanelModal.vue'
 import { useToast } from '@/composables/useToast'
 const props = defineProps({ canManage: Boolean, employes: { type: Array, default: () => [] } }), toast = useToast()
 const monPointage = reactive({}), presences = ref([]), stats = reactive({}), showCorrection = ref(false)
@@ -61,7 +67,7 @@ async function loadMonPointage() { try { Object.assign(monPointage, (await api.g
 async function loadListe() { const { data } = await api.get('/rh/presences', { params: { ...filters, date: filters.date || undefined, mois: filters.date ? undefined : filters.mois, employe_id: filters.employe_id || undefined } }); presences.value = data.presences; Object.assign(stats, data.stats) }
 async function pointer(action) { try { Object.assign(monPointage, (await api.post('/rh/presences/pointer', { action })).data); toast.success('Pointage enregistré.'); await loadListe() } catch (e) { toast.error(e.response.data.message || 'Pointage impossible.') } }
 function resetFilters() { Object.assign(filters, { mois: new Date().toISOString().slice(0, 7), date: '', employe_id: '' }); loadListe() }
-function openCorrection(p = {}) { Object.assign(correction, { id: p.id || null, employe_id: p.employe_id || null, date: p.date.slice(0, 10) || new Date().toISOString().slice(0, 10), arrivee_at: inputDate(p.arrivee_at), pause_debut_at: inputDate(p.pause_debut_at), pause_fin_at: inputDate(p.pause_fin_at), depart_at: inputDate(p.depart_at), note: p.note || '' }); showCorrection.value = true }
+function openCorrection(p = {}) { Object.assign(correction, { id: p.id || null, employe_id: p.employe_id || null, date: p.date ? p.date.slice(0, 10) : new Date().toISOString().slice(0, 10), arrivee_at: inputDate(p.arrivee_at), pause_debut_at: inputDate(p.pause_debut_at), pause_fin_at: inputDate(p.pause_fin_at), depart_at: inputDate(p.depart_at), note: p.note || '' }); showCorrection.value = true }
 async function saveCorrection() { try { const payload = Object.fromEntries(Object.entries(correction).filter(([k, v]) => k !== 'id' && v !== '')); correction.id ? await api.put(`/rh/presences/${correction.id}`, payload) : await api.post('/rh/presences', payload); toast.success('Pointage corrigé.'); showCorrection.value = false; await loadListe() } catch (e) { toast.error(e.response.data.message || Object.values(e.response.data.errors || {})[0]?.[0] || 'Correction impossible.') } }
 onMounted(() => Promise.all([loadMonPointage(), loadListe()]))
 </script>

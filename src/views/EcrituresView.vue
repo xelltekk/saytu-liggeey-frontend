@@ -100,76 +100,20 @@
       </div>
     </div>
 
-    <!-- Modal détails écriture -->
-    <AppModal v-model="showDetails" :title="detailsEcriture ? `Écriture ${detailsEcriture.numero}` : ''" size="lg">
-      <div v-if="detailsEcriture" class="space-y-4">
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-          <div><strong>Journal :</strong> {{ detailsEcriture.journal?.code || '-' }} - {{ detailsEcriture.journal?.libelle || '-' }}</div>
-          <div><strong>Date :</strong> {{ formatDate(detailsEcriture.date_ecriture) }}</div>
-          <div><strong>Pièce :</strong> {{ detailsEcriture.reference_piece || '–' }}</div>
-          <div><strong>Source :</strong> {{ sourceLabel(detailsEcriture.source) }}</div>
-          <div class="col-span-2"><strong>Libellé :</strong> {{ detailsEcriture.libelle }}</div>
-        </div>
-
-        <table class="w-full border border-gray-200 rounded">
-          <thead class="bg-gray-50">
-            <tr>
-              <th class="px-3 py-2 text-left text-xs font-semibold uppercase">Compte</th>
-              <th class="px-3 py-2 text-left text-xs font-semibold uppercase">Libellé</th>
-              <th class="px-3 py-2 text-right text-xs font-semibold uppercase">Débit</th>
-              <th class="px-3 py-2 text-right text-xs font-semibold uppercase">Crédit</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-gray-100">
-            <tr v-for="l in detailsEcriture.lignes" :key="l.id">
-              <td class="px-3 py-2">
-                <div class="font-mono text-sm font-semibold">{{ l.compte?.numero || '-' }}</div>
-                <div class="text-xs text-gray-500">{{ l.compte?.libelle || '-' }}</div>
-                <div v-if="l.compte_auxiliaire" class="text-xs text-xelltekk-600 mt-1">
-                  Aux: {{ l.compte_auxiliaire?.numero_auxiliaire || '-' }} ({{ l.compte_auxiliaire?.libelle || '-' }})
-                </div>
-              </td>
-              <td class="px-3 py-2 text-sm text-gray-700">{{ l.libelle }}</td>
-              <td class="px-3 py-2 text-right font-mono text-sm">
-                <span v-if="parseFloat(l.debit) > 0" class="text-blue-700 font-semibold">{{ formatPrice(l.debit) }}</span>
-                <span v-else class="text-gray-300">–</span>
-              </td>
-              <td class="px-3 py-2 text-right font-mono text-sm">
-                <span v-if="parseFloat(l.credit) > 0" class="text-purple-700 font-semibold">{{ formatPrice(l.credit) }}</span>
-                <span v-else class="text-gray-300">–</span>
-              </td>
-            </tr>
-          </tbody>
-          <tfoot class="bg-gray-50 font-bold">
-            <tr>
-              <td colspan="2" class="px-3 py-2 text-right text-sm">TOTAUX</td>
-              <td class="px-3 py-2 text-right font-mono text-blue-700">{{ formatPrice(detailsEcriture.total_debit) }}</td>
-              <td class="px-3 py-2 text-right font-mono text-purple-700">{{ formatPrice(detailsEcriture.total_credit) }}</td>
-            </tr>
-          </tfoot>
-        </table>
-
-        <div v-if="!estEquilibree" class="p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">
-          ⚠️ Cette écriture n'est pas équilibrée (débit ≠ crédit) !
-        </div>
-        <div v-else class="p-3 bg-green-50 border border-green-200 rounded text-sm text-green-700">
-          ✅ Écriture équilibrée (partie double respectée)
-        </div>
-      </div>
-    </AppModal>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import api from '@/services/api'
-import AppModal from '@/components/AppModal.vue'
 import SortableTh from '@/components/SortableTh.vue'
 import { useToast } from '@/composables/useToast'
 import { useTableSort } from '@/composables/useTableSort'
 import { telechargerCSV } from '@/services/exports'
 
 const toast = useToast()
+const router = useRouter()
 const ecritures = ref([])
 const { sort, toggleSort, sortIcon, sortedRows } = useTableSort('date', 'desc')
 const journaux = ref([])
@@ -178,14 +122,6 @@ const loading = ref(false)
 const exportLoading = ref(false)
 const meta = reactive({ current_page: 1, last_page: 1, total: 0, from: 0, to: 0 })
 const filters = reactive({ search: '', journal_id: '', source: '', date_from: '', date_to: '', period: '' })
-
-const showDetails = ref(false)
-const detailsEcriture = ref(null)
-
-const estEquilibree = computed(() => {
-  if (!detailsEcriture.value) return true
-  return Math.abs(parseFloat(detailsEcriture.value.total_debit) - parseFloat(detailsEcriture.value.total_credit)) < 0.01
-})
 
 const sortedEcritures = computed(() => sortedRows(ecritures.value, {
   numero: 'numero',
@@ -291,9 +227,8 @@ async function exporterCSV() {
 }
 
 async function openDetails(e) {
-  const { data } = await api.get(`/compta/ecritures/${e.id}`)
-  detailsEcriture.value = data
-  showDetails.value = true
+  if (!e?.id) return
+  router.push({ name: 'compta-ecriture-detail', params: { id: e.id } })
 }
 
 function formatPrice(n) { return new Intl.NumberFormat('fr-FR').format(Math.round(n || 0)) }

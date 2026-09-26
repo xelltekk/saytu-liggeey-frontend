@@ -346,219 +346,15 @@
       </div>
     </section>
 
-    <AppModal v-model="showImprimanteModal" :title="editingImprimante ? 'Modifier l’imprimante leasing' : 'Nouvelle imprimante leasing'" size="lg">
-      <form class="space-y-4" @submit.prevent="saveImprimante">
-        <div class="grid gap-4 md:grid-cols-2">
-          <label class="field-label md:col-span-2">Produit lié (optionnel)
-            <select v-model.number="imprimanteForm.produit_id" class="input" @change="syncProduit">
-              <option value="">Aucun produit lié</option>
-              <option v-for="produit in referentiels.produits" :key="produit.id" :value="produit.id">{{ produit.reference }} - {{ produit.libelle }}</option>
-            </select>
-          </label>
-          <label v-if="editingImprimante" class="field-label md:col-span-2">Référence <input v-model="imprimanteForm.reference" class="input" /></label>
-          <label class="field-label md:col-span-2">Désignation <input v-model="imprimanteForm.designation" class="input" required /></label>
-          <label class="field-label">Marque <input v-model="imprimanteForm.marque" class="input" /></label>
-          <label class="field-label">Modèle <input v-model="imprimanteForm.modele" class="input" /></label>
-          <label class="field-label">N° série <input v-model="imprimanteForm.numero_serie" class="input" /></label>
-          <label class="field-label">Emplacement <input v-model="imprimanteForm.localisation" class="input" placeholder="Ex: Locaux du client, bureau..." /></label>
-          <label class="field-label">Type
-            <select v-model="imprimanteForm.type_impression" class="input">
-              <option value="multifonction">Multifonction</option>
-              <option value="noir_blanc">Noir & blanc</option>
-              <option value="couleur">Couleur</option>
-            </select>
-          </label>
-          <label v-if="editingImprimante" class="field-label">Statut
-            <select v-model="imprimanteForm.statut" class="input">
-              <option value="disponible">Disponible</option>
-              <option value="louee">Louée</option>
-              <option value="maintenance">Maintenance</option>
-              <option value="retiree">Retirée</option>
-            </select>
-          </label>
-          <label class="field-label">Compteur noir initial <input v-model.number="imprimanteForm.compteur_initial_noir" type="number" min="0" class="input" /></label>
-          <label class="field-label">Compteur couleur initial <input v-model.number="imprimanteForm.compteur_initial_couleur" type="number" min="0" class="input" /></label>
-          <label v-if="editingImprimante" class="field-label">Compteur noir actuel <input v-model.number="imprimanteForm.compteur_actuel_noir" type="number" min="0" class="input" /></label>
-          <label v-if="editingImprimante" class="field-label">Compteur couleur actuel <input v-model.number="imprimanteForm.compteur_actuel_couleur" type="number" min="0" class="input" /></label>
-          <label class="field-label md:col-span-2">Notes <textarea v-model="imprimanteForm.notes" class="input min-h-24"></textarea></label>
-        </div>
-        <div class="flex justify-end gap-2 border-t pt-4">
-          <button type="button" class="btn-secondary" @click="showImprimanteModal = false">Annuler</button>
-          <button class="btn-primary" :disabled="saving">{{ saving ? 'Enregistrement...' : (editingImprimante ? 'Mettre à jour' : 'Enregistrer') }}</button>
-        </div>
-      </form>
-    </AppModal>
-
-    <AppModal v-model="showContratModal" title="Nouveau contrat de leasing" size="lg">
-      <form class="space-y-4" @submit.prevent="saveContrat">
-        <div class="grid gap-4 md:grid-cols-2">
-          <label class="field-label">Client
-            <select v-model.number="contratForm.client_id" class="input" required>
-              <option value="">Choisir un client</option>
-              <option v-for="client in referentiels.clients" :key="client.id" :value="client.id">{{ client.code }} - {{ client.nom }}</option>
-            </select>
-          </label>
-          <label class="field-label">Imprimante
-            <select v-model.number="contratForm.imprimante_id" class="input" required>
-              <option value="">Choisir une imprimante</option>
-              <option v-for="imprimante in referentiels.imprimantes_disponibles" :key="imprimante.id" :value="imprimante.id">{{ imprimante.reference }} - {{ imprimante.designation }}</option>
-            </select>
-          </label>
-          <label class="field-label">Date début <input v-model="contratForm.date_debut" type="date" class="input" required /></label>
-          <label class="field-label">Date fin <input v-model="contratForm.date_fin" type="date" class="input" /></label>
-          <label class="field-label">Périodicité
-            <select v-model="contratForm.periodicite_facturation" class="input">
-              <option value="mensuelle">Mensuelle</option>
-              <option value="trimestrielle">Trimestrielle</option>
-              <option value="semestrielle">Semestrielle</option>
-              <option value="annuelle">Annuelle</option>
-            </select>
-          </label>
-          <label class="field-label">Loyer mensuel HT <input v-model.number="contratForm.loyer_mensuel_ht" type="number" min="0" step="1" class="input" required /></label>
-          <label class="field-label">TVA % <input v-model.number="contratForm.taux_tva" type="number" min="0" max="100" step="0.01" class="input" /></label>
-          <label class="field-label">Forfait pages noir <input v-model.number="contratForm.forfait_pages_noir" type="number" min="0" class="input" /></label>
-          <label class="field-label">Prix page noir HT <input v-model.number="contratForm.prix_page_noir_ht" type="number" min="0" step="0.01" class="input" /></label>
-          <label class="field-label">Forfait pages couleur <input v-model.number="contratForm.forfait_pages_couleur" type="number" min="0" class="input" /></label>
-          <label class="field-label">Prix page couleur HT <input v-model.number="contratForm.prix_page_couleur_ht" type="number" min="0" step="0.01" class="input" /></label>
-          <label class="field-label">Frais de pose / dépôt HT <input v-model.number="contratForm.depot_garantie" type="number" min="0" step="1" class="input" /></label>
-          <label class="field-label md:col-span-2">Conditions particulières <textarea v-model="contratForm.conditions" class="input min-h-24"></textarea></label>
-        </div>
-        <div class="flex justify-end gap-2 border-t pt-4">
-          <button type="button" class="btn-secondary" @click="showContratModal = false">Annuler</button>
-          <button class="btn-primary" :disabled="saving">{{ saving ? 'Enregistrement...' : 'Enregistrer le contrat' }}</button>
-        </div>
-      </form>
-    </AppModal>
-
-    <AppModal v-model="showReleveModal" title="Nouveau relevé compteur" size="md">
-      <form class="space-y-4" @submit.prevent="saveReleve">
-        <label class="field-label">Contrat
-          <select v-model.number="releveForm.contrat_id" class="input" required>
-            <option value="">Choisir un contrat</option>
-            <option v-for="contrat in contratsReleves" :key="contrat.id" :value="contrat.id">{{ contrat.numero }} - {{ contrat.client?.nom }} - {{ contrat.imprimante?.designation }}</option>
-          </select>
-        </label>
-        <div class="grid gap-4 md:grid-cols-3">
-          <label class="field-label">Mois du relevé <input v-model="releveForm.periode" type="month" class="input" required /></label>
-          <label class="field-label md:col-span-2">Justificatif du relevé (optionnel)
-            <input type="file" accept=".pdf,.jpg,.jpeg,.png" class="input" @change="onReleveFileChange" />
-            <span class="mt-1 block text-xs text-slate-500">Le fichier est seulement archivé avec le relevé. La saisie des compteurs se fait manuellement.</span>
-          </label>
-        </div>
-        <div class="rounded-2xl border border-blue-100 bg-blue-50 p-4">
-          <div class="mb-3">
-            <strong class="text-slate-900">Comptage manuel</strong>
-            <p class="text-xs text-slate-600">L’ancien comptage est prérempli depuis le dernier relevé ou le compteur initial. Tu peux le modifier si nécessaire.</p>
-          </div>
-          <div class="grid gap-4 md:grid-cols-2">
-            <label class="field-label">Ancien comptage noir
-              <input v-model.number="releveForm.ancien_compteur_noir" type="number" min="0" class="input" placeholder="Ancien compteur noir" />
-            </label>
-            <label class="field-label">Nouveau comptage noir
-              <input v-model.number="releveForm.compteur_noir" type="number" min="0" class="input" required placeholder="Nouveau compteur noir" />
-            </label>
-            <label class="field-label">Ancien comptage couleur
-              <input v-model.number="releveForm.ancien_compteur_couleur" type="number" min="0" class="input" placeholder="Ancien compteur couleur" />
-            </label>
-            <label class="field-label">Nouveau comptage couleur
-              <input v-model.number="releveForm.compteur_couleur" type="number" min="0" class="input" placeholder="Nouveau compteur couleur" />
-            </label>
-          </div>
-        </div>
-        <div class="flex flex-col gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between">
-          <span>{{ previewLoading ? 'Calcul en cours...' : 'Le calcul se met à jour automatiquement pendant la saisie.' }}</span>
-          <button type="button" class="btn-secondary" :disabled="previewLoading" @click="previewReleve(false)">
-            {{ previewLoading ? 'Calcul...' : 'Recalculer maintenant' }}
-          </button>
-        </div>
-        <div v-if="relevePreview" class="rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-950">
-          <div class="grid gap-3 lg:grid-cols-3">
-            <div>
-              <span class="caption">Comptage saisi</span>
-              <strong class="block">Noir : {{ relevePreview.ancien_compteur_noir ?? 0 }} → {{ relevePreview.compteur_noir ?? '-' }}</strong>
-              <p>Couleur : {{ relevePreview.ancien_compteur_couleur ?? '-' }} → {{ relevePreview.compteur_couleur ?? '-' }}</p>
-            </div>
-            <div>
-              <span class="caption">Différence calculée</span>
-              <strong class="block">{{ relevePreview.copies_noir || 0 }} pages noir · {{ relevePreview.copies_couleur || 0 }} pages couleur</strong>
-              <p>Supplément : <strong>{{ money(relevePreview.montant_supp_ht) }}</strong></p>
-            </div>
-            <div class="rounded-xl bg-white/70 p-3">
-              <span class="caption">Total facturable estimatif</span>
-              <div class="mt-1 space-y-1">
-                <p class="flex justify-between"><span>Loyer période HT</span><strong>{{ money(relevePreview.loyer_periode_ht) }}</strong></p>
-                <p class="flex justify-between"><span>Total HT</span><strong>{{ money(relevePreview.total_ht) }}</strong></p>
-                <p class="flex justify-between"><span>TVA</span><strong>{{ money(relevePreview.total_tva) }}</strong></p>
-                <p class="flex justify-between border-t border-blue-100 pt-1 text-base"><span>Total TTC</span><strong class="text-xelltekk-700">{{ money(relevePreview.total_ttc) }}</strong></p>
-              </div>
-            </div>
-          </div>
-        </div>
-        <label class="field-label">Notes <textarea v-model="releveForm.notes" class="input min-h-20"></textarea></label>
-        <div class="flex justify-end gap-2 border-t pt-4">
-          <button type="button" class="btn-secondary" @click="showReleveModal = false">Annuler</button>
-          <button class="btn-primary" :disabled="saving">{{ saving ? 'Enregistrement...' : 'Enregistrer le relevé' }}</button>
-        </div>
-      </form>
-    </AppModal>
-
-    <AppModal v-model="showInterventionModal" :title="editingIntervention ? `Modifier ${editingIntervention.reference}` : 'Nouvelle intervention'" size="lg">
-      <form class="space-y-4" @submit.prevent="saveIntervention">
-        <div class="grid gap-4 md:grid-cols-2">
-          <label class="field-label">Contrat lié
-            <select v-model.number="interventionForm.contrat_id" class="input">
-              <option value="">Sans contrat</option>
-              <option v-for="contrat in contrats" :key="contrat.id" :value="contrat.id">{{ contrat.numero }} - {{ contrat.client?.nom }}</option>
-            </select>
-          </label>
-          <label class="field-label">Imprimante
-            <select v-model.number="interventionForm.imprimante_id" class="input" :required="!interventionForm.contrat_id" :disabled="!!interventionForm.contrat_id">
-              <option value="">Choisir</option>
-              <option v-for="imprimante in imprimantes" :key="imprimante.id" :value="imprimante.id">{{ imprimante.reference }} - {{ imprimante.designation }}</option>
-            </select>
-          </label>
-          <label class="field-label">Date intervention <input v-model="interventionForm.date_intervention" type="date" class="input" required /></label>
-          <label class="field-label">Date résolution <input v-model="interventionForm.date_resolution" type="date" class="input" /></label>
-          <label class="field-label">Technicien <input v-model="interventionForm.technicien" class="input" placeholder="Nom du technicien / prestataire" /></label>
-          <label class="field-label">Coût HT <input v-model.number="interventionForm.cout_ht" type="number" min="0" step="1" class="input" /></label>
-          <label class="field-label">Type
-            <select v-model="interventionForm.type" class="input">
-              <option value="installation">Installation</option>
-              <option value="maintenance">Maintenance</option>
-              <option value="depannage">Dépannage</option>
-              <option value="retrait">Retrait</option>
-              <option value="releve">Relevé</option>
-              <option value="autre">Autre</option>
-            </select>
-          </label>
-          <label class="field-label">Statut
-            <select v-model="interventionForm.statut" class="input">
-              <option value="planifiee">Planifiée</option>
-              <option value="en_cours">En cours</option>
-              <option value="terminee">Terminée</option>
-              <option value="annulee">Annulée</option>
-            </select>
-          </label>
-          <label class="field-label md:col-span-2">Description / problème constaté <textarea v-model="interventionForm.description" class="input min-h-24"></textarea></label>
-          <label class="field-label md:col-span-2">Solution / travaux effectués <textarea v-model="interventionForm.solution" class="input min-h-20" placeholder="Pièces changées, nettoyage, configuration, test effectué..."></textarea></label>
-          <label class="field-label md:col-span-2">Notes internes <textarea v-model="interventionForm.notes" class="input min-h-20"></textarea></label>
-        </div>
-        <div class="flex justify-end gap-2 border-t pt-4">
-          <button type="button" class="btn-secondary" @click="showInterventionModal = false">Annuler</button>
-          <button class="btn-primary" :disabled="saving">{{ saving ? 'Enregistrement...' : (editingIntervention ? 'Mettre à jour' : 'Enregistrer') }}</button>
-        </div>
-      </form>
-    </AppModal>
   </div>
 </template>
 
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import api from '@/services/api'
 import { ouvrirPDF } from '@/services/pdf'
 import { telechargerFichierPrive } from '@/services/files'
-import AppModal from '@/components/InlinePanelModal.vue'
 import { useToast } from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
 import { useAuthStore } from '@/stores/auth'
@@ -568,6 +364,7 @@ const toast = useToast()
 const auth = useAuthStore()
 const { confirm: askConfirm } = useConfirm()
 const route = useRoute()
+const router = useRouter()
 const activeTab = ref(tabFromRoute(route.query) || 'contrats')
 const loading = ref(false)
 const saving = ref(false)
@@ -766,39 +563,32 @@ async function loadInterventions() {
 }
 
 function openImprimanteModal() {
-  editingImprimante.value = null
-  Object.assign(imprimanteForm, defaultImprimanteForm())
-  showImprimanteModal.value = true
+  router.push({ name: 'leasing-imprimante-create' })
 }
 
 function openEditImprimanteModal(imprimante) {
-  editingImprimante.value = imprimante
-  Object.assign(imprimanteForm, imprimanteToForm(imprimante))
-  showImprimanteModal.value = true
+  if (!imprimante?.id) return
+  router.push({ name: 'leasing-imprimante-detail', params: { id: imprimante.id } })
 }
 
 function openContratModal() {
-  Object.assign(contratForm, defaultContratForm())
-  showContratModal.value = true
+  router.push({ name: 'leasing-contrat-create' })
 }
 
 function openReleveModal(contrat = null) {
-  Object.assign(releveForm, defaultReleveForm())
-  relevePreview.value = null
-  if (contrat?.id) releveForm.contrat_id = contrat.id
-  showReleveModal.value = true
+  router.push({
+    name: 'leasing-releve-create',
+    query: contrat?.id ? { contrat_id: contrat.id } : {},
+  })
 }
 
 function openInterventionModal() {
-  editingIntervention.value = null
-  Object.assign(interventionForm, defaultInterventionForm())
-  showInterventionModal.value = true
+  router.push({ name: 'leasing-intervention-create' })
 }
 
 function openEditInterventionModal(intervention) {
-  editingIntervention.value = intervention
-  Object.assign(interventionForm, interventionToForm(intervention))
-  showInterventionModal.value = true
+  if (!intervention?.id) return
+  router.push({ name: 'leasing-intervention-detail', params: { id: intervention.id } })
 }
 
 function syncProduit() {

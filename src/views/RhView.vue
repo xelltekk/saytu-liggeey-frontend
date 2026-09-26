@@ -285,89 +285,13 @@
       </div>
     </template>
 
-    <AppModal v-model="showCongeModal" title="Nouvelle demande de congé" size="md">
-      <form class="space-y-3" @submit.prevent="saveConge">
-        <select v-if="canManage" v-model.number="congeForm.employe_id" class="input"><option :value="null">Moi-même / employé lié</option><option v-for="e in employes" :key="e.id" :value="e.id">{{ nomEmploye(e) }}</option></select>
-        <select v-model.number="congeForm.type_conge_id" class="input" required><option :value="null">Type de congé</option><option v-for="t in referentiels.types_conges" :key="t.id" :value="t.id">{{ t.libelle }}</option></select>
-        <div class="grid grid-cols-2 gap-2"><input v-model="congeForm.date_debut" type="date" class="input" required /><input v-model="congeForm.date_fin" type="date" class="input" required /></div>
-        <div v-if="congeSolde.selected" class="rounded-lg border p-3 text-sm" :class="soldeBoxClass(congeSolde.selected)">
-          <div class="flex items-center justify-between gap-3">
-            <span>Jours demandes</span>
-            <strong>{{ formatJours(congeSolde.jours_demandes) }} jour(s)</strong>
-          </div>
-          <div class="mt-2 flex items-center justify-between gap-3">
-            <span>Solde disponible</span>
-            <strong>{{ soldeDisponibleLabel(congeSolde.selected) }}</strong>
-          </div>
-          <p v-if="congeSolde.selected.depasse" class="mt-2 font-medium">
-            Solde insuffisant pour ce type de conge.
-          </p>
-          <p v-else-if="congeSolde.selected.illimite" class="mt-2 text-xs">
-            Ce type de conge n'a pas de plafond annuel configure.
-          </p>
-        </div>
-        <textarea v-model="congeForm.motif" class="input" rows="3" placeholder="Motif ou précision"></textarea>
-        <div class="flex justify-end gap-2"><button type="button" class="btn-secondary" @click="showCongeModal = false">Annuler</button><button class="btn-primary" :disabled="congeSolde.loading || !!congeSolde.selected?.depasse">Envoyer</button></div>
-      </form>
-    </AppModal>
-
-
-    <AppModal v-model="showDecisionModal" :title="decisionModalTitle" size="md">
-      <form class="space-y-3" @submit.prevent="confirmDecisionConge">
-        <div class="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
-          <div class="flex justify-between gap-3"><span>Employe</span><strong>{{ nomEmploye(decisionConge.employe) }}</strong></div>
-          <div class="mt-2 flex justify-between gap-3"><span>Type</span><strong>{{ decisionConge.type_conge?.libelle || '-' }}</strong></div>
-          <div class="mt-2 flex justify-between gap-3"><span>Periode</span><strong>{{ formatDate(decisionConge.date_debut) }} - {{ formatDate(decisionConge.date_fin) }}</strong></div>
-          <div class="mt-2 flex justify-between gap-3"><span>Jours</span><strong>{{ decisionConge.nombre_jours || 0 }}</strong></div>
-        </div>
-        <div v-if="decisionConge.solde_conge" class="rounded-lg border p-3 text-sm" :class="soldeBoxClass(decisionConge.solde_conge)">
-          <div class="flex justify-between gap-3"><span>Solde disponible</span><strong>{{ soldeDisponibleLabel(decisionConge.solde_conge) }}</strong></div>
-          <p v-if="decisionConge.solde_conge.depasse" class="mt-2 font-medium">Attention : cette demande depasse le solde disponible.</p>
-        </div>
-        <textarea v-model="decisionForm.note_decision" class="input" rows="3" placeholder="Note de decision (optionnel)"></textarea>
-        <div class="flex justify-end gap-2">
-          <button type="button" class="btn-secondary" @click="showDecisionModal = false">Annuler</button>
-          <button class="btn-primary" :class="decisionButtonClass" :disabled="decisionLoading">Confirmer</button>
-        </div>
-      </form>
-    </AppModal>
-
-    <AppModal v-model="showEmployeModal" :title="employeModalTitle" size="lg">
-      <form class="grid grid-cols-1 gap-3 sm:grid-cols-2" @submit.prevent="saveEmploye">
-        <input v-model="employeForm.matricule" class="input" placeholder="Matricule *" required /><select v-model.number="employeForm.user_id" class="input"><option :value="null">Lier un compte existant (optionnel)</option><option v-for="u in referentiels.utilisateurs" :key="u.id" :value="u.id">{{ u.name }} - {{ u.email }}</option></select>
-        <input v-model="employeForm.prenom" class="input" placeholder="Prénom *" required /><input v-model="employeForm.nom" class="input" placeholder="Nom *" required />
-        <input v-model="employeForm.email" type="email" class="input" placeholder="Email" /><input v-model="employeForm.telephone" type="tel" data-phone-input class="input" placeholder="77 123 45 67" />
-        <input v-model="employeForm.date_embauche" type="date" class="input" required /><select v-model="employeForm.type_contrat" class="input"><option value="cdi">CDI</option><option value="cdd">CDD</option><option value="stage">Stage</option><option value="prestation">Prestation</option><option value="journalier">Journalier</option></select>
-        <select v-model.number="employeForm.departement_id" class="input"><option :value="null">Service</option><option v-for="d in referentiels.departements" :key="d.id" :value="d.id">{{ d.libelle }}</option></select><select v-model.number="employeForm.poste_id" class="input"><option :value="null">Poste</option><option v-for="p in referentiels.postes" :key="p.id" :value="p.id">{{ p.libelle }}</option></select>
-        <select v-model="employeForm.statut" class="input"><option value="actif">Actif</option><option value="conge">En congé</option><option value="suspendu">Suspendu</option><option value="sorti">Sorti</option></select><input v-model="employeForm.contact_urgence" class="input" placeholder="Contact d’urgence" />
-        <textarea v-model="employeForm.notes" class="input sm:col-span-2" rows="2" placeholder="Notes internes"></textarea>
-        <section class="rounded-lg border border-slate-200 bg-slate-50 p-3 sm:col-span-2">
-          <label class="flex items-start gap-3 text-sm font-medium text-slate-700">
-            <input v-model="employeForm.creer_utilisateur" type="checkbox" class="mt-1" :disabled="!!employeForm.user_id" />
-            <span>
-              Creer aussi un compte utilisateur Saytu
-              <small class="mt-1 block font-normal text-slate-500">L employe pourra se connecter a Saytu avec le role choisi. Laissez decoche pour une fiche RH simple.</small>
-            </span>
-          </label>
-          <div v-if="employeForm.creer_utilisateur && !employeForm.user_id" class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <select v-model="employeForm.user_role" class="input">
-              <option v-for="role in userRoleOptions" :key="role.value" :value="role.value">{{ role.label }}</option>
-            </select>
-            <input v-model="employeForm.user_password" type="text" class="input" placeholder="Mot de passe (vide = automatique)" />
-            <label class="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"><input v-model="employeForm.user_is_active" type="checkbox" /> Compte actif</label>
-          </div>
-        </section>
-        <div class="flex justify-end gap-2 sm:col-span-2"><button type="button" class="btn-secondary" @click="showEmployeModal = false">Annuler</button><button class="btn-primary">Enregistrer</button></div>
-      </form>
-    </AppModal>
   </div>
 </template>
 
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import api from '@/services/api'
-import AppModal from '@/components/InlinePanelModal.vue'
 import AppPagination from '@/components/AppPagination.vue'
 import RhExtendedPanel from '@/components/rh/RhExtendedPanel.vue'
 import RhPresencePanel from '@/components/rh/RhPresencePanel.vue'
@@ -389,6 +313,7 @@ import { hasAnyRole } from '@/utils/access'
 
 const auth = useAuthStore()
 const route = useRoute()
+const router = useRouter()
 const toast = useToast()
 const { confirm: askConfirm } = useConfirm()
 const canManage = computed(() => hasAnyRole(auth.user, ['admin', 'gerant']))
@@ -505,15 +430,15 @@ async function loadConges(page = 1) { const { data } = await api.get('/rh/conges
 async function loadSoldesConges() { soldesConges.loading = true; try { const { data } = await api.get('/rh/conges/soldes', { params: { annee: soldesConges.annee } }); Object.assign(soldesConges, { annee: data.annee, employes: data.employes || [] }) } catch (e) { toast.error(e.response.data.message || 'Impossible de charger les soldes de conges.') } finally { soldesConges.loading = false } }
 async function exportSoldesConges() { try { const response = await api.get('/rh/conges/soldes/export', { params: { annee: soldesConges.annee }, responseType: 'blob' }); const url = URL.createObjectURL(response.data); const link = document.createElement('a'); link.href = url; link.download = 'soldes-conges-' + (soldesConges.annee || new Date().getFullYear()) + '.csv'; link.click(); URL.revokeObjectURL(url) } catch (e) { toast.error(e.response.data.message || 'Export impossible.') } }
 async function toggleSoldesConges() { showSoldesConges.value = !showSoldesConges.value; if (showSoldesConges.value && soldesConges.employes.length === 0) await loadSoldesConges() }
-function openConge() { showCongeModal.value = true }
+function openConge() {
+  router.push({ name: 'rh-conge-create' })
+}
 function openEmploye(e = null) {
-  editingEmploye.value = e?.id ? e : null
-  Object.assign(employeForm, emptyEmploye(), editingEmploye.value || {})
-  employeForm.creer_utilisateur = false
-  employeForm.user_role = editingEmploye.value?.user?.role || 'commercial'
-  employeForm.user_password = ''
-  employeForm.user_is_active = editingEmploye.value?.user?.is_active ?? true
-  showEmployeModal.value = true
+  if (e?.id) {
+    router.push({ name: 'rh-employe-detail', params: { id: e.id } })
+    return
+  }
+  router.push({ name: 'rh-employe-create' })
 }
 function resetCongeSolde() { Object.assign(congeSolde, { loading: false, jours_demandes: 0, types: [], selected: null }) }
 async function loadSoldeConge() {
@@ -555,15 +480,21 @@ async function saveConge() {
 function openDecisionConge(c, statut) {
   decisionConge.value = c
   Object.assign(decisionForm, { statut, note_decision: '' })
-  showDecisionModal.value = true
+  confirmDecisionConge()
 }
 async function confirmDecisionConge() {
   if (!decisionConge.value?.id) return
+  const isApprove = decisionForm.statut === 'approuve'
+  const label = isApprove ? 'approuver' : 'refuser'
+  if (!await askConfirm({
+    message: `Voulez-vous ${label} la demande de congé de ${nomEmploye(decisionConge.value.employe)} ?`,
+    tone: isApprove ? 'primary' : 'danger',
+    confirmLabel: isApprove ? 'Approuver' : 'Refuser',
+  })) return
   decisionLoading.value = true
   try {
     await api.put(`/rh/conges/${decisionConge.value.id}/decision`, decisionForm)
     toast.success(decisionForm.statut === 'approuve' ? 'Demande approuvee.' : 'Demande refusee.')
-    showDecisionModal.value = false
     await loadConges(congeMeta.current_page || 1)
     await loadDashboard()
     if (showSoldesConges.value) await loadSoldesConges()

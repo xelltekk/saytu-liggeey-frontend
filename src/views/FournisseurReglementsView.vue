@@ -337,241 +337,13 @@
       </div>
     </section>
 
-    <AppModal v-model="showFactureModal" :title="editingFacture ? 'Modifier facture fournisseur' : 'Nouvelle facture fournisseur'" size="lg">
-      <form class="space-y-4" @submit.prevent="saveFacture">
-        <div v-if="editingFacture?.commande_achat" class="rounded-lg border border-violet-200 bg-violet-50 p-3 text-sm text-violet-900">
-          Facture générée depuis la commande <strong class="font-mono">{{ editingFacture.commande_achat.numero }}</strong>. Le fournisseur et les montants restent synchronisés avec cette commande.
-        </div>
-        <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
-          <label class="field-label">
-            Fournisseur
-            <select v-model="factureForm.fournisseur_id" required class="input mt-1" :disabled="!!editingFacture?.commande_achat">
-              <option value="">Sélectionner</option>
-              <option v-for="fournisseur in fournisseurs" :key="fournisseur.id" :value="fournisseur.id">{{ fournisseur.nom }}</option>
-            </select>
-          </label>
-          <label class="field-label">
-            Référence fournisseur
-            <input v-model="factureForm.reference_fournisseur" type="text" class="input mt-1" placeholder="N° facture reçue" />
-          </label>
-          <label class="field-label">
-            Date facture
-            <input v-model="factureForm.date_facture" type="date" required class="input mt-1" />
-          </label>
-          <label class="field-label">
-            Date échéance
-            <input v-model="factureForm.date_echeance" type="date" class="input mt-1" />
-          </label>
-          <label class="field-label md:col-span-2">
-            Objet
-            <input v-model="factureForm.objet" type="text" required class="input mt-1" :readonly="!!editingFacture?.commande_achat" placeholder="Achat marchandises, prestation, transport..." />
-          </label>
-          <label class="field-label">
-            Montant HT
-            <input v-model.number="factureForm.montant_ht" type="number" min="0" step="1" required class="input mt-1" :readonly="!!editingFacture?.commande_achat" />
-          </label>
-          <label class="field-label">
-            TVA fournisseur
-            <input v-model.number="factureForm.montant_tva" type="number" min="0" step="1" class="input mt-1" :readonly="!!editingFacture?.commande_achat" />
-          </label>
-          <label class="field-label">
-            Statut
-            <select v-model="factureForm.statut" class="input mt-1">
-              <option value="validee">Validée</option>
-              <option value="brouillon">Brouillon</option>
-              <option value="annulee">Annulée</option>
-            </select>
-          </label>
-          <label class="field-label">
-            Contrôle paiement
-            <select v-model="factureForm.controle_paiement_statut" class="input mt-1">
-              <option value="a_controler">À contrôler</option>
-              <option value="bon_a_payer">Bon à payer</option>
-              <option value="bloque">Bloquée</option>
-            </select>
-          </label>
-          <label class="field-label">
-            Total TTC
-            <input :value="formatPrice(totalFactureForm)" type="text" readonly class="input mt-1 bg-slate-50" />
-          </label>
-          <label class="field-label md:col-span-2">
-            Notes
-            <textarea v-model="factureForm.notes" rows="3" class="input mt-1"></textarea>
-          </label>
-          <label class="field-label md:col-span-2">
-            Note contrôle paiement
-            <textarea v-model="factureForm.controle_paiement_note" rows="2" class="input mt-1" placeholder="Ex: litige, validation gérant, attente avoir..."></textarea>
-          </label>
-        </div>
-
-        <div class="flex justify-end gap-2 border-t border-slate-200 pt-4">
-          <button type="button" @click="showFactureModal = false" class="btn-secondary">Annuler</button>
-          <button type="submit" :disabled="savingFacture" class="btn-primary">{{ savingFacture ? 'Enregistrement...' : 'Enregistrer' }}</button>
-        </div>
-      </form>
-    </AppModal>
-
-    <AppModal v-model="showReglementModal" title="Nouveau règlement fournisseur" size="lg">
-      <form class="space-y-4" @submit.prevent="saveReglement">
-        <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
-          <label class="field-label">
-            Fournisseur
-            <select v-model="reglementForm.fournisseur_id" required class="input mt-1" @change="loadFacturesImpayees">
-              <option value="">Sélectionner</option>
-              <option v-for="fournisseur in fournisseurs" :key="fournisseur.id" :value="fournisseur.id">{{ fournisseur.nom }}</option>
-            </select>
-          </label>
-          <label class="field-label">
-            Date règlement
-            <input v-model="reglementForm.date_reglement" type="date" required class="input mt-1" />
-          </label>
-          <label class="field-label">
-            Mode de paiement
-            <select v-model="reglementForm.mode_paiement" required class="input mt-1">
-              <option value="virement">Virement</option>
-              <option value="cheque">Chèque</option>
-              <option value="especes">Espèces</option>
-              <option value="wave">Wave</option>
-              <option value="orange_money">Orange Money</option>
-              <option value="free_money">Free Money</option>
-              <option value="carte_bancaire">Carte bancaire</option>
-              <option value="autre">Autre</option>
-            </select>
-          </label>
-          <label class="field-label">
-            Montant réglé
-            <input v-model.number="reglementForm.montant" type="number" min="1" step="1" required class="input mt-1" />
-          </label>
-          <label class="field-label">
-            Statut initial
-            <select v-model="reglementForm.statut" class="input mt-1">
-              <option value="en_attente">En attente validation</option>
-              <option value="valide">Validé immédiatement</option>
-            </select>
-          </label>
-          <label class="field-label">
-            Référence paiement
-            <input v-model="reglementForm.reference_paiement" type="text" class="input mt-1" placeholder="N° chèque, virement..." />
-          </label>
-          <label class="field-label">
-            Banque
-            <input v-model="reglementForm.banque" type="text" class="input mt-1" />
-          </label>
-        </div>
-
-        <div class="rounded-xl border border-slate-200">
-          <div class="border-b border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700">
-            Factures à régler
-          </div>
-          <div v-if="facturesImpayees.length" class="max-h-72 divide-y divide-slate-100 overflow-y-auto">
-            <label v-for="facture in facturesImpayees" :key="facture.id" class="grid cursor-pointer grid-cols-1 gap-2 px-4 py-3 hover:bg-slate-50 sm:grid-cols-[28px_1fr_170px] sm:items-center">
-              <input type="checkbox" :checked="isFactureSelected(facture.id)" class="h-4 w-4" @change="toggleFacture(facture)" />
-              <div>
-                <div class="font-mono text-sm font-semibold text-slate-800">{{ facture.numero }}</div>
-                <div class="text-xs text-slate-500">Reste: {{ formatPrice(facture.reste_a_payer) }} - Échéance: {{ formatDate(facture.date_echeance) }}</div>
-                <span class="badge mt-1 inline-flex" :class="controlePaiementBadge(facture.controle_paiement_statut)">{{ controlePaiementLabel(facture.controle_paiement_statut) }}</span>
-              </div>
-              <input
-                :disabled="!isFactureSelected(facture.id)"
-                :value="selectedAmount(facture.id)"
-                type="number"
-                min="1"
-                step="1"
-                class="input"
-                @input="setSelectedAmount(facture.id, $event.target.value)"
-              />
-            </label>
-          </div>
-          <div v-else class="px-4 py-8 text-center text-sm text-slate-500">
-            Sélectionnez un fournisseur avec des factures impayées.
-          </div>
-        </div>
-
-        <label class="field-label">
-          Notes
-          <textarea v-model="reglementForm.notes" rows="3" class="input mt-1"></textarea>
-        </label>
-
-        <div class="flex justify-end gap-2 border-t border-slate-200 pt-4">
-          <button type="button" @click="showReglementModal = false" class="btn-secondary">Annuler</button>
-          <button type="submit" :disabled="savingReglement" class="btn-primary">{{ savingReglement ? 'Enregistrement...' : 'Enregistrer le règlement' }}</button>
-        </div>
-      </form>
-    </AppModal>
-
-    <AppModal v-model="showSituationModal" title="Situation fournisseur" size="lg">
-      <div v-if="situationLoading" class="py-10 text-center text-sm text-slate-500">Chargement de la situation...</div>
-      <div v-else-if="supplierSituation.fournisseur" class="space-y-4">
-        <div class="rounded-2xl border border-cyan-200 bg-cyan-50 p-4">
-          <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <h3 class="text-lg font-black text-slate-900">{{ supplierSituation.fournisseur.nom }}</h3>
-              <p class="text-sm text-slate-600">{{ supplierSituation.fournisseur.code || '-' }} · {{ supplierSituation.fournisseur.email || 'Email non renseigné' }}</p>
-            </div>
-            <button type="button" class="btn-primary px-4 py-2 text-sm" @click="openSupplierSituationPdf">
-              Situation PDF
-            </button>
-          </div>
-        </div>
-
-        <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <article v-for="card in supplierSituationCards" :key="card.label" class="rounded-xl border border-slate-200 bg-white p-3">
-            <span class="stat-label">{{ card.label }}</span>
-            <strong class="mt-1 block text-lg font-black" :class="card.color">{{ card.value }}</strong>
-          </article>
-        </div>
-
-        <section class="debt-panel">
-          <div class="debt-panel-header">
-            <div>
-              <h3>Factures impayées</h3>
-              <p>Échéances et montants restant à payer.</p>
-            </div>
-          </div>
-          <div class="max-h-80 divide-y divide-slate-100 overflow-y-auto">
-            <div v-for="facture in supplierSituation.factures_impayees" :key="facture.id" class="debt-row">
-              <div>
-                <div class="font-mono text-sm font-bold text-slate-800">{{ facture.numero }}</div>
-                <p class="text-xs text-slate-500">Échéance {{ formatDate(facture.date_echeance) }} · {{ urgenceLabel(facture) }}</p>
-                <span class="badge mt-1 inline-flex" :class="controlePaiementBadge(facture.controle_paiement_statut)">{{ controlePaiementLabel(facture.controle_paiement_statut) }}</span>
-              </div>
-              <div class="flex flex-col items-end gap-2">
-                <span class="font-mono font-black text-orange-700">{{ formatPrice(facture.reste_a_payer) }}</span>
-                <button v-if="canPayFacture(facture)" type="button" class="table-action" @click="openReglementForFacture(facture)">Payer</button>
-              </div>
-            </div>
-            <p v-if="!supplierSituation.factures_impayees?.length" class="px-4 py-8 text-center text-sm text-slate-500">Aucune facture impayée.</p>
-          </div>
-        </section>
-
-        <section class="debt-panel">
-          <div class="debt-panel-header">
-            <div>
-              <h3>Derniers règlements</h3>
-              <p>Historique récent des paiements fournisseur.</p>
-            </div>
-          </div>
-          <div class="max-h-64 divide-y divide-slate-100 overflow-y-auto">
-            <div v-for="reglement in supplierSituation.reglements" :key="reglement.id" class="debt-row">
-              <div>
-                <div class="font-mono text-sm font-bold text-slate-800">{{ reglement.reference }}</div>
-                <p class="text-xs text-slate-500">{{ formatDate(reglement.date_reglement) }} · {{ modeLabel(reglement.mode_paiement) }}</p>
-              </div>
-              <span class="font-mono font-black text-emerald-700">{{ formatPrice(reglement.montant) }}</span>
-            </div>
-            <p v-if="!supplierSituation.reglements?.length" class="px-4 py-8 text-center text-sm text-slate-500">Aucun règlement enregistré.</p>
-          </div>
-        </section>
-      </div>
-    </AppModal>
   </div>
 </template>
 
 <script setup>
 import { computed, defineComponent, h, onMounted, reactive, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import api from '@/services/api'
-import AppModal from '@/components/InlinePanelModal.vue'
 import { useToast } from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
 import { telechargerCSV } from '@/services/exports'
@@ -596,6 +368,7 @@ const PaginationBar = defineComponent({
 
 const toast = useToast()
 const route = useRoute()
+const router = useRouter()
 const { confirm: askConfirm } = useConfirm()
 const activeTab = ref('factures')
 const activeFactureStatut = ref('')
@@ -831,26 +604,12 @@ function resetFactureForm() {
 }
 
 function openFactureCreate() {
-  resetFactureForm()
-  showFactureModal.value = true
+  router.push({ name: 'fournisseur-facture-create' })
 }
 
 function openFactureEdit(facture) {
-  editingFacture.value = facture
-  Object.assign(factureForm, {
-    fournisseur_id: facture.fournisseur_id || facture.fournisseur?.id || '',
-    reference_fournisseur: facture.reference_fournisseur || '',
-    objet: facture.objet || '',
-    statut: ['payee', 'partiellement_payee'].includes(facture.statut) ? 'validee' : facture.statut,
-    controle_paiement_statut: facture.controle_paiement_statut || 'a_controler',
-    controle_paiement_note: facture.controle_paiement_note || '',
-    date_facture: normalizeDate(facture.date_facture),
-    date_echeance: normalizeDate(facture.date_echeance),
-    montant_ht: Number(facture.montant_ht || 0),
-    montant_tva: Number(facture.montant_tva || 0),
-    notes: facture.notes || '',
-  })
-  showFactureModal.value = true
+  if (!facture?.id) return
+  router.push({ name: 'fournisseur-facture-detail', params: { id: facture.id } })
 }
 
 async function saveFacture() {
@@ -924,37 +683,30 @@ function resetReglementForm() {
 }
 
 function openReglementCreate() {
-  resetReglementForm()
-  showReglementModal.value = true
+  router.push({ name: 'fournisseur-reglement-create' })
 }
 
 async function openReglementForSupplier(fournisseurId) {
   if (!fournisseurId) return
-  activeTab.value = 'reglements'
-  resetReglementForm()
-  reglementForm.fournisseur_id = fournisseurId
-  showReglementModal.value = true
-  await loadFacturesImpayees()
-  selectAllFacturesImpayees()
+  router.push({
+    name: 'fournisseur-reglement-create',
+    query: {
+      fournisseur_id: fournisseurId,
+      select_all: '1',
+    },
+  })
 }
 
 async function openReglementForFacture(facture) {
   const fournisseurId = facture?.fournisseur_id || facture?.fournisseur?.id
   if (!fournisseurId) return toast.error('Fournisseur introuvable pour cette facture.')
-  activeTab.value = 'reglements'
-  resetReglementForm()
-  reglementForm.fournisseur_id = fournisseurId
-  showReglementModal.value = true
-  showSituationModal.value = false
-  await loadFacturesImpayees()
-  const target = facturesImpayees.value.find((item) => Number(item.id) === Number(facture.id))
-  if (target) {
-    reglementForm.factures = [{
-      facture_id: target.id,
-      montant_affecte: Number(target.reste_a_payer || facture.reste_a_payer || 0),
-    }]
-    syncReglementMontant()
-  }
+  router.push({
+    name: 'fournisseur-reglement-create',
+    query: {
+      fournisseur_id: fournisseurId,
+      facture_id: facture.id,
+    },
+  })
 }
 
 async function loadFacturesImpayees() {
@@ -1085,22 +837,7 @@ async function updateReglementStatut(reglement, statut) {
 
 async function openSupplierSituation(fournisseurId) {
   if (!fournisseurId) return
-  situationLoading.value = true
-  showSituationModal.value = true
-  try {
-    const { data } = await api.get(`/fournisseurs-reglements/fournisseurs/${fournisseurId}/situation`)
-    Object.assign(supplierSituation, {
-      fournisseur: data.fournisseur || null,
-      resume: data.resume || {},
-      factures_impayees: data.factures_impayees || [],
-      factures_recentes: data.factures_recentes || [],
-      reglements: data.reglements || [],
-    })
-  } catch (error) {
-    showApiError(error, 'Situation fournisseur indisponible.')
-  } finally {
-    situationLoading.value = false
-  }
+  router.push({ name: 'fournisseur-situation-detail', params: { id: fournisseurId } })
 }
 
 async function openSupplierSituationPdf() {
