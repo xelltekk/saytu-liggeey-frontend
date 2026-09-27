@@ -337,7 +337,13 @@
                 @keydown.enter.prevent="ajouterProduitDepuisRecherche"
               />
             </div>
-            <p class="mt-2 text-xs text-slate-500">Lecteur 2D compatible : scannez le code-barres ou la r&eacute;f&eacute;rence SKU pour ajouter directement au panier.</p>
+            <div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+              <span>Lecteur 2D compatible : scannez le code-barres ou la r&eacute;f&eacute;rence SKU pour ajouter directement au panier.</span>
+              <span class="rounded-full px-2 py-1 font-black" :class="hardwareConfig.captureScanner ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'">
+                {{ hardwareConfig.captureScanner ? 'Scan global actif' : 'Scan global désactivé' }}
+              </span>
+              <span v-if="lastScanCode" class="rounded-full bg-cyan-50 px-2 py-1 font-mono font-bold text-cyan-700">Dernier scan : {{ lastScanCode }}</span>
+            </div>
           </div>
 
           <div class="max-h-[62vh] overflow-y-auto pr-1">
@@ -698,6 +704,183 @@
         </div>
       </section>
 
+      <section v-show="activeCaisseTab === 'materiel'" class="rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-surface,#ffffff)] p-4">
+        <div class="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <h3 class="text-lg font-black text-[color:var(--saytu-shell-text,#0f172a)]">Matériel caisse</h3>
+            <p class="text-sm text-[color:var(--saytu-topbar-subtitle,#64748b)]">
+              Ticket thermique 80 mm, scan code-barres, impression automatique et ouverture tiroir.
+            </p>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button type="button" class="btn-secondary rounded-full px-4 py-2 text-sm" @click="imprimerTicketTest">Test ticket 80 mm</button>
+            <button type="button" class="btn-primary rounded-full px-4 py-2 text-sm" @click="ouvrirTiroirCaisse">Ouvrir tiroir</button>
+          </div>
+        </div>
+
+        <div class="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-3">
+          <article class="rounded-2xl border border-sky-100 bg-sky-50/60 p-4">
+            <p class="text-xs font-black uppercase tracking-wide text-sky-700">Ticket thermique</p>
+            <label class="mt-3 block text-sm font-bold text-slate-600">
+              Largeur papier
+              <select v-model="hardwareConfig.ticketWidth" class="input mt-1 rounded-full" @change="sauvegarderConfigMateriel">
+                <option value="80">80 mm</option>
+                <option value="58">58 mm</option>
+              </select>
+            </label>
+            <label class="mt-3 flex items-center gap-2 text-sm font-bold text-slate-700">
+              <input v-model="hardwareConfig.autoPrint" type="checkbox" class="h-4 w-4" @change="sauvegarderConfigMateriel" />
+              Imprimer automatiquement après encaissement ticket
+            </label>
+            <p class="mt-3 text-xs text-slate-500">
+              Conseil : dans Windows, définissez l’imprimante thermique comme imprimante par défaut et choisissez le format papier 80 mm.
+            </p>
+          </article>
+
+          <article class="rounded-2xl border border-cyan-100 bg-cyan-50/60 p-4">
+            <p class="text-xs font-black uppercase tracking-wide text-cyan-700">Scanner code-barres</p>
+            <label class="mt-3 flex items-center gap-2 text-sm font-bold text-slate-700">
+              <input v-model="hardwareConfig.captureScanner" type="checkbox" class="h-4 w-4" @change="sauvegarderConfigMateriel" />
+              Capturer le scan même si le champ recherche n’est pas sélectionné
+            </label>
+            <label class="mt-3 block text-sm font-bold text-slate-600">
+              Longueur minimale reconnue
+              <input v-model.number="hardwareConfig.scanMinLength" type="number" min="3" max="30" class="input mt-1 rounded-full" @change="sauvegarderConfigMateriel" />
+            </label>
+            <p class="mt-3 text-xs text-slate-500">
+              Le lecteur doit envoyer la touche Entrée à la fin du scan. Si un produit est trouvé par référence ou code-barres, il est ajouté au panier.
+            </p>
+          </article>
+
+          <article class="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
+            <p class="text-xs font-black uppercase tracking-wide text-emerald-700">Tiroir-caisse</p>
+            <label class="mt-3 flex items-center gap-2 text-sm font-bold text-slate-700">
+              <input v-model="hardwareConfig.openDrawerAfterSale" type="checkbox" class="h-4 w-4" @change="sauvegarderConfigMateriel" />
+              Ouvrir le tiroir après une vente espèces
+            </label>
+            <label class="mt-3 block text-sm font-bold text-slate-600">
+              Méthode d’ouverture
+              <select v-model="hardwareConfig.drawerMode" class="input mt-1 rounded-full" @change="sauvegarderConfigMateriel">
+                <option value="print">Via impression système</option>
+                <option value="serial">Web Serial / port COM</option>
+              </select>
+            </label>
+            <p class="mt-3 text-xs text-slate-500">
+              Le mode impression dépend du pilote de l’imprimante. Le mode Web Serial fonctionne seulement si le navigateur autorise le port COM du ticket.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section v-if="canSuperviseCaisse" v-show="activeCaisseTab === 'rapports'" class="rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-surface,#ffffff)] p-4">
+        <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <h3 class="text-lg font-black text-[color:var(--saytu-shell-text,#0f172a)]">Rapport par caissier</h3>
+            <p class="text-sm text-[color:var(--saytu-topbar-subtitle,#64748b)]">Ventes, tickets, remboursements, annulations et remises sur la période.</p>
+          </div>
+          <div class="grid grid-cols-1 gap-2 sm:grid-cols-[auto_auto_auto]">
+            <input v-model="rapportFilters.date_from" type="date" class="input rounded-full" />
+            <input v-model="rapportFilters.date_to" type="date" class="input rounded-full" />
+            <button type="button" class="btn-secondary rounded-full px-4 py-2 text-sm" :disabled="rapportLoading" @click="loadRapportCaissiers">
+              {{ rapportLoading ? 'Chargement...' : 'Actualiser' }}
+            </button>
+          </div>
+        </div>
+
+        <div class="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-5">
+          <div v-for="item in rapportTotaux" :key="item.label" class="rounded-2xl bg-[color:var(--saytu-soft,#f8fafc)] p-3">
+            <span class="text-xs font-black uppercase tracking-wide text-slate-500">{{ item.label }}</span>
+            <strong class="mt-1 block font-mono text-lg text-[color:var(--saytu-shell-text,#0f172a)]">{{ item.value }}</strong>
+          </div>
+        </div>
+
+        <div class="mt-4 overflow-x-auto rounded-2xl border border-slate-100">
+          <table class="w-full">
+            <thead class="bg-slate-50 text-xs uppercase text-slate-500">
+              <tr>
+                <th class="px-4 py-3 text-left">Caissier</th>
+                <th class="px-4 py-3 text-right">Tickets</th>
+                <th class="px-4 py-3 text-right">Ventes</th>
+                <th class="px-4 py-3 text-right">Ticket moyen</th>
+                <th class="px-4 py-3 text-right">Remises</th>
+                <th class="px-4 py-3 text-right">Remb.</th>
+                <th class="px-4 py-3 text-right">Annulations</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              <tr v-for="row in rapportCaissiers" :key="row.user_id || row.caissier" class="text-sm">
+                <td class="px-4 py-3">
+                  <p class="font-black text-slate-900">{{ row.caissier }}</p>
+                  <p class="text-xs text-slate-500">{{ row.role || '-' }}</p>
+                </td>
+                <td class="px-4 py-3 text-right font-mono font-bold">{{ row.tickets }}</td>
+                <td class="px-4 py-3 text-right font-mono font-black text-emerald-700">{{ formatPrice(row.ventes) }}</td>
+                <td class="px-4 py-3 text-right font-mono">{{ formatPrice(row.ticket_moyen) }}</td>
+                <td class="px-4 py-3 text-right font-mono text-amber-700">{{ formatPrice(row.remises) }}</td>
+                <td class="px-4 py-3 text-right font-mono text-red-700">{{ formatPrice(row.remboursements) }}</td>
+                <td class="px-4 py-3 text-right font-mono">{{ row.annulations }}</td>
+              </tr>
+              <tr v-if="!rapportLoading && rapportCaissiers.length === 0">
+                <td colspan="7" class="px-4 py-10 text-center text-sm text-slate-400">Aucune donnée caisse sur cette période.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section v-if="canSuperviseCaisse" v-show="activeCaisseTab === 'audit'" class="rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-surface,#ffffff)] p-4">
+        <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <h3 class="text-lg font-black text-[color:var(--saytu-shell-text,#0f172a)]">Audit caisse</h3>
+            <p class="text-sm text-[color:var(--saytu-topbar-subtitle,#64748b)]">Traçabilité des remises, annulations, remboursements, ouvertures et fermetures.</p>
+          </div>
+          <div class="grid grid-cols-1 gap-2 md:grid-cols-[auto_auto_minmax(180px,1fr)_auto]">
+            <input v-model="auditFilters.date_from" type="date" class="input rounded-full" />
+            <input v-model="auditFilters.date_to" type="date" class="input rounded-full" />
+            <input v-model="auditFilters.search" type="search" class="input rounded-full" placeholder="Ticket, motif, utilisateur..." @keyup.enter="loadAuditCaisse" />
+            <button type="button" class="btn-secondary rounded-full px-4 py-2 text-sm" :disabled="auditLoading" @click="loadAuditCaisse">
+              {{ auditLoading ? 'Chargement...' : 'Actualiser' }}
+            </button>
+          </div>
+        </div>
+
+        <div class="mt-4 overflow-x-auto rounded-2xl border border-slate-100">
+          <table class="w-full">
+            <thead class="bg-slate-50 text-xs uppercase text-slate-500">
+              <tr>
+                <th class="px-4 py-3 text-left">Date</th>
+                <th class="px-4 py-3 text-left">Utilisateur</th>
+                <th class="px-4 py-3 text-left">Action</th>
+                <th class="px-4 py-3 text-left">Référence / motif</th>
+                <th class="px-4 py-3 text-right">Montant</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              <tr v-for="item in auditCaisse" :key="`${item.date}-${item.event}-${item.reference}`" class="text-sm">
+                <td class="px-4 py-3 text-slate-500">{{ formatDateTime(item.date) }}</td>
+                <td class="px-4 py-3">
+                  <p class="font-bold text-slate-900">{{ item.user_name || 'Système' }}</p>
+                  <p class="text-xs text-slate-500">{{ item.user_role || '-' }}</p>
+                </td>
+                <td class="px-4 py-3">
+                  <span class="rounded-full px-2 py-1 text-xs font-black" :class="auditEventClass(item.event)">
+                    {{ auditEventLabel(item.event) }}
+                  </span>
+                </td>
+                <td class="px-4 py-3">
+                  <p class="font-mono font-bold text-[color:var(--saytu-primary,#2563eb)]">{{ item.reference || '-' }}</p>
+                  <p class="text-xs text-slate-500">{{ item.description || item.title || '-' }}</p>
+                </td>
+                <td class="px-4 py-3 text-right font-mono font-black">{{ item.amount ? formatPrice(item.amount) : '-' }}</td>
+              </tr>
+              <tr v-if="!auditLoading && auditCaisse.length === 0">
+                <td colspan="5" class="px-4 py-10 text-center text-sm text-slate-400">Aucune activité caisse trouvée.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
       <section v-show="activeCaisseTab === 'cloture'" id="fermeture-caisse" class="rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-surface,#ffffff)] p-4">
         <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div>
@@ -1051,7 +1234,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import AppModal from '@/components/AppModal.vue'
 import ClientSearchSelect from '@/components/ClientSearchSelect.vue'
 import api from '@/services/api'
@@ -1065,6 +1248,8 @@ import { hasAnyRole } from '@/utils/access'
 const toast = useToast()
 const auth = useAuthStore()
 const route = useRoute()
+const todayIso = () => new Date().toISOString().slice(0, 10)
+const hardwareConfigStorageKey = 'saytu:caisse:hardware-config'
 const loading = ref(false)
 const saving = ref(false)
 const exportLoading = ref(false)
@@ -1088,6 +1273,12 @@ const cancelFacture = ref(null)
 const cancelFactureLoading = ref(false)
 const clientHistory = ref([])
 const clientHistoryLoading = ref(false)
+const rapportCaissiers = ref([])
+const rapportSummary = reactive({ tickets: 0, ventes: 0, remises: 0, remboursements: 0, annulations: 0 })
+const rapportLoading = ref(false)
+const auditCaisse = ref([])
+const auditLoading = ref(false)
+const lastScanCode = ref('')
 const stats = reactive({
   sessions_ouvertes: 0,
   entrees_jour: 0,
@@ -1117,6 +1308,9 @@ const refundForm = reactive({
 })
 const cancelForm = reactive({ motif: '' })
 const closeCashCounts = reactive([10000, 5000, 2000, 1000, 500, 250, 200, 100, 50, 25, 10, 5].map(valeur => ({ valeur, quantite: 0 })))
+const rapportFilters = reactive({ date_from: todayIso(), date_to: todayIso() })
+const auditFilters = reactive({ date_from: todayIso(), date_to: todayIso(), search: '' })
+const hardwareConfig = reactive(chargerConfigMateriel())
 const movementForm = reactive({
   sens: 'entree',
   type: 'vente',
@@ -1138,6 +1332,7 @@ const creerEncaissement = (montant = 0, mode = 'especes') => ({
 })
 const encaissements = ref([creerEncaissement()])
 const isAdmin = computed(() => hasAnyRole(auth.user, ['admin', 'gerant']))
+const canSuperviseCaisse = computed(() => hasAnyRole(auth.user, ['admin', 'gerant', 'comptable']))
 const isTouchPos = computed(() => hasAnyRole(auth.user, 'caissier'))
 const sessionsActivesCount = computed(() => sessionsOuvertes.value.filter(s => s.statut === 'ouverte').length)
 const facturesComptoirTotal = computed(() => Number(facturesComptoirMeta.total || facturesComptoir.value.length || 0))
@@ -1152,11 +1347,23 @@ const summaryItems = computed(() => [
   { key: 'sorties', label: 'Sorties', value: formatPrice(stats.sorties_jour), class: 'text-red-700' },
   { key: 'net', label: 'Net jour', value: formatPrice(stats.solde_net_jour), class: Number(stats.solde_net_jour || 0) < 0 ? 'text-red-700' : 'text-[color:var(--saytu-primary,#2563eb)]' },
 ])
+const rapportTotaux = computed(() => [
+  { label: 'Tickets', value: rapportSummary.tickets || 0 },
+  { label: 'Ventes', value: formatPrice(rapportSummary.ventes) },
+  { label: 'Remises', value: formatPrice(rapportSummary.remises) },
+  { label: 'Rembours.', value: formatPrice(rapportSummary.remboursements) },
+  { label: 'Annulations', value: rapportSummary.annulations || 0 },
+])
 const caisseTabs = computed(() => [
   { key: 'vente', label: 'Vente rapide', badge: panier.value.length ? `${panier.value.length}` : '' },
   { key: 'mouvements', label: 'Mouvements', badge: '' },
   { key: 'historique', label: 'Historique', badge: mouvements.value.length ? `${mouvements.value.length}` : '' },
   { key: 'factures-comptoir', label: 'Factures comptoir', badge: facturesComptoirTotal.value ? `${facturesComptoirTotal.value}` : '' },
+  { key: 'materiel', label: 'Matériel', badge: hardwareConfig.captureScanner ? 'scan' : '' },
+  ...(canSuperviseCaisse.value ? [
+    { key: 'rapports', label: 'Rapports caissiers', badge: rapportCaissiers.value.length ? `${rapportCaissiers.value.length}` : '' },
+    { key: 'audit', label: 'Audit caisse', badge: auditCaisse.value.length ? `${auditCaisse.value.length}` : '' },
+  ] : []),
   { key: 'cloture', label: 'Clôture', badge: '' },
 ])
 const customPaymentModesStorageKey = 'saytu:caisse:modes-paiement-personnalises'
@@ -1271,7 +1478,7 @@ watch(() => totauxPanier.value.ttc, (nouveauTotal, ancienTotal) => {
 
 function syncCaisseTabFromRoute() {
   const tab = typeof route.query.tab === 'string' ? route.query.tab : ''
-  if (['vente', 'mouvements', 'historique', 'factures-comptoir', 'cloture'].includes(tab)) {
+  if (['vente', 'mouvements', 'historique', 'factures-comptoir', 'materiel', 'rapports', 'audit', 'cloture'].includes(tab)) {
     activeCaisseTab.value = tab
   }
 }
@@ -1282,7 +1489,38 @@ watch(activeCaisseTab, (tab) => {
   if (tab === 'factures-comptoir') {
     loadFacturesComptoir(1).catch(() => toast.error('Erreur de chargement des factures comptoir'))
   }
+  if (tab === 'rapports' && canSuperviseCaisse.value) {
+    loadRapportCaissiers().catch(() => toast.error('Erreur de chargement du rapport caisse'))
+  }
+  if (tab === 'audit' && canSuperviseCaisse.value) {
+    loadAuditCaisse().catch(() => toast.error('Erreur de chargement de l’audit caisse'))
+  }
 })
+
+function chargerConfigMateriel() {
+  const defaults = {
+    ticketWidth: '80',
+    autoPrint: false,
+    captureScanner: true,
+    scanMinLength: 4,
+    openDrawerAfterSale: false,
+    drawerMode: 'print',
+  }
+
+  if (typeof window === 'undefined') return defaults
+
+  try {
+    return { ...defaults, ...(JSON.parse(window.localStorage.getItem(hardwareConfigStorageKey) || '{}') || {}) }
+  } catch (e) {
+    return defaults
+  }
+}
+
+function sauvegarderConfigMateriel() {
+  hardwareConfig.scanMinLength = Math.min(Math.max(Number(hardwareConfig.scanMinLength || 4), 3), 30)
+  if (typeof window === 'undefined') return
+  window.localStorage.setItem(hardwareConfigStorageKey, JSON.stringify({ ...hardwareConfig }))
+}
 
 function chargerModesPaiementPersonnalises() {
   if (typeof window === 'undefined') return []
@@ -1549,6 +1787,45 @@ async function loadJournalAdmin() {
   journalAdmin.value = data.data || []
 }
 
+async function loadRapportCaissiers() {
+  rapportLoading.value = true
+  try {
+    const { data } = await api.get('/caisse/rapport-caissiers', {
+      params: {
+        date_from: rapportFilters.date_from || undefined,
+        date_to: rapportFilters.date_to || undefined,
+      },
+    })
+    rapportCaissiers.value = Array.isArray(data.data) ? data.data : []
+    Object.assign(rapportSummary, {
+      tickets: Number(data.totaux?.tickets || 0),
+      ventes: Number(data.totaux?.ventes || 0),
+      remises: Number(data.totaux?.remises || 0),
+      remboursements: Number(data.totaux?.remboursements || 0),
+      annulations: Number(data.totaux?.annulations || 0),
+    })
+  } finally {
+    rapportLoading.value = false
+  }
+}
+
+async function loadAuditCaisse() {
+  auditLoading.value = true
+  try {
+    const { data } = await api.get('/caisse/audit', {
+      params: {
+        date_from: auditFilters.date_from || undefined,
+        date_to: auditFilters.date_to || undefined,
+        search: auditFilters.search || undefined,
+        per_page: 100,
+      },
+    })
+    auditCaisse.value = Array.isArray(data.data) ? data.data : []
+  } finally {
+    auditLoading.value = false
+  }
+}
+
 async function exporterSessionsCSV() {
   exportLoading.value = true
   try {
@@ -1651,6 +1928,43 @@ async function ajouterProduitDepuisRecherche() {
   } catch (e) {
     toast.error('Recherche produit impossible.')
   }
+}
+
+let scannerBuffer = ''
+let lastScannerAt = 0
+let scannerResetTimer = null
+
+function handleGlobalScannerKeydown(event) {
+  if (!hardwareConfig.captureScanner || activeCaisseTab.value !== 'vente') return
+  if (event.defaultPrevented || event.ctrlKey || event.altKey || event.metaKey) return
+  if (showTicketPreview.value || showRefundModal.value || showCancelModal.value) return
+
+  const now = Date.now()
+  if (now - lastScannerAt > 90) scannerBuffer = ''
+  lastScannerAt = now
+
+  if (event.key === 'Enter') {
+    const code = scannerBuffer.trim()
+    scannerBuffer = ''
+    if (code.length >= Number(hardwareConfig.scanMinLength || 4)) {
+      event.preventDefault()
+      traiterScanCode(code)
+    }
+    return
+  }
+
+  if (event.key.length !== 1) return
+  scannerBuffer += event.key
+  clearTimeout(scannerResetTimer)
+  scannerResetTimer = setTimeout(() => {
+    scannerBuffer = ''
+  }, 180)
+}
+
+async function traiterScanCode(code) {
+  lastScanCode.value = code
+  productSearch.value = code
+  await ajouterProduitDepuisRecherche()
 }
 
 function ajouterAuPanier(produit) {
@@ -1849,7 +2163,14 @@ async function encaisserVente() {
         await ouvrirPDF(`/caisse/factures/${data.facture.id}/pdf`, `${data.facture.numero}.pdf`)
       }
     } else {
-      afficherTicket(data)
+      if (hardwareConfig.autoPrint) {
+        imprimerTicket(data)
+      } else {
+        afficherTicket(data)
+      }
+      if (hardwareConfig.openDrawerAfterSale && encaissements.value.some(item => item.mode_paiement === 'especes')) {
+        ouvrirTiroirCaisse(false).catch(() => toast.error('Ouverture tiroir impossible. Vérifiez la configuration matériel.'))
+      }
     }
     viderPanier()
     Object.assign(posForm, { client_id: null, client_nom: '', client_telephone: '', mode_paiement: 'especes', reference_paiement: '', document_type: 'ticket' })
@@ -1903,19 +2224,23 @@ function imprimerTicket(data = ticketPreview.value) {
   const paiements = extrairePaiementsTicket(data)
   const client = data?.facture?.client?.nom || data?.facture?.client_nom || data?.ticket?.client_nom || ''
   const clientTelephone = data?.facture?.client?.telephone || data?.facture?.client?.mobile || data?.ticket?.client_telephone || ''
+  const largeurTicket = Number(hardwareConfig.ticketWidth || 80)
+  const largeurContenu = Math.max(46, largeurTicket - 8)
   const html = `
     <html>
       <head>
         <title>Ticket ${escapeHtml(data.ticket.numero)}</title>
         <style>
-          @page { size: 80mm auto; margin: 5mm; }
+          @page { size: ${largeurTicket}mm auto; margin: 4mm; }
           * { box-sizing: border-box; }
-          body { font-family: Arial, sans-serif; width: 72mm; margin: 0 auto; color: #111; }
-          h1 { font-size: 15px; text-align: center; margin: 8px 0 4px; }
+          body { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; width: ${largeurContenu}mm; margin: 0 auto; color: #111; font-size: 11px; }
+          h1 { font-size: 14px; text-align: center; margin: 6px 0 4px; letter-spacing: .06em; text-transform: uppercase; }
           .center { text-align: center; }
-          .line { border-top: 1px dashed #999; margin: 8px 0; }
-          .row { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; margin: 4px 0; }
-          .total { font-weight: 700; font-size: 14px; }
+          .line { border-top: 1px dashed #111; margin: 6px 0; }
+          .row { display: flex; justify-content: space-between; gap: 6px; margin: 3px 0; }
+          .row span { overflow-wrap: anywhere; }
+          .total { font-weight: 900; font-size: 14px; }
+          .cut { margin-top: 10mm; }
           small { color: #444; }
         </style>
       </head>
@@ -1943,6 +2268,7 @@ function imprimerTicket(data = ticketPreview.value) {
         ` : ''}
         <div class="line"></div>
         <p class="center">Merci pour votre achat</p>
+        <div class="cut"></div>
       </body>
     </html>
   `
@@ -1967,6 +2293,96 @@ function imprimerTicket(data = ticketPreview.value) {
 
   doc.open()
   doc.write(html)
+  doc.close()
+
+  setTimeout(() => {
+    frame.contentWindow?.focus()
+    frame.contentWindow?.print()
+    setTimeout(() => frame.remove(), 1000)
+  }, 120)
+  return true
+}
+
+function imprimerTicketTest() {
+  imprimerTicket({
+    ticket: {
+      numero: 'TEST-80MM',
+      date: new Date().toLocaleString('fr-FR'),
+      caissier: auth.user?.name || 'Caissier',
+      client_nom: 'Client test',
+      client_telephone: '77 000 00 00',
+      total_ttc: 15000,
+      total_recu: 20000,
+      monnaie_rendue: 5000,
+      mention_tva: 'Vente caisse sans TVA',
+      paiements: [{ mode_paiement: 'especes', montant: 15000, montant_recu: 20000 }],
+    },
+    facture: {
+      lignes: [
+        { designation: 'Produit test thermique', quantite: 1, total_ttc: 10000 },
+        { designation: 'Service test', quantite: 1, total_ttc: 5000 },
+      ],
+    },
+  })
+}
+
+async function ouvrirTiroirCaisse(showToast = true) {
+  sauvegarderConfigMateriel()
+
+  if (hardwareConfig.drawerMode === 'serial') {
+    if (!navigator.serial?.requestPort) {
+      if (showToast) toast.error('Web Serial non disponible sur ce navigateur. Utilisez le mode impression système.')
+      return false
+    }
+
+    const port = await navigator.serial.requestPort()
+    await port.open({ baudRate: 9600 })
+    const writer = port.writable.getWriter()
+    await writer.write(new Uint8Array([27, 112, 0, 50, 250]))
+    writer.releaseLock()
+    await port.close()
+    if (showToast) toast.success('Commande tiroir envoyée au port série.')
+    return true
+  }
+
+  imprimerOuvertureTiroir()
+  if (showToast) toast.success('Commande envoyée à l’impression. Le tiroir s’ouvre si le pilote est configuré.')
+  return true
+}
+
+function imprimerOuvertureTiroir() {
+  const largeurTicket = Number(hardwareConfig.ticketWidth || 80)
+  const frame = document.createElement('iframe')
+  frame.setAttribute('title', 'Ouverture tiroir caisse')
+  frame.style.position = 'fixed'
+  frame.style.right = '0'
+  frame.style.bottom = '0'
+  frame.style.width = '0'
+  frame.style.height = '0'
+  frame.style.border = '0'
+  frame.style.opacity = '0'
+  frame.style.pointerEvents = 'none'
+  document.body.appendChild(frame)
+
+  const doc = frame.contentDocument || frame.contentWindow?.document
+  if (!doc) {
+    frame.remove()
+    return false
+  }
+
+  doc.open()
+  doc.write(`
+    <html>
+      <head>
+        <title>Ouverture tiroir</title>
+        <style>
+          @page { size: ${largeurTicket}mm auto; margin: 3mm; }
+          body { width: ${Math.max(46, largeurTicket - 8)}mm; margin: 0 auto; font-family: monospace; font-size: 10px; text-align: center; }
+        </style>
+      </head>
+      <body>OUVERTURE TIROIR<br>${new Date().toLocaleString('fr-FR')}</body>
+    </html>
+  `)
   doc.close()
 
   setTimeout(() => {
@@ -2321,6 +2737,30 @@ function typeLabel(type) {
   }[type] || type
 }
 
+function auditEventLabel(event) {
+  return {
+    remise_caisse: 'Remise',
+    ticket_caisse_annule: 'Annulation',
+    caisse_remboursement: 'Remboursement',
+    mouvement_caisse: 'Mouvement',
+    caisse_ouverte: 'Ouverture',
+    caisse_fermee: 'Clôture',
+    vente_boutique: 'Vente',
+  }[event] || event
+}
+
+function auditEventClass(event) {
+  return {
+    remise_caisse: 'bg-amber-100 text-amber-800',
+    ticket_caisse_annule: 'bg-red-100 text-red-700',
+    caisse_remboursement: 'bg-orange-100 text-orange-700',
+    mouvement_caisse: 'bg-slate-100 text-slate-700',
+    caisse_ouverte: 'bg-emerald-100 text-emerald-700',
+    caisse_fermee: 'bg-blue-100 text-blue-700',
+    vente_boutique: 'bg-cyan-100 text-cyan-700',
+  }[event] || 'bg-slate-100 text-slate-700'
+}
+
 function produitsMouvement(mouvement) {
   const lignes = mouvement.facture?.lignes || []
   if (!lignes.length) return ''
@@ -2331,8 +2771,14 @@ function produitsMouvement(mouvement) {
 }
 
 onMounted(async () => {
+  window.addEventListener('keydown', handleGlobalScannerKeydown)
   await chargerModesPaiementServeur()
   await loadCaisse()
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', handleGlobalScannerKeydown)
+  clearTimeout(scannerResetTimer)
 })
 </script>
 
