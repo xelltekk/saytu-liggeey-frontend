@@ -19,7 +19,7 @@
 
     <section
       v-if="!loading && (statsVentesParMode.length || statsVentesParVendeur.length || Number(stats.remboursements_jour || 0) || Number(stats.tickets_annules_jour || 0))"
-      class="grid grid-cols-1 gap-3 lg:grid-cols-3"
+      class="grid grid-cols-1 gap-3 lg:grid-cols-4"
     >
       <article class="rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-surface,#ffffff)] p-3 shadow-sm">
         <h3 class="text-xs font-black uppercase tracking-wide text-[color:var(--saytu-primary,#2563eb)]">Ventes par paiement</h3>
@@ -52,6 +52,22 @@
             <span class="block text-xs text-[color:var(--saytu-topbar-subtitle,#64748b)]">Tickets annulés</span>
             <strong class="font-mono text-amber-700">{{ stats.tickets_annules_jour || 0 }}</strong>
           </div>
+        </div>
+      </article>
+      <article class="rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-surface,#ffffff)] p-3 shadow-sm">
+        <h3 class="text-xs font-black uppercase tracking-wide text-[color:var(--saytu-primary,#2563eb)]">Rapport caisse</h3>
+        <div class="mt-2 space-y-1 text-sm">
+          <div class="flex items-center justify-between">
+            <span class="text-[color:var(--saytu-topbar-subtitle,#64748b)]">Ticket moyen</span>
+            <strong class="font-mono text-[color:var(--saytu-shell-text,#0f172a)]">{{ formatPrice(stats.ticket_moyen_jour) }}</strong>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="text-[color:var(--saytu-topbar-subtitle,#64748b)]">Marge estimée</span>
+            <strong class="font-mono text-emerald-700">{{ formatPrice(stats.marge_estimee_jour) }}</strong>
+          </div>
+          <p v-if="statsVentesParProduit[0]" class="truncate text-xs text-slate-500">
+            Top : {{ statsVentesParProduit[0].designation }} · {{ formatPrice(statsVentesParProduit[0].total) }}
+          </p>
         </div>
       </article>
     </section>
@@ -318,7 +334,7 @@
                 type="search"
                 class="input min-h-12 rounded-full border-slate-200 bg-white pl-10 shadow-sm"
                 placeholder="Rechercher ou scanner un code-barres..."
-                @keydown.enter.prevent="ajouterPremierProduit"
+                @keydown.enter.prevent="ajouterProduitDepuisRecherche"
               />
             </div>
             <p class="mt-2 text-xs text-slate-500">Lecteur 2D compatible : scannez le code-barres ou la r&eacute;f&eacute;rence SKU pour ajouter directement au panier.</p>
@@ -374,6 +390,25 @@
               <div v-if="posForm.client_id" class="flex items-center justify-between rounded-2xl bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700">
                 <span>Client existant sélectionné</span>
                 <button type="button" class="text-emerald-800 underline" @click="effacerClientSelectionne">Saisie libre</button>
+              </div>
+              <div v-if="posForm.client_id" class="rounded-2xl border border-cyan-100 bg-cyan-50/70 p-3 text-xs">
+                <div class="flex items-center justify-between gap-2">
+                  <span class="font-black uppercase tracking-wide text-cyan-700">Derniers achats</span>
+                  <button type="button" class="font-bold text-cyan-700 underline" :disabled="clientHistoryLoading" @click="loadHistoriqueClientCaisse(posForm.client_id)">
+                    {{ clientHistoryLoading ? '...' : 'Actualiser' }}
+                  </button>
+                </div>
+                <div v-if="clientHistoryLoading" class="mt-2 text-slate-500">Chargement...</div>
+                <div v-else-if="clientHistory.length" class="mt-2 space-y-1">
+                  <div v-for="item in clientHistory.slice(0, 3)" :key="item.id" class="flex items-center justify-between gap-2 rounded-xl bg-white/70 px-2 py-1.5">
+                    <span class="truncate">
+                      <strong>{{ item.numero }}</strong>
+                      <small class="block text-slate-500">{{ formatDate(item.date_facture) }} · {{ item.lignes?.[0]?.designation || 'Vente caisse' }}</small>
+                    </span>
+                    <strong class="font-mono text-cyan-700">{{ formatPrice(item.total_ttc) }}</strong>
+                  </div>
+                </div>
+                <div v-else class="mt-2 text-slate-500">Aucun achat caisse retrouvé.</div>
               </div>
               <input v-model="posForm.client_nom" class="input rounded-full" :placeholder="posForm.document_type === 'facture' ? 'Nom du client obligatoire' : 'Nom du client (optionnel)'" />
               <input
@@ -511,7 +546,10 @@
 
             <div class="mt-4 border-t border-slate-100 pt-3">
               <label class="text-xs font-semibold uppercase tracking-wide text-slate-500">Remise %</label>
-              <input v-if="panier.length" v-model.number="panier[0].remise_pourcent" type="number" min="0" max="100" step="0.01" class="input mt-1 rounded-full" placeholder="Remise globale" @input="appliquerRemiseGlobale" />
+              <input v-if="panier.length" v-model.number="panier[0].remise_pourcent" type="number" min="0" :max="remiseMaxCaisse" step="0.01" class="input mt-1 rounded-full" placeholder="Remise globale" @input="appliquerRemiseGlobale" />
+              <p v-if="panier.length && isTouchPos" class="mt-1 text-[11px] font-semibold text-amber-700">
+                Remise caissier limitée à {{ remiseMaxCaisse }}%. Au-delà, validation gérant nécessaire.
+              </p>
               <div class="mt-2 rounded-2xl bg-slate-50 p-3 text-sm">
                 <div class="flex justify-between text-slate-500"><span>Sous-total</span><strong>{{ formatPrice(totauxPanier.ht) }}</strong></div>
                 <div class="mt-1 flex justify-between text-slate-500"><span>TVA caisse</span><strong>0</strong></div>
@@ -679,6 +717,29 @@
             </div>
           </div>
         </div>
+        <div class="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+          <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p class="text-xs font-black uppercase tracking-wide text-slate-500">Comptage billets / pièces</p>
+              <p class="text-xs text-slate-500">Saisissez les quantités comptées, puis appliquez le total au solde réel.</p>
+            </div>
+            <div class="text-right">
+              <span class="block text-xs text-slate-500">Total compté</span>
+              <strong class="font-mono text-lg text-[color:var(--saytu-primary,#2563eb)]">{{ formatPrice(totalComptageFermeture) }}</strong>
+            </div>
+          </div>
+          <div class="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+            <label v-for="ligne in closeCashCounts" :key="ligne.valeur" class="rounded-xl bg-white p-2 text-xs font-bold text-slate-600">
+              {{ formatPrice(ligne.valeur) }}
+              <input v-model.number="ligne.quantite" type="number" min="0" step="1" class="input mt-1 rounded-full text-right" />
+            </label>
+          </div>
+          <div class="mt-3 flex justify-end">
+            <button type="button" class="btn-secondary rounded-full px-4 py-2 text-sm" @click="appliquerComptageFermeture">
+              Utiliser ce total
+            </button>
+          </div>
+        </div>
         <form class="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-[220px_1fr_auto]" @submit.prevent="fermerCaisse">
           <input v-model.number="closeForm.solde_fermeture_reel" type="number" min="0" step="0.01" class="input" placeholder="Solde r&eacute;el" />
           <textarea v-model="closeForm.notes_fermeture" class="input" rows="1" placeholder="Note de fermeture (optionnel)"></textarea>
@@ -761,6 +822,16 @@
                     @click="ouvrirRemboursementFacture(facture)"
                   >
                     {{ factureDejaRemboursee(facture) ? 'Remboursée' : 'Avoir' }}
+                  </button>
+                  <button
+                    v-if="isAdmin"
+                    type="button"
+                    class="btn-secondary px-3 py-1.5 text-xs"
+                    :disabled="!session || facture.statut === 'annulee' || montantAvoirFacture(facture) > 0"
+                    title="Annulation sécurisée avec motif obligatoire"
+                    @click="ouvrirAnnulationFacture(facture)"
+                  >
+                    {{ facture.statut === 'annulee' ? 'Annulée' : 'Annuler' }}
                   </button>
                 </div>
               </td>
@@ -846,6 +917,11 @@
             <span>Total</span>
             <strong>{{ formatPrice(ticketPreview.ticket?.total_ttc) }}</strong>
           </div>
+          <div class="ticket-payment">
+            <span>TVA caisse</span>
+            <strong>0</strong>
+          </div>
+          <p class="ticket-tax-note">{{ ticketPreview.ticket?.mention_tva || 'Vente caisse sans TVA' }}</p>
 
           <div class="mt-2 space-y-1">
             <div v-for="(paiement, index) in ticketPreviewPaiements" :key="`${paiement.mode_paiement}-${paiement.montant}-${index}`" class="ticket-payment">
@@ -904,20 +980,70 @@
           </select>
         </label>
 
+        <div class="rounded-2xl border border-slate-200 bg-white p-3">
+          <div class="flex items-center justify-between gap-2">
+            <p class="text-xs font-black uppercase tracking-wide text-slate-500">Articles à rembourser</p>
+            <button type="button" class="text-xs font-bold text-[color:var(--saytu-primary,#2563eb)] underline" @click="selectionnerToutesLesLignesRemboursement">
+              Tout sélectionner
+            </button>
+          </div>
+          <div class="mt-2 space-y-2">
+            <div v-for="ligne in refundForm.lignes" :key="ligne.facture_ligne_id" class="grid grid-cols-[1fr_92px] items-center gap-2 rounded-xl bg-slate-50 p-2">
+              <div class="min-w-0">
+                <p class="truncate text-sm font-bold text-slate-900">{{ ligne.designation }}</p>
+                <p class="text-xs text-slate-500">
+                  Vendu {{ formatQuantity(ligne.quantite_vendue) }} · Reste remboursable {{ formatQuantity(ligne.quantite_max) }}
+                </p>
+              </div>
+              <input v-model.number="ligne.quantite" type="number" min="0" :max="ligne.quantite_max" step="0.001" class="input rounded-full text-right" @input="normaliserQuantiteRemboursement(ligne)" />
+            </div>
+          </div>
+          <div class="mt-3 flex items-center justify-between border-t border-slate-100 pt-2 text-sm">
+            <span class="font-bold text-slate-500">Total à rembourser</span>
+            <strong class="font-mono text-red-700">{{ formatPrice(totalRemboursementPreview) }}</strong>
+          </div>
+        </div>
+
         <label class="field-label">
           Référence remboursement
           <input v-model="refundForm.reference_paiement" class="input mt-1 rounded-full" placeholder="N° transaction, note interne..." />
         </label>
 
         <p class="rounded-xl bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
-          Cette action crée un avoir total, remet les produits stockés en stock, puis enregistre une sortie caisse.
+          Cette action crée un avoir, remet les produits stockés en stock, puis enregistre une sortie caisse.
         </p>
       </div>
 
       <template #footer>
         <button type="button" class="btn-secondary" :disabled="remboursementFactureLoading" @click="showRefundModal = false">Annuler</button>
-        <button type="button" class="btn-danger" :disabled="remboursementFactureLoading || refundForm.motif.trim().length < 3" @click="rembourserFactureComptoir">
+        <button type="button" class="btn-danger" :disabled="remboursementFactureLoading || refundForm.motif.trim().length < 3 || totalRemboursementPreview <= 0" @click="rembourserFactureComptoir">
           {{ remboursementFactureLoading ? 'Remboursement...' : 'Créer l’avoir + sortie caisse' }}
+        </button>
+      </template>
+    </AppModal>
+
+    <AppModal v-model="showCancelModal" title="Annulation ticket caisse" size="sm" centered>
+      <div v-if="cancelFacture" class="space-y-4">
+        <div class="rounded-2xl border border-amber-100 bg-amber-50 p-4">
+          <p class="text-xs font-black uppercase tracking-wide text-amber-700">Action sensible</p>
+          <h3 class="mt-1 text-lg font-black text-slate-950">{{ cancelFacture.numero }}</h3>
+          <p class="mt-1 text-sm text-slate-600">
+            {{ cancelFacture.client?.nom || 'Client comptoir' }} · Total {{ formatPrice(cancelFacture.total_ttc) }}
+          </p>
+        </div>
+        <label class="field-label">
+          Motif obligatoire <span class="text-red-500">*</span>
+          <textarea v-model="cancelForm.motif" rows="3" class="input mt-1" placeholder="Ex : erreur de saisie, doublon ticket..."></textarea>
+        </label>
+        <p class="rounded-xl bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">
+          L’annulation remet le stock, annule la facture et crée une sortie caisse équivalente. Si un avoir existe déjà, l’annulation est bloquée.
+        </p>
+      </div>
+
+      <template #footer>
+        <button type="button" class="btn-secondary" :disabled="cancelFactureLoading" @click="showCancelModal = false">Fermer</button>
+        <button type="button" class="btn-danger" :disabled="cancelFactureLoading || cancelForm.motif.trim().length < 3" @click="annulerFactureComptoir">
+          {{ cancelFactureLoading ? 'Annulation...' : 'Annuler le ticket' }}
         </button>
       </template>
     </AppModal>
@@ -957,6 +1083,11 @@ const ticketPreview = ref(null)
 const showRefundModal = ref(false)
 const refundFacture = ref(null)
 const remboursementFactureLoading = ref(null)
+const showCancelModal = ref(false)
+const cancelFacture = ref(null)
+const cancelFactureLoading = ref(false)
+const clientHistory = ref([])
+const clientHistoryLoading = ref(false)
 const stats = reactive({
   sessions_ouvertes: 0,
   entrees_jour: 0,
@@ -964,6 +1095,9 @@ const stats = reactive({
   solde_net_jour: 0,
   ventes_par_mode: [],
   ventes_par_vendeur: [],
+  ventes_par_produit: [],
+  ticket_moyen_jour: 0,
+  marge_estimee_jour: 0,
   remboursements_jour: 0,
   tickets_annules_jour: 0,
 })
@@ -979,7 +1113,10 @@ const refundForm = reactive({
   motif: '',
   mode_paiement: 'especes',
   reference_paiement: '',
+  lignes: [],
 })
+const cancelForm = reactive({ motif: '' })
+const closeCashCounts = reactive([10000, 5000, 2000, 1000, 500, 250, 200, 100, 50, 25, 10, 5].map(valeur => ({ valeur, quantite: 0 })))
 const movementForm = reactive({
   sens: 'entree',
   type: 'vente',
@@ -1007,6 +1144,8 @@ const facturesComptoirTotal = computed(() => Number(facturesComptoirMeta.total |
 const showFacturesComptoirPanel = computed(() => activeCaisseTab.value === 'factures-comptoir' && (Boolean(session.value) || isAdmin.value))
 const statsVentesParMode = computed(() => Array.isArray(stats.ventes_par_mode) ? stats.ventes_par_mode.slice(0, 6) : [])
 const statsVentesParVendeur = computed(() => Array.isArray(stats.ventes_par_vendeur) ? stats.ventes_par_vendeur.slice(0, 6) : [])
+const statsVentesParProduit = computed(() => Array.isArray(stats.ventes_par_produit) ? stats.ventes_par_produit.slice(0, 6) : [])
+const remiseMaxCaisse = computed(() => isTouchPos.value ? 10 : 100)
 const summaryItems = computed(() => [
   { key: 'sessions', label: 'Ouvertes', value: stats.sessions_ouvertes || 0, class: 'text-[color:var(--saytu-primary,#2563eb)]' },
   { key: 'entrees', label: 'Entrées', value: formatPrice(stats.entrees_jour), class: 'text-emerald-700' },
@@ -1085,6 +1224,17 @@ const resteAEncaisser = computed(() => {
 
 const excedentEncaissement = computed(() => {
   return Math.max(-ecartEncaissement.value, 0)
+})
+
+const totalRemboursementPreview = computed(() => {
+  return refundForm.lignes.reduce((total, ligne) => {
+    const quantite = Math.min(Math.max(Number(ligne.quantite || 0), 0), Number(ligne.quantite_max || 0))
+    return total + quantite * Number(ligne.prix_unitaire_net || 0)
+  }, 0)
+})
+
+const totalComptageFermeture = computed(() => {
+  return closeCashCounts.reduce((total, ligne) => total + Number(ligne.valeur || 0) * Number(ligne.quantite || 0), 0)
 })
 
 const monnaieARendre = computed(() => {
@@ -1478,6 +1628,31 @@ function ajouterPremierProduit() {
   if (produits.value.length > 0) ajouterAuPanier(produits.value[0])
 }
 
+async function ajouterProduitDepuisRecherche() {
+  const term = String(productSearch.value || '').trim()
+  if (!term) {
+    ajouterPremierProduit()
+    return
+  }
+
+  try {
+    const { data } = await api.get('/caisse/produits', { params: { search: term } })
+    const liste = Array.isArray(data) ? data : []
+    produits.value = liste
+    const normalized = term.toLowerCase()
+    const exact = liste.find(p => String(p.code_barre || '').toLowerCase() === normalized || String(p.reference || '').toLowerCase() === normalized)
+    const produit = exact || liste[0]
+    if (!produit) {
+      toast.error('Aucun produit trouvé pour cette recherche.')
+      return
+    }
+    ajouterAuPanier(produit)
+    if (exact) productSearch.value = ''
+  } catch (e) {
+    toast.error('Recherche produit impossible.')
+  }
+}
+
 function ajouterAuPanier(produit) {
   const gereStock = productStockManaged(produit)
   if (gereStock && stockDisponible(produit) <= 0) {
@@ -1565,7 +1740,16 @@ function reinitialiserEncaissements() {
 }
 
 function appliquerRemiseGlobale() {
-  const remise = Number(panier.value[0]?.remise_pourcent || 0)
+  let remise = Number(panier.value[0]?.remise_pourcent || 0)
+  if (remise > remiseMaxCaisse.value) {
+    remise = remiseMaxCaisse.value
+    panier.value[0].remise_pourcent = remise
+    toast.error(`Remise limitée à ${remiseMaxCaisse.value}% pour ce profil.`)
+  }
+  if (remise < 0) {
+    remise = 0
+    panier.value[0].remise_pourcent = 0
+  }
   panier.value.forEach((ligne) => {
     ligne.remise_pourcent = remise
   })
@@ -1577,10 +1761,25 @@ function selectionnerClientCaisse(client) {
   posForm.client_id = Number(client.id)
   posForm.client_nom = client.nom || ''
   posForm.client_telephone = client.telephone || client.mobile || ''
+  loadHistoriqueClientCaisse(posForm.client_id).catch(() => {
+    clientHistory.value = []
+  })
 }
 
 function effacerClientSelectionne() {
   posForm.client_id = null
+  clientHistory.value = []
+}
+
+async function loadHistoriqueClientCaisse(clientId) {
+  if (!clientId) return
+  clientHistoryLoading.value = true
+  try {
+    const { data } = await api.get(`/caisse/clients/${clientId}/historique`)
+    clientHistory.value = data.factures || []
+  } finally {
+    clientHistoryLoading.value = false
+  }
 }
 
 function imageProduit(produit) {
@@ -1735,6 +1934,8 @@ function imprimerTicket(data = ticketPreview.value) {
         `).join('')}
         <div class="line"></div>
         <div class="row total"><span>Total</span><strong>${formatPrice(data.ticket.total_ttc)}</strong></div>
+        <div class="row"><span>TVA caisse</span><strong>0</strong></div>
+        <div class="center"><small>${escapeHtml(data.ticket.mention_tva || 'Vente caisse sans TVA')}</small></div>
         ${paiements.map(p => `<div class="row"><span>${escapeHtml(modePaiementLabel(p.mode_paiement))}</span><strong>${formatPrice(p.montant)}</strong></div>`).join('')}
         ${Number(data.ticket.monnaie_rendue || 0) > 0 ? `
           <div class="row"><span>Reçu</span><strong>${formatPrice(data.ticket.total_recu)}</strong></div>
@@ -1854,6 +2055,43 @@ function montantAvoirFacture(facture) {
     .reduce((total, avoir) => total + Math.abs(Number(avoir.total_ttc || 0)), 0)
 }
 
+function quantiteAvoiriseePourLigne(facture, ligneId) {
+  return (facture?.avoirs || [])
+    .filter(avoir => avoir.statut !== 'annulee')
+    .flatMap(avoir => avoir.lignes || [])
+    .filter(ligne => Number(ligne.facture_ligne_origine_id || 0) === Number(ligneId))
+    .reduce((total, ligne) => total + Math.abs(Number(ligne.quantite || 0)), 0)
+}
+
+function lignesRemboursementDepuisFacture(facture) {
+  return (facture?.lignes || []).map((ligne) => {
+    const vendue = Math.abs(Number(ligne.quantite || 0))
+    const deja = quantiteAvoiriseePourLigne(facture, ligne.id)
+    const max = Math.max(vendue - deja, 0)
+    const net = vendue > 0 ? Math.abs(Number(ligne.total_ttc || 0)) / vendue : 0
+
+    return {
+      facture_ligne_id: ligne.id,
+      designation: ligne.designation,
+      quantite_vendue: vendue,
+      quantite_max: Number(max.toFixed(3)),
+      quantite: Number(max.toFixed(3)),
+      prix_unitaire_net: net,
+    }
+  }).filter(ligne => ligne.quantite_max > 0)
+}
+
+function normaliserQuantiteRemboursement(ligne) {
+  const quantite = Math.max(Number(ligne.quantite || 0), 0)
+  ligne.quantite = Math.min(quantite, Number(ligne.quantite_max || 0))
+}
+
+function selectionnerToutesLesLignesRemboursement() {
+  refundForm.lignes.forEach((ligne) => {
+    ligne.quantite = Number(ligne.quantite_max || 0)
+  })
+}
+
 function factureDejaRemboursee(facture) {
   const total = Math.abs(Number(facture?.total_ttc || 0))
   if (total <= 0) return true
@@ -1885,6 +2123,7 @@ function ouvrirRemboursementFacture(facture) {
     motif: `Remboursement / retour client ${facture.numero}`,
     mode_paiement: mouvementVente?.mode_paiement || 'especes',
     reference_paiement: '',
+    lignes: lignesRemboursementDepuisFacture(facture),
   })
   showRefundModal.value = true
 }
@@ -1898,11 +2137,17 @@ async function rembourserFactureComptoir() {
       motif: refundForm.motif.trim(),
       mode_paiement: refundForm.mode_paiement,
       reference_paiement: refundForm.reference_paiement.trim() || undefined,
+      lignes: refundForm.lignes
+        .filter(ligne => Number(ligne.quantite || 0) > 0)
+        .map(ligne => ({
+          facture_ligne_id: ligne.facture_ligne_id,
+          quantite: Number(ligne.quantite || 0),
+        })),
     })
     toast.success(data.message || 'Remboursement enregistré')
     showRefundModal.value = false
     refundFacture.value = null
-    Object.assign(refundForm, { motif: '', mode_paiement: 'especes', reference_paiement: '' })
+    Object.assign(refundForm, { motif: '', mode_paiement: 'especes', reference_paiement: '', lignes: [] })
     await Promise.all([
       loadFacturesComptoir(facturesComptoirMeta.current_page || 1),
       loadCaisse(),
@@ -1915,6 +2160,49 @@ async function rembourserFactureComptoir() {
     )
   } finally {
     remboursementFactureLoading.value = null
+  }
+}
+
+function ouvrirAnnulationFacture(facture) {
+  if (!session.value) {
+    toast.error('Ouvrez une caisse avant d’annuler un ticket.')
+    return
+  }
+  if (montantAvoirFacture(facture) > 0) {
+    toast.error('Ce ticket possède déjà un avoir. Utilisez le remboursement.')
+    return
+  }
+  cancelFacture.value = facture
+  cancelForm.motif = `Annulation ticket ${facture.numero}`
+  showCancelModal.value = true
+}
+
+async function annulerFactureComptoir() {
+  if (!cancelFacture.value || cancelForm.motif.trim().length < 3) return
+
+  cancelFactureLoading.value = true
+  try {
+    const mouvementVente = mouvementsFactureComptoir(cancelFacture.value).find(m => m.type === 'vente')
+    const { data } = await api.post(`/caisse/factures/${cancelFacture.value.id}/annuler`, {
+      motif: cancelForm.motif.trim(),
+      mode_paiement: mouvementVente?.mode_paiement || undefined,
+    })
+    toast.success(data.message || 'Ticket annulé')
+    showCancelModal.value = false
+    cancelFacture.value = null
+    cancelForm.motif = ''
+    await Promise.all([
+      loadFacturesComptoir(facturesComptoirMeta.current_page || 1),
+      loadCaisse(),
+    ])
+  } catch (e) {
+    toast.error(
+      Object.values(e.response?.data?.errors || {})[0]?.[0]
+      || e.response?.data?.message
+      || 'Annulation impossible'
+    )
+  } finally {
+    cancelFactureLoading.value = false
   }
 }
 
@@ -1972,13 +2260,19 @@ async function ajouterMouvement() {
 async function fermerCaisse() {
   saving.value = true
   try {
-    await api.post(`/caisse/sessions/${session.value.id}/fermer`, closeForm)
+    await api.post(`/caisse/sessions/${session.value.id}/fermer`, {
+      ...closeForm,
+      comptage: closeCashCounts
+        .filter(ligne => Number(ligne.quantite || 0) > 0)
+        .map(ligne => ({ valeur: Number(ligne.valeur || 0), quantite: Number(ligne.quantite || 0) })),
+    })
     toast.success('Caisse fermee')
     session.value = null
     mouvements.value = []
     activeCaisseTab.value = 'vente'
     closeForm.solde_fermeture_reel = 0
     closeForm.notes_fermeture = ''
+    closeCashCounts.forEach(ligne => { ligne.quantite = 0 })
     await loadCaisse()
   } catch (e) {
     toast.error(e.response?.data?.message || e.response?.data?.errors?.caisse?.[0] || 'Fermeture impossible')
@@ -1987,8 +2281,16 @@ async function fermerCaisse() {
   }
 }
 
+function appliquerComptageFermeture() {
+  closeForm.solde_fermeture_reel = totalComptageFermeture.value
+}
+
 function formatPrice(n) {
   return new Intl.NumberFormat('fr-FR').format(Math.round(Number(n || 0)))
+}
+
+function formatQuantity(n) {
+  return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 3 }).format(Number(n || 0))
 }
 
 function formatDateTime(value) {
@@ -2322,6 +2624,16 @@ onMounted(async () => {
 .ticket-payment {
   color: var(--saytu-topbar-subtitle, #64748b);
   font-size: 0.8rem;
+}
+
+.ticket-tax-note {
+  margin-top: 0.25rem;
+  text-align: right;
+  color: var(--saytu-topbar-subtitle, #64748b);
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .ticket-payment strong,
