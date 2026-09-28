@@ -957,6 +957,7 @@ function groupBadgeColor(group) {
 
 function getBadgeCount(to) {
   const path = menuTarget(to).path
+  if (path === '/pilotage') return notif.total
   if (path === '/factures') return notif.badges.factures_retard
   if (path === '/devis') return notif.badges.devis_attente
   if (path === '/stock') return notif.badges.stock_alerte
@@ -967,6 +968,7 @@ function getBadgeCount(to) {
 
 function getBadgeColor(to) {
   const path = menuTarget(to).path
+  if (path === '/pilotage') return 'bg-cyan-500 text-white'
   if (path === '/factures') return 'bg-cyan-500 text-white'
   if (path === '/devis') return 'bg-sky-500 text-white'
   if (path === '/stock') return 'bg-blue-500 text-white'
