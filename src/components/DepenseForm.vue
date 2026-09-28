@@ -1,5 +1,19 @@
 <template>
   <form class="space-y-4" @submit.prevent="saveDepense">
+    <div v-if="existingDepense" class="rounded-2xl border border-cyan-200 bg-cyan-50/80 p-4">
+      <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p class="text-xs font-black uppercase tracking-[0.18em] text-cyan-700">Dépense {{ existingDepense.reference }}</p>
+          <p class="mt-1 text-sm font-semibold text-slate-600">
+            Statut : <span class="font-black text-slate-950">{{ statusLabel(existingDepense.statut) }}</span>
+          </p>
+        </div>
+        <p v-if="existingDepense.validator" class="text-xs font-semibold text-slate-500">
+          Traité par {{ existingDepense.validator.name }}
+        </p>
+      </div>
+    </div>
+
     <div class="grid gap-4 md:grid-cols-2">
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1">Date dépense</label>
@@ -69,7 +83,7 @@
         <input type="file" accept=".jpg,.jpeg,.png,.pdf" class="input" @change="onFileChange" />
         <p v-if="errors.justificatif" class="mt-1 text-xs text-red-600">{{ errors.justificatif }}</p>
       </div>
-      <div v-if="canValidate" class="md:col-span-2">
+      <div v-if="canValidate && !isEdit" class="md:col-span-2">
         <label class="inline-flex items-center gap-2 text-sm text-gray-700">
           <input v-model="form.valider_directement" type="checkbox" class="rounded border-gray-300" />
           Valider directement cette dépense
@@ -83,7 +97,25 @@
 
     <div class="flex justify-end gap-2 border-t pt-4">
       <button type="button" class="btn-secondary" @click="$emit('cancel')">Annuler</button>
-      <button type="submit" class="btn-primary" :disabled="saving">{{ saving ? 'Enregistrement...' : 'Enregistrer' }}</button>
+      <button
+        v-if="canValidate && isEdit && existingDepense?.statut === 'en_attente'"
+        type="button"
+        class="btn-secondary"
+        :disabled="saving || deciding"
+        @click="decideDepense('rejeter')"
+      >
+        Rejeter
+      </button>
+      <button
+        v-if="canValidate && isEdit && existingDepense?.statut === 'en_attente'"
+        type="button"
+        class="btn-primary"
+        :disabled="saving || deciding"
+        @click="decideDepense('valider')"
+      >
+        {{ deciding ? 'Traitement...' : 'Valider' }}
+      </button>
+      <button type="submit" class="btn-primary" :disabled="saving || deciding">{{ saving ? 'Enregistrement...' : (isEdit ? 'Mettre à jour' : 'Enregistrer') }}</button>
     </div>
   </form>
 </template>
@@ -97,16 +129,25 @@ import { useNotificationsStore } from '@/stores/notifications'
 import { hasAnyRole } from '@/utils/access'
 
 const emit = defineEmits(['saved', 'cancel'])
+const props = defineProps({
+  depenseId: {
+    type: [String, Number],
+    default: null,
+  },
+})
 
 const toast = useToast()
 const auth = useAuthStore()
 const notifications = useNotificationsStore()
 const canValidate = computed(() => hasAnyRole(auth.user, ['admin', 'gerant', 'comptable']))
+const isEdit = computed(() => Boolean(props.depenseId))
 
 const categories = ref({})
 const sessionsOuvertes = ref([])
 const comptesTresorerie = ref([])
+const existingDepense = ref(null)
 const saving = ref(false)
+const deciding = ref(false)
 const errors = reactive({})
 const form = reactive(defaultForm())
 
@@ -156,6 +197,42 @@ async function loadSessionsOuvertes() {
   } catch (e) {}
 }
 
+async function loadDepense() {
+  if (!isEdit.value) return
+
+  try {
+    const { data } = await api.get(`/depenses/${props.depenseId}`)
+    existingDepense.value = data
+    hydrateForm(data)
+  } catch (e) {
+    toast.error(e.response?.data?.message || 'Dépense introuvable.')
+    emit('cancel')
+  }
+}
+
+function hydrateForm(depense) {
+  Object.assign(form, {
+    date_depense: dateOnly(depense.date_depense) || new Date().toISOString().slice(0, 10),
+    categorie: depense.categorie || 'autre',
+    libelle: depense.libelle || '',
+    beneficiaire: depense.beneficiaire || '',
+    montant: depense.montant !== null && depense.montant !== undefined ? Number(depense.montant) : null,
+    mode_paiement: depense.mode_paiement || 'especes',
+    reference_paiement: depense.reference_paiement || '',
+    tresorerie_compte_id: depense.tresorerie_compte_id || '',
+    caisse_session_id: depense.caisse_session_id || '',
+    justificatif: null,
+    notes: depense.notes || '',
+    valider_directement: false,
+  })
+}
+
+function dateOnly(value) {
+  if (!value) return ''
+  if (typeof value === 'string') return value.slice(0, 10)
+  return new Date(value).toISOString().slice(0, 10)
+}
+
 function onFileChange(event) {
   form.justificatif = event.target.files?.[0] || null
 }
@@ -170,22 +247,12 @@ async function saveDepense() {
   saving.value = true
   Object.keys(errors).forEach((key) => delete errors[key])
   try {
-    const payload = new FormData()
-    payload.append('date_depense', form.date_depense)
-    payload.append('categorie', form.categorie)
-    payload.append('libelle', form.libelle)
-    payload.append('montant', form.montant)
-    payload.append('mode_paiement', form.mode_paiement)
-    if (form.beneficiaire) payload.append('beneficiaire', form.beneficiaire)
-    if (form.reference_paiement) payload.append('reference_paiement', form.reference_paiement)
-    if (form.tresorerie_compte_id) payload.append('tresorerie_compte_id', form.tresorerie_compte_id)
-    if (form.caisse_session_id) payload.append('caisse_session_id', form.caisse_session_id)
-    if (form.notes) payload.append('notes', form.notes)
-    if (form.justificatif) payload.append('justificatif', form.justificatif)
-    if (form.valider_directement) payload.append('statut', 'validee')
+    const payload = buildPayload()
+    const endpoint = isEdit.value ? `/depenses/${props.depenseId}` : '/depenses'
+    if (isEdit.value) payload.append('_method', 'PUT')
 
-    const { data } = await api.post('/depenses', payload, { headers: { 'Content-Type': 'multipart/form-data' } })
-    toast.success('Dépense enregistrée')
+    const { data } = await api.post(endpoint, payload, { headers: { 'Content-Type': 'multipart/form-data' } })
+    toast.success(isEdit.value ? 'Dépense mise à jour' : 'Dépense enregistrée')
     notifications.fetchBadges()
     emit('saved', data)
   } catch (err) {
@@ -199,9 +266,55 @@ async function saveDepense() {
   }
 }
 
-onMounted(() => {
-  loadCategories()
-  loadComptesTresorerie()
-  loadSessionsOuvertes()
+function buildPayload() {
+  const payload = new FormData()
+  payload.append('date_depense', form.date_depense)
+  payload.append('categorie', form.categorie)
+  payload.append('libelle', form.libelle)
+  payload.append('montant', form.montant)
+  payload.append('mode_paiement', form.mode_paiement)
+  if (form.beneficiaire) payload.append('beneficiaire', form.beneficiaire)
+  if (form.reference_paiement) payload.append('reference_paiement', form.reference_paiement)
+  if (form.tresorerie_compte_id) payload.append('tresorerie_compte_id', form.tresorerie_compte_id)
+  if (form.caisse_session_id) payload.append('caisse_session_id', form.caisse_session_id)
+  if (form.notes) payload.append('notes', form.notes)
+  if (form.justificatif) payload.append('justificatif', form.justificatif)
+  if (form.valider_directement && !isEdit.value) payload.append('statut', 'validee')
+  return payload
+}
+
+async function decideDepense(action) {
+  if (!isEdit.value) return
+
+  deciding.value = true
+  try {
+    const payload = action === 'rejeter' && form.notes ? { notes: form.notes } : {}
+    const { data } = await api.post(`/depenses/${props.depenseId}/${action}`, payload)
+    toast.success(action === 'valider' ? 'Dépense validée' : 'Dépense rejetée')
+    notifications.fetchBadges()
+    emit('saved', data)
+  } catch (err) {
+    toast.error(err.response?.data?.message || 'Action impossible.')
+  } finally {
+    deciding.value = false
+  }
+}
+
+function statusLabel(status) {
+  return {
+    en_attente: 'En attente',
+    validee: 'Validée',
+    rejetee: 'Rejetée',
+    annulee: 'Annulée',
+  }[status] || status || '—'
+}
+
+onMounted(async () => {
+  await Promise.all([
+    loadCategories(),
+    loadComptesTresorerie(),
+    loadSessionsOuvertes(),
+  ])
+  await loadDepense()
 })
 </script>

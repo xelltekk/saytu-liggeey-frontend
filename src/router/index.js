@@ -330,6 +330,11 @@ const routes = [
         component: () => import('@/views/DepenseDetailView.vue'),
       },
       {
+        path: 'depenses/:id',
+        name: 'depense-detail',
+        component: () => import('@/views/DepenseDetailView.vue'),
+      },
+      {
         path: 'tresorerie-comptes',
         name: 'tresorerie-comptes',
         component: () => import('@/views/TresorerieComptesView.vue'),

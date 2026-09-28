@@ -10,7 +10,7 @@
       </button>
 
       <p class="text-xs font-black uppercase tracking-[0.22em] text-cyan-700">Saisie dépense</p>
-      <h1 class="mt-2 text-2xl font-black text-slate-950">Nouvelle dépense</h1>
+      <h1 class="mt-2 text-2xl font-black text-slate-950">{{ isEdit ? 'Modifier la dépense' : 'Nouvelle dépense' }}</h1>
       <p class="mt-1 text-sm text-cyan-800">Saisie en page complète, sans fenêtre flottante.</p>
     </section>
 
@@ -24,16 +24,21 @@
         </button>
       </div>
 
-      <DepenseForm @saved="onSaved" @cancel="goBack" />
+      <DepenseForm :depense-id="depenseId" @saved="onSaved" @cancel="goBack" />
     </section>
   </div>
 </template>
 
 <script setup>
 import { useRouter } from 'vue-router'
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 import DepenseForm from '@/components/DepenseForm.vue'
 
 const router = useRouter()
+const route = useRoute()
+const depenseId = computed(() => route.params.id || null)
+const isEdit = computed(() => Boolean(depenseId.value))
 
 function goBack() {
   router.push({ name: 'depenses' })
