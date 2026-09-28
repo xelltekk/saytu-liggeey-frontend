@@ -112,6 +112,13 @@
         </div>
       </div>
 
+      <div class="mb-4 grid gap-3 lg:grid-cols-4">
+        <div v-for="card in managerSummaryCards" :key="card.label" class="rounded-2xl border border-cyan-100 bg-cyan-50/70 p-4">
+          <div class="text-xs font-bold uppercase tracking-wide text-cyan-700">{{ card.label }}</div>
+          <div class="mt-2 text-xl font-black text-slate-900">{{ card.value }}</div>
+          <p class="mt-1 text-xs font-semibold text-slate-500">{{ card.detail }}</p>
+        </div>
+      </div>
 
       <div class="mb-4 overflow-hidden rounded-2xl border border-red-100 bg-white shadow-sm">
         <div class="flex flex-col gap-3 border-b border-red-100 bg-red-50/60 p-4 lg:flex-row lg:items-end">
@@ -442,6 +449,33 @@ const selectedActivityDetails = computed(() => selectedActivity.value ? detailsF
 
 const successCount = computed(() => filteredActivites.value.filter(item => Number(item.status || 0) < 400).length)
 const errorCount = computed(() => filteredActivites.value.filter(item => Number(item.status || 0) >= 400).length)
+const managerSummaryCards = computed(() => {
+  const latest = sortedActivites.value[0]
+  const firstCategory = topCategories.value[0]
+
+  return [
+    {
+      label: 'Résumé gérant',
+      value: `${filteredActivites.value.length} actions`,
+      detail: `${activeModulesCount.value} module(s) concernés`,
+    },
+    {
+      label: 'Dernière activité',
+      value: latest ? formatDateTime(latest.date) : '—',
+      detail: latest?.title || latest?.action || 'Aucune activité',
+    },
+    {
+      label: 'Module principal',
+      value: firstCategory ? categoryLabel(firstCategory.category) : '—',
+      detail: firstCategory ? `${firstCategory.count} action(s)` : 'Pas encore de tendance',
+    },
+    {
+      label: 'Contrôle erreurs',
+      value: errorCount.value ? `${errorCount.value} erreur(s)` : 'OK',
+      detail: errorCount.value ? 'À vérifier dans le filtre Erreurs' : 'Aucune erreur dans le filtre courant',
+    },
+  ]
+})
 const sortedActivites = computed(() => sortedRows(filteredActivites.value, {
   date: 'date',
   utilisateur: (item) => item.user_name || '',

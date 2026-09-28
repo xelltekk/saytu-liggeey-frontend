@@ -14,19 +14,33 @@
           </p>
         </div>
 
-        <button
-          type="button"
-          class="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/25 bg-white/15 px-4 py-3 text-sm font-bold text-white transition hover:bg-white/25 disabled:opacity-60"
-          :disabled="loading"
-          @click="loadPilotage"
-        >
-          <RefreshCw class="h-4 w-4" :class="{ 'animate-spin': loading }" />
-          Actualiser
-        </button>
+        <div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
+          <select v-model="period" class="rounded-2xl border border-white/25 bg-white/95 px-4 py-3 text-sm font-black text-sky-900 shadow-sm">
+            <option value="today">Aujourd’hui</option>
+            <option value="week">Cette semaine</option>
+            <option value="month">Ce mois</option>
+            <option value="year">Cette année</option>
+          </select>
+          <button
+            type="button"
+            class="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/25 bg-white/15 px-4 py-3 text-sm font-bold text-white transition hover:bg-white/25 disabled:opacity-60"
+            :disabled="loading"
+            @click="loadPilotage"
+          >
+            <RefreshCw class="h-4 w-4" :class="{ 'animate-spin': loading }" />
+            Actualiser
+          </button>
+          <button type="button" class="rounded-2xl border border-white/25 bg-white/15 px-4 py-3 text-sm font-bold text-white transition hover:bg-white/25" @click="downloadExport('csv')">
+            Export CSV
+          </button>
+          <button type="button" class="rounded-2xl border border-white/25 bg-white/15 px-4 py-3 text-sm font-bold text-white transition hover:bg-white/25" @click="downloadExport('pdf')">
+            Export PDF
+          </button>
+        </div>
       </div>
 
       <p v-if="generatedAt" class="mt-4 text-xs font-medium text-white/75">
-        Dernière mise à jour : {{ formatDateTime(generatedAt) }}
+        Période : {{ payload?.periode?.label || 'Ce mois' }} · {{ payload?.periode?.start }} → {{ payload?.periode?.end }} · Dernière mise à jour : {{ formatDateTime(generatedAt) }}
       </p>
     </section>
 
@@ -34,12 +48,12 @@
       {{ error }}
     </div>
 
-    <section class="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+    <section class="grid gap-3 sm:grid-cols-2 xl:grid-cols-5 max-sm:flex max-sm:overflow-x-auto max-sm:pb-1">
       <a
         v-for="item in quickNav"
         :key="item.key"
         :href="`#${item.key}`"
-        class="rounded-3xl border border-cyan-100 bg-cyan-50/70 px-4 py-3 text-sm font-black text-sky-800 shadow-sm transition hover:-translate-y-0.5 hover:border-cyan-300 hover:bg-white"
+        class="rounded-3xl border border-cyan-100 bg-cyan-50/70 px-4 py-3 text-sm font-black text-sky-800 shadow-sm transition hover:-translate-y-0.5 hover:border-cyan-300 hover:bg-white max-sm:min-w-40"
       >
         <span class="block text-[11px] uppercase tracking-[0.18em] text-cyan-600">{{ item.index }}</span>
         {{ item.label }}
@@ -86,6 +100,7 @@
               <span class="block font-black text-sky-950">{{ item.reference || item.type }}</span>
               <span class="mt-1 block truncate text-xs text-slate-600">{{ item.label || item.user || 'À vérifier' }}</span>
               <span v-if="Number(item.amount) > 0" class="mt-1 block text-xs font-bold text-cyan-700">{{ formatAmount(item.amount) }}</span>
+              <span class="mt-2 inline-flex rounded-full bg-cyan-600 px-3 py-1 text-[11px] font-black text-white">Traiter</span>
             </RouterLink>
             <p v-if="!(group.items || []).length" class="rounded-2xl border border-dashed border-cyan-200 p-3 text-xs font-semibold text-slate-500">
               Rien à traiter.
@@ -124,6 +139,7 @@
             >
               <span class="font-black text-slate-950">{{ item.label }}</span>
               <span class="mt-1 block text-xs text-slate-600">{{ item.detail }}</span>
+              <span class="mt-2 inline-flex rounded-full bg-cyan-600 px-3 py-1 text-[11px] font-black text-white">Traiter</span>
             </RouterLink>
             <p v-if="!(group.items || []).length" class="rounded-2xl border border-dashed border-cyan-200 p-3 text-xs font-semibold text-slate-500">
               Aucune alerte.
@@ -134,7 +150,7 @@
     </section>
 
     <section id="performance_equipe" class="space-y-4">
-      <SectionHeader title="4. Rapport performance équipe" subtitle="Suivi rapide des commerciaux et caissiers sur le mois." />
+      <SectionHeader title="4. Rapport performance équipe" subtitle="Suivi rapide des commerciaux et caissiers sur la période sélectionnée." />
       <div class="grid gap-4 xl:grid-cols-2">
         <SimpleTable title="Commerciaux" :rows="sec('performance_equipe').commerciaux || []" :columns="commercialColumns" />
         <SimpleTable title="Caissiers" :rows="sec('performance_equipe').caissiers || []" :columns="cashierColumns" />
@@ -275,13 +291,22 @@
         <div class="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
           <InfoLine v-for="compteur in sec('proprietaire').compteurs || []" :key="compteur.label" :label="compteur.label" :value="formatNumber(compteur.value)" />
         </div>
+        <div v-if="(sec('proprietaire').portfolio || []).length" class="mt-5 grid gap-3 sm:grid-cols-3">
+          <InfoLine v-for="compteur in sec('proprietaire').portfolio || []" :key="compteur.label" :label="compteur.label" :value="formatNumber(compteur.value)" />
+        </div>
+        <div class="mt-5 grid gap-3 lg:grid-cols-3">
+          <div v-for="droit in sec('proprietaire').droits || []" :key="droit.role" class="rounded-2xl border border-cyan-100 bg-white/75 p-3">
+            <p class="text-sm font-black text-slate-950">{{ droit.role }}</p>
+            <p class="mt-1 text-xs font-semibold text-slate-600">{{ droit.niveau }}</p>
+          </div>
+        </div>
       </article>
     </section>
   </div>
 </template>
 
 <script setup>
-import { computed, defineComponent, h, onMounted, ref } from 'vue'
+import { computed, defineComponent, h, onMounted, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import { RefreshCw, Sparkles } from 'lucide-vue-next'
 import api from '@/services/api'
@@ -291,6 +316,7 @@ const toast = useToast()
 const loading = ref(false)
 const error = ref('')
 const payload = ref(null)
+const period = ref('month')
 
 const sections = computed(() => payload.value?.sections || {})
 const generatedAt = computed(() => payload.value?.generated_at || null)
@@ -332,13 +358,32 @@ async function loadPilotage() {
   loading.value = true
   error.value = ''
   try {
-    const { data } = await api.get('/gerant/pilotage')
+    const { data } = await api.get('/gerant/pilotage', { params: { periode: period.value } })
     payload.value = data
   } catch (e) {
     error.value = e.response?.data?.message || 'Chargement du pilotage gérant impossible.'
     toast.error(error.value)
   } finally {
     loading.value = false
+  }
+}
+
+async function downloadExport(format) {
+  try {
+    const { data } = await api.get('/gerant/pilotage/export', {
+      params: { format, periode: period.value },
+      responseType: 'blob',
+    })
+    const extension = format === 'pdf' ? 'pdf' : 'csv'
+    const blob = new Blob([data], { type: format === 'pdf' ? 'application/pdf' : 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `pilotage-gerant-${period.value}.${extension}`
+    link.click()
+    URL.revokeObjectURL(url)
+  } catch (e) {
+    toast.error('Export du pilotage impossible.')
   }
 }
 
@@ -428,6 +473,8 @@ const SimpleTable = defineComponent({
     ])
   },
 })
+
+watch(period, loadPilotage)
 
 onMounted(loadPilotage)
 </script>
