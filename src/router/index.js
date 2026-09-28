@@ -50,14 +50,17 @@ const routes = [
         redirect: { name: 'dashboard' },
       },
       {
+        path: 'pilotage',
+        name: 'pilotage',
+        component: () => import('@/views/PilotageView.vue'),
+      },
+      {
         path: 'aujourdhui',
-        name: 'aujourdhui',
-        component: () => import('@/views/AujourdhuiView.vue'),
+        redirect: { name: 'pilotage' },
       },
       {
         path: 'gerant',
-        name: 'gerant-pilotage',
-        component: () => import('@/views/GerantPilotageView.vue'),
+        redirect: { name: 'pilotage', query: { tab: 'gerant' } },
       },
       {
         path: 'agenda',
@@ -475,8 +478,7 @@ const routes = [
       },
       {
         path: 'activites',
-        name: 'activites',
-        component: () => import('@/views/ActivitesView.vue'),
+        redirect: { name: 'pilotage', query: { tab: 'activites' } },
       },
       {
         path: 'notifications',
@@ -527,6 +529,7 @@ const router = createRouter({
 // Mapping route → rôles autorisés
 const routeRoles = {
   '/clients': ['admin', 'gerant', 'commercial', 'comptable'],
+  '/pilotage': ['admin', 'gerant', 'commercial', 'magasinier', 'comptable', 'caissier'],
   '/aujourdhui': ['admin', 'gerant', 'commercial', 'magasinier', 'comptable', 'caissier'],
   '/gerant': ['admin', 'gerant'],
   '/agenda': ['admin', 'gerant', 'commercial', 'magasinier', 'comptable', 'caissier'],
@@ -560,6 +563,7 @@ const routeRoles = {
 
 const routePermissions = {
   '/clients': 'clients.view',
+  '/pilotage': 'pilotage.view',
   '/aujourdhui': 'pilotage.view',
   '/gerant': 'pilotage.view',
   '/agenda': 'agenda.view',

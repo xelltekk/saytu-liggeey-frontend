@@ -401,7 +401,6 @@ import {
   UserCog,
   ShieldCheck,
   KeyRound,
-  ClipboardList,
   Sparkles,
   Rocket,
   CalendarDays,
@@ -472,19 +471,11 @@ const tousLesMenus = [
   },
 
   {
-    to: '/aujourdhui',
-    label: "Aujourd'hui",
+    to: '/pilotage',
+    label: 'Pilotage',
     icon: Sparkles,
     permission: 'pilotage.view',
     roles: ['admin', 'gerant', 'commercial', 'magasinier', 'comptable', 'caissier']
-  },
-
-  {
-    to: '/gerant',
-    label: 'Pilotage gérant',
-    icon: LayoutDashboard,
-    permission: 'pilotage.view',
-    roles: ['admin', 'gerant']
   },
 
   {
@@ -720,14 +711,6 @@ const tousLesMenus = [
     permission: 'dashboard.view',
     roles: ['admin'],
     tenantOnly: true
-  },
-
-  {
-    to: '/activites',
-    label: 'Activités',
-    icon: ClipboardList,
-    permission: 'activites.view',
-    roles: ['admin', 'gerant']
   }
 ]
 
@@ -851,7 +834,7 @@ const menuGroupDefinitions = [
     key: 'pilotage',
     label: 'Pilotage',
     icon: Sparkles,
-    items: ['/aujourdhui', '/gerant', '/agenda']
+    items: ['/pilotage', '/agenda']
   },
   {
     key: 'ventes',
@@ -899,7 +882,7 @@ const menuGroupDefinitions = [
     key: 'administration',
     label: 'Administration',
     icon: Settings,
-    items: ['/leasing', '/utilisateurs', '/roles-permissions', '/licence', '/xelltekk-admin', '/securite', '/parametres', '/demarrage', '/activites']
+    items: ['/leasing', '/utilisateurs', '/roles-permissions', '/licence', '/xelltekk-admin', '/securite', '/parametres', '/demarrage']
   },
 ]
 
