@@ -444,6 +444,7 @@ const company = reactive({
   devise_defaut: 'XOF',
 })
 const openMenuGroups = ref({
+  pilotage: false,
   ventes: false,
   boutique: false,
   achats: false,
@@ -476,6 +477,14 @@ const tousLesMenus = [
     icon: Sparkles,
     permission: 'pilotage.view',
     roles: ['admin', 'gerant', 'commercial', 'magasinier', 'comptable', 'caissier']
+  },
+
+  {
+    to: '/gerant',
+    label: 'Pilotage gérant',
+    icon: LayoutDashboard,
+    permission: 'pilotage.view',
+    roles: ['admin', 'gerant']
   },
 
   {
@@ -842,7 +851,7 @@ const menuGroupDefinitions = [
     key: 'pilotage',
     label: 'Pilotage',
     icon: Sparkles,
-    items: ['/aujourdhui', '/agenda']
+    items: ['/aujourdhui', '/gerant', '/agenda']
   },
   {
     key: 'ventes',

@@ -55,6 +55,11 @@ const routes = [
         component: () => import('@/views/AujourdhuiView.vue'),
       },
       {
+        path: 'gerant',
+        name: 'gerant-pilotage',
+        component: () => import('@/views/GerantPilotageView.vue'),
+      },
+      {
         path: 'agenda',
         name: 'agenda',
         component: () => import('@/views/AgendaView.vue'),
@@ -518,6 +523,7 @@ const router = createRouter({
 const routeRoles = {
   '/clients': ['admin', 'gerant', 'commercial', 'comptable'],
   '/aujourdhui': ['admin', 'gerant', 'commercial', 'magasinier', 'comptable', 'caissier'],
+  '/gerant': ['admin', 'gerant'],
   '/agenda': ['admin', 'gerant', 'commercial', 'magasinier', 'comptable', 'caissier'],
   '/prospection': ['admin', 'gerant', 'commercial'],
   '/produits': ['admin', 'gerant', 'commercial', 'magasinier', 'comptable'],
@@ -550,6 +556,7 @@ const routeRoles = {
 const routePermissions = {
   '/clients': 'clients.view',
   '/aujourdhui': 'pilotage.view',
+  '/gerant': 'pilotage.view',
   '/agenda': 'agenda.view',
   '/prospection': 'prospection.view',
   '/produits': 'produits.view',
