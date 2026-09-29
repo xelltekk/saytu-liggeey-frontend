@@ -2,25 +2,22 @@
   <Teleport to="body">
     <transition name="fade">
       <div v-if="modelValue" class="fixed inset-0 z-[100] flex items-start justify-center px-3 pt-4 sm:px-4 sm:pt-[10vh]">
-        <!-- Backdrop -->
         <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="close"></div>
 
-        <!-- Palette -->
         <div
-          class="relative max-h-[calc(100vh-2rem)] w-full max-w-2xl overflow-hidden rounded-xl bg-white shadow-2xl"
+          class="relative max-h-[calc(100vh-2rem)] w-full max-w-3xl overflow-hidden rounded-2xl bg-white shadow-2xl"
           role="dialog"
           aria-modal="true"
           aria-label="Recherche globale"
         >
-          <!-- Input search -->
-          <div class="flex items-center px-4 border-b border-gray-200">
-            <span class="text-gray-400 text-xl">🔍</span>
+          <div class="flex items-center border-b border-cyan-100 bg-cyan-50/60 px-4">
+            <span class="text-xl text-cyan-700">🔍</span>
             <input
               ref="inputRef"
               v-model="query"
               type="text"
-              placeholder="Rechercher clients, factures, devis, produits..."
-              class="flex-1 px-3 py-4 text-sm bg-transparent outline-none placeholder-gray-400"
+              placeholder="Client, téléphone, facture, devis, produit, BC, fournisseur..."
+              class="flex-1 bg-transparent px-3 py-4 text-sm outline-none placeholder:text-slate-400"
               autocomplete="off"
               aria-label="Rechercher dans l'application"
               @keydown.down.prevent="moveSelection(1)"
@@ -28,156 +25,89 @@
               @keydown.enter.prevent="ouvrirSelection"
               @keydown.esc.prevent="close"
             />
-            <kbd class="px-2 py-0.5 text-xs text-gray-500 bg-gray-100 rounded border border-gray-300">ESC</kbd>
+            <kbd class="rounded border border-cyan-200 bg-white px-2 py-0.5 text-xs text-cyan-700">ESC</kbd>
           </div>
 
-          <!-- Résultats -->
-          <div class="max-h-[60vh] overflow-y-auto">
-            <div v-if="loading" class="p-8 text-center text-sm text-gray-500" role="status" aria-live="polite">
-              Recherche en cours...
-            </div>
+          <div class="max-h-[62vh] overflow-y-auto">
+            <div v-if="query.length < 2" class="p-4 sm:p-5">
+              <div class="rounded-2xl border border-cyan-100 bg-cyan-50/70 p-4">
+                <p class="font-bold text-slate-900">Recherche rapide</p>
+                <p class="mt-1 text-sm text-slate-500">Tapez au moins 2 caractères ou utilisez un raccourci.</p>
+              </div>
 
-            <div v-else-if="query.length < 2" class="p-8 text-center text-sm text-gray-400">
-              <p class="mb-2 text-base">💡 Tapez au moins 2 caractères</p>
-              <p class="text-xs">Cherchez par nom, n° facture, NINEA, référence produit...</p>
-              <div class="mt-4 flex justify-center gap-3 text-[11px] text-gray-500">
-                <span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded border border-gray-300">↑</kbd> <kbd class="px-1.5 py-0.5 bg-gray-100 rounded border border-gray-300">↓</kbd> Naviguer</span>
-                <span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded border border-gray-300">⏎</kbd> Ouvrir</span>
-                <span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded border border-gray-300">ESC</kbd> Fermer</span>
+              <div class="mt-4 grid gap-2 sm:grid-cols-2">
+                <button
+                  v-for="(action, index) in quickActions"
+                  :key="action.key"
+                  type="button"
+                  class="flex items-center gap-3 rounded-2xl border px-4 py-3 text-left transition"
+                  :class="selection === index ? 'border-cyan-400 bg-cyan-50 shadow-sm' : 'border-slate-200 bg-white hover:border-cyan-200 hover:bg-cyan-50/50'"
+                  @click="ouvrirQuickAction(action)"
+                >
+                  <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-100 text-lg">{{ action.icon }}</span>
+                  <span class="min-w-0">
+                    <span class="block font-bold text-slate-900">{{ action.label }}</span>
+                    <span class="block truncate text-xs text-slate-500">{{ action.description }}</span>
+                  </span>
+                </button>
+              </div>
+
+              <div class="mt-4 flex flex-wrap justify-center gap-3 text-[11px] text-slate-500">
+                <span><kbd class="rounded border border-slate-300 bg-white px-1.5 py-0.5">↑</kbd> <kbd class="rounded border border-slate-300 bg-white px-1.5 py-0.5">↓</kbd> Naviguer</span>
+                <span><kbd class="rounded border border-slate-300 bg-white px-1.5 py-0.5">⏎</kbd> Ouvrir</span>
+                <span><kbd class="rounded border border-slate-300 bg-white px-1.5 py-0.5">ESC</kbd> Fermer</span>
               </div>
             </div>
 
-            <div v-else-if="totalResultats === 0" class="p-8 text-center text-sm text-gray-400">
-              <p class="text-4xl mb-2">🤷</p>
-              <p>Aucun résultat pour <strong class="text-gray-600">"{{ query }}"</strong></p>
+            <div v-else-if="loading" class="p-8 text-center text-sm text-slate-500" role="status" aria-live="polite">
+              Recherche en cours...
             </div>
 
-            <div v-else>
-              <!-- Clients -->
-              <SectionResultats
-                v-if="resultats.clients.length"
-                titre="👥 Clients"
-                couleur="blue"
-                :items="resultats.clients"
-                :selection="selection"
-                :offset="0"
-                @click-item="ouvrirItem"
-              >
-                <template #default="{ item }">
-                  <div class="font-medium text-gray-900">{{ item.nom }}</div>
-                  <div class="text-xs text-gray-500">
-                    <span class="font-mono">{{ item.code }}</span>
-                    <span v-if="item.email" class="ml-2">{{ item.email }}</span>
-                    <span v-if="item.telephone" class="ml-2">📞 {{ item.telephone }}</span>
-                  </div>
-                </template>
-              </SectionResultats>
+            <div v-else-if="totalResultats === 0" class="p-8 text-center text-sm text-slate-400">
+              <p class="mb-2 text-4xl">🤷</p>
+              <p>Aucun résultat pour <strong class="text-slate-700">"{{ query }}"</strong></p>
+              <p class="mt-2 text-xs">Essayez un téléphone, une référence produit, FA, DE, BC ou le nom du client.</p>
+            </div>
 
-              <!-- Factures -->
-              <SectionResultats
-                v-if="resultats.factures.length"
-                titre="🧾 Factures" ?
-                couleur="green"
-                :items="resultats.factures"
-                :selection="selection"
-                :offset="resultats.clients.length || 0"
-                @click-item="ouvrirItem"
-              >
-                <template #default="{ item }">
-                  <div class="flex items-center justify-between">
-                    <div>
-                      <div class="font-medium text-gray-900">
-                        <span class="font-mono">{{ item.numero }}</span>
-                        <span v-if="item.type === 'avoir'" class="ml-1 text-red-600 text-[10px]">AVOIR</span>
-                      </div>
-                      <div class="text-xs text-gray-500">{{ item.client?.nom || 'Client' }} • {{ formatDate(item.date_facture) }}</div>
-                    </div>
-                    <div class="text-right">
-                      <div class="font-mono font-semibold text-sm">{{ formatPrice(item.total_ttc) }}</div>
-                      <div class="text-[10px] text-gray-500 capitalize">{{ item.statut }}</div>
-                    </div>
-                  </div>
-                </template>
-              </SectionResultats>
+            <div v-else class="divide-y divide-slate-100">
+              <section v-for="section in sectionsWithResults" :key="section.key" class="py-2">
+                <div class="flex items-center justify-between px-4 pb-1">
+                  <p class="text-[11px] font-black uppercase tracking-wider text-slate-500">{{ section.icon }} {{ section.label }}</p>
+                  <span class="rounded-full bg-cyan-50 px-2 py-0.5 text-[10px] font-bold text-cyan-700">{{ section.items.length }}</span>
+                </div>
 
-              <!-- Devis -->
-              <SectionResultats
-                v-if="resultats.devis.length"
-                titre="📋 Devis" ?
-                couleur="purple"
-                :items="resultats.devis"
-                :selection="selection"
-                :offset="(resultats.clients.length || 0) + (resultats.factures.length || 0)"
-                @click-item="ouvrirItem"
-              >
-                <template #default="{ item }">
-                  <div class="flex items-center justify-between">
-                    <div>
-                      <div class="font-medium text-gray-900 font-mono">{{ item.numero }}</div>
-                      <div class="text-xs text-gray-500">{{ item.client?.nom || 'Client' }} • {{ item.objet || 'Sans objet' }}</div>
+                <button
+                  v-for="entry in section.items"
+                  :key="`${section.key}-${entry.item.id}-${entry.localIndex}`"
+                  type="button"
+                  class="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm transition-colors"
+                  :class="entry.globalIndex === selection ? 'border-l-2 border-cyan-500 bg-cyan-50' : 'hover:bg-slate-50'"
+                  @click="ouvrirResultat(entry)"
+                >
+                  <span class="hidden h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-base sm:flex">{{ section.icon }}</span>
+                  <div class="min-w-0 flex-1">
+                    <div class="flex flex-wrap items-center gap-2">
+                      <span class="font-bold text-slate-900">{{ resultTitle(section.key, entry.item) }}</span>
+                      <span v-if="entry.item.type" class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase text-slate-500">{{ typeLabel(entry.item.type) }}</span>
+                      <span v-if="entry.item.statut" class="rounded-full bg-cyan-50 px-2 py-0.5 text-[10px] font-bold text-cyan-700">{{ entry.item.statut }}</span>
                     </div>
-                    <div class="text-right">
-                      <div class="font-mono font-semibold text-sm">{{ formatPrice(item.total_ttc) }}</div>
-                      <div class="text-[10px] text-gray-500 capitalize">{{ item.statut }}</div>
-                    </div>
+                    <p class="mt-0.5 truncate text-xs text-slate-500">{{ resultSubtitle(section.key, entry.item) }}</p>
                   </div>
-                </template>
-              </SectionResultats>
-
-              <!-- Produits -->
-              <SectionResultats
-                v-if="resultats.produits.length"
-                titre="📦 Produits" ?
-                couleur="orange"
-                :items="resultats.produits"
-                :selection="selection"
-                :offset="(resultats.clients.length || 0) + (resultats.factures.length || 0) + (resultats.devis.length || 0)"
-                @click-item="ouvrirItem"
-              >
-                <template #default="{ item }">
-                  <div class="flex items-center justify-between">
-                    <div>
-                      <div class="font-medium text-gray-900">{{ item.libelle }}</div>
-                      <div class="text-xs text-gray-500 font-mono">{{ item.reference }}</div>
-                    </div>
-                    <div class="text-right font-mono text-sm font-semibold">{{ formatPrice(item.prix_vente_ht) }}</div>
+                  <div class="hidden shrink-0 text-right sm:block">
+                    <p v-if="resultAmount(section.key, entry.item) !== null" class="font-mono text-sm font-black text-slate-900">{{ formatPrice(resultAmount(section.key, entry.item)) }}</p>
+                    <p class="text-[10px] font-semibold text-cyan-700">Ouvrir</p>
                   </div>
-                </template>
-              </SectionResultats>
-
-              <!-- Paiements -->
-              <SectionResultats
-                v-if="resultats.paiements.length"
-                titre="💰 Paiements" ?
-                couleur="emerald"
-                :items="resultats.paiements"
-                :selection="selection"
-                :offset="(resultats.clients.length || 0) + (resultats.factures.length || 0) + (resultats.devis.length || 0) + (resultats.produits.length || 0)"
-                @click-item="ouvrirItem"
-              >
-                <template #default="{ item }">
-                  <div class="flex items-center justify-between">
-                    <div>
-                      <div class="font-medium text-gray-900 font-mono">{{ item.reference }}</div>
-                      <div class="text-xs text-gray-500">{{ item.client?.nom || 'Client' }} • {{ formatDate(item.date_paiement) }}</div>
-                    </div>
-                    <div class="text-right">
-                      <div class="font-mono font-semibold text-sm">{{ formatPrice(item.montant) }}</div>
-                      <div class="text-[10px] text-gray-500 capitalize">{{ item.mode_paiement }}</div>
-                    </div>
-                  </div>
-                </template>
-              </SectionResultats>
+                </button>
+              </section>
             </div>
           </div>
 
-          <!-- Footer -->
-          <div class="px-4 py-2 bg-gray-50 border-t border-gray-200 text-[11px] text-gray-500 flex justify-between">
-            <span>{{ totalResultats }} résultat(s)</span>
+          <div class="flex items-center justify-between border-t border-slate-100 bg-slate-50 px-4 py-2 text-[11px] text-slate-500">
+            <span>{{ query.length < 2 ? `${quickActions.length} raccourci(s)` : `${totalResultats} résultat(s)` }}</span>
             <span>
-              <kbd class="px-1.5 py-0.5 bg-white rounded border border-gray-300">↑↓</kbd>
-              <kbd class="px-1.5 py-0.5 ml-1 bg-white rounded border border-gray-300">⏎</kbd>
-              <kbd class="px-1.5 py-0.5 ml-1 bg-white rounded border border-gray-300">ESC</kbd>
+              <kbd class="rounded border border-slate-300 bg-white px-1.5 py-0.5">↑↓</kbd>
+              <kbd class="ml-1 rounded border border-slate-300 bg-white px-1.5 py-0.5">⏎</kbd>
+              <kbd class="ml-1 rounded border border-slate-300 bg-white px-1.5 py-0.5">ESC</kbd>
             </span>
           </div>
         </div>
@@ -187,36 +117,10 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick, h } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/services/api'
-
-// SectionResultats : sous-composant inline pour afficher chaque section
-const SectionResultats = {
-  props: ['titre', 'couleur', 'items', 'selection', 'offset'],
-  emits: ['clickItem'],
-  setup(props, { emit, slots }) {
-    return () => h('div', { class: 'py-2 border-b border-gray-100 last:border-b-0' }, [
-      h('div', { class: 'px-4 pb-1 text-[11px] font-semibold uppercase text-gray-500 tracking-wider' }, props.titre),
-      ...props.items.map((item, idx) => {
-        const globalIdx = props.offset + idx
-        const isSelected = globalIdx === props.selection
-        return h(
-          'button',
-          {
-            type: 'button',
-            class: [
-              'w-full text-left px-4 py-2 text-sm transition-colors flex items-center',
-              isSelected ? 'bg-cyan-50 border-l-2 border-cyan-500' : 'hover:bg-gray-50',
-            ],
-            onClick: () => emit('clickItem', { categorie: props.titre, item }),
-          },
-          h('div', { class: 'flex-1' }, slots.default?.({ item }))
-        )
-      }),
-    ])
-  },
-}
+import { useAuthStore } from '@/stores/auth'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -224,49 +128,96 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue'])
 
 const router = useRouter()
+const auth = useAuthStore()
 const inputRef = ref(null)
 const query = ref('')
-const resultats = ref({ clients: [], factures: [], devis: [], produits: [], paiements: [] })
 const loading = ref(false)
 const selection = ref(0)
+const resultats = ref(emptyResults())
 
-const totalResultats = computed(() => {
-  return (resultats.value.clients.length || 0)
-    + (resultats.value.factures.length || 0)
-    + (resultats.value.devis.length || 0)
-    + (resultats.value.produits.length || 0)
-    + (resultats.value.paiements.length || 0)
+const quickActionsAll = [
+  { key: 'client-create', icon: '👥', label: 'Nouveau client', description: 'Créer une fiche client/prospect', roles: ['admin', 'gerant', 'commercial'], route: { name: 'client-create' } },
+  { key: 'devis-create', icon: '📋', label: 'Nouveau devis', description: 'Préparer une proposition commerciale', roles: ['admin', 'gerant', 'commercial', 'comptable'], route: { name: 'devis-create' } },
+  { key: 'facture-create', icon: '🧾', label: 'Nouvelle facture', description: 'Créer une facture client', roles: ['admin', 'gerant', 'commercial', 'comptable'], route: { name: 'facture-create' } },
+  { key: 'caisse', icon: '💳', label: 'Ouvrir la caisse', description: 'Vente rapide et encaissement', roles: ['admin', 'gerant', 'comptable', 'caissier'], route: { name: 'caisse' } },
+  { key: 'produit-create', icon: '📦', label: 'Nouveau produit', description: 'Créer un produit, service ou pack', roles: ['admin', 'gerant', 'commercial', 'magasinier', 'comptable'], route: { name: 'produit-create' } },
+  { key: 'stock', icon: '🏷️', label: 'Stock', description: 'Consulter stocks, lots, alertes', roles: ['admin', 'gerant', 'magasinier', 'comptable'], route: { name: 'stock' } },
+  { key: 'achat-commande-create', icon: '🛒', label: 'Bon de commande', description: 'Créer un achat fournisseur', roles: ['admin', 'gerant', 'magasinier', 'comptable'], route: { name: 'achat-commande-create' } },
+  { key: 'pilotage', icon: '✨', label: 'Pilotage', description: 'Vue gérant et actions prioritaires', roles: ['admin', 'gerant'], route: { name: 'pilotage', query: { tab: 'gerant' } } },
+]
+
+const quickActions = computed(() => {
+  const role = auth.user?.base_role || auth.user?.role
+  return quickActionsAll.filter((action) => !action.roles || action.roles.includes(role))
 })
 
-// Aplatissement des résultats pour navigation clavier
+const sectionDefs = [
+  { key: 'clients', label: 'Clients', icon: '👥' },
+  { key: 'fournisseurs', label: 'Fournisseurs', icon: '🏢' },
+  { key: 'factures', label: 'Factures', icon: '🧾' },
+  { key: 'devis', label: 'Devis', icon: '📋' },
+  { key: 'produits', label: 'Produits', icon: '📦' },
+  { key: 'achats', label: 'Achats fournisseurs', icon: '🛒' },
+  { key: 'paiements', label: 'Paiements', icon: '💰' },
+]
+
+const totalResultats = computed(() => sectionDefs.reduce((total, section) => total + (resultats.value[section.key]?.length || 0), 0))
+
+const sectionsWithResults = computed(() => {
+  let offset = 0
+
+  return sectionDefs
+    .map((section) => {
+      const rows = resultats.value[section.key] || []
+      const items = rows.map((item, localIndex) => ({
+        section,
+        item,
+        localIndex,
+        globalIndex: offset + localIndex,
+      }))
+      offset += rows.length
+
+      return { ...section, items }
+    })
+    .filter((section) => section.items.length > 0)
+})
+
 const itemsFlat = computed(() => {
-  return [
-    ...(resultats.value.clients || []).map(i => ({ type: 'client', item: i })),
-    ...(resultats.value.factures || []).map(i => ({ type: 'facture', item: i })),
-    ...(resultats.value.devis || []).map(i => ({ type: 'devis', item: i })),
-    ...(resultats.value.produits || []).map(i => ({ type: 'produit', item: i })),
-    ...(resultats.value.paiements || []).map(i => ({ type: 'paiement', item: i })),
-  ]
+  if (query.value.length < 2) {
+    return quickActions.value.map((action, index) => ({ kind: 'quick', action, globalIndex: index }))
+  }
+
+  return sectionsWithResults.value.flatMap((section) => section.items.map((entry) => ({ kind: 'result', entry, globalIndex: entry.globalIndex })))
 })
 
 let searchTimer = null
-watch(query, (val) => {
+watch(query, (value) => {
   selection.value = 0
   clearTimeout(searchTimer)
-  if (val.length < 2) {
-    resultats.value = { clients: [], factures: [], devis: [], produits: [], paiements: [] }
+
+  if (value.trim().length < 2) {
+    resultats.value = emptyResults()
+    loading.value = false
     return
   }
-  searchTimer = setTimeout(() => rechercher(val), 250)
+
+  searchTimer = setTimeout(() => rechercher(value.trim()), 250)
 })
 
-async function rechercher(q) {
+watch(() => props.modelValue, (value) => {
+  if (value) {
+    nextTick(() => inputRef.value?.focus())
+  }
+})
+
+async function rechercher(search) {
   loading.value = true
   try {
-    const { data } = await api.get('/recherche-globale', { params: { q } })
-    resultats.value = data
-  } catch (e) {
-    console.error('Erreur recherche', e)
+    const { data } = await api.get('/recherche-globale', { params: { q: search } })
+    resultats.value = { ...emptyResults(), ...data }
+  } catch (error) {
+    console.error('Erreur recherche', error)
+    resultats.value = emptyResults()
   } finally {
     loading.value = false
   }
@@ -275,70 +226,139 @@ async function rechercher(q) {
 function moveSelection(delta) {
   const total = itemsFlat.value.length
   if (total === 0) return
+
   selection.value = (selection.value + delta + total) % total
   nextTick(() => {
-    const el = document.querySelector('.bg-cyan-50')
-    el.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+    document.querySelector('.bg-cyan-50')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
   })
 }
 
 function ouvrirSelection() {
-  const choisi = itemsFlat.value[selection.value]
-  if (! choisi) return
-  ouvrirItem({ item: choisi.item, type: choisi.type })
-}
+  const selected = itemsFlat.value[selection.value]
+  if (!selected) return
 
-function ouvrirItem({ item, type, categorie }) {
-  // Type déduit du titre de section si non fourni ?
-  const t = type || (categorie.includes('Client') ? 'client'
-    : categorie.includes('Facture') ? 'facture'
-    : categorie.includes('Devis') ? 'devis'
-    : categorie.includes('Paiement') ? 'paiement'
-    : 'produit')
-
-  close()
-
-  switch (t) {
-    case 'client':
-      router.push({ path: '/clients', query: { open: item.id } })
-      break
-    case 'facture':
-      router.push({ path: '/factures', query: { open: item.id } })
-      break
-    case 'devis':
-      router.push({ path: '/devis', query: { open: item.id } })
-      break
-    case 'produit':
-      router.push({ path: '/produits', query: { open: item.id } })
-      break
-    case 'paiement':
-      router.push({ path: '/paiements', query: { search: item.reference } })
-      break
+  if (selected.kind === 'quick') {
+    ouvrirQuickAction(selected.action)
+    return
   }
+
+  ouvrirResultat(selected.entry)
 }
 
-function close() {
+function ouvrirQuickAction(action) {
+  close(false)
+  router.push(action.route)
+}
+
+function ouvrirResultat(entry) {
+  const { section, item } = entry
+  close(false)
+
+  if (item.route) {
+    router.push({ path: item.route, query: item.query || {} })
+    return
+  }
+
+  const routes = {
+    clients: { name: 'client-detail', params: { id: item.id } },
+    fournisseurs: { name: 'achat-fournisseur-360', params: { id: item.id } },
+    factures: { name: 'facture-detail', params: { id: item.id } },
+    devis: { name: 'devis-detail', params: { id: item.id } },
+    produits: { name: 'produit-detail', params: { id: item.id } },
+    paiements: { name: 'paiements', query: { search: item.reference } },
+  }
+
+  router.push(routes[section.key] || { name: 'dashboard' })
+}
+
+function close(reset = true) {
   emit('update:modelValue', false)
-  query.value = ''
-  resultats.value = { clients: [], factures: [], devis: [], produits: [], paiements: [] }
-  selection.value = 0
+  if (!reset) {
+    setTimeout(resetState, 150)
+    return
+  }
+  resetState()
 }
 
-watch(() => props.modelValue, (val) => {
-  if (val) {
-    nextTick(() => inputRef.value.focus())
-  }
-})
+function resetState() {
+  query.value = ''
+  resultats.value = emptyResults()
+  selection.value = 0
+  loading.value = false
+}
 
-function formatPrice(n) { return new Intl.NumberFormat('fr-FR').format(Math.round(n || 0)) }
-function formatDate(d) { return d ? new Date(d).toLocaleDateString('fr-FR') : '–' }
+function resultTitle(section, item) {
+  if (section === 'clients' || section === 'fournisseurs') return item.nom || 'Tiers'
+  if (section === 'produits') return item.libelle || 'Produit'
+  if (section === 'achats') return item.numero || item.title || 'Achat'
+  if (section === 'paiements') return item.reference || 'Paiement'
+  return item.numero || 'Document'
+}
+
+function resultSubtitle(section, item) {
+  if (section === 'clients' || section === 'fournisseurs') {
+    return [item.code, item.email, item.telephone || item.mobile, item.ville].filter(Boolean).join(' · ')
+  }
+  if (section === 'produits') {
+    return [item.reference, typeLabel(item.type), item.is_active ? 'Actif' : 'Inactif'].filter(Boolean).join(' · ')
+  }
+  if (section === 'achats') {
+    return [item.title, item.tiers?.nom, formatDate(item.date)].filter(Boolean).join(' · ')
+  }
+  if (section === 'paiements') {
+    return [item.client?.nom, formatDate(item.date_paiement), item.mode_paiement].filter(Boolean).join(' · ')
+  }
+  return [item.client?.nom, item.objet, formatDate(item.date_facture || item.date_devis)].filter(Boolean).join(' · ')
+}
+
+function resultAmount(section, item) {
+  if (section === 'produits') return Number(item.prix_vente_ht || 0)
+  if (section === 'achats') return Number(item.montant || 0)
+  if (section === 'paiements') return Number(item.montant || 0)
+  if (section === 'factures' || section === 'devis') return Number(item.total_ttc || 0)
+  return null
+}
+
+function typeLabel(value) {
+  return {
+    commande: 'BC',
+    demande: 'Demande',
+    facture_fournisseur: 'Facture fournisseur',
+    avoir: 'Avoir',
+    service: 'Service',
+    produit: 'Produit',
+    pack: 'Pack',
+  }[value] || value || ''
+}
+
+function emptyResults() {
+  return {
+    clients: [],
+    fournisseurs: [],
+    factures: [],
+    devis: [],
+    produits: [],
+    achats: [],
+    paiements: [],
+  }
+}
+
+function formatPrice(value) {
+  return new Intl.NumberFormat('fr-FR').format(Math.round(Number(value || 0)))
+}
+
+function formatDate(value) {
+  return value ? new Date(value).toLocaleDateString('fr-FR') : ''
+}
 </script>
 
 <style scoped>
-.fade-enter-active, .fade-leave-active {
+.fade-enter-active,
+.fade-leave-active {
   transition: opacity 0.15s;
 }
-.fade-enter-from, .fade-leave-to {
+.fade-enter-from,
+.fade-leave-to {
   opacity: 0;
 }
 </style>
