@@ -35,13 +35,38 @@
                 <p class="mt-1 text-sm text-slate-500">Tapez au moins 2 caractères ou utilisez un raccourci.</p>
               </div>
 
+              <div v-if="recentItems.length" class="mt-4 rounded-2xl border border-slate-200 bg-white">
+                <div class="flex items-center justify-between border-b border-slate-100 px-4 py-2">
+                  <p class="text-[11px] font-black uppercase tracking-wider text-slate-500">🕘 Derniers éléments consultés</p>
+                  <button type="button" class="text-[11px] font-bold text-cyan-700 hover:underline" @click="clearRecentItems">
+                    Effacer
+                  </button>
+                </div>
+
+                <button
+                  v-for="(item, index) in recentItems"
+                  :key="item.key"
+                  type="button"
+                  class="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm transition-colors"
+                  :class="selection === index ? 'border-l-2 border-cyan-500 bg-cyan-50' : 'hover:bg-slate-50'"
+                  @click="ouvrirRecentItem(item)"
+                >
+                  <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-base">{{ item.icon || '↗️' }}</span>
+                  <span class="min-w-0 flex-1">
+                    <span class="block truncate font-bold text-slate-900">{{ item.title }}</span>
+                    <span class="block truncate text-xs text-slate-500">{{ item.subtitle }}</span>
+                  </span>
+                  <span class="hidden text-[10px] font-semibold text-cyan-700 sm:inline">Ouvrir</span>
+                </button>
+              </div>
+
               <div class="mt-4 grid gap-2 sm:grid-cols-2">
                 <button
                   v-for="(action, index) in quickActions"
                   :key="action.key"
                   type="button"
                   class="flex items-center gap-3 rounded-2xl border px-4 py-3 text-left transition"
-                  :class="selection === index ? 'border-cyan-400 bg-cyan-50 shadow-sm' : 'border-slate-200 bg-white hover:border-cyan-200 hover:bg-cyan-50/50'"
+                  :class="selection === recentItems.length + index ? 'border-cyan-400 bg-cyan-50 shadow-sm' : 'border-slate-200 bg-white hover:border-cyan-200 hover:bg-cyan-50/50'"
                   @click="ouvrirQuickAction(action)"
                 >
                   <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-100 text-lg">{{ action.icon }}</span>
@@ -103,7 +128,7 @@
           </div>
 
           <div class="flex items-center justify-between border-t border-slate-100 bg-slate-50 px-4 py-2 text-[11px] text-slate-500">
-            <span>{{ query.length < 2 ? `${quickActions.length} raccourci(s)` : `${totalResultats} résultat(s)` }}</span>
+            <span>{{ query.length < 2 ? `${recentItems.length} récent(s) · ${quickActions.length} raccourci(s)` : `${totalResultats} résultat(s)` }}</span>
             <span>
               <kbd class="rounded border border-slate-300 bg-white px-1.5 py-0.5">↑↓</kbd>
               <kbd class="ml-1 rounded border border-slate-300 bg-white px-1.5 py-0.5">⏎</kbd>
@@ -134,6 +159,12 @@ const query = ref('')
 const loading = ref(false)
 const selection = ref(0)
 const resultats = ref(emptyResults())
+const recentItems = ref([])
+
+const recentStorageKey = computed(() => {
+  const userId = auth.user?.id || auth.user?.email || 'default'
+  return `saytu:command-palette:recent:${userId}`
+})
 
 const quickActionsAll = [
   { key: 'client-create', icon: '👥', label: 'Nouveau client', description: 'Créer une fiche client/prospect', roles: ['admin', 'gerant', 'commercial'], route: { name: 'client-create' } },
@@ -184,7 +215,10 @@ const sectionsWithResults = computed(() => {
 
 const itemsFlat = computed(() => {
   if (query.value.length < 2) {
-    return quickActions.value.map((action, index) => ({ kind: 'quick', action, globalIndex: index }))
+    return [
+      ...recentItems.value.map((recent, index) => ({ kind: 'recent', recent, globalIndex: index })),
+      ...quickActions.value.map((action, index) => ({ kind: 'quick', action, globalIndex: recentItems.value.length + index })),
+    ]
   }
 
   return sectionsWithResults.value.flatMap((section) => section.items.map((entry) => ({ kind: 'result', entry, globalIndex: entry.globalIndex })))
@@ -206,6 +240,7 @@ watch(query, (value) => {
 
 watch(() => props.modelValue, (value) => {
   if (value) {
+    loadRecentItems()
     nextTick(() => inputRef.value?.focus())
   }
 })
@@ -242,6 +277,11 @@ function ouvrirSelection() {
     return
   }
 
+  if (selected.kind === 'recent') {
+    ouvrirRecentItem(selected.recent)
+    return
+  }
+
   ouvrirResultat(selected.entry)
 }
 
@@ -252,11 +292,23 @@ function ouvrirQuickAction(action) {
 
 function ouvrirResultat(entry) {
   const { section, item } = entry
-  close(false)
+  const destination = resultRoute(section.key, item)
 
+  saveRecentItem({
+    key: `${section.key}:${item.type || 'item'}:${item.id}`,
+    icon: section.icon,
+    title: resultTitle(section.key, item),
+    subtitle: resultSubtitle(section.key, item),
+    route: destination,
+  })
+
+  close(false)
+  router.push(destination)
+}
+
+function resultRoute(section, item) {
   if (item.route) {
-    router.push({ path: item.route, query: item.query || {} })
-    return
+    return { path: item.route, query: item.query || {} }
   }
 
   const routes = {
@@ -268,7 +320,59 @@ function ouvrirResultat(entry) {
     paiements: { name: 'paiements', query: { search: item.reference } },
   }
 
-  router.push(routes[section.key] || { name: 'dashboard' })
+  return routes[section] || { name: 'dashboard' }
+}
+
+function ouvrirRecentItem(item) {
+  if (!item?.route) return
+  close(false)
+  router.push(item.route)
+}
+
+function loadRecentItems() {
+  try {
+    const raw = window.localStorage.getItem(recentStorageKey.value)
+    const parsed = raw ? JSON.parse(raw) : []
+    recentItems.value = Array.isArray(parsed) ? parsed.filter((item) => item?.route && item?.title).slice(0, 6) : []
+  } catch {
+    recentItems.value = []
+  }
+}
+
+function saveRecentItem(item) {
+  if (!item?.key || !item?.route || !item?.title) return
+
+  const normalized = {
+    key: item.key,
+    icon: item.icon || '↗️',
+    title: item.title,
+    subtitle: item.subtitle || '',
+    route: item.route,
+    viewedAt: new Date().toISOString(),
+  }
+
+  const nextItems = [
+    normalized,
+    ...recentItems.value.filter((recent) => recent.key !== normalized.key),
+  ].slice(0, 6)
+
+  recentItems.value = nextItems
+
+  try {
+    window.localStorage.setItem(recentStorageKey.value, JSON.stringify(nextItems))
+  } catch {
+    // Historique local optionnel : on ignore si le navigateur bloque le stockage.
+  }
+}
+
+function clearRecentItems() {
+  recentItems.value = []
+  try {
+    window.localStorage.removeItem(recentStorageKey.value)
+  } catch {
+    // Ignore stockage indisponible.
+  }
+  selection.value = 0
 }
 
 function close(reset = true) {
