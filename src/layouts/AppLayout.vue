@@ -78,14 +78,6 @@
             </span>
           </transition>
 
-          <!-- Badge -->
-          <span
-            v-if="getBadgeCount(item.to) > 0 && sidebarOpen"
-            class="px-2 py-0.5 text-[10px] font-bold rounded-full"
-            :class="getBadgeColor(item.to)"
-          >
-            {{ getBadgeCount(item.to) > 99 ? '99+' : getBadgeCount(item.to) }}
-          </span>
         </router-link>
 
         <router-link
@@ -114,13 +106,6 @@
           >
             <component :is="group.icon" class="h-5 w-5 shrink-0" />
             <span class="ml-4 flex-1 text-sm font-semibold notranslate" translate="no">{{ group.label }}</span>
-            <span
-              v-if="groupBadgeCount(group) > 0"
-              class="mr-2 rounded-full px-2 py-0.5 text-[10px] font-bold"
-              :class="groupBadgeColor(group)"
-            >
-              {{ groupBadgeCount(group) > 99 ? '99+' : groupBadgeCount(group) }}
-            </span>
             <ChevronDown
               class="h-4 w-4 transition-transform"
               :class="openMenuGroups[group.key] ? 'rotate-180' : ''"
@@ -142,13 +127,6 @@
               ></div>
               <component :is="item.icon" class="h-4 w-4 shrink-0" />
               <span class="ml-3 flex-1 text-sm font-medium notranslate" translate="no">{{ item.label }}</span>
-              <span
-                v-if="getBadgeCount(item.to) > 0"
-                class="rounded-full px-2 py-0.5 text-[10px] font-bold"
-                :class="getBadgeColor(item.to)"
-              >
-                {{ getBadgeCount(item.to) > 99 ? '99+' : getBadgeCount(item.to) }}
-              </span>
             </router-link>
           </div>
         </div>
@@ -366,7 +344,6 @@
 import { computed, reactive, ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { useNotificationsStore } from '@/stores/notifications'
 import { useTheme } from '@/composables/useTheme'
 import { setCurrency, syncAmountTableNotes } from '@/composables/useCurrency'
 import { useViewport } from '@/composables/useViewport'
@@ -419,7 +396,6 @@ const route = useRoute()
 const router = useRouter()
 
 const auth = useAuthStore()
-const notif = useNotificationsStore()
 const dock = useWindowDock()
 
 const sidebarOpen = ref(true)
@@ -943,40 +919,6 @@ function toggleMenuGroup(key) {
   openMenuGroups.value[key] = !openMenuGroups.value[key]
 }
 
-function groupBadgeCount(group) {
-  return group.items.reduce((total, item) => total + getBadgeCount(item.to), 0)
-}
-
-function groupBadgeColor(group) {
-  const colors = group.items
-    .filter(item => getBadgeCount(item.to) > 0)
-    .map(item => getBadgeColor(item.to))
-
-  return colors[0] || 'bg-cyan-500 text-white'
-}
-
-function getBadgeCount(to) {
-  const path = menuTarget(to).path
-  if (path === '/pilotage') return notif.total
-  if (path === '/factures') return notif.badges.factures_retard
-  if (path === '/devis') return notif.badges.devis_attente
-  if (path === '/stock') return notif.badges.stock_alerte
-  if (path === '/depenses') return notif.badges.demandes_validation
-
-  return 0
-}
-
-function getBadgeColor(to) {
-  const path = menuTarget(to).path
-  if (path === '/pilotage') return 'bg-cyan-500 text-white'
-  if (path === '/factures') return 'bg-cyan-500 text-white'
-  if (path === '/devis') return 'bg-sky-500 text-white'
-  if (path === '/stock') return 'bg-blue-500 text-white'
-  if (path === '/depenses') return 'bg-cyan-600 text-white'
-
-  return 'bg-cyan-500 text-white'
-}
-
 const pageTitle = computed(() => {
   return menuItems.value.find(item => isActive(item.to)).label || 'Saytu Liggéey'
 })
@@ -1161,7 +1103,6 @@ function stopAmountTableObserver() {
 onMounted(() => {
   applyTheme()
   loadCompanyIdentity()
-  notif.fetchBadges()
   syncFullscreenState()
   if (auth.user?.role === 'caissier') {
     entrerPleinEcran()

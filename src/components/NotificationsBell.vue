@@ -284,8 +284,8 @@ function closePanel() {
 }
 
 async function rafraichir() {
-  await store.fetchBadges()
-  await store.fetchDetails()
+  await store.fetchBadges({ force: true })
+  await store.fetchDetails({ force: true })
 }
 
 // Ouvrir une facture spécifique via query string
@@ -361,17 +361,25 @@ function handleEscape(event) {
   }
 }
 
+function refreshBadgesIfVisible() {
+  if (document.visibilityState === 'visible') {
+    store.fetchBadges()
+  }
+}
+
 onMounted(async () => {
   await store.fetchBadges()
-  refreshTimer = setInterval(() => store.fetchBadges(), 30000)
+  refreshTimer = setInterval(refreshBadgesIfVisible, 60000)
   document.addEventListener('click', handleClickOutside)
   document.addEventListener('keydown', handleEscape)
+  document.addEventListener('visibilitychange', refreshBadgesIfVisible)
 })
 
 onUnmounted(() => {
   if (refreshTimer) clearInterval(refreshTimer)
   document.removeEventListener('click', handleClickOutside)
   document.removeEventListener('keydown', handleEscape)
+  document.removeEventListener('visibilitychange', refreshBadgesIfVisible)
 })
 
 function formatPrice(n) {
