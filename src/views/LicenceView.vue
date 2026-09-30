@@ -73,7 +73,112 @@
         </article>
       </section>
 
-      <section v-if="!canManageLicence && portalReady" class="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
+      <section class="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
+        <article class="licence-panel licence-health-panel">
+          <div class="licence-panel-header">
+            <div>
+              <h2 class="font-black text-[color:var(--saytu-shell-text,#0f172a)]">Lecture rapide</h2>
+              <p class="text-xs text-[color:var(--saytu-muted,#64748b)]">
+                Résumé simple pour comprendre l’état de l’abonnement sans parcourir toute la page.
+              </p>
+            </div>
+            <span class="rounded-full px-3 py-1 text-xs font-black" :class="licenceHealth.badgeClass">
+              {{ licenceHealth.label }}
+            </span>
+          </div>
+
+          <div class="grid gap-3 p-4 sm:grid-cols-2">
+            <div class="rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-white/70 p-3">
+              <p class="licence-card-label">Accès</p>
+              <p class="mt-1 text-lg font-black text-[color:var(--saytu-shell-text,#0f172a)]">
+                {{ form.is_active ? 'Autorisé' : 'Limité' }}
+              </p>
+              <p class="text-xs font-bold text-[color:var(--saytu-muted,#64748b)]">
+                {{ licenceHealth.detail }}
+              </p>
+            </div>
+
+            <div class="rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-white/70 p-3">
+              <p class="licence-card-label">Renouvellement</p>
+              <p class="mt-1 text-lg font-black text-[color:var(--saytu-shell-text,#0f172a)]">
+                {{ form.date_fin ? formatDate(form.date_fin) : 'Illimité' }}
+              </p>
+              <p class="text-xs font-bold text-[color:var(--saytu-muted,#64748b)]">
+                {{ form.days_remaining === null || form.days_remaining === undefined ? 'Aucune échéance bloquante.' : `${form.days_remaining} jour(s) restant(s).` }}
+              </p>
+            </div>
+
+            <div class="rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-white/70 p-3">
+              <p class="licence-card-label">Modules</p>
+              <p class="mt-1 text-lg font-black text-[color:var(--saytu-shell-text,#0f172a)]">
+                {{ form.modules_autorises?.length || 0 }}
+              </p>
+              <p class="text-xs font-bold text-[color:var(--saytu-muted,#64748b)]">
+                Modules actifs sur cette installation.
+              </p>
+            </div>
+
+            <div class="rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-white/70 p-3">
+              <p class="licence-card-label">{{ canManageLicence ? 'Paiements' : 'Support' }}</p>
+              <p class="mt-1 text-lg font-black text-[color:var(--saytu-shell-text,#0f172a)]">
+                {{ canManageLicence ? `${money(totalPaiements)} ${form.devise || 'XOF'}` : `${supportTickets.length} ticket(s)` }}
+              </p>
+              <p class="text-xs font-bold text-[color:var(--saytu-muted,#64748b)]">
+                {{ canManageLicence ? 'Montant licence enregistré.' : 'Demandes envoyées à XELLTEKK.' }}
+              </p>
+            </div>
+          </div>
+        </article>
+
+        <article class="licence-panel">
+          <div class="licence-panel-header">
+            <div>
+              <h2 class="font-black text-[color:var(--saytu-shell-text,#0f172a)]">Plan d’action licence</h2>
+              <p class="text-xs text-[color:var(--saytu-muted,#64748b)]">
+                Les points importants à contrôler en priorité.
+              </p>
+            </div>
+            <span class="rounded-full bg-[color:var(--saytu-primary-soft,#dbeafe)] px-3 py-1 text-xs font-black text-[color:var(--saytu-primary,#2563eb)]">
+              {{ licenceActionItems.length || 'OK' }}
+            </span>
+          </div>
+
+          <div class="space-y-3 p-4">
+            <article
+              v-for="item in licenceActionItems"
+              :key="item.key"
+              class="licence-action-item"
+              :class="actionItemClass(item.level)"
+            >
+              <span class="mt-1 h-2.5 w-2.5 shrink-0 rounded-full" :class="actionDotClass(item.level)"></span>
+              <div class="min-w-0 flex-1">
+                <p class="text-sm font-black text-[color:var(--saytu-shell-text,#0f172a)]">{{ item.title }}</p>
+                <p class="text-xs font-bold text-[color:var(--saytu-muted,#64748b)]">{{ item.detail }}</p>
+              </div>
+              <button type="button" class="licence-mini-action shrink-0" @click="runLicenceAction(item)">
+                {{ item.buttonLabel || 'Voir' }}
+              </button>
+            </article>
+
+            <div v-if="!licenceActionItems.length" class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold text-emerald-800">
+              Aucun point bloquant détecté. La licence semble correctement configurée.
+            </div>
+
+            <div class="licence-quick-nav">
+              <button
+                v-for="item in licenceNavigationItems"
+                :key="item.target"
+                type="button"
+                @click="scrollToSection(item.target)"
+              >
+                {{ item.label }}
+              </button>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <section v-if="!canManageLicence && portalReady" id="licence-portal" class="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
         <article class="licence-panel">
           <div class="licence-panel-header">
             <div>
@@ -221,7 +326,7 @@
         </div>
       </section>
 
-      <section v-if="!canManageLicence" class="licence-panel">
+      <section v-if="!canManageLicence" id="licence-support" class="licence-panel">
         <div class="licence-panel-header">
           <div>
             <h2 class="font-black text-[color:var(--saytu-shell-text,#0f172a)]">Support XELLTEKK</h2>
@@ -327,7 +432,7 @@
         </div>
       </section>
 
-      <section class="licence-panel">
+      <section id="licence-signature" class="licence-panel">
         <div class="licence-panel-header">
           <div>
             <h2 class="font-black text-[color:var(--saytu-shell-text,#0f172a)]">Clé signée de l’installation</h2>
@@ -409,7 +514,7 @@
       </section>
 
       <section class="grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
-        <article class="licence-panel">
+        <article id="licence-client" class="licence-panel">
           <div class="licence-panel-header">
             <div>
               <h2 class="font-black text-[color:var(--saytu-shell-text,#0f172a)]">Informations client</h2>
@@ -515,7 +620,7 @@
           </div>
         </article>
 
-        <article class="licence-panel">
+        <article id="licence-modules" class="licence-panel">
           <div class="licence-panel-header">
             <div>
               <h2 class="font-black text-[color:var(--saytu-shell-text,#0f172a)]">Modules inclus</h2>
@@ -559,7 +664,7 @@
         </article>
       </section>
 
-      <section v-if="canManageLicence" class="licence-panel">
+      <section v-if="canManageLicence" id="licence-paiements" class="licence-panel">
         <div class="licence-panel-header">
           <div>
             <h2 class="font-black text-[color:var(--saytu-shell-text,#0f172a)]">Paiements de licence</h2>
@@ -808,6 +913,158 @@ const cards = computed(() => [
     icon: HardDrive,
   },
 ])
+
+const licenceHealth = computed(() => {
+  if (!form.value?.configured) {
+    return {
+      label: 'À configurer',
+      detail: 'Aucune licence complète n’est encore appliquée à cet espace.',
+      badgeClass: 'bg-amber-100 text-amber-700',
+    }
+  }
+
+  if (!form.value?.is_active) {
+    return {
+      label: 'Bloquant',
+      detail: form.value?.message || 'L’accès métier peut être limité.',
+      badgeClass: 'bg-red-100 text-red-700',
+    }
+  }
+
+  if (licenceIsSensitive.value) {
+    return {
+      label: 'À surveiller',
+      detail: form.value?.message || 'Un point demande une vérification.',
+      badgeClass: 'bg-amber-100 text-amber-700',
+    }
+  }
+
+  return {
+    label: 'Correct',
+    detail: form.value?.message || 'Licence active et utilisable.',
+    badgeClass: 'bg-emerald-100 text-emerald-700',
+  }
+})
+
+const licenceActionItems = computed(() => {
+  if (!form.value) return []
+
+  const items = []
+  const daysRemaining = Number(form.value.days_remaining)
+  const hasKnownDeadline = Number.isFinite(daysRemaining)
+
+  if (!form.value.configured) {
+    items.push({
+      key: 'configure',
+      level: 'warning',
+      title: 'Finaliser la configuration licence',
+      detail: 'Renseignez le client, la formule, les dates et les modules avant d’exploiter l’espace.',
+      target: 'licence-client',
+      buttonLabel: 'Configurer',
+    })
+  }
+
+  if (form.value.signature_valid === false || !form.value.licence_certificate) {
+    items.push({
+      key: 'signature',
+      level: form.value.signature_valid === false ? 'danger' : 'warning',
+      title: form.value.signature_valid === false ? 'Signature licence invalide' : 'Clé signée absente',
+      detail: form.value.signature_valid === false
+        ? 'Régénérez ou importez le certificat pour éviter les incohérences.'
+        : 'La clé signée sécurise les modules, dates et limites autorisées.',
+      target: 'licence-signature',
+      buttonLabel: 'Vérifier',
+    })
+  }
+
+  if (!form.value.is_active || ['expiree', 'essai_expire', 'grace'].includes(form.value.etat)) {
+    items.push({
+      key: 'renewal-critical',
+      level: 'danger',
+      title: 'Renouvellement nécessaire',
+      detail: form.value.message || 'La licence peut bloquer l’accès aux modules métier.',
+      action: showRenewalRequestButton.value ? 'renewal' : null,
+      target: canManageLicence.value ? 'licence-client' : 'licence-support',
+      buttonLabel: showRenewalRequestButton.value ? 'Demander' : 'Voir',
+    })
+  } else if (form.value.expires_soon || (hasKnownDeadline && daysRemaining <= 30)) {
+    items.push({
+      key: 'renewal-soon',
+      level: 'warning',
+      title: 'Échéance proche',
+      detail: `Préparez le renouvellement avant le ${form.value.date_fin ? formatDate(form.value.date_fin) : 'prochain terme'}.`,
+      action: showRenewalRequestButton.value ? 'renewal' : null,
+      target: canManageLicence.value ? 'licence-client' : 'licence-support',
+      buttonLabel: showRenewalRequestButton.value ? 'Demander' : 'Voir',
+    })
+  }
+
+  if (form.value.depasse_limite_utilisateurs || form.value.depasse_limite_stockage || form.value.depasse_limite_documents) {
+    items.push({
+      key: 'limits',
+      level: 'warning',
+      title: 'Limite dépassée',
+      detail: 'Vérifiez les utilisateurs, documents mensuels ou stockage autorisés par la formule.',
+      target: canManageLicence.value ? 'licence-client' : 'licence-portal',
+      buttonLabel: 'Contrôler',
+    })
+  }
+
+  if (canManageLicence.value && (!form.value.client_nom || !form.value.client_email || !form.value.domaine)) {
+    items.push({
+      key: 'identity',
+      level: 'info',
+      title: 'Informations client incomplètes',
+      detail: 'Nom, email et domaine facilitent le suivi commercial et les relances.',
+      target: 'licence-client',
+      buttonLabel: 'Compléter',
+    })
+  }
+
+  if (!Array.isArray(form.value.modules_autorises) || !form.value.modules_autorises.length) {
+    items.push({
+      key: 'modules',
+      level: 'warning',
+      title: 'Aucun module actif',
+      detail: 'Activez les modules nécessaires pour éviter un espace vide côté client.',
+      target: 'licence-modules',
+      buttonLabel: 'Modules',
+    })
+  }
+
+  if (!canManageLicence.value && Number(portal.subscription?.unpaid_amount || 0) > 0) {
+    items.push({
+      key: 'unpaid',
+      level: portal.subscription?.overdue_count ? 'danger' : 'warning',
+      title: 'Facture abonnement à suivre',
+      detail: `Reste dû : ${money(portal.subscription.unpaid_amount)} ${portal.subscription.currency || form.value.devise || 'XOF'}.`,
+      target: 'licence-portal',
+      buttonLabel: 'Factures',
+    })
+  }
+
+  if (!canManageLicence.value && Number(portal.support?.open_count || 0) > 0) {
+    items.push({
+      key: 'support-open',
+      level: 'info',
+      title: 'Ticket support en cours',
+      detail: `${portal.support.open_count} demande(s) ouverte(s) auprès de XELLTEKK.`,
+      target: 'licence-support',
+      buttonLabel: 'Support',
+    })
+  }
+
+  return items.slice(0, 5)
+})
+
+const licenceNavigationItems = computed(() => [
+  { label: 'Abonnement', target: 'licence-portal', visible: !canManageLicence.value && portalReady.value },
+  { label: 'Support', target: 'licence-support', visible: !canManageLicence.value },
+  { label: 'Clé signée', target: 'licence-signature', visible: true },
+  { label: 'Client', target: 'licence-client', visible: true },
+  { label: 'Modules', target: 'licence-modules', visible: true },
+  { label: 'Paiements', target: 'licence-paiements', visible: canManageLicence.value },
+].filter(item => item.visible))
 
 const groupedModules = computed(() => {
   const groups = new Map()
@@ -1515,6 +1772,36 @@ function checkDotClass(state) {
   return 'bg-emerald-500'
 }
 
+function actionItemClass(level) {
+  if (level === 'danger') return 'licence-action-danger'
+  if (level === 'warning') return 'licence-action-warning'
+  if (level === 'info') return 'licence-action-info'
+  return 'licence-action-success'
+}
+
+function actionDotClass(level) {
+  if (level === 'danger') return 'bg-red-500'
+  if (level === 'warning') return 'bg-amber-400'
+  if (level === 'info') return 'bg-sky-500'
+  return 'bg-emerald-500'
+}
+
+function runLicenceAction(item) {
+  if (!item) return
+  if (item.action === 'renewal') {
+    requestLicenceRenewal()
+    return
+  }
+  scrollToSection(item.target)
+}
+
+function scrollToSection(target) {
+  if (!target) return
+  const element = document.getElementById(target)
+  if (!element) return
+  element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
 function money(value) {
   return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(Number(value || 0))
 }
@@ -1591,6 +1878,63 @@ function today() {
   border-radius: 1rem;
   background: color-mix(in srgb, var(--saytu-primary, #2563eb) 12%, var(--saytu-surface, #ffffff));
   color: var(--saytu-primary, #2563eb);
+}
+
+.licence-health-panel {
+  background:
+    radial-gradient(circle at top right, color-mix(in srgb, var(--saytu-primary, #2563eb) 13%, transparent), transparent 42%),
+    var(--saytu-surface, #ffffff);
+}
+
+.licence-action-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  border: 1px solid var(--saytu-border, #e2e8f0);
+  border-radius: 1rem;
+  padding: 0.75rem;
+}
+
+.licence-action-danger {
+  background: color-mix(in srgb, var(--saytu-danger, #ef4444) 9%, var(--saytu-surface, #ffffff) 91%);
+  border-color: color-mix(in srgb, var(--saytu-danger, #ef4444) 28%, var(--saytu-border, #e2e8f0));
+}
+
+.licence-action-warning {
+  background: color-mix(in srgb, #f59e0b 10%, var(--saytu-surface, #ffffff) 90%);
+  border-color: color-mix(in srgb, #f59e0b 30%, var(--saytu-border, #e2e8f0));
+}
+
+.licence-action-info {
+  background: color-mix(in srgb, var(--saytu-primary, #2563eb) 8%, var(--saytu-surface, #ffffff) 92%);
+  border-color: color-mix(in srgb, var(--saytu-primary, #2563eb) 24%, var(--saytu-border, #e2e8f0));
+}
+
+.licence-action-success {
+  background: color-mix(in srgb, #10b981 8%, var(--saytu-surface, #ffffff) 92%);
+  border-color: color-mix(in srgb, #10b981 24%, var(--saytu-border, #e2e8f0));
+}
+
+.licence-quick-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  border-top: 1px solid var(--saytu-border, #e2e8f0);
+  padding-top: 0.75rem;
+}
+
+.licence-quick-nav button {
+  border: 1px solid color-mix(in srgb, var(--saytu-primary, #2563eb) 28%, var(--saytu-border, #e2e8f0));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--saytu-surface, #ffffff) 90%, var(--saytu-primary, #2563eb) 10%);
+  color: var(--saytu-primary, #2563eb);
+  font-size: 0.72rem;
+  font-weight: 900;
+  padding: 0.35rem 0.7rem;
+}
+
+.licence-quick-nav button:hover {
+  background: color-mix(in srgb, var(--saytu-primary, #2563eb) 14%, var(--saytu-surface, #ffffff));
 }
 
 .licence-module {
