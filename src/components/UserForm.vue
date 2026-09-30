@@ -60,6 +60,23 @@
       <p v-if="!form.role" class="mt-2 text-xs font-semibold text-amber-700">
         Sélectionnez le rôle à attribuer à ce compte.
       </p>
+
+      <div v-if="form.role" class="mt-3 rounded-2xl border p-3 text-sm" :class="selectedRoleRisk.panelClass">
+        <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p class="font-black">{{ selectedRoleRisk.title }}</p>
+            <p class="mt-1 font-semibold">{{ selectedRoleRisk.detail }}</p>
+          </div>
+          <span class="rounded-full px-2 py-1 text-xs font-black" :class="selectedRoleRisk.badgeClass">
+            {{ selectedRoleRisk.label }}
+          </span>
+        </div>
+        <div class="mt-3 flex flex-wrap gap-1">
+          <span v-for="tag in selectedRoleTags" :key="tag" class="rounded-full bg-white/80 px-2 py-0.5 text-[11px] font-bold">
+            {{ tag }}
+          </span>
+        </div>
+      </div>
     </div>
 
     <!-- Mot de passe (uniquement en création) -->
@@ -83,6 +100,9 @@
         <input v-model="form.is_active" type="checkbox" class="h-4 w-4" />
         <span class="text-sm">Utilisateur actif (peut se connecter)</span>
       </label>
+      <p v-if="!form.is_active" class="mt-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600">
+        Compte inactif : l’utilisateur ne pourra pas se connecter tant qu’il n’est pas réactivé.
+      </p>
     </div>
 
     <div class="flex justify-end gap-2 pt-2 border-t border-gray-200">
@@ -143,6 +163,60 @@ const photoPreviewUrl = computed(() => {
   if (form.photo.startsWith('http')) return form.photo
   return form.photo
 })
+const selectedRole = computed(() => roles.value.find((role) => role.value === form.role) || null)
+const selectedBaseRole = computed(() => selectedRole.value?.base_role || form.role)
+const selectedRoleTags = computed(() => {
+  const base = selectedBaseRole.value
+  return {
+    admin: ['Administration complète', 'Droits sensibles', 'À limiter'],
+    gerant: ['Pilotage', 'Validation', 'Données sensibles'],
+    commercial: ['Clients', 'Prospection', 'Devis'],
+    magasinier: ['Produits', 'Stock', 'Réceptions'],
+    comptable: ['Factures', 'Paiements', 'Comptabilité'],
+    caissier: ['Caisse', 'Encaissement', 'Accès minimal'],
+  }[base] || ['Rôle personnalisé', selectedRole.value?.label || form.role]
+})
+const selectedRoleRisk = computed(() => {
+  const base = selectedBaseRole.value
+
+  if (base === 'admin') {
+    return {
+      label: 'Risque élevé',
+      title: 'Accès administrateur complet',
+      detail: 'À réserver au propriétaire ou à une personne de confiance. Ce compte peut gérer les utilisateurs et les droits.',
+      badgeClass: 'bg-red-100 text-red-700',
+      panelClass: 'border-red-200 bg-red-50 text-red-800',
+    }
+  }
+
+  if (base === 'gerant') {
+    return {
+      label: 'Sensible',
+      title: 'Accès de pilotage large',
+      detail: 'Ce rôle peut voir beaucoup d’informations métier. Vérifiez que la personne doit vraiment piloter l’activité.',
+      badgeClass: 'bg-amber-100 text-amber-700',
+      panelClass: 'border-amber-200 bg-amber-50 text-amber-800',
+    }
+  }
+
+  if (base === 'caissier') {
+    return {
+      label: 'Minimal',
+      title: 'Accès caisse recommandé',
+      detail: 'Bon choix pour un vendeur caisse : le compte doit rester limité aux opérations qui le concernent.',
+      badgeClass: 'bg-emerald-100 text-emerald-700',
+      panelClass: 'border-emerald-200 bg-emerald-50 text-emerald-800',
+    }
+  }
+
+  return {
+    label: selectedRole.value?.is_system ? 'Métier' : 'Personnalisé',
+    title: selectedRole.value?.is_system ? 'Rôle métier' : 'Rôle personnalisé',
+    detail: selectedRole.value?.description || 'Vérifiez les droits exacts dans Rôles & permissions si besoin.',
+    badgeClass: 'bg-sky-100 text-sky-700',
+    panelClass: 'border-sky-200 bg-sky-50 text-sky-800',
+  }
+})
 
 onMounted(async () => {
   await loadRoles()
@@ -162,6 +236,8 @@ async function loadRoles() {
       label: role.label,
       emoji: role.is_system ? roleEmoji(role.code) : '🔐',
       description: role.description || (role.is_system ? 'Rôle système' : 'Rôle personnalisé'),
+      base_role: role.base_role || role.code,
+      is_system: Boolean(role.is_system),
     })) : []
     roles.value = mergeRoleOptions(apiRoles)
   } catch (e) {

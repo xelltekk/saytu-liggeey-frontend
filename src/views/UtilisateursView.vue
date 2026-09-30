@@ -46,6 +46,68 @@
       </button>
     </section>
 
+    <section class="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
+      <article class="rounded-3xl border border-amber-200 bg-amber-50/70 p-4 shadow-sm">
+        <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h2 class="font-black text-slate-950">Plan d’action utilisateurs</h2>
+            <p class="mt-1 text-sm text-slate-600">
+              Contrôles rapides pour éviter les comptes trop sensibles ou oubliés.
+            </p>
+          </div>
+          <span class="rounded-full bg-white px-3 py-1 text-xs font-black text-amber-700">
+            {{ userActionItems.length }} point(s)
+          </span>
+        </div>
+
+        <div class="mt-4 space-y-2">
+          <article
+            v-for="item in userActionItems"
+            :key="item.key"
+            class="user-action-item"
+            :class="item.class"
+          >
+            <span class="mt-1 h-2.5 w-2.5 shrink-0 rounded-full" :class="item.dot"></span>
+            <div class="min-w-0 flex-1">
+              <p class="text-sm font-black text-slate-950">{{ item.title }}</p>
+              <p class="text-xs font-semibold text-slate-600">{{ item.detail }}</p>
+            </div>
+            <button type="button" class="user-mini-action" @click="runUserAction(item)">
+              {{ item.actionLabel }}
+            </button>
+          </article>
+        </div>
+      </article>
+
+      <article class="rounded-3xl border border-cyan-200 bg-cyan-50/70 p-4 shadow-sm">
+        <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h2 class="font-black text-slate-950">Guide des rôles</h2>
+            <p class="mt-1 text-sm text-slate-600">
+              Le bon réflexe : donner le minimum nécessaire au poste.
+            </p>
+          </div>
+          <button type="button" class="btn-secondary px-3 py-2 text-xs" @click="goToRoles">
+            Rôles & permissions
+          </button>
+        </div>
+
+        <div class="mt-4 grid gap-2 sm:grid-cols-2">
+          <article v-for="role in roleGuideCards" :key="role.key" class="rounded-2xl border bg-white/80 p-3" :class="role.border">
+            <div class="flex items-start justify-between gap-2">
+              <div>
+                <p class="text-sm font-black text-slate-950">{{ role.label }}</p>
+                <p class="mt-1 text-xs font-semibold text-slate-500">{{ role.hint }}</p>
+              </div>
+              <span class="rounded-full px-2 py-0.5 text-[11px] font-black" :class="role.badgeClass">
+                {{ role.level }}
+              </span>
+            </div>
+          </article>
+        </div>
+      </article>
+    </section>
+
     <section class="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
       <div class="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
         <div>
@@ -171,6 +233,7 @@
             <SortableTh column="utilisateur" :active="sort.key === 'utilisateur'" :icon="sortIcon('utilisateur')" @sort="toggleSort">Utilisateur</SortableTh>
             <SortableTh column="email" :active="sort.key === 'email'" :icon="sortIcon('email')" @sort="toggleSort">Email</SortableTh>
             <SortableTh column="role" :active="sort.key === 'role'" :icon="sortIcon('role')" align="center" @sort="toggleSort">Rôle</SortableTh>
+            <th class="px-3 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Contrôle</th>
             <SortableTh column="activite" :active="sort.key === 'activite'" :icon="sortIcon('activite')" align="center" @sort="toggleSort">Activité</SortableTh>
             <SortableTh column="statut" :active="sort.key === 'statut'" :icon="sortIcon('statut')" align="center" @sort="toggleSort">Statut</SortableTh>
             <th class="px-3 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Actions</th>
@@ -194,6 +257,12 @@
             <td class="px-3 py-3 text-center">
               <span class="badge text-xs" :class="roleBadge(u.role)">{{ roleEmoji(u.role) }} {{ roleLabel(u.role) }}</span>
             </td>
+            <td class="px-3 py-3 text-center">
+              <span class="badge text-xs" :class="userRisk(u).badgeClass">
+                {{ userRisk(u).label }}
+              </span>
+              <div class="mt-1 text-[11px] text-slate-400">{{ userRisk(u).hint }}</div>
+            </td>
             <td class="px-3 py-3 text-center text-xs text-gray-600">
               <span v-if="u.clients_geres_count">{{ u.clients_geres_count }} clients</span>
               <span v-if="u.factures_commercial_count" class="ml-2">{{ u.factures_commercial_count }} factures</span>
@@ -214,7 +283,7 @@
             </td>
           </tr>
           <tr v-if="users.length === 0">
-            <td colspan="6" class="px-4 py-12 text-center text-gray-400 text-sm">Aucun utilisateur</td>
+            <td colspan="7" class="px-4 py-12 text-center text-gray-400 text-sm">Aucun utilisateur</td>
           </tr>
         </tbody>
       </table>
@@ -322,6 +391,9 @@ const userActivities = ref([])
 const userActivitiesLoading = ref(false)
 
 const inactiveUsersCount = computed(() => Math.max(0, Number(stats.total || 0) - Number(stats.actifs || 0)))
+const currentPageSensitiveUsersCount = computed(() => users.value.filter((user) => isSensitiveRole(user.role)).length)
+const currentPageUsersWithoutPhoneCount = computed(() => users.value.filter((user) => !String(user.phone || '').trim()).length)
+const unknownRoleUsersCount = computed(() => users.value.filter((user) => !roleOptionFor(user.role)).length)
 
 const overviewCards = computed(() => [
   {
@@ -413,6 +485,123 @@ const accessModules = computed(() => [
 
 const activeRolesCount = computed(() => Object.values(stats.par_role || {}).filter((count) => Number(count || 0) > 0).length)
 const sensitiveUsersCount = computed(() => Number(stats.par_role?.admin || 0) + Number(stats.par_role?.gerant || 0))
+const userActionItems = computed(() => {
+  const items = []
+
+  if (Number(stats.par_role?.admin || 0) > 1) {
+    items.push({
+      key: 'admins',
+      title: 'Plusieurs administrateurs',
+      detail: `${stats.par_role.admin} comptes ont un accès complet. Vérifiez que chacun est vraiment nécessaire.`,
+      actionLabel: 'Filtrer',
+      action: 'filter-admin',
+      class: 'user-action-warning',
+      dot: 'bg-amber-400',
+    })
+  } else if (Number(stats.par_role?.admin || 0) === 0) {
+    items.push({
+      key: 'no-admin',
+      title: 'Aucun administrateur actif visible',
+      detail: 'Vérifiez rapidement les rôles pour éviter de bloquer l’administration.',
+      actionLabel: 'Rôles',
+      action: 'roles',
+      class: 'user-action-danger',
+      dot: 'bg-red-500',
+    })
+  }
+
+  if (inactiveUsersCount.value > 0) {
+    items.push({
+      key: 'inactive',
+      title: 'Comptes inactifs à contrôler',
+      detail: `${inactiveUsersCount.value} compte(s) bloqué(s). À garder si historique utile, sinon nettoyer.`,
+      actionLabel: 'Voir',
+      action: 'filter-inactive',
+      class: 'user-action-info',
+      dot: 'bg-sky-500',
+    })
+  }
+
+  if (currentPageSensitiveUsersCount.value > 0) {
+    items.push({
+      key: 'sensitive-page',
+      title: 'Comptes sensibles dans la liste',
+      detail: `${currentPageSensitiveUsersCount.value} compte(s) admin/gérant sur cette page.`,
+      actionLabel: 'Rôles',
+      action: 'roles',
+      class: 'user-action-warning',
+      dot: 'bg-amber-400',
+    })
+  }
+
+  if (unknownRoleUsersCount.value > 0) {
+    items.push({
+      key: 'unknown-role',
+      title: 'Rôle non reconnu',
+      detail: `${unknownRoleUsersCount.value} compte(s) ont un rôle absent de la liste chargée.`,
+      actionLabel: 'Rôles',
+      action: 'roles',
+      class: 'user-action-danger',
+      dot: 'bg-red-500',
+    })
+  }
+
+  if (currentPageUsersWithoutPhoneCount.value > 0) {
+    items.push({
+      key: 'missing-phone',
+      title: 'Téléphones manquants',
+      detail: `${currentPageUsersWithoutPhoneCount.value} compte(s) sur cette page n’ont pas de téléphone renseigné.`,
+      actionLabel: 'Compléter',
+      action: 'none',
+      class: 'user-action-neutral',
+      dot: 'bg-slate-400',
+    })
+  }
+
+  return items.length ? items.slice(0, 5) : [{
+    key: 'ok',
+    title: 'Aucun point urgent détecté',
+    detail: 'Les comptes visibles semblent cohérents. Continuez à limiter les accès sensibles.',
+    actionLabel: 'OK',
+    action: 'none',
+    class: 'user-action-success',
+    dot: 'bg-emerald-500',
+  }]
+})
+const roleGuideCards = computed(() => [
+  {
+    key: 'admin',
+    label: 'Admin',
+    hint: 'Accès complet : très peu de comptes.',
+    level: 'Élevé',
+    badgeClass: 'bg-red-50 text-red-700',
+    border: 'border-red-100',
+  },
+  {
+    key: 'gerant',
+    label: 'Gérant',
+    hint: 'Pilotage et validation, à contrôler.',
+    level: 'Sensible',
+    badgeClass: 'bg-amber-50 text-amber-700',
+    border: 'border-amber-100',
+  },
+  {
+    key: 'comptable',
+    label: 'Comptable',
+    hint: 'Finance, dettes, paiements, trésorerie.',
+    level: 'Métier',
+    badgeClass: 'bg-blue-50 text-blue-700',
+    border: 'border-blue-100',
+  },
+  {
+    key: 'caissier',
+    label: 'Caissier',
+    hint: 'Caisse uniquement autant que possible.',
+    level: 'Minimal',
+    badgeClass: 'bg-emerald-50 text-emerald-700',
+    border: 'border-emerald-100',
+  },
+])
 
 const sortedUsers = computed(() => sortedRows(users.value, {
   created_at: 'created_at',
@@ -446,6 +635,25 @@ function userCardClass(role, isActive) {
   return filters.role === role && filters.is_active === isActive ?
      'border-[var(--saytu-primary)] ring-2 ring-[color-mix(in_srgb,var(--saytu-primary)_18%,transparent)]'
     : 'border-gray-200'
+}
+
+function runUserAction(item) {
+  if (!item || item.action === 'none') return
+  if (item.action === 'roles') {
+    goToRoles()
+    return
+  }
+  if (item.action === 'filter-admin') {
+    applyUserFilter('admin', '')
+    return
+  }
+  if (item.action === 'filter-inactive') {
+    applyUserFilter('', '0')
+  }
+}
+
+function goToRoles() {
+  router.push({ name: 'roles-permissions' })
 }
 
 async function loadUsers(page = 1) {
@@ -617,7 +825,8 @@ function photoUrl(u) {
 }
 
 function roleEmoji(r) {
-  return { admin: '🔴', gerant: '🟣', commercial: '🟢', magasinier: '🔵', comptable: '🟡', caissier: '' }[r] || '🔐'
+  const base = baseRoleFor(r)
+  return { admin: '🔴', gerant: '🟣', commercial: '🟢', magasinier: '🔵', comptable: '🟡', caissier: '🟠' }[base] || '🔐'
 }
 
 function roleLabel(r) {
@@ -626,7 +835,59 @@ function roleLabel(r) {
     || r
 }
 
+function roleOptionFor(r) {
+  return roleOptions.value.find((role) => role.code === r) || null
+}
+
+function baseRoleFor(r) {
+  return roleOptionFor(r)?.base_role || r
+}
+
+function isSensitiveRole(r) {
+  return ['admin', 'gerant'].includes(baseRoleFor(r))
+}
+
+function userRisk(user) {
+  if (!user?.is_active) {
+    return {
+      label: 'Bloqué',
+      hint: 'Ne se connecte pas',
+      badgeClass: 'bg-slate-100 text-slate-600',
+    }
+  }
+
+  const base = baseRoleFor(user.role)
+  if (base === 'admin') {
+    return {
+      label: 'Élevé',
+      hint: 'Accès complet',
+      badgeClass: 'bg-red-100 text-red-700',
+    }
+  }
+  if (base === 'gerant') {
+    return {
+      label: 'Sensible',
+      hint: 'Pilotage large',
+      badgeClass: 'bg-amber-100 text-amber-700',
+    }
+  }
+  if (!roleOptionFor(user.role)) {
+    return {
+      label: 'À vérifier',
+      hint: 'Rôle inconnu',
+      badgeClass: 'bg-orange-100 text-orange-700',
+    }
+  }
+
+  return {
+    label: 'Normal',
+    hint: 'Accès métier',
+    badgeClass: 'bg-emerald-100 text-emerald-700',
+  }
+}
+
 function roleBadge(r) {
+  const base = baseRoleFor(r)
   return {
     admin: 'bg-red-100 text-red-700',
     gerant: 'bg-purple-100 text-purple-700',
@@ -634,7 +895,7 @@ function roleBadge(r) {
     magasinier: 'bg-blue-100 text-blue-700',
     comptable: 'bg-yellow-100 text-yellow-700',
     caissier: 'bg-cyan-100 text-cyan-700',
-  }[r] || 'bg-gray-100'
+  }[base] || 'bg-gray-100'
 }
 
 function formatDateTime(value) {
@@ -724,6 +985,55 @@ onMounted(() => { loadRoleOptions(); loadUsers(); loadStats(); loadUserActivitie
 
 .access-kpi p:last-child {
   color: color-mix(in srgb, var(--kpi-accent) 78%, #475569);
+}
+
+.user-action-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 1rem;
+  padding: 0.8rem;
+}
+
+.user-action-warning {
+  border-color: #fde68a;
+  background: #fffbeb;
+}
+
+.user-action-danger {
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+.user-action-info {
+  border-color: #bae6fd;
+  background: #f0f9ff;
+}
+
+.user-action-success {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+}
+
+.user-action-neutral {
+  border-color: #e2e8f0;
+  background: #f8fafc;
+}
+
+.user-mini-action {
+  flex-shrink: 0;
+  border: 1px solid color-mix(in srgb, var(--saytu-primary) 30%, #cbd5e1);
+  border-radius: 9999px;
+  background: #ffffff;
+  color: var(--saytu-primary);
+  font-size: 0.72rem;
+  font-weight: 900;
+  padding: 0.35rem 0.65rem;
+}
+
+.user-mini-action:hover {
+  background: color-mix(in srgb, var(--saytu-primary) 10%, #ffffff);
 }
 
 </style>
