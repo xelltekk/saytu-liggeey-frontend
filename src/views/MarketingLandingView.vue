@@ -37,6 +37,16 @@
           <RouterLink to="/login" class="landing-ghost">Accéder à l’espace client</RouterLink>
         </div>
 
+        <div class="landing-campaign-card mt-6">
+          <p>Offre lancement campagne commerciale</p>
+          <h2>Démo guidée + diagnostic rapide pour les PME.</h2>
+          <div>
+            <span>Qualification du besoin</span>
+            <span>Conseil formule adaptée</span>
+            <span>Créneau de rappel prioritaire</span>
+          </div>
+        </div>
+
         <div class="mt-8 grid max-w-3xl gap-3 sm:grid-cols-3">
           <article v-for="metric in metrics" :key="metric.label" class="landing-metric">
             <strong>{{ metric.value }}</strong>
@@ -96,6 +106,30 @@
                 <option value="4-10 utilisateurs">4–10 utilisateurs</option>
                 <option value="11-25 utilisateurs">11–25 utilisateurs</option>
                 <option value="25+ utilisateurs">25+ utilisateurs</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="grid gap-3 sm:grid-cols-2">
+            <label class="landing-field">
+              <span>Secteur d’activité</span>
+              <select v-model="form.secteur">
+                <option value="Commerce / Boutique">Commerce / Boutique</option>
+                <option value="Services">Services</option>
+                <option value="Stock et distribution">Stock et distribution</option>
+                <option value="Achats / Fournisseurs">Achats / Fournisseurs</option>
+                <option value="Autre">Autre</option>
+              </select>
+            </label>
+
+            <label class="landing-field">
+              <span>Créneau souhaité</span>
+              <select v-model="form.creneau">
+                <option value="Aujourd’hui">Aujourd’hui</option>
+                <option value="Demain">Demain</option>
+                <option value="Cette semaine">Cette semaine</option>
+                <option value="Matin">Matin</option>
+                <option value="Après-midi">Après-midi</option>
               </select>
             </label>
           </div>
@@ -218,6 +252,17 @@
           </label>
 
           <label class="landing-field">
+            <span>Secteur d’activité</span>
+            <select v-model="trialForm.secteur">
+              <option value="Commerce / Boutique">Commerce / Boutique</option>
+              <option value="Services">Services</option>
+              <option value="Stock et distribution">Stock et distribution</option>
+              <option value="Achats / Fournisseurs">Achats / Fournisseurs</option>
+              <option value="Autre">Autre</option>
+            </select>
+          </label>
+
+          <label class="landing-field">
             <span>Formule d’essai</span>
             <select v-model="trialForm.plan">
               <option value="starter">Starter</option>
@@ -233,6 +278,17 @@
               <option value="Facturation et recouvrement">Facturation et recouvrement</option>
               <option value="Stock et achats">Stock et achats</option>
               <option value="Caisse et boutique">Caisse et boutique</option>
+            </select>
+          </label>
+
+          <label class="landing-field">
+            <span>Créneau de rappel</span>
+            <select v-model="trialForm.creneau">
+              <option value="Aujourd’hui">Aujourd’hui</option>
+              <option value="Demain">Demain</option>
+              <option value="Cette semaine">Cette semaine</option>
+              <option value="Matin">Matin</option>
+              <option value="Après-midi">Après-midi</option>
             </select>
           </label>
 
@@ -288,6 +344,8 @@ const form = reactive({
   telephone: '',
   plan: 'business',
   taille: '4-10 utilisateurs',
+  secteur: 'Commerce / Boutique',
+  creneau: 'Cette semaine',
   besoin: 'Gestion complète',
   message: '',
 })
@@ -300,6 +358,8 @@ const trialForm = reactive({
   telephone: '',
   plan: 'pro',
   taille: '4-10 utilisateurs',
+  secteur: 'Commerce / Boutique',
+  creneau: 'Cette semaine',
   besoin: 'Gestion complète',
   message: '',
 })
@@ -360,6 +420,8 @@ async function submitDemoRequest() {
     const { data } = await api.post('/public/demo-request', {
       ...form,
       telephone: cleanPhone(form.telephone),
+      source: campaignSource(),
+      campagne: campaignName(),
     })
     successMessage.value = data.message || 'Demande transmise. Nous vous recontactons rapidement.'
     reservedWorkspace.value = data.workspace_url
@@ -376,6 +438,8 @@ async function submitDemoRequest() {
       telephone: '',
       plan: 'business',
       taille: '4-10 utilisateurs',
+      secteur: 'Commerce / Boutique',
+      creneau: 'Cette semaine',
       besoin: 'Gestion complète',
       message: '',
     })
@@ -395,6 +459,8 @@ async function submitTrialSignup() {
     const { data } = await api.post('/public/signup-trial', {
       ...trialForm,
       telephone: cleanPhone(trialForm.telephone),
+      source: campaignSource(),
+      campagne: campaignName(),
     })
     trialResult.value = data
     Object.assign(trialForm, {
@@ -405,6 +471,8 @@ async function submitTrialSignup() {
       telephone: '',
       plan: 'pro',
       taille: '4-10 utilisateurs',
+      secteur: 'Commerce / Boutique',
+      creneau: 'Cette semaine',
       besoin: 'Gestion complète',
       message: '',
     })
@@ -428,6 +496,14 @@ function cleanPhone(value) {
   if (digits.startsWith('00221')) return digits.slice(5, 14)
   if (digits.startsWith('221') && digits.length > 9) return digits.slice(3, 12)
   return digits.slice(0, 9)
+}
+
+function campaignSource() {
+  return String(route.query.source || route.query.utm_source || 'site-public').slice(0, 120)
+}
+
+function campaignName() {
+  return String(route.query.campagne || route.query.utm_campaign || 'campagne-commerciale').slice(0, 120)
 }
 
 onMounted(() => {
@@ -543,6 +619,47 @@ watch(
 .landing-metric {
   border-radius: 1.35rem;
   padding: 1rem;
+}
+
+.landing-campaign-card {
+  max-width: 46rem;
+  border: 1px solid rgb(103 232 249 / 0.38);
+  border-radius: 1.5rem;
+  background: linear-gradient(135deg, rgb(255 255 255 / 0.16), rgb(255 255 255 / 0.08));
+  padding: 1rem;
+  box-shadow: 0 22px 54px rgb(8 47 73 / 0.22);
+  backdrop-filter: blur(14px);
+}
+
+.landing-campaign-card p {
+  color: #a5f3fc;
+  font-size: 0.72rem;
+  font-weight: 1000;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.landing-campaign-card h2 {
+  margin-top: 0.35rem;
+  color: white;
+  font-size: 1.2rem;
+  font-weight: 1000;
+}
+
+.landing-campaign-card div {
+  margin-top: 0.8rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.landing-campaign-card span {
+  border-radius: 999px;
+  background: rgb(236 254 255 / 0.14);
+  color: rgb(236 254 255 / 0.92);
+  padding: 0.4rem 0.65rem;
+  font-size: 0.75rem;
+  font-weight: 900;
 }
 
 .landing-metric strong {
