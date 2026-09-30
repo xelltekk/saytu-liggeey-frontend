@@ -10,9 +10,7 @@
       </RouterLink>
       <div class="flex items-center gap-2">
         <RouterLink to="/offres" class="landing-secondary">Offres & tarifs</RouterLink>
-        <RouterLink to="/conditions-commerciales" class="landing-secondary">Conditions</RouterLink>
         <a href="#demo" class="landing-secondary">Demander une démo</a>
-        <a href="#essai" class="landing-secondary">Essai gratuit</a>
         <RouterLink to="/login" class="landing-login">Connexion</RouterLink>
       </div>
     </nav>
@@ -21,10 +19,10 @@
       <div class="relative z-10">
         <p class="landing-kicker">Gestion commerciale, stock, caisse et recouvrement</p>
         <h1 class="mt-5 max-w-4xl text-4xl font-black leading-tight text-white md:text-6xl">
-          Pilotez votre entreprise sans vous perdre dans les tableaux.
+          Gérez votre PME simplement.
         </h1>
         <p class="mt-5 max-w-2xl text-base leading-8 text-cyan-50/86 md:text-lg">
-          Saytu Liggéey aide les PME à suivre les clients, devis, factures, stocks, paiements, caisse, achats et activités dans une interface claire, rapide et adaptée au terrain.
+          Saytu Liggéey regroupe clients, devis, factures, stock, caisse, achats et paiements dans une interface claire pour les équipes terrain.
         </p>
 
         <div class="mt-7 flex flex-wrap gap-3">
@@ -32,19 +30,8 @@
             <CalendarCheck class="h-5 w-5" />
             Réserver une démo
           </a>
-          <a href="#essai" class="landing-ghost">Créer un espace d’essai</a>
+          <a href="#essai" class="landing-ghost">Essai gratuit par email</a>
           <RouterLink to="/offres" class="landing-ghost">Voir les offres</RouterLink>
-          <RouterLink to="/login" class="landing-ghost">Accéder à l’espace client</RouterLink>
-        </div>
-
-        <div class="landing-campaign-card mt-6">
-          <p>Offre lancement campagne commerciale</p>
-          <h2>Démo guidée + diagnostic rapide pour les PME.</h2>
-          <div>
-            <span>Qualification du besoin</span>
-            <span>Conseil formule adaptée</span>
-            <span>Créneau de rappel prioritaire</span>
-          </div>
         </div>
 
         <div class="mt-8 grid max-w-3xl gap-3 sm:grid-cols-3">
@@ -157,17 +144,6 @@
 
           <div v-if="successMessage" class="landing-success">
             <p>{{ successMessage }}</p>
-            <a
-              v-if="reservedWorkspace?.url"
-              :href="reservedWorkspace.url"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              {{ reservedWorkspace.domain || reservedWorkspace.url }}
-            </a>
-            <small v-if="reservedWorkspace?.url">
-              Sous-domaine réservé. L’activation technique sera finalisée par XELLTEKK après validation.
-            </small>
           </div>
           <p v-if="errorMessage" class="landing-error">{{ errorMessage }}</p>
         </form>
@@ -184,47 +160,13 @@
       </article>
     </section>
 
-    <section class="relative z-10 mx-auto w-full max-w-7xl px-5 pb-20">
-      <div class="landing-pricing">
-        <div class="mb-5 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-          <div>
-            <p class="landing-kicker text-sky-700">Offres simples</p>
-            <h2 class="mt-2 text-3xl font-black text-slate-950">Démarrer petit, évoluer sans changer d’outil.</h2>
-          </div>
-          <p class="max-w-md text-sm leading-6 text-slate-600">
-            Les montants sont indicatifs. Le devis final est généré depuis XELLTEKK Admin selon les modules et le nombre d’utilisateurs.
-            <RouterLink to="/conditions-commerciales" class="font-black text-sky-700 hover:text-cyan-600">Voir les conditions.</RouterLink>
-          </p>
-        </div>
-
-        <div class="grid gap-3 md:grid-cols-3">
-          <article v-for="offer in offers" :key="offer.name" class="landing-offer" :class="offer.featured ? 'landing-offer-featured' : ''">
-            <div class="flex items-start justify-between gap-3">
-              <div>
-                <h3>{{ offer.name }}</h3>
-                <p>{{ offer.text }}</p>
-              </div>
-              <span v-if="offer.featured">Conseillé</span>
-            </div>
-            <strong>{{ offer.price }}</strong>
-            <ul>
-              <li v-for="item in offer.items" :key="item">
-                <Check class="h-4 w-4" />
-                {{ item }}
-              </li>
-            </ul>
-          </article>
-        </div>
-      </div>
-    </section>
-
     <section id="essai" class="relative z-10 mx-auto w-full max-w-7xl px-5 pb-24">
       <div class="landing-trial-card">
         <div>
-          <p class="landing-kicker text-sky-700">Essai automatisé</p>
-          <h2 class="mt-2 text-3xl font-black text-slate-950">Créer un espace client en quelques secondes.</h2>
+          <p class="landing-kicker text-sky-700">Essai gratuit sécurisé</p>
+          <h2 class="mt-2 text-3xl font-black text-slate-950">Recevoir un espace d’essai par email.</h2>
           <p class="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-            Idéal pour faire tester Saytu Liggéey à un prospect : sous-domaine, licence d’essai et accès admin temporaire sont préparés automatiquement.
+            Remplissez ce formulaire. Les accès ne sont jamais affichés sur la page : ils sont envoyés uniquement à l’email indiqué.
           </p>
         </div>
 
@@ -294,17 +236,12 @@
 
           <button type="submit" class="landing-submit md:col-span-2" :disabled="trialSubmitting">
             <Send class="h-5 w-5" />
-            {{ trialSubmitting ? 'Création...' : 'Créer mon espace d’essai' }}
+            {{ trialSubmitting ? 'Préparation...' : 'Recevoir mes accès d’essai par email' }}
           </button>
 
           <div v-if="trialResult" class="landing-success md:col-span-2">
             <p>{{ trialResult.message }}</p>
-            <a :href="trialResult.workspace_url" target="_blank" rel="noopener noreferrer">
-              {{ trialResult.workspace_domain || trialResult.workspace_url }}
-            </a>
-            <small>
-              Email : {{ trialResult.admin_email }} · Mot de passe temporaire : {{ trialResult.admin_initial_password }}
-            </small>
+            <small>Vérifiez aussi le dossier spam ou courrier indésirable si l’email n’arrive pas.</small>
           </div>
           <p v-if="trialError" class="landing-error md:col-span-2">{{ trialError }}</p>
         </form>
@@ -318,7 +255,6 @@ import { onMounted, reactive, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import {
   CalendarCheck,
-  Check,
   ClipboardList,
   Layers3,
   Send,
@@ -332,7 +268,6 @@ const successMessage = ref('')
 const errorMessage = ref('')
 const trialError = ref('')
 const trialResult = ref(null)
-const reservedWorkspace = ref(null)
 const route = useRoute()
 const allowedPlans = ['starter', 'pro', 'business']
 
@@ -388,32 +323,9 @@ const features = [
   },
 ]
 
-const offers = [
-  {
-    name: 'Starter',
-    price: '15 000 FCFA / mois',
-    text: 'Pour structurer rapidement la vente.',
-    items: ['Clients et devis', 'Factures', 'Caisse simple'],
-  },
-  {
-    name: 'Pro',
-    price: '35 000 FCFA / mois',
-    text: 'Pour une PME qui vend et suit son stock.',
-    items: ['Stock et achats', 'Recouvrement', 'Agenda et activités'],
-    featured: true,
-  },
-  {
-    name: 'Business',
-    price: '60 000 FCFA / mois',
-    text: 'Pour piloter toute l’entreprise.',
-    items: ['Tous les modules', 'Rôles avancés', 'Sécurité et exports'],
-  },
-]
-
 async function submitDemoRequest() {
   successMessage.value = ''
   errorMessage.value = ''
-  reservedWorkspace.value = null
   submitting.value = true
 
   try {
@@ -424,12 +336,6 @@ async function submitDemoRequest() {
       campagne: campaignName(),
     })
     successMessage.value = data.message || 'Demande transmise. Nous vous recontactons rapidement.'
-    reservedWorkspace.value = data.workspace_url
-      ? {
-          url: data.workspace_url,
-          domain: data.workspace_domain,
-        }
-      : null
     Object.assign(form, {
       website: '',
       societe: '',
@@ -609,7 +515,6 @@ watch(
 .landing-metric,
 .landing-feature,
 .landing-form-card,
-.landing-pricing,
 .landing-trial-card {
   border: 1px solid rgb(255 255 255 / 0.18);
   background: rgb(255 255 255 / 0.94);
@@ -619,47 +524,6 @@ watch(
 .landing-metric {
   border-radius: 1.35rem;
   padding: 1rem;
-}
-
-.landing-campaign-card {
-  max-width: 46rem;
-  border: 1px solid rgb(103 232 249 / 0.38);
-  border-radius: 1.5rem;
-  background: linear-gradient(135deg, rgb(255 255 255 / 0.16), rgb(255 255 255 / 0.08));
-  padding: 1rem;
-  box-shadow: 0 22px 54px rgb(8 47 73 / 0.22);
-  backdrop-filter: blur(14px);
-}
-
-.landing-campaign-card p {
-  color: #a5f3fc;
-  font-size: 0.72rem;
-  font-weight: 1000;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-}
-
-.landing-campaign-card h2 {
-  margin-top: 0.35rem;
-  color: white;
-  font-size: 1.2rem;
-  font-weight: 1000;
-}
-
-.landing-campaign-card div {
-  margin-top: 0.8rem;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.45rem;
-}
-
-.landing-campaign-card span {
-  border-radius: 999px;
-  background: rgb(236 254 255 / 0.14);
-  color: rgb(236 254 255 / 0.92);
-  padding: 0.4rem 0.65rem;
-  font-size: 0.75rem;
-  font-weight: 900;
 }
 
 .landing-metric strong {
@@ -676,7 +540,6 @@ watch(
 }
 
 .landing-form-card,
-.landing-pricing,
 .landing-trial-card {
   border-radius: 2rem;
   color: #0f172a;
@@ -767,69 +630,18 @@ watch(
   color: #0284c7;
 }
 
-.landing-feature h3,
-.landing-offer h3 {
+.landing-feature h3 {
   margin-top: 0.9rem;
   color: #0f172a;
   font-size: 1.08rem;
   font-weight: 1000;
 }
 
-.landing-feature p,
-.landing-offer p {
+.landing-feature p {
   margin-top: 0.35rem;
   color: #475569;
   font-size: 0.92rem;
   line-height: 1.55;
-}
-
-.landing-offer {
-  border: 1px solid #dbeafe;
-  border-radius: 1.35rem;
-  background: #f8fafc;
-  padding: 1rem;
-}
-
-.landing-offer-featured {
-  border-color: #22d3ee;
-  background: linear-gradient(180deg, #eff6ff, #ecfeff);
-}
-
-.landing-offer span {
-  border-radius: 999px;
-  background: #0ea5e9;
-  color: white;
-  padding: 0.25rem 0.55rem;
-  font-size: 0.7rem;
-  font-weight: 900;
-}
-
-.landing-offer strong {
-  display: block;
-  margin-top: 1rem;
-  color: #075985;
-  font-size: 1.25rem;
-  font-weight: 1000;
-}
-
-.landing-offer ul {
-  margin-top: 0.85rem;
-  display: grid;
-  gap: 0.45rem;
-  color: #334155;
-  font-size: 0.88rem;
-  font-weight: 700;
-}
-
-.landing-offer li {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-}
-
-.landing-offer li svg {
-  color: #0891b2;
-  flex-shrink: 0;
 }
 
 @media (max-width: 640px) {
