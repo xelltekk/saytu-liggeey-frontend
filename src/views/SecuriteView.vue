@@ -59,6 +59,82 @@
       </div>
     </section>
 
+    <section class="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)]">
+      <article class="rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-surface,#ffffff)] shadow-sm">
+        <div class="flex flex-col gap-2 border-b border-[color:var(--saytu-border,#e2e8f0)] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 class="font-black text-[color:var(--saytu-shell-text,#0f172a)]">Dernières traces</h2>
+            <p class="text-xs text-[color:var(--saytu-muted,#64748b)]">Résumé rapide des événements de connexion disponibles.</p>
+          </div>
+          <span class="w-fit rounded-full bg-[color:var(--saytu-primary-soft,#dbeafe)] px-3 py-1 text-xs font-black text-[color:var(--saytu-primary,#2563eb)]">
+            {{ recentSessions.length }} trace(s)
+          </span>
+        </div>
+        <div class="max-h-[360px] overflow-auto">
+          <table class="min-w-[760px] w-full text-sm">
+            <thead class="sticky top-0 z-10 bg-[color:var(--saytu-shell-bg,#f8fafc)] text-left text-xs uppercase tracking-[0.12em] text-[color:var(--saytu-muted,#64748b)] shadow-sm">
+              <tr>
+                <th class="px-4 py-3">Date</th>
+                <th class="px-4 py-3">Utilisateur</th>
+                <th class="px-4 py-3">Événement</th>
+                <th class="px-4 py-3">IP</th>
+                <th class="px-4 py-3">Statut</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-[color:var(--saytu-border,#e2e8f0)]">
+              <tr v-for="row in recentSessions" :key="row.id || `${row.event}-${row.date || row.created_at}-${row.ip || row.ip_address}`" class="hover:bg-[color:var(--saytu-shell-bg,#f8fafc)]">
+                <td class="whitespace-nowrap px-4 py-3">{{ formatDateTime(row.date || row.created_at) }}</td>
+                <td class="max-w-[220px] truncate px-4 py-3 font-semibold">{{ row.user_name || row.email || '-' }}</td>
+                <td class="max-w-[240px] truncate px-4 py-3">{{ row.event_label || row.event || '-' }}</td>
+                <td class="whitespace-nowrap px-4 py-3 font-mono text-xs">{{ row.ip_address || row.ip || '-' }}</td>
+                <td class="whitespace-nowrap px-4 py-3">
+                  <span class="rounded-full px-2 py-1 text-xs font-bold" :class="sessionStatusClass(row)">
+                    {{ sessionStatusText(row) }}
+                  </span>
+                </td>
+              </tr>
+              <tr v-if="!recentSessions.length">
+                <td colspan="5" class="px-4 py-8 text-center text-[color:var(--saytu-muted,#64748b)]">Aucune trace récente.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+
+      <article class="rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-surface,#ffffff)] shadow-sm">
+        <div class="border-b border-[color:var(--saytu-border,#e2e8f0)] px-4 py-3">
+          <h2 class="font-black text-[color:var(--saytu-shell-text,#0f172a)]">Sauvegardes & tables lourdes</h2>
+          <p class="text-xs text-[color:var(--saytu-muted,#64748b)]">Historique des exports et tables qui pèsent le plus en lignes.</p>
+        </div>
+        <div class="grid gap-4 p-4 lg:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
+          <div class="min-w-0">
+            <p class="text-xs font-black uppercase tracking-[0.14em] text-[color:var(--saytu-muted,#64748b)]">Derniers exports</p>
+            <div class="mt-2 max-h-[180px] space-y-2 overflow-y-auto pr-1">
+              <div v-for="item in backupHistory" :key="`${item.date}-${item.reference}`" class="rounded-2xl bg-[color:var(--saytu-shell-bg,#f8fafc)] p-3">
+                <p class="truncate text-sm font-bold text-[color:var(--saytu-shell-text,#0f172a)]">{{ item.reference || 'Sauvegarde DB' }}</p>
+                <p class="mt-1 text-xs text-[color:var(--saytu-muted,#64748b)]">{{ item.user_name || 'Système' }} · {{ formatDateTime(item.date) }}</p>
+              </div>
+              <p v-if="!backupHistory.length" class="rounded-2xl bg-[color:var(--saytu-shell-bg,#f8fafc)] p-3 text-sm text-[color:var(--saytu-muted,#64748b)]">
+                Aucun export sauvegarde enregistré.
+              </p>
+            </div>
+          </div>
+          <div class="min-w-0">
+            <p class="text-xs font-black uppercase tracking-[0.14em] text-[color:var(--saytu-muted,#64748b)]">Tables principales</p>
+            <div class="mt-2 max-h-[180px] space-y-2 overflow-y-auto pr-1">
+              <div v-for="table in largestTables.slice(0, 8)" :key="table.name" class="flex items-center justify-between gap-3 rounded-2xl bg-[color:var(--saytu-shell-bg,#f8fafc)] p-3">
+                <span class="truncate font-mono text-xs font-bold text-[color:var(--saytu-shell-text,#0f172a)]">{{ table.name }}</span>
+                <span class="shrink-0 rounded-full bg-white px-2 py-1 text-xs font-black text-[color:var(--saytu-primary,#2563eb)]">{{ formatNumber(table.rows) }}</span>
+              </div>
+              <p v-if="!largestTables.length" class="rounded-2xl bg-[color:var(--saytu-shell-bg,#f8fafc)] p-3 text-sm text-[color:var(--saytu-muted,#64748b)]">
+                Aucune table à afficher.
+              </p>
+            </div>
+          </div>
+        </div>
+      </article>
+    </section>
+
     <section class="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
       <article class="rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-surface,#ffffff)] shadow-sm">
         <div class="flex items-center justify-between border-b border-[color:var(--saytu-border,#e2e8f0)] px-4 py-3">
@@ -73,7 +149,7 @@
 
         <div v-if="loading" class="p-6 text-sm text-[color:var(--saytu-muted,#64748b)]">Chargement...</div>
         <div v-else-if="!activeTokens.length" class="p-6 text-sm text-[color:var(--saytu-muted,#64748b)]">Aucune session active détectée.</div>
-        <div v-else class="divide-y divide-[color:var(--saytu-border,#e2e8f0)]">
+        <div v-else class="max-h-[340px] divide-y divide-[color:var(--saytu-border,#e2e8f0)] overflow-y-auto">
           <div v-for="token in activeTokens" :key="token.id" class="flex flex-col gap-3 px-4 py-3 md:flex-row md:items-center md:justify-between">
             <div class="min-w-0">
               <div class="flex flex-wrap items-center gap-2">
@@ -135,7 +211,7 @@
       </article>
     </section>
 
-    <section class="grid gap-4 xl:grid-cols-2">
+    <section>
       <article class="rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-surface,#ffffff)] shadow-sm">
         <div class="flex items-center justify-between border-b border-[color:var(--saytu-border,#e2e8f0)] px-4 py-3">
           <div>
@@ -146,7 +222,7 @@
             Voir audit
           </RouterLink>
         </div>
-        <div class="divide-y divide-[color:var(--saytu-border,#e2e8f0)]">
+        <div class="max-h-[360px] divide-y divide-[color:var(--saytu-border,#e2e8f0)] overflow-y-auto">
           <div v-for="item in sensitiveActions" :key="`${item.date}-${item.event}-${item.reference}`" class="px-4 py-3">
             <div class="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
               <div class="min-w-0">
@@ -165,75 +241,6 @@
           </div>
         </div>
       </article>
-
-      <article class="rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-surface,#ffffff)] shadow-sm">
-        <div class="border-b border-[color:var(--saytu-border,#e2e8f0)] px-4 py-3">
-          <h2 class="font-black text-[color:var(--saytu-shell-text,#0f172a)]">Sauvegardes & tables lourdes</h2>
-          <p class="text-xs text-[color:var(--saytu-muted,#64748b)]">Historique des exports et tables qui pèsent le plus en lignes.</p>
-        </div>
-        <div class="grid gap-4 p-4 lg:grid-cols-2">
-          <div>
-            <p class="text-xs font-black uppercase tracking-[0.14em] text-[color:var(--saytu-muted,#64748b)]">Derniers exports</p>
-            <div class="mt-2 space-y-2">
-              <div v-for="item in backupHistory" :key="`${item.date}-${item.reference}`" class="rounded-2xl bg-[color:var(--saytu-shell-bg,#f8fafc)] p-3">
-                <p class="truncate text-sm font-bold text-[color:var(--saytu-shell-text,#0f172a)]">{{ item.reference || 'Sauvegarde DB' }}</p>
-                <p class="mt-1 text-xs text-[color:var(--saytu-muted,#64748b)]">{{ item.user_name || 'Système' }} · {{ formatDateTime(item.date) }}</p>
-              </div>
-              <p v-if="!backupHistory.length" class="rounded-2xl bg-[color:var(--saytu-shell-bg,#f8fafc)] p-3 text-sm text-[color:var(--saytu-muted,#64748b)]">
-                Aucun export sauvegarde enregistré.
-              </p>
-            </div>
-          </div>
-          <div>
-            <p class="text-xs font-black uppercase tracking-[0.14em] text-[color:var(--saytu-muted,#64748b)]">Tables principales</p>
-            <div class="mt-2 space-y-2">
-              <div v-for="table in largestTables.slice(0, 6)" :key="table.name" class="flex items-center justify-between gap-3 rounded-2xl bg-[color:var(--saytu-shell-bg,#f8fafc)] p-3">
-                <span class="truncate font-mono text-xs font-bold text-[color:var(--saytu-shell-text,#0f172a)]">{{ table.name }}</span>
-                <span class="shrink-0 rounded-full bg-white px-2 py-1 text-xs font-black text-[color:var(--saytu-primary,#2563eb)]">{{ formatNumber(table.rows) }}</span>
-              </div>
-              <p v-if="!largestTables.length" class="rounded-2xl bg-[color:var(--saytu-shell-bg,#f8fafc)] p-3 text-sm text-[color:var(--saytu-muted,#64748b)]">
-                Aucune table à afficher.
-              </p>
-            </div>
-          </div>
-        </div>
-      </article>
-    </section>
-
-    <section class="rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-surface,#ffffff)] shadow-sm">
-      <div class="border-b border-[color:var(--saytu-border,#e2e8f0)] px-4 py-3">
-        <h2 class="font-black text-[color:var(--saytu-shell-text,#0f172a)]">Dernières traces</h2>
-        <p class="text-xs text-[color:var(--saytu-muted,#64748b)]">Résumé rapide des événements de connexion disponibles.</p>
-      </div>
-      <div class="overflow-x-auto">
-        <table class="min-w-full text-sm">
-          <thead class="bg-[color:var(--saytu-shell-bg,#f8fafc)] text-left text-xs uppercase tracking-[0.12em] text-[color:var(--saytu-muted,#64748b)]">
-            <tr>
-              <th class="px-4 py-3">Date</th>
-              <th class="px-4 py-3">Utilisateur</th>
-              <th class="px-4 py-3">Événement</th>
-              <th class="px-4 py-3">IP</th>
-              <th class="px-4 py-3">Statut</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-[color:var(--saytu-border,#e2e8f0)]">
-            <tr v-for="row in recentSessions" :key="row.id || `${row.event}-${row.date || row.created_at}-${row.ip || row.ip_address}`">
-              <td class="px-4 py-3">{{ formatDateTime(row.date || row.created_at) }}</td>
-              <td class="px-4 py-3 font-semibold">{{ row.user_name || row.email || '-' }}</td>
-              <td class="px-4 py-3">{{ row.event_label || row.event || '-' }}</td>
-              <td class="px-4 py-3 font-mono text-xs">{{ row.ip_address || row.ip || '-' }}</td>
-              <td class="px-4 py-3">
-                <span class="rounded-full px-2 py-1 text-xs font-bold" :class="sessionStatusClass(row)">
-                  {{ sessionStatusText(row) }}
-                </span>
-              </td>
-            </tr>
-            <tr v-if="!recentSessions.length">
-              <td colspan="5" class="px-4 py-8 text-center text-[color:var(--saytu-muted,#64748b)]">Aucune trace récente.</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
     </section>
   </div>
 </template>
@@ -246,7 +253,6 @@ import {
   Database,
   Download,
   KeyRound,
-  LockKeyhole,
   LogOut,
   RefreshCw,
   ShieldCheck,
