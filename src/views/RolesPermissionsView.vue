@@ -459,6 +459,69 @@
                 <textarea v-model="form.description" class="input min-h-20" :disabled="selectedRole?.is_system" placeholder="Expliquez à quoi sert ce rôle."></textarea>
               </label>
             </div>
+
+            <section class="mt-5 rounded-3xl border border-cyan-100 bg-cyan-50/70 p-4">
+              <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                <div>
+                  <p class="text-xs font-black uppercase tracking-[0.2em] text-cyan-700">Contrôle avant enregistrement</p>
+                  <h3 class="mt-1 font-black text-slate-950">Résumé en direct du rôle</h3>
+                  <p class="mt-1 text-sm font-semibold text-slate-500">
+                    Vérifiez les changements et les droits sensibles avant de sauvegarder.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  class="btn-secondary px-3 py-2 text-xs"
+                  @click="moduleScopeFilter = 'sensitive'"
+                >
+                  Voir les droits sensibles
+                </button>
+              </div>
+
+              <div class="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <article v-for="card in roleDecisionCards" :key="card.key" class="rounded-2xl border border-cyan-100 bg-white p-3">
+                  <p class="text-xs font-black uppercase tracking-[0.16em] text-slate-500">{{ card.label }}</p>
+                  <p class="mt-2 text-2xl font-black text-slate-950">{{ card.value }}</p>
+                  <p class="mt-1 text-xs font-semibold text-slate-500">{{ card.hint }}</p>
+                </article>
+              </div>
+
+              <div v-if="roleDecisionWarnings.length" class="mt-4 grid gap-2 lg:grid-cols-2">
+                <article
+                  v-for="warning in roleDecisionWarnings"
+                  :key="warning.key"
+                  class="flex items-start gap-3 rounded-2xl border p-3"
+                  :class="warning.class"
+                >
+                  <span class="mt-1 h-2.5 w-2.5 shrink-0 rounded-full" :class="warning.dot"></span>
+                  <div>
+                    <p class="text-sm font-black text-slate-950">{{ warning.title }}</p>
+                    <p class="mt-1 text-xs font-semibold text-slate-600">{{ warning.detail }}</p>
+                  </div>
+                </article>
+              </div>
+
+              <div v-if="sensitivePermissionsPreview.length" class="mt-4 rounded-2xl border border-red-100 bg-white p-3">
+                <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <p class="text-sm font-black text-red-700">Droits sensibles actifs</p>
+                  <span class="rounded-full bg-red-50 px-2 py-1 text-xs font-black text-red-700">
+                    {{ sensitivePermissionEntries.length }} droit(s)
+                  </span>
+                </div>
+                <div class="mt-3 flex flex-wrap gap-1">
+                  <span
+                    v-for="permission in sensitivePermissionsPreview"
+                    :key="permission"
+                    class="rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-bold text-red-700"
+                  >
+                    {{ formatPermission(permission) }}
+                  </span>
+                  <span v-if="remainingPermissions(sensitivePermissionKeys, 8)" class="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600">
+                    +{{ remainingPermissions(sensitivePermissionKeys, 8) }}
+                  </span>
+                </div>
+              </div>
+            </section>
           </div>
 
           <div class="p-4 sm:p-5">
@@ -739,6 +802,18 @@ const enabledPermissionEntries = computed(() => {
 })
 const enabledModulesCount = computed(() => new Set(enabledPermissionEntries.value.map((entry) => entry.module)).size)
 const sensitivePermissionEntries = computed(() => enabledPermissionEntries.value.filter((entry) => isSensitivePermission(entry.key)))
+const currentPermissionKeys = computed(() => enabledPermissionEntries.value.map((entry) => entry.key))
+const originalPermissionKeys = computed(() => flattenPermissions(selectedRole.value?.permissions || {}))
+const addedPermissionKeys = computed(() => {
+  const original = new Set(originalPermissionKeys.value)
+  return currentPermissionKeys.value.filter((permission) => !original.has(permission))
+})
+const removedPermissionKeys = computed(() => {
+  const current = new Set(currentPermissionKeys.value)
+  return originalPermissionKeys.value.filter((permission) => !current.has(permission))
+})
+const sensitivePermissionKeys = computed(() => sensitivePermissionEntries.value.map((entry) => entry.key))
+const sensitivePermissionsPreview = computed(() => previewPermissions(sensitivePermissionKeys.value, 8))
 const currentAuditRole = computed(() => {
   if (!form.value?.code || !accessAudit.value?.roles) return null
   return accessAudit.value.roles.find((role) => role.code === form.value.code) || null
@@ -808,6 +883,117 @@ const selectedRoleCards = computed(() => [
     hint: `${currentAuditRole.value?.active_users_count ?? 0} actif(s)`,
   },
 ])
+const roleDecisionCards = computed(() => [
+  {
+    key: 'enabled',
+    label: 'Droits actifs',
+    value: enabledPermissionEntries.value.length,
+    hint: `${enabledModulesCount.value} module(s) concerné(s)`,
+  },
+  {
+    key: 'added',
+    label: form.value?.id ? 'Ajoutés' : 'À créer',
+    value: addedPermissionKeys.value.length,
+    hint: form.value?.id ? 'Nouveaux droits cochés' : 'Droits du nouveau rôle',
+  },
+  {
+    key: 'removed',
+    label: 'Retirés',
+    value: removedPermissionKeys.value.length,
+    hint: 'Droits décochés depuis l’ouverture',
+  },
+  {
+    key: 'sensitive',
+    label: 'Sensibles',
+    value: sensitivePermissionEntries.value.length,
+    hint: 'Suppression, validation, admin ou données sensibles',
+  },
+])
+const roleDecisionWarnings = computed(() => {
+  if (!form.value) return []
+
+  const items = []
+  const baseRole = form.value.base_role || form.value.code
+  const usersCount = Number(currentAuditRole.value?.users_count || selectedRole.value?.users_count || 0)
+
+  if (!String(form.value.code || '').trim() || !String(form.value.label || '').trim()) {
+    items.push({
+      key: 'identity',
+      title: 'Identité du rôle à compléter',
+      detail: 'Le code et le libellé doivent être clairs pour éviter les doublons et les erreurs d’attribution.',
+      class: 'border-amber-200 bg-amber-50',
+      dot: 'bg-amber-500',
+    })
+  }
+
+  if (!form.value.base_role) {
+    items.push({
+      key: 'base-role',
+      title: 'Base métier non renseignée',
+      detail: 'La base métier aide l’application à comprendre le niveau réel du rôle et à comparer les droits recommandés.',
+      class: 'border-sky-200 bg-sky-50',
+      dot: 'bg-sky-500',
+    })
+  }
+
+  if (baseRole === 'admin') {
+    items.push({
+      key: 'admin',
+      title: 'Rôle de niveau administrateur',
+      detail: 'À utiliser uniquement pour les responsables qui doivent gérer toute l’application et les accès.',
+      class: 'border-red-200 bg-red-50',
+      dot: 'bg-red-500',
+    })
+  }
+
+  if (sensitivePermissionEntries.value.length > 0) {
+    items.push({
+      key: 'sensitive',
+      title: `${sensitivePermissionEntries.value.length} droit(s) sensible(s) actif(s)`,
+      detail: 'Contrôlez les droits de suppression, validation, approbation, restauration et données sensibles.',
+      class: 'border-amber-200 bg-amber-50',
+      dot: 'bg-amber-500',
+    })
+  }
+
+  if (enabledPermissionEntries.value.length === 0) {
+    items.push({
+      key: 'empty',
+      title: 'Aucun droit actif',
+      detail: 'Ce rôle ne donnera pratiquement aucun accès. C’est parfois voulu, mais à vérifier avant sauvegarde.',
+      class: 'border-slate-200 bg-slate-50',
+      dot: 'bg-slate-400',
+    })
+  }
+
+  if (form.value.is_active === false && usersCount > 0) {
+    items.push({
+      key: 'inactive-used',
+      title: 'Rôle inactif encore attribué',
+      detail: `${usersCount} utilisateur(s) sont liés à ce rôle. Vérifiez leur accès avant de le laisser inactif.`,
+      class: 'border-red-200 bg-red-50',
+      dot: 'bg-red-500',
+    })
+  }
+
+  if (removedPermissionKeys.value.length > 0 && usersCount > 0) {
+    items.push({
+      key: 'removed-used',
+      title: 'Des droits seront retirés',
+      detail: `${removedPermissionKeys.value.length} droit(s) décoché(s). Les ${usersCount} utilisateur(s) liés au rôle seront impactés.`,
+      class: 'border-sky-200 bg-sky-50',
+      dot: 'bg-sky-500',
+    })
+  }
+
+  return items.length ? items.slice(0, 6) : [{
+    key: 'ok',
+    title: 'Aucun point bloquant détecté',
+    detail: 'Le rôle semble cohérent. Gardez le principe du minimum nécessaire avant d’enregistrer.',
+    class: 'border-emerald-200 bg-emerald-50',
+    dot: 'bg-emerald-500',
+  }]
+})
 const displayedRoles = computed(() => {
   const needle = normalizeSearch(roleSearch.value)
   return roles.value.filter((role) => {
