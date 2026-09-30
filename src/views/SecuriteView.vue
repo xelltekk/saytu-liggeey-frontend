@@ -6,7 +6,7 @@
           <p class="text-xs font-bold uppercase tracking-[0.18em] opacity-80">Administration</p>
           <h1 class="mt-1 text-2xl font-black">Sécurité & sauvegarde</h1>
           <p class="mt-1 max-w-2xl text-sm opacity-85">
-            Contrôlez les connexions, les sessions actives et récupérez une sauvegarde complète de la base.
+            Contrôlez les connexions, les sessions actives, la santé système et récupérez une sauvegarde complète de la base.
           </p>
         </div>
 
@@ -23,7 +23,7 @@
       </div>
     </section>
 
-    <section class="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+    <section class="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
       <article v-for="card in cards" :key="card.label" class="rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-surface,#ffffff)] p-4 shadow-sm">
         <div class="flex items-start justify-between gap-3">
           <div>
@@ -36,6 +36,27 @@
           </span>
         </div>
       </article>
+    </section>
+
+    <section class="rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-surface,#ffffff)] shadow-sm">
+      <div class="border-b border-[color:var(--saytu-border,#e2e8f0)] px-4 py-3">
+        <h2 class="font-black text-[color:var(--saytu-shell-text,#0f172a)]">Santé système</h2>
+        <p class="text-xs text-[color:var(--saytu-muted,#64748b)]">Contrôle rapide de la base, du journal d’audit, du stockage et de la sauvegarde.</p>
+      </div>
+      <div class="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-4">
+        <article v-for="item in healthChecks" :key="item.key" class="rounded-2xl border p-4" :class="healthClass(item.state)">
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <p class="text-xs font-black uppercase tracking-[0.14em] opacity-75">{{ item.label }}</p>
+              <p class="mt-2 text-lg font-black">{{ item.value || '-' }}</p>
+              <p class="mt-1 text-xs opacity-80">{{ item.detail || 'Aucun détail.' }}</p>
+            </div>
+            <span class="rounded-full px-2 py-1 text-[11px] font-black uppercase">
+              {{ healthText(item.state) }}
+            </span>
+          </div>
+        </article>
+      </div>
     </section>
 
     <section class="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
@@ -107,8 +128,73 @@
           <div class="rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-shell-bg,#f8fafc)] p-3">
             <p class="text-sm font-bold text-[color:var(--saytu-shell-text,#0f172a)]">Tables sauvegardables</p>
             <p class="mt-1 text-xs text-[color:var(--saytu-muted,#64748b)]">
-              {{ overview.stats.tables_sauvegardables || 0 }} tables seront exportées au format JSONL avec les colonnes sensibles masquées.
+              {{ overview.stats.tables_sauvegardables || 0 }} tables et {{ formatNumber(overview.stats.lignes_sauvegardables || 0) }} ligne(s) seront exportées au format JSONL avec les colonnes sensibles masquées.
             </p>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <section class="grid gap-4 xl:grid-cols-2">
+      <article class="rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-surface,#ffffff)] shadow-sm">
+        <div class="flex items-center justify-between border-b border-[color:var(--saytu-border,#e2e8f0)] px-4 py-3">
+          <div>
+            <h2 class="font-black text-[color:var(--saytu-shell-text,#0f172a)]">Actions sensibles récentes</h2>
+            <p class="text-xs text-[color:var(--saytu-muted,#64748b)]">Validations, suppressions, paiements, droits, stock et sécurité.</p>
+          </div>
+          <RouterLink to="/activites?tab=activites" class="rounded-full bg-orange-50 px-3 py-1 text-xs font-black text-orange-700 hover:bg-orange-100">
+            Voir audit
+          </RouterLink>
+        </div>
+        <div class="divide-y divide-[color:var(--saytu-border,#e2e8f0)]">
+          <div v-for="item in sensitiveActions" :key="`${item.date}-${item.event}-${item.reference}`" class="px-4 py-3">
+            <div class="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+              <div class="min-w-0">
+                <p class="truncate font-bold text-[color:var(--saytu-shell-text,#0f172a)]">{{ item.title || item.action || item.event || 'Action sensible' }}</p>
+                <p class="mt-1 text-xs text-[color:var(--saytu-muted,#64748b)]">
+                  {{ item.user_name || 'Système' }} · {{ item.audit_module || item.subject_module || item.category || '-' }} · {{ formatDateTime(item.date) }}
+                </p>
+              </div>
+              <span class="rounded-full bg-orange-100 px-2 py-1 text-[11px] font-black text-orange-700">
+                {{ item.sensitive_reason || 'Sensible' }}
+              </span>
+            </div>
+          </div>
+          <div v-if="!sensitiveActions.length" class="px-4 py-8 text-center text-sm text-[color:var(--saytu-muted,#64748b)]">
+            Aucune action sensible récente.
+          </div>
+        </div>
+      </article>
+
+      <article class="rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-surface,#ffffff)] shadow-sm">
+        <div class="border-b border-[color:var(--saytu-border,#e2e8f0)] px-4 py-3">
+          <h2 class="font-black text-[color:var(--saytu-shell-text,#0f172a)]">Sauvegardes & tables lourdes</h2>
+          <p class="text-xs text-[color:var(--saytu-muted,#64748b)]">Historique des exports et tables qui pèsent le plus en lignes.</p>
+        </div>
+        <div class="grid gap-4 p-4 lg:grid-cols-2">
+          <div>
+            <p class="text-xs font-black uppercase tracking-[0.14em] text-[color:var(--saytu-muted,#64748b)]">Derniers exports</p>
+            <div class="mt-2 space-y-2">
+              <div v-for="item in backupHistory" :key="`${item.date}-${item.reference}`" class="rounded-2xl bg-[color:var(--saytu-shell-bg,#f8fafc)] p-3">
+                <p class="truncate text-sm font-bold text-[color:var(--saytu-shell-text,#0f172a)]">{{ item.reference || 'Sauvegarde DB' }}</p>
+                <p class="mt-1 text-xs text-[color:var(--saytu-muted,#64748b)]">{{ item.user_name || 'Système' }} · {{ formatDateTime(item.date) }}</p>
+              </div>
+              <p v-if="!backupHistory.length" class="rounded-2xl bg-[color:var(--saytu-shell-bg,#f8fafc)] p-3 text-sm text-[color:var(--saytu-muted,#64748b)]">
+                Aucun export sauvegarde enregistré.
+              </p>
+            </div>
+          </div>
+          <div>
+            <p class="text-xs font-black uppercase tracking-[0.14em] text-[color:var(--saytu-muted,#64748b)]">Tables principales</p>
+            <div class="mt-2 space-y-2">
+              <div v-for="table in largestTables.slice(0, 6)" :key="table.name" class="flex items-center justify-between gap-3 rounded-2xl bg-[color:var(--saytu-shell-bg,#f8fafc)] p-3">
+                <span class="truncate font-mono text-xs font-bold text-[color:var(--saytu-shell-text,#0f172a)]">{{ table.name }}</span>
+                <span class="shrink-0 rounded-full bg-white px-2 py-1 text-xs font-black text-[color:var(--saytu-primary,#2563eb)]">{{ formatNumber(table.rows) }}</span>
+              </div>
+              <p v-if="!largestTables.length" class="rounded-2xl bg-[color:var(--saytu-shell-bg,#f8fafc)] p-3 text-sm text-[color:var(--saytu-muted,#64748b)]">
+                Aucune table à afficher.
+              </p>
+            </div>
           </div>
         </div>
       </article>
@@ -131,14 +217,14 @@
             </tr>
           </thead>
           <tbody class="divide-y divide-[color:var(--saytu-border,#e2e8f0)]">
-            <tr v-for="row in recentSessions" :key="row.id || `${row.event}-${row.created_at}`">
-              <td class="px-4 py-3">{{ formatDateTime(row.created_at) }}</td>
+            <tr v-for="row in recentSessions" :key="row.id || `${row.event}-${row.date || row.created_at}-${row.ip || row.ip_address}`">
+              <td class="px-4 py-3">{{ formatDateTime(row.date || row.created_at) }}</td>
               <td class="px-4 py-3 font-semibold">{{ row.user_name || row.email || '-' }}</td>
               <td class="px-4 py-3">{{ row.event_label || row.event || '-' }}</td>
-              <td class="px-4 py-3 font-mono text-xs">{{ row.ip_address || '-' }}</td>
+              <td class="px-4 py-3 font-mono text-xs">{{ row.ip_address || row.ip || '-' }}</td>
               <td class="px-4 py-3">
-                <span class="rounded-full px-2 py-1 text-xs font-bold" :class="row.status === 'failed' ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'">
-                  {{ row.status === 'failed' ? 'Échec' : 'OK' }}
+                <span class="rounded-full px-2 py-1 text-xs font-bold" :class="sessionStatusClass(row)">
+                  {{ sessionStatusText(row) }}
                 </span>
               </td>
             </tr>
@@ -178,6 +264,10 @@ const overview = ref(defaultOverview())
 
 const activeTokens = computed(() => overview.value.active_tokens || [])
 const recentSessions = computed(() => overview.value.recent_sessions || [])
+const healthChecks = computed(() => overview.value.health || [])
+const sensitiveActions = computed(() => overview.value.recent_sensitive_actions || [])
+const backupHistory = computed(() => overview.value.backup_history || [])
+const largestTables = computed(() => overview.value.largest_tables || [])
 
 const cards = computed(() => [
   {
@@ -199,9 +289,15 @@ const cards = computed(() => [
     icon: ShieldCheck,
   },
   {
+    label: 'Actions sensibles',
+    value: overview.value.stats.actions_sensibles_24h || 0,
+    hint: 'Sur les dernières 24h',
+    icon: AlertTriangle,
+  },
+  {
     label: 'Sauvegarde',
     value: overview.value.stats.tables_sauvegardables || 0,
-    hint: 'Tables exportables',
+    hint: `${formatNumber(overview.value.stats.lignes_sauvegardables || 0)} ligne(s)`,
     icon: Database,
   },
 ])
@@ -214,10 +310,16 @@ function defaultOverview() {
       sessions_actives: 0,
       utilisateurs_actifs: 0,
       tables_sauvegardables: 0,
+      lignes_sauvegardables: 0,
+      actions_sensibles_24h: 0,
     },
+    health: [],
     recent_sessions: [],
+    recent_sensitive_actions: [],
+    backup_history: [],
     active_tokens: [],
     tables: [],
+    largest_tables: [],
   }
 }
 
@@ -306,6 +408,36 @@ function formatDateTime(value) {
     hour: '2-digit',
     minute: '2-digit',
   })
+}
+
+function formatNumber(value) {
+  return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(Number(value || 0))
+}
+
+function healthText(state) {
+  return {
+    ok: 'OK',
+    warning: 'À vérifier',
+    danger: 'Erreur',
+  }[state] || 'Info'
+}
+
+function healthClass(state) {
+  return {
+    ok: 'border-emerald-200 bg-emerald-50 text-emerald-900',
+    warning: 'border-orange-200 bg-orange-50 text-orange-900',
+    danger: 'border-red-200 bg-red-50 text-red-900',
+  }[state] || 'border-slate-200 bg-slate-50 text-slate-800'
+}
+
+function sessionStatusClass(row) {
+  const failed = row.status === 'failed' || Number(row.status || 0) >= 400 || row.event === 'login_failed'
+  return failed ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'
+}
+
+function sessionStatusText(row) {
+  const failed = row.status === 'failed' || Number(row.status || 0) >= 400 || row.event === 'login_failed'
+  return failed ? 'Échec' : 'OK'
 }
 
 onMounted(loadOverview)
