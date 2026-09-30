@@ -38,7 +38,62 @@
       </article>
     </section>
 
-    <section class="rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-surface,#ffffff)] shadow-sm">
+    <section class="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
+      <article class="rounded-2xl border p-4 shadow-sm" :class="securityLevel.panelClass">
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p class="text-xs font-black uppercase tracking-[0.18em] opacity-75">Centre d’attention</p>
+            <h2 class="mt-2 text-xl font-black">{{ securityLevel.title }}</h2>
+            <p class="mt-2 text-sm font-semibold opacity-85">{{ securityLevel.detail }}</p>
+          </div>
+          <span class="w-fit rounded-full bg-white/80 px-3 py-1 text-xs font-black" :class="securityLevel.badgeClass">
+            {{ securityLevel.label }}
+          </span>
+        </div>
+
+        <div class="mt-4 grid gap-2 sm:grid-cols-2">
+          <div v-for="metric in securityFocusMetrics" :key="metric.label" class="rounded-2xl bg-white/80 p-3">
+            <p class="text-xs font-black uppercase tracking-[0.16em] text-slate-500">{{ metric.label }}</p>
+            <p class="mt-2 text-2xl font-black text-slate-950">{{ metric.value }}</p>
+            <p class="mt-1 text-xs font-semibold text-slate-500">{{ metric.hint }}</p>
+          </div>
+        </div>
+      </article>
+
+      <article class="rounded-2xl border border-cyan-200 bg-cyan-50/70 p-4 shadow-sm">
+        <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h2 class="font-black text-slate-950">Actions recommandées</h2>
+            <p class="mt-1 text-sm font-semibold text-slate-500">
+              Les points à regarder en priorité, sans chercher dans tous les tableaux.
+            </p>
+          </div>
+          <span class="w-fit rounded-full bg-white px-3 py-1 text-xs font-black text-cyan-700">
+            {{ securityActionItems.length }} point(s)
+          </span>
+        </div>
+
+        <div class="mt-4 space-y-2">
+          <article
+            v-for="item in securityActionItems"
+            :key="item.key"
+            class="flex items-start gap-3 rounded-2xl border p-3"
+            :class="item.class"
+          >
+            <span class="mt-1 h-2.5 w-2.5 shrink-0 rounded-full" :class="item.dot"></span>
+            <div class="min-w-0 flex-1">
+              <p class="text-sm font-black text-slate-950">{{ item.title }}</p>
+              <p class="mt-1 text-xs font-semibold text-slate-600">{{ item.detail }}</p>
+            </div>
+            <button type="button" class="shrink-0 rounded-full border bg-white px-3 py-1 text-xs font-black text-cyan-700 hover:bg-cyan-50" @click="runSecurityAction(item)">
+              {{ item.actionLabel }}
+            </button>
+          </article>
+        </div>
+      </article>
+    </section>
+
+    <section id="security-health" class="rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-surface,#ffffff)] shadow-sm">
       <div class="border-b border-[color:var(--saytu-border,#e2e8f0)] px-4 py-3">
         <h2 class="font-black text-[color:var(--saytu-shell-text,#0f172a)]">Santé système</h2>
         <p class="text-xs text-[color:var(--saytu-muted,#64748b)]">Contrôle rapide de la base, du journal d’audit, du stockage et de la sauvegarde.</p>
@@ -60,7 +115,7 @@
     </section>
 
     <section class="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)]">
-      <article class="rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-surface,#ffffff)] shadow-sm">
+      <article id="security-traces" class="rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-surface,#ffffff)] shadow-sm">
         <div class="flex flex-col gap-2 border-b border-[color:var(--saytu-border,#e2e8f0)] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 class="font-black text-[color:var(--saytu-shell-text,#0f172a)]">Dernières traces</h2>
@@ -101,7 +156,7 @@
         </div>
       </article>
 
-      <article class="rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-surface,#ffffff)] shadow-sm">
+      <article id="security-backups" class="rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-surface,#ffffff)] shadow-sm">
         <div class="border-b border-[color:var(--saytu-border,#e2e8f0)] px-4 py-3">
           <h2 class="font-black text-[color:var(--saytu-shell-text,#0f172a)]">Sauvegardes & tables lourdes</h2>
           <p class="text-xs text-[color:var(--saytu-muted,#64748b)]">Historique des exports et tables qui pèsent le plus en lignes.</p>
@@ -136,7 +191,7 @@
     </section>
 
     <section class="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
-      <article class="rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-surface,#ffffff)] shadow-sm">
+      <article id="security-sessions" class="rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-surface,#ffffff)] shadow-sm">
         <div class="flex items-center justify-between border-b border-[color:var(--saytu-border,#e2e8f0)] px-4 py-3">
           <div>
             <h2 class="font-black text-[color:var(--saytu-shell-text,#0f172a)]">Sessions actives</h2>
@@ -180,7 +235,7 @@
         </div>
       </article>
 
-      <article class="rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-surface,#ffffff)] shadow-sm">
+      <article id="security-journal" class="rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-surface,#ffffff)] shadow-sm">
         <div class="border-b border-[color:var(--saytu-border,#e2e8f0)] px-4 py-3">
           <h2 class="font-black text-[color:var(--saytu-shell-text,#0f172a)]">Journal de sécurité</h2>
           <p class="text-xs text-[color:var(--saytu-muted,#64748b)]">Dernières connexions, échecs et actions sensibles.</p>
@@ -212,7 +267,7 @@
     </section>
 
     <section>
-      <article class="rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-surface,#ffffff)] shadow-sm">
+      <article id="security-sensitive" class="rounded-2xl border border-[color:var(--saytu-border,#e2e8f0)] bg-[color:var(--saytu-surface,#ffffff)] shadow-sm">
         <div class="flex items-center justify-between border-b border-[color:var(--saytu-border,#e2e8f0)] px-4 py-3">
           <div>
             <h2 class="font-black text-[color:var(--saytu-shell-text,#0f172a)]">Actions sensibles récentes</h2>
@@ -274,6 +329,145 @@ const healthChecks = computed(() => overview.value.health || [])
 const sensitiveActions = computed(() => overview.value.recent_sensitive_actions || [])
 const backupHistory = computed(() => overview.value.backup_history || [])
 const largestTables = computed(() => overview.value.largest_tables || [])
+const healthWarnings = computed(() => healthChecks.value.filter((item) => ['warning', 'danger'].includes(item.state)))
+const failedLogins24h = computed(() => Number(overview.value.stats.echecs_24h || 0))
+const sensitiveActions24h = computed(() => Number(overview.value.stats.actions_sensibles_24h || 0))
+const securityScore = computed(() => {
+  let score = 0
+  score += Math.min(failedLogins24h.value, 10)
+  score += sensitiveActions24h.value > 0 ? Math.min(sensitiveActions24h.value, 8) : 0
+  score += healthWarnings.value.filter((item) => item.state === 'danger').length * 5
+  score += healthWarnings.value.filter((item) => item.state === 'warning').length * 2
+  score += activeTokens.value.length > 10 ? 3 : 0
+  score += backupHistory.value.length ? 0 : 2
+  return score
+})
+const securityLevel = computed(() => {
+  if (securityScore.value >= 10) {
+    return {
+      label: 'Priorité haute',
+      title: 'Surveillance renforcée recommandée',
+      detail: 'Des signaux importants sont présents. Contrôlez les échecs, actions sensibles et alertes système avant de continuer.',
+      badgeClass: 'text-red-700',
+      panelClass: 'border-red-200 bg-red-50 text-red-900',
+    }
+  }
+
+  if (securityScore.value >= 4) {
+    return {
+      label: 'À vérifier',
+      title: 'Quelques points demandent attention',
+      detail: 'La situation semble maîtrisée, mais certains événements ou contrôles méritent une vérification rapide.',
+      badgeClass: 'text-amber-700',
+      panelClass: 'border-amber-200 bg-amber-50 text-amber-900',
+    }
+  }
+
+  return {
+    label: 'Stable',
+    title: 'Aucun risque majeur détecté',
+    detail: 'Les indicateurs visibles sont rassurants. Continuez à surveiller les sessions et à faire des sauvegardes régulières.',
+    badgeClass: 'text-emerald-700',
+    panelClass: 'border-emerald-200 bg-emerald-50 text-emerald-900',
+  }
+})
+const securityFocusMetrics = computed(() => [
+  {
+    label: 'Échecs 24h',
+    value: failedLogins24h.value,
+    hint: failedLogins24h.value ? 'Connexions refusées à contrôler' : 'Aucun échec récent',
+  },
+  {
+    label: 'Alertes santé',
+    value: healthWarnings.value.length,
+    hint: healthWarnings.value.length ? 'Contrôles système à revoir' : 'Santé système OK',
+  },
+  {
+    label: 'Sessions',
+    value: activeTokens.value.length,
+    hint: 'Sessions connectées ou récentes',
+  },
+  {
+    label: 'Sauvegardes',
+    value: backupHistory.value.length,
+    hint: backupHistory.value.length ? 'Historique disponible' : 'Aucun export enregistré',
+  },
+])
+const securityActionItems = computed(() => {
+  const items = []
+
+  if (failedLogins24h.value > 0) {
+    items.push({
+      key: 'failed-logins',
+      title: `${failedLogins24h.value} échec(s) de connexion sur 24h`,
+      detail: failedLogins24h.value >= 5
+        ? 'Volume élevé : vérifiez les emails, IP et comptes concernés.'
+        : 'À regarder si cela concerne un compte sensible.',
+      actionLabel: 'Voir traces',
+      target: 'security-traces',
+      class: failedLogins24h.value >= 5 ? 'border-red-200 bg-red-50' : 'border-amber-200 bg-amber-50',
+      dot: failedLogins24h.value >= 5 ? 'bg-red-500' : 'bg-amber-500',
+    })
+  }
+
+  if (sensitiveActions24h.value > 0) {
+    items.push({
+      key: 'sensitive-actions',
+      title: `${sensitiveActions24h.value} action(s) sensible(s) sur 24h`,
+      detail: 'Contrôlez les suppressions, validations, paiements, stock et changements de droits.',
+      actionLabel: 'Voir actions',
+      target: 'security-sensitive',
+      class: 'border-orange-200 bg-orange-50',
+      dot: 'bg-orange-500',
+    })
+  }
+
+  if (healthWarnings.value.length > 0) {
+    items.push({
+      key: 'health',
+      title: `${healthWarnings.value.length} contrôle(s) système à vérifier`,
+      detail: healthWarnings.value.map((item) => item.label).slice(0, 3).join(', '),
+      actionLabel: 'Voir santé',
+      target: 'security-health',
+      class: healthWarnings.value.some((item) => item.state === 'danger') ? 'border-red-200 bg-red-50' : 'border-amber-200 bg-amber-50',
+      dot: healthWarnings.value.some((item) => item.state === 'danger') ? 'bg-red-500' : 'bg-amber-500',
+    })
+  }
+
+  if (activeTokens.value.length > 1) {
+    items.push({
+      key: 'sessions',
+      title: `${activeTokens.value.length} session(s) actives ou récentes`,
+      detail: 'Déconnectez les sessions inconnues ou inutilisées.',
+      actionLabel: 'Voir sessions',
+      target: 'security-sessions',
+      class: 'border-sky-200 bg-sky-50',
+      dot: 'bg-sky-500',
+    })
+  }
+
+  if (!backupHistory.value.length) {
+    items.push({
+      key: 'backup',
+      title: 'Aucune sauvegarde récente visible',
+      detail: 'Téléchargez une sauvegarde si vous préparez une opération sensible.',
+      actionLabel: 'Sauvegarder',
+      action: 'backup',
+      class: 'border-cyan-200 bg-cyan-50',
+      dot: 'bg-cyan-500',
+    })
+  }
+
+  return items.length ? items.slice(0, 5) : [{
+    key: 'ok',
+    title: 'Aucune action urgente détectée',
+    detail: 'Les indicateurs visibles sont stables. Continuez les contrôles réguliers.',
+    actionLabel: 'Actualiser',
+    action: 'refresh',
+    class: 'border-emerald-200 bg-emerald-50',
+    dot: 'bg-emerald-500',
+  }]
+})
 
 const cards = computed(() => [
   {
@@ -399,6 +593,21 @@ async function revoquerSession(token) {
     await loadOverview()
   } catch (e) {
     toast.error(e.response?.data?.message || 'Déconnexion impossible')
+  }
+}
+
+async function runSecurityAction(item) {
+  if (!item) return
+  if (item.action === 'backup') {
+    await downloadBackup()
+    return
+  }
+  if (item.action === 'refresh') {
+    await loadOverview()
+    return
+  }
+  if (item.target) {
+    document.getElementById(item.target)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 }
 
