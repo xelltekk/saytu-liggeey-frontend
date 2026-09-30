@@ -44,13 +44,27 @@
           </div>
         </div>
 
-        <div class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-6">
+        <div class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-8">
           <input
             v-model="filters.search"
             type="search"
             class="input xl:col-span-2"
             placeholder="Rechercher utilisateur, référence, client, action..."
           />
+
+          <select v-model="filters.module" class="input">
+            <option value="">Tous modules</option>
+            <option v-for="module in availableModules" :key="module" :value="module">
+              {{ module }}
+            </option>
+          </select>
+
+          <select v-model="filters.action" class="input">
+            <option value="">Toutes actions</option>
+            <option v-for="action in availableActions" :key="action" :value="action">
+              {{ action }}
+            </option>
+          </select>
 
           <select v-model="filters.category" class="input">
             <option value="">Toutes catégories</option>
@@ -72,7 +86,13 @@
             <option value="error">Erreurs</option>
           </select>
 
-          <div class="grid grid-cols-2 gap-2">
+          <select v-model="filters.sensitive" class="input">
+            <option value="">Toutes criticités</option>
+            <option value="yes">Actions sensibles</option>
+            <option value="no">Actions normales</option>
+          </select>
+
+          <div class="grid grid-cols-2 gap-2 xl:col-span-2">
             <input v-model="filters.date_from" type="date" class="input" />
             <input v-model="filters.date_to" type="date" class="input" />
           </div>
@@ -106,13 +126,13 @@
           <div class="text-xs font-semibold uppercase text-red-600">Erreurs</div>
           <div class="mt-1 text-2xl font-bold text-red-700">{{ errorCount }}</div>
         </div>
-        <div class="rounded-2xl border border-cyan-200 bg-cyan-50 p-4">
-          <div class="text-xs font-semibold uppercase text-cyan-600">Catégories actives</div>
-          <div class="mt-1 text-2xl font-bold text-cyan-800">{{ availableCategories.length }}</div>
+        <div class="rounded-2xl border border-orange-200 bg-orange-50 p-4">
+          <div class="text-xs font-semibold uppercase text-orange-600">Actions sensibles</div>
+          <div class="mt-1 text-2xl font-bold text-orange-700">{{ sensitiveCount }}</div>
         </div>
       </div>
 
-      <div class="mb-4 grid gap-3 lg:grid-cols-4">
+      <div class="mb-4 grid gap-3 lg:grid-cols-4 xl:grid-cols-5">
         <div v-for="card in managerSummaryCards" :key="card.label" class="rounded-2xl border border-cyan-100 bg-cyan-50/70 p-4">
           <div class="text-xs font-bold uppercase tracking-wide text-cyan-700">{{ card.label }}</div>
           <div class="mt-2 text-xl font-black text-slate-900">{{ card.value }}</div>
@@ -230,7 +250,15 @@
                   <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-bold" :class="categoryClass(item.category)">
                     {{ categoryLabel(item.category) }}
                   </span>
-                  <div class="mt-2 max-w-[170px] truncate font-mono text-[11px] text-gray-400">{{ item.event || '-' }}</div>
+                  <div class="mt-2 flex max-w-[190px] flex-wrap gap-1">
+                    <span class="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">
+                      {{ item.action_family || 'Action métier' }}
+                    </span>
+                    <span v-if="item.sensitive" class="inline-flex rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-bold text-orange-700">
+                      Action sensible
+                    </span>
+                  </div>
+                  <div class="mt-1 max-w-[170px] truncate font-mono text-[11px] text-gray-400">{{ item.event || '-' }}</div>
                 </td>
 
                 <td class="px-4 py-2">
@@ -242,7 +270,7 @@
                 <td class="px-4 py-2">
                   <div class="font-mono text-xs font-semibold text-gray-700">{{ item.subject_label || item.reference || '-' }}</div>
                   <div v-if="item.subject_module || item.subject_type" class="mt-1 text-[11px] text-gray-400">
-                    {{ item.subject_module || subjectTypeLabel(item.subject_type) }}<span v-if="item.subject_id"> #{{ item.subject_id }}</span>
+                    {{ item.audit_module || item.subject_module || subjectTypeLabel(item.subject_type) }}<span v-if="item.subject_id"> #{{ item.subject_id }}</span>
                   </div>
                   <RouterLink
                     v-if="item.subject_route"
@@ -301,6 +329,9 @@
             <div class="inline-flex rounded-full px-2.5 py-1 text-xs font-bold" :class="categoryClass(selectedActivity.category)">
               {{ categoryLabel(selectedActivity.category) }}
             </div>
+            <span v-if="selectedActivity.sensitive" class="ml-2 inline-flex rounded-full bg-orange-100 px-2.5 py-1 text-xs font-bold text-orange-700">
+              Action sensible · {{ selectedActivity.sensitive_reason || 'Contrôle recommandé' }}
+            </span>
             <h3 class="mt-2 text-lg font-bold text-gray-900">Visualisation de l&rsquo;activit&eacute;</h3>
             <p class="mt-1 text-sm text-gray-500">
               {{ formatDateTime(selectedActivity.date) }} &middot; {{ selectedActivity.user_name || 'Syst\u00e8me' }}
@@ -319,12 +350,19 @@
             <div class="rounded-xl bg-gray-50 p-3">
               <div class="text-xs font-semibold uppercase text-gray-400">Objet</div>
               <div class="mt-1 font-mono text-sm font-bold text-gray-900">{{ selectedActivity.subject_label || selectedActivity.reference || '-' }}</div>
-              <div class="mt-1 text-xs text-gray-500">{{ selectedActivity.subject_module || subjectTypeLabel(selectedActivity.subject_type) || '-' }}</div>
+              <div class="mt-1 text-xs text-gray-500">{{ selectedActivity.audit_module || selectedActivity.subject_module || subjectTypeLabel(selectedActivity.subject_type) || '-' }}</div>
             </div>
             <div class="rounded-xl bg-gray-50 p-3">
               <div class="text-xs font-semibold uppercase text-gray-400">Utilisateur</div>
               <div class="mt-1 text-sm font-bold text-gray-900">{{ selectedActivity.user_name || 'Syst\u00e8me' }}</div>
               <div class="mt-1 text-xs text-gray-500">{{ roleLabel(selectedActivity.user_role) }}</div>
+            </div>
+            <div class="rounded-xl bg-gray-50 p-3">
+              <div class="text-xs font-semibold uppercase text-gray-400">Contrôle</div>
+              <div class="mt-1 text-sm font-bold text-gray-900">{{ selectedActivity.action_family || 'Action métier' }}</div>
+              <div class="mt-1 text-xs" :class="selectedActivity.sensitive ? 'text-orange-700' : 'text-gray-500'">
+                {{ selectedActivity.sensitive ? (selectedActivity.sensitive_reason || 'Action sensible') : 'Action normale' }}
+              </div>
             </div>
             <div class="rounded-xl bg-gray-50 p-3">
               <div class="text-xs font-semibold uppercase text-gray-400">Technique</div>
@@ -335,6 +373,30 @@
 
           <div v-if="selectedActivity.error" class="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">
             {{ selectedActivity.error }}
+          </div>
+
+          <div v-if="selectedActivityChanges.length" class="mt-4 overflow-hidden rounded-xl border border-orange-100">
+            <div class="border-b border-orange-100 bg-orange-50 px-3 py-2 text-xs font-bold uppercase tracking-wide text-orange-700">
+              Avant / après
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full min-w-[620px] text-sm">
+                <thead class="bg-white text-xs uppercase text-gray-400">
+                  <tr>
+                    <th class="px-3 py-2 text-left">Champ</th>
+                    <th class="px-3 py-2 text-left">Avant</th>
+                    <th class="px-3 py-2 text-left">Après</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-orange-50">
+                  <tr v-for="change in selectedActivityChanges" :key="`${change.field}-${change.before}-${change.after}`">
+                    <td class="px-3 py-2 font-semibold text-gray-700">{{ change.field }}</td>
+                    <td class="px-3 py-2 text-gray-500">{{ change.before || '—' }}</td>
+                    <td class="px-3 py-2 font-semibold text-gray-900">{{ change.after || '—' }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
 
           <div v-if="selectedActivityDetails.length" class="mt-4 grid grid-cols-1 gap-2 md:grid-cols-2">
@@ -374,12 +436,14 @@ const logFile = ref('')
 const updatedAt = ref(null)
 const apiCategories = ref([])
 const apiUsers = ref([])
+const apiModules = ref([])
+const apiActions = ref([])
 const trashLoading = ref(false)
 const trashItems = ref([])
 const trashTypes = ref([])
 const trashFilters = reactive({ search: '', type: '' })
 const selectedActivity = ref(null)
-const filters = reactive({ search: '', status: '', category: '', user_id: '', date_from: '', date_to: '' })
+const filters = reactive({ search: '', status: '', category: '', module: '', action: '', sensitive: '', user_id: '', date_from: '', date_to: '' })
 const page = ref(1)
 const perPage = 25
 const { sort, toggleSort, sortIcon, sortedRows } = useTableSort('date', 'desc')
@@ -401,11 +465,25 @@ const availableUsers = computed(() => {
   return Array.from(map.values()).sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')))
 })
 
+const availableModules = computed(() => {
+  const values = new Set(apiModules.value)
+  activites.value.forEach((item) => {
+    const module = auditModuleLabel(item)
+    if (module) values.add(module)
+  })
+  return Array.from(values).sort((a, b) => String(a).localeCompare(String(b)))
+})
+
+const availableActions = computed(() => {
+  const values = new Set(apiActions.value)
+  activites.value.forEach(item => item.action_family && values.add(item.action_family))
+  return Array.from(values).sort((a, b) => String(a).localeCompare(String(b)))
+})
 
 const activeModulesCount = computed(() => {
   const modules = new Set()
   filteredActivites.value.forEach((item) => {
-    const label = item.subject_module || subjectTypeLabel(item.subject_type)
+    const label = auditModuleLabel(item)
     if (label) modules.add(label)
   })
   return modules.size
@@ -436,6 +514,10 @@ const filteredActivites = computed(() => {
 
     if (!statusOk) return false
     if (filters.category && item.category !== filters.category) return false
+    if (filters.module && auditModuleLabel(item) !== filters.module) return false
+    if (filters.action && item.action_family !== filters.action) return false
+    if (filters.sensitive === 'yes' && !item.sensitive) return false
+    if (filters.sensitive === 'no' && item.sensitive) return false
     if (filters.user_id && String(item.user_id || '') !== String(filters.user_id)) return false
     if (filters.date_from && dateOnly(item.date) < filters.date_from) return false
     if (filters.date_to && dateOnly(item.date) > filters.date_to) return false
@@ -446,12 +528,15 @@ const filteredActivites = computed(() => {
 })
 
 const selectedActivityDetails = computed(() => selectedActivity.value ? detailsFor(selectedActivity.value) : [])
+const selectedActivityChanges = computed(() => selectedActivity.value?.audit_changes || [])
 
 const successCount = computed(() => filteredActivites.value.filter(item => Number(item.status || 0) < 400).length)
 const errorCount = computed(() => filteredActivites.value.filter(item => Number(item.status || 0) >= 400).length)
+const sensitiveCount = computed(() => filteredActivites.value.filter(item => item.sensitive).length)
 const managerSummaryCards = computed(() => {
   const latest = sortedActivites.value[0]
   const firstCategory = topCategories.value[0]
+  const latestSensitive = filteredActivites.value.find(item => item.sensitive)
 
   return [
     {
@@ -473,6 +558,11 @@ const managerSummaryCards = computed(() => {
       label: 'Contrôle erreurs',
       value: errorCount.value ? `${errorCount.value} erreur(s)` : 'OK',
       detail: errorCount.value ? 'À vérifier dans le filtre Erreurs' : 'Aucune erreur dans le filtre courant',
+    },
+    {
+      label: 'Audit sensible',
+      value: sensitiveCount.value ? `${sensitiveCount.value} action(s)` : 'RAS',
+      detail: latestSensitive ? latestSensitive.sensitive_reason || latestSensitive.title || 'À vérifier' : 'Aucune action sensible dans le filtre courant',
     },
   ]
 })
@@ -510,6 +600,8 @@ async function loadActivites() {
     activites.value = data.data || []
     apiCategories.value = data.categories || []
     apiUsers.value = data.users || []
+    apiModules.value = data.modules || []
+    apiActions.value = data.actions || []
     logFile.value = data.file || ''
     updatedAt.value = new Date()
     page.value = 1
@@ -521,7 +613,7 @@ async function loadActivites() {
 }
 
 function resetFilters() {
-  Object.assign(filters, { search: '', status: '', category: '', user_id: '', date_from: '', date_to: '' })
+  Object.assign(filters, { search: '', status: '', category: '', module: '', action: '', sensitive: '', user_id: '', date_from: '', date_to: '' })
 }
 
 async function loadCorbeille() {
@@ -561,18 +653,21 @@ async function restoreTrashItem(item) {
 }
 
 function exportCsv() {
-  const headers = ['Date', 'Utilisateur', 'Rôle', 'Catégorie', 'Événement', 'Titre', 'Description', 'Référence', 'Objet', 'Module', 'Montant', 'Statut', 'IP']
+  const headers = ['Date', 'Utilisateur', 'Rôle', 'Module', 'Catégorie', 'Famille action', 'Sensible', 'Raison sensible', 'Événement', 'Titre', 'Description', 'Référence', 'Objet', 'Montant', 'Statut', 'IP']
   const rows = filteredActivites.value.map(item => [
     formatDateTime(item.date),
     item.user_name || 'Système',
     roleLabel(item.user_role),
+    auditModuleLabel(item),
     categoryLabel(item.category),
+    item.action_family || '',
+    item.sensitive ? 'Oui' : 'Non',
+    item.sensitive_reason || '',
     item.event || '',
     item.title || item.action || '',
     item.description || '',
     item.reference || '',
     item.subject_label || '',
-    item.subject_module || subjectTypeLabel(item.subject_type),
     item.amount !== null && item.amount !== undefined ? formatAmount(item.amount) : '',
     statusText(item.status),
     item.ip || '',
@@ -607,8 +702,13 @@ function searchableValues(item) {
     item.description,
     item.reference,
     item.subject_label,
+    item.audit_module,
     item.subject_module,
     subjectTypeLabel(item.subject_type),
+    item.action_family,
+    item.sensitive ? 'action sensible' : 'action normale',
+    item.sensitive_reason,
+    JSON.stringify(item.audit_changes || []),
     JSON.stringify(item.details || []),
     item.action,
     item.method,
@@ -617,6 +717,10 @@ function searchableValues(item) {
     item.error,
     JSON.stringify(item.payload || {}),
   ]
+}
+
+function auditModuleLabel(item) {
+  return item?.audit_module || item?.subject_module || subjectTypeLabel(item?.subject_type) || categoryLabel(item?.category)
 }
 
 function detailsFor(item) {
