@@ -33,6 +33,62 @@
     </div>
 
     <template v-else>
+      <section class="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <article v-for="card in summaryCards" :key="card.label" class="rounded-2xl border border-cyan-100 bg-white p-4 shadow-sm">
+          <p class="text-xs font-black uppercase tracking-[0.14em] text-cyan-700">{{ card.label }}</p>
+          <p class="mt-2 text-2xl font-black text-slate-950">{{ card.value }}</p>
+          <p class="mt-1 text-xs font-semibold text-slate-500">{{ card.detail }}</p>
+        </article>
+      </section>
+
+      <section class="grid gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
+        <article class="rounded-2xl border border-cyan-100 bg-white p-4 shadow-sm">
+          <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p class="text-xs font-black uppercase tracking-[0.14em] text-cyan-700">Plan d’action</p>
+              <h2 class="mt-1 text-lg font-black text-slate-950">Priorités de démarrage</h2>
+              <p class="mt-1 text-sm text-slate-500">Traitez d’abord les étapes obligatoires, puis les éléments utiles pour travailler confortablement.</p>
+            </div>
+            <span class="w-fit rounded-full px-3 py-1 text-xs font-black" :class="hasMissingRequired ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'">
+              {{ hasMissingRequired ? 'Obligatoire restant' : 'Obligatoire OK' }}
+            </span>
+          </div>
+
+          <div class="mt-4 space-y-2">
+            <div v-for="step in prioritySteps" :key="`priority-${step.key}`" class="flex flex-col gap-2 rounded-2xl bg-slate-50 p-3 sm:flex-row sm:items-center sm:justify-between">
+              <div class="min-w-0">
+                <p class="truncate font-black text-slate-900">{{ step.title }}</p>
+                <p class="text-xs text-slate-500">{{ step.required ? 'Étape obligatoire' : 'Étape recommandée' }} · {{ statusLabel(step) }}</p>
+              </div>
+              <button type="button" class="btn-secondary px-3 py-2 text-xs" @click="goToStep(step)">
+                {{ step.action_label || 'Ouvrir' }}
+              </button>
+            </div>
+            <div v-if="!prioritySteps.length" class="rounded-2xl bg-emerald-50 p-4 text-sm font-semibold text-emerald-700">
+              Toutes les priorités sont traitées. Vous pouvez terminer le démarrage.
+            </div>
+          </div>
+        </article>
+
+        <article class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <p class="text-xs font-black uppercase tracking-[0.14em] text-slate-500">Conseil</p>
+          <h2 class="mt-1 text-lg font-black text-slate-950">Démarrer sans tout bloquer</h2>
+          <p class="mt-2 text-sm text-slate-500">
+            Les étapes obligatoires sécurisent l’espace. Les autres peuvent être faites progressivement : stock, produits, caisse, équipe et anciennes données.
+          </p>
+          <div class="mt-4 grid grid-cols-2 gap-2 text-sm">
+            <div class="rounded-2xl bg-blue-50 p-3 text-blue-800">
+              <div class="text-xs font-black uppercase">À faire</div>
+              <div class="mt-1 text-xl font-black">{{ todoSteps.length }}</div>
+            </div>
+            <div class="rounded-2xl bg-emerald-50 p-3 text-emerald-800">
+              <div class="text-xs font-black uppercase">Terminées</div>
+              <div class="mt-1 text-xl font-black">{{ doneSteps.length }}</div>
+            </div>
+          </div>
+        </article>
+      </section>
+
       <section
         v-if="onboarding.must_change_password"
         id="mot-de-passe"
@@ -115,8 +171,29 @@
         </form>
       </section>
 
+      <section class="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+        <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <h2 class="text-lg font-black text-slate-950">Étapes de démarrage</h2>
+            <p class="text-sm text-slate-500">Filtrez les étapes pour garder une vue claire.</p>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button
+              v-for="filter in stepFilters"
+              :key="filter.value"
+              type="button"
+              class="rounded-full border px-3 py-1.5 text-xs font-black transition"
+              :class="activeFilter === filter.value ? 'border-cyan-500 bg-cyan-50 text-cyan-700' : 'border-slate-200 bg-white text-slate-600 hover:border-cyan-200 hover:text-cyan-700'"
+              @click="activeFilter = filter.value"
+            >
+              {{ filter.label }}
+            </button>
+          </div>
+        </div>
+      </section>
+
       <section class="grid gap-3 lg:grid-cols-2 xl:grid-cols-3">
-        <article v-for="step in onboarding.steps" :key="step.key" class="onboarding-card rounded-2xl border bg-white p-4 shadow-sm" :class="cardClass(step)">
+        <article v-for="step in displayedSteps" :key="step.key" class="onboarding-card rounded-2xl border bg-white p-4 shadow-sm" :class="cardClass(step)">
           <div class="flex items-start gap-3">
             <span class="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl" :class="iconClass(step)">
               <CheckCircle2 v-if="step.status === 'done'" class="h-5 w-5" />
@@ -147,7 +224,10 @@
           </div>
 
           <div class="mt-4 flex flex-wrap items-center gap-2">
-            <RouterLink v-if="step.route && step.key !== 'password' && step.key !== 'societe'" :to="step.route" class="btn-secondary px-3 py-2 text-xs">
+            <button v-if="step.route && ['password', 'societe'].includes(step.key)" type="button" class="btn-secondary px-3 py-2 text-xs" @click="goToStep(step)">
+              {{ step.action_label || 'Ouvrir' }}
+            </button>
+            <RouterLink v-else-if="step.route" :to="step.route" class="btn-secondary px-3 py-2 text-xs">
               {{ step.action_label || 'Ouvrir' }}
             </RouterLink>
             <button
@@ -176,6 +256,9 @@
             </button>
           </div>
         </article>
+        <div v-if="!displayedSteps.length" class="rounded-2xl border border-dashed border-slate-200 bg-white p-8 text-center text-sm font-semibold text-slate-500 lg:col-span-2 xl:col-span-3">
+          Aucune étape dans ce filtre.
+        </div>
       </section>
 
       <section class="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
@@ -196,7 +279,7 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRouter } from 'vue-router'
 import { CheckCircle2, Circle, CircleDashed } from 'lucide-vue-next'
 import api from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
@@ -204,12 +287,14 @@ import { useToast } from '@/composables/useToast'
 
 const auth = useAuthStore()
 const toast = useToast()
+const router = useRouter()
 
 const loading = ref(false)
 const savingPassword = ref(false)
 const savingCompany = ref(false)
 const completing = ref(false)
 const showPasswordForm = ref(false)
+const activeFilter = ref('all')
 
 const onboarding = reactive({
   enabled: false,
@@ -237,6 +322,51 @@ const companyForm = reactive({
 })
 
 const hasMissingRequired = computed(() => onboarding.steps.some((step) => step.required && step.status !== 'done'))
+const requiredSteps = computed(() => onboarding.steps.filter((step) => step.required))
+const optionalSteps = computed(() => onboarding.steps.filter((step) => !step.required))
+const doneSteps = computed(() => onboarding.steps.filter((step) => step.status === 'done'))
+const todoSteps = computed(() => onboarding.steps.filter((step) => step.status === 'todo'))
+const skippedSteps = computed(() => onboarding.steps.filter((step) => step.status === 'skipped'))
+const prioritySteps = computed(() => [
+  ...requiredSteps.value.filter((step) => step.status !== 'done'),
+  ...optionalSteps.value.filter((step) => step.status === 'todo'),
+].slice(0, 4))
+const stepFilters = computed(() => [
+  { value: 'all', label: `Toutes (${onboarding.steps.length})` },
+  { value: 'todo', label: `À faire (${todoSteps.value.length})` },
+  { value: 'required', label: `Obligatoires (${requiredSteps.value.filter(step => step.status !== 'done').length})` },
+  { value: 'done', label: `Terminées (${doneSteps.value.length})` },
+  { value: 'later', label: `Plus tard (${skippedSteps.value.length})` },
+])
+const displayedSteps = computed(() => {
+  if (activeFilter.value === 'todo') return onboarding.steps.filter((step) => step.status === 'todo')
+  if (activeFilter.value === 'required') return onboarding.steps.filter((step) => step.required && step.status !== 'done')
+  if (activeFilter.value === 'done') return doneSteps.value
+  if (activeFilter.value === 'later') return skippedSteps.value
+  return onboarding.steps
+})
+const summaryCards = computed(() => [
+  {
+    label: 'Progression',
+    value: `${onboarding.progress || 0}%`,
+    detail: `${doneSteps.value.length + skippedSteps.value.length}/${onboarding.steps.length || 0} étape(s) traitée(s)`,
+  },
+  {
+    label: 'Obligatoires',
+    value: hasMissingRequired.value ? `${requiredSteps.value.filter(step => step.status !== 'done').length} restante(s)` : 'OK',
+    detail: `${requiredSteps.value.length} étape(s) de sécurité`,
+  },
+  {
+    label: 'Configuration',
+    value: `${onboarding.counts?.produits || 0} produit(s)`,
+    detail: `${onboarding.counts?.entrepots || 0} entrepôt(s), ${onboarding.counts?.categories || 0} catégorie(s)`,
+  },
+  {
+    label: 'Équipe',
+    value: `${onboarding.counts?.users || 0} actif(s)`,
+    detail: `${onboarding.counts?.comptes_tresorerie || 0} compte(s) de trésorerie`,
+  },
+])
 
 async function loadOnboarding() {
   loading.value = true
@@ -347,6 +477,18 @@ async function completeOnboarding() {
   } finally {
     completing.value = false
   }
+}
+
+function goToStep(step) {
+  if (!step?.route) return
+
+  if (step.route.startsWith('/demarrage#')) {
+    const target = step.route.split('#')[1]
+    document.getElementById(target)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    return
+  }
+
+  router.push(step.route)
 }
 
 function statusLabel(step) {
