@@ -140,7 +140,58 @@
         </div>
       </div>
 
-      <div class="mb-4 overflow-hidden rounded-2xl border border-red-100 bg-white shadow-sm">
+      <section class="mb-4 grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
+        <article class="rounded-2xl border p-4 shadow-sm" :class="auditHealth.panelClass">
+          <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p class="text-xs font-black uppercase tracking-[0.16em] opacity-75">Centre d’attention audit</p>
+              <h3 class="mt-1 text-lg font-black">{{ auditHealth.title }}</h3>
+              <p class="mt-1 text-sm font-semibold opacity-85">{{ auditHealth.detail }}</p>
+            </div>
+            <span class="w-fit rounded-full bg-white/80 px-3 py-1 text-xs font-black" :class="auditHealth.badgeClass">
+              {{ auditHealth.label }}
+            </span>
+          </div>
+
+          <div class="mt-4 grid gap-2 sm:grid-cols-3">
+            <div v-for="metric in auditFocusCards" :key="metric.label" class="rounded-2xl bg-white/80 p-3">
+              <p class="text-xs font-black uppercase tracking-[0.14em] text-slate-500">{{ metric.label }}</p>
+              <p class="mt-2 text-xl font-black text-slate-950">{{ metric.value }}</p>
+              <p class="mt-1 text-xs font-semibold text-slate-500">{{ metric.hint }}</p>
+            </div>
+          </div>
+        </article>
+
+        <article class="rounded-2xl border border-cyan-200 bg-cyan-50/70 p-4 shadow-sm">
+          <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h3 class="font-black text-slate-950">Actions rapides audit</h3>
+              <p class="mt-1 text-sm font-semibold text-slate-500">Filtrez directement les points qui méritent une vérification.</p>
+            </div>
+            <span class="rounded-full bg-white px-3 py-1 text-xs font-black text-cyan-700">{{ auditActionItems.length }} point(s)</span>
+          </div>
+
+          <div class="mt-4 space-y-2">
+            <article
+              v-for="item in auditActionItems"
+              :key="item.key"
+              class="flex items-start gap-3 rounded-2xl border p-3"
+              :class="item.class"
+            >
+              <span class="mt-1 h-2.5 w-2.5 shrink-0 rounded-full" :class="item.dot"></span>
+              <div class="min-w-0 flex-1">
+                <p class="text-sm font-black text-slate-950">{{ item.title }}</p>
+                <p class="mt-1 text-xs font-semibold text-slate-600">{{ item.detail }}</p>
+              </div>
+              <button type="button" class="shrink-0 rounded-full border bg-white px-3 py-1 text-xs font-black text-cyan-700 hover:bg-cyan-50" @click="runAuditAction(item)">
+                {{ item.actionLabel }}
+              </button>
+            </article>
+          </div>
+        </article>
+      </section>
+
+      <div id="audit-trash" class="mb-4 overflow-hidden rounded-2xl border border-red-100 bg-white shadow-sm scroll-mt-6">
         <div class="flex flex-col gap-3 border-b border-red-100 bg-red-50/60 p-4 lg:flex-row lg:items-end">
           <div class="flex-1">
             <div class="text-xs font-semibold uppercase tracking-wide text-red-600">Corbeille des suppressions</div>
@@ -218,7 +269,7 @@
         Chargement du journal...
       </div>
 
-      <div v-else class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+      <div v-else id="audit-table" class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm scroll-mt-6">
         <div class="overflow-x-auto">
           <table class="w-full min-w-[1180px]">
             <thead class="border-b border-gray-200 bg-gray-50">
@@ -533,6 +584,115 @@ const selectedActivityChanges = computed(() => selectedActivity.value?.audit_cha
 const successCount = computed(() => filteredActivites.value.filter(item => Number(item.status || 0) < 400).length)
 const errorCount = computed(() => filteredActivites.value.filter(item => Number(item.status || 0) >= 400).length)
 const sensitiveCount = computed(() => filteredActivites.value.filter(item => item.sensitive).length)
+const auditHealth = computed(() => {
+  if (errorCount.value > 0) {
+    return {
+      label: 'Erreur',
+      title: 'Des actions en erreur sont visibles',
+      detail: `${errorCount.value} erreur(s) dans le filtre courant. Vérifiez d’abord les dernières erreurs avant d’exporter ou clôturer l’audit.`,
+      badgeClass: 'text-red-700',
+      panelClass: 'border-red-200 bg-red-50 text-red-900',
+    }
+  }
+
+  if (sensitiveCount.value > 0 || trashItems.value.length > 0) {
+    return {
+      label: 'À vérifier',
+      title: 'Actions sensibles ou suppressions détectées',
+      detail: 'Le journal contient des actions sensibles ou des éléments restaurables. Contrôlez-les avant nettoyage.',
+      badgeClass: 'text-amber-700',
+      panelClass: 'border-amber-200 bg-amber-50 text-amber-900',
+    }
+  }
+
+  return {
+    label: 'Stable',
+    title: 'Aucun point critique dans le filtre courant',
+    detail: 'Les actions affichées sont majoritairement normales. Conservez les filtres pour vos contrôles périodiques.',
+    badgeClass: 'text-emerald-700',
+    panelClass: 'border-emerald-200 bg-emerald-50 text-emerald-900',
+  }
+})
+const auditFocusCards = computed(() => [
+  {
+    label: 'Erreurs',
+    value: errorCount.value,
+    hint: errorCount.value ? 'À corriger ou documenter' : 'Aucune erreur visible',
+  },
+  {
+    label: 'Sensibles',
+    value: sensitiveCount.value,
+    hint: 'Suppressions, droits, paiements, validations…',
+  },
+  {
+    label: 'Corbeille',
+    value: trashItems.value.length,
+    hint: trashItems.value.length ? 'Éléments restaurables' : 'Aucun élément restaurable',
+  },
+])
+const auditActionItems = computed(() => {
+  const items = []
+
+  if (errorCount.value > 0) {
+    items.push({
+      key: 'errors',
+      title: `${errorCount.value} erreur(s) à contrôler`,
+      detail: 'Filtrer les actions en erreur pour identifier les utilisateurs, modules et objets concernés.',
+      actionLabel: 'Filtrer',
+      action: 'errors',
+      class: 'border-red-200 bg-red-50',
+      dot: 'bg-red-500',
+    })
+  }
+
+  if (sensitiveCount.value > 0) {
+    items.push({
+      key: 'sensitive',
+      title: `${sensitiveCount.value} action(s) sensible(s)`,
+      detail: 'Contrôlez les opérations qui changent fortement les données ou les accès.',
+      actionLabel: 'Filtrer',
+      action: 'sensitive',
+      class: 'border-orange-200 bg-orange-50',
+      dot: 'bg-orange-500',
+    })
+  }
+
+  if (trashItems.value.length > 0) {
+    items.push({
+      key: 'trash',
+      title: `${trashItems.value.length} élément(s) restaurable(s)`,
+      detail: 'Vérifiez la corbeille avant restauration ou archivage du contrôle.',
+      actionLabel: 'Corbeille',
+      target: 'audit-trash',
+      class: 'border-amber-200 bg-amber-50',
+      dot: 'bg-amber-500',
+    })
+  }
+
+  const top = topCategories.value[0]
+  if (top) {
+    items.push({
+      key: 'top-category',
+      title: `Catégorie dominante : ${categoryLabel(top.category)}`,
+      detail: `${top.count} action(s) dans cette catégorie.`,
+      actionLabel: 'Ouvrir',
+      action: 'category',
+      category: top.category,
+      class: 'border-cyan-200 bg-cyan-50',
+      dot: 'bg-cyan-500',
+    })
+  }
+
+  return items.length ? items.slice(0, 4) : [{
+    key: 'ok',
+    title: 'Aucun contrôle prioritaire',
+    detail: 'Le journal courant ne montre pas d’anomalie évidente.',
+    actionLabel: 'Actualiser',
+    action: 'refresh',
+    class: 'border-emerald-200 bg-emerald-50',
+    dot: 'bg-emerald-500',
+  }]
+})
 const managerSummaryCards = computed(() => {
   const latest = sortedActivites.value[0]
   const firstCategory = topCategories.value[0]
@@ -614,6 +774,33 @@ async function loadActivites() {
 
 function resetFilters() {
   Object.assign(filters, { search: '', status: '', category: '', module: '', action: '', sensitive: '', user_id: '', date_from: '', date_to: '' })
+}
+
+function runAuditAction(item) {
+  if (!item) return
+  if (item.action === 'errors') {
+    filters.status = 'error'
+    document.getElementById('audit-table')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    return
+  }
+  if (item.action === 'sensitive') {
+    filters.sensitive = 'yes'
+    document.getElementById('audit-table')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    return
+  }
+  if (item.action === 'category') {
+    filters.category = item.category || ''
+    document.getElementById('audit-table')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    return
+  }
+  if (item.action === 'refresh') {
+    loadActivites()
+    loadCorbeille()
+    return
+  }
+  if (item.target) {
+    document.getElementById(item.target)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
 }
 
 async function loadCorbeille() {

@@ -41,6 +41,35 @@
         </article>
       </section>
 
+      <section class="rounded-2xl border border-cyan-100 bg-white p-4 shadow-sm">
+        <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p class="text-xs font-black uppercase tracking-[0.14em] text-cyan-700">Feuille de route</p>
+            <h2 class="mt-1 text-lg font-black text-slate-950">Les 3 phases du démarrage</h2>
+            <p class="mt-1 text-sm text-slate-500">Une lecture simple pour savoir quoi faire maintenant, après, puis plus tard.</p>
+          </div>
+          <span class="w-fit rounded-full px-3 py-1 text-xs font-black" :class="onboarding.completed ? 'bg-emerald-100 text-emerald-700' : 'bg-cyan-50 text-cyan-700'">
+            {{ onboarding.completed ? 'Terminé' : `${todoSteps.length} à faire` }}
+          </span>
+        </div>
+
+        <div class="mt-4 grid gap-3 lg:grid-cols-3">
+          <article v-for="phase in roadmapPhases" :key="phase.key" class="rounded-2xl border p-4" :class="phase.class">
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <p class="text-xs font-black uppercase tracking-[0.14em] opacity-70">{{ phase.step }}</p>
+                <h3 class="mt-1 font-black text-slate-950">{{ phase.title }}</h3>
+                <p class="mt-1 text-sm font-semibold text-slate-600">{{ phase.detail }}</p>
+              </div>
+              <span class="rounded-full bg-white/80 px-2 py-1 text-xs font-black">{{ phase.done }}/{{ phase.total }}</span>
+            </div>
+            <button type="button" class="mt-4 rounded-full border bg-white px-3 py-2 text-xs font-black text-cyan-700 hover:bg-cyan-50" @click="openRoadmapPhase(phase)">
+              {{ phase.actionLabel }}
+            </button>
+          </article>
+        </div>
+      </section>
+
       <section class="grid gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
         <article class="rounded-2xl border border-cyan-100 bg-white p-4 shadow-sm">
           <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -171,7 +200,7 @@
         </form>
       </section>
 
-      <section class="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+      <section id="onboarding-steps-filter" class="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm scroll-mt-6">
         <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h2 class="text-lg font-black text-slate-950">Étapes de démarrage</h2>
@@ -367,6 +396,47 @@ const summaryCards = computed(() => [
     detail: `${onboarding.counts?.comptes_tresorerie || 0} compte(s) de trésorerie`,
   },
 ])
+const roadmapPhases = computed(() => {
+  const required = requiredSteps.value
+  const setup = onboarding.steps.filter((step) => ['societe', 'stock', 'catalogue', 'caisse', 'users'].includes(step.key))
+  const exploitation = onboarding.steps.filter((step) => !step.required && !setup.some((setupStep) => setupStep.key === step.key))
+
+  return [
+    {
+      key: 'required',
+      step: 'Phase 1',
+      title: 'Sécuriser',
+      detail: 'Mot de passe, identité minimale et points obligatoires.',
+      total: required.length,
+      done: required.filter((step) => step.status === 'done').length,
+      filter: 'required',
+      actionLabel: hasMissingRequired.value ? 'Voir obligatoires' : 'Contrôler',
+      class: hasMissingRequired.value ? 'border-amber-200 bg-amber-50' : 'border-emerald-200 bg-emerald-50',
+    },
+    {
+      key: 'setup',
+      step: 'Phase 2',
+      title: 'Configurer',
+      detail: 'Société, stock, produits, caisse et équipe.',
+      total: setup.length,
+      done: setup.filter((step) => step.status === 'done').length,
+      filter: 'todo',
+      actionLabel: 'Voir à faire',
+      class: 'border-cyan-200 bg-cyan-50',
+    },
+    {
+      key: 'exploitation',
+      step: 'Phase 3',
+      title: 'Exploiter',
+      detail: 'Import, confort de travail et éléments non bloquants.',
+      total: exploitation.length,
+      done: exploitation.filter((step) => ['done', 'skipped'].includes(step.status)).length,
+      filter: 'later',
+      actionLabel: 'Voir plus tard',
+      class: 'border-slate-200 bg-slate-50',
+    },
+  ]
+})
 
 async function loadOnboarding() {
   loading.value = true
@@ -489,6 +559,11 @@ function goToStep(step) {
   }
 
   router.push(step.route)
+}
+
+function openRoadmapPhase(phase) {
+  activeFilter.value = phase.filter || 'all'
+  document.getElementById('onboarding-steps-filter')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
 function statusLabel(step) {

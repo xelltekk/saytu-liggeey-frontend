@@ -39,6 +39,36 @@
         </p>
       </div>
 
+      <section class="rounded-2xl border border-cyan-100 bg-white p-4 shadow-sm">
+        <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p class="text-xs font-black uppercase tracking-[0.14em] text-cyan-700">Documents commerciaux</p>
+            <h3 class="mt-1 text-lg font-black text-slate-950">Checklist devis, factures et reçus</h3>
+            <p class="mt-1 text-sm font-semibold text-slate-500">
+              Vérifiez en un coup d’œil si les informations affichées sur les PDF sont propres.
+            </p>
+          </div>
+          <span class="w-fit rounded-full px-3 py-1 text-xs font-black" :class="documentsReady ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'">
+            {{ documentsReady ? 'PDF prêts' : 'À compléter' }}
+          </span>
+        </div>
+
+        <div class="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+          <article v-for="item in documentChecklist" :key="item.key" class="rounded-2xl border p-3" :class="item.class">
+            <div class="flex items-start justify-between gap-2">
+              <div>
+                <p class="text-sm font-black text-slate-950">{{ item.label }}</p>
+                <p class="mt-1 text-xs font-semibold text-slate-500">{{ item.detail }}</p>
+              </div>
+              <span class="rounded-full bg-white/80 px-2 py-0.5 text-[11px] font-black">{{ item.status }}</span>
+            </div>
+            <button type="button" class="mt-3 text-xs font-black text-cyan-700 hover:underline" @click="scrollToSection(item.target)">
+              {{ item.actionLabel }}
+            </button>
+          </article>
+        </div>
+      </section>
+
       <div class="grid gap-5 lg:grid-cols-[260px_minmax(0,1fr)]">
         <aside class="lg:sticky lg:top-4 lg:self-start">
           <div class="rounded-2xl border border-cyan-100 bg-white p-4 shadow-sm">
@@ -404,6 +434,53 @@ const summaryCards = computed(() => [
     detail: filledField('banque') ? `Banque : ${societe.banque}` : 'Banque non renseignée',
   },
 ])
+const documentChecklist = computed(() => [
+  {
+    key: 'identity',
+    label: 'Identité société',
+    detail: filledField('nom') ? societe.nom : 'Raison sociale manquante',
+    ok: filledField('nom') && filledField('devise_defaut'),
+    target: 'param-legales',
+    actionLabel: 'Compléter légal',
+  },
+  {
+    key: 'contact',
+    label: 'Contact client',
+    detail: filledField('email') && (filledField('telephone') || filledField('mobile')) ? 'Email et téléphone OK' : 'Email ou téléphone à compléter',
+    ok: filledField('email') && (filledField('telephone') || filledField('mobile')),
+    target: 'param-contact',
+    actionLabel: 'Compléter contact',
+  },
+  {
+    key: 'payments',
+    label: 'Paiements',
+    detail: paymentMethodsCount.value ? `${paymentMethodsCount.value} moyen(s) renseigné(s)` : 'Aucun moyen de paiement',
+    ok: paymentMethodsCount.value > 0,
+    target: 'param-paiements',
+    actionLabel: 'Compléter paiements',
+  },
+  {
+    key: 'brand',
+    label: 'Logo & identité',
+    detail: societe.logo ? 'Logo disponible pour les documents' : 'Logo absent sur les PDF',
+    ok: Boolean(societe.logo),
+    target: 'param-identite',
+    actionLabel: 'Compléter identité',
+  },
+  {
+    key: 'footer',
+    label: 'Mentions PDF',
+    detail: filledField('pied_de_facture') ? 'Pied de facture renseigné' : 'Conditions ou mentions absentes',
+    ok: filledField('pied_de_facture'),
+    target: 'param-mentions',
+    actionLabel: 'Compléter mentions',
+  },
+].map((item) => ({
+  ...item,
+  status: item.ok ? 'OK' : 'À faire',
+  class: item.ok ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50',
+})))
+const documentsReady = computed(() => documentChecklist.value.every((item) => item.ok))
 
 function notifierIdentiteSociete() {
   window.dispatchEvent(new CustomEvent('societe:updated', {

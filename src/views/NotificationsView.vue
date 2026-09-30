@@ -42,6 +42,74 @@
       </button>
     </div>
 
+    <section class="grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
+      <article class="rounded-2xl border p-4 shadow-sm" :class="notificationHealth.panelClass">
+        <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p class="text-xs font-black uppercase tracking-[0.16em] opacity-75">Priorités</p>
+            <h2 class="mt-1 text-lg font-black">{{ notificationHealth.title }}</h2>
+            <p class="mt-1 text-sm font-semibold opacity-85">{{ notificationHealth.detail }}</p>
+          </div>
+          <span class="w-fit rounded-full bg-white/80 px-3 py-1 text-xs font-black" :class="notificationHealth.badgeClass">
+            {{ notificationHealth.label }}
+          </span>
+        </div>
+
+        <div class="mt-4 space-y-2">
+          <article
+            v-for="item in notificationActionItems"
+            :key="item.key"
+            class="flex items-start gap-3 rounded-2xl border p-3"
+            :class="item.class"
+          >
+            <span class="mt-1 h-2.5 w-2.5 shrink-0 rounded-full" :class="item.dot"></span>
+            <div class="min-w-0 flex-1">
+              <p class="text-sm font-black text-slate-950">{{ item.title }}</p>
+              <p class="mt-1 text-xs font-semibold text-slate-600">{{ item.detail }}</p>
+            </div>
+            <button type="button" class="shrink-0 rounded-full border bg-white px-3 py-1 text-xs font-black text-cyan-700 hover:bg-cyan-50" @click="runNotificationAction(item)">
+              {{ item.actionLabel }}
+            </button>
+          </article>
+        </div>
+      </article>
+
+      <article class="rounded-2xl border border-cyan-200 bg-cyan-50/70 p-4 shadow-sm">
+        <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h2 class="font-black text-slate-950">Répartition par module</h2>
+            <p class="mt-1 text-sm font-semibold text-slate-500">Ouvrez rapidement le module qui concentre le plus d’alertes.</p>
+          </div>
+          <span class="rounded-full bg-white px-3 py-1 text-xs font-black text-cyan-700">
+            {{ moduleBreakdown.length }} module(s)
+          </span>
+        </div>
+
+        <div v-if="moduleBreakdown.length" class="mt-4 grid gap-2 sm:grid-cols-2">
+          <button
+            v-for="module in moduleBreakdown"
+            :key="module.id"
+            type="button"
+            class="rounded-2xl border border-cyan-100 bg-white p-3 text-left transition hover:-translate-y-0.5 hover:shadow-sm"
+            @click="setModule(module.id)"
+          >
+            <div class="flex items-start justify-between gap-2">
+              <div>
+                <p class="font-black text-slate-950">{{ module.label }}</p>
+                <p class="mt-1 text-xs font-semibold text-slate-500">
+                  {{ module.unread }} non lue(s) · {{ module.danger }} urgente(s)
+                </p>
+              </div>
+              <span class="rounded-full bg-cyan-50 px-2 py-1 text-xs font-black text-cyan-700">{{ module.total }}</span>
+            </div>
+          </button>
+        </div>
+        <div v-else class="mt-4 rounded-2xl border border-dashed border-cyan-200 bg-white/70 p-5 text-center text-sm font-semibold text-slate-400">
+          Aucune répartition disponible.
+        </div>
+      </article>
+    </section>
+
     <section class="overflow-hidden rounded-lg border border-slate-200 bg-white">
       <div v-if="loading" class="p-12 text-center text-sm text-slate-500">Chargement...</div>
       <div v-else-if="items.length === 0" class="p-12 text-center text-sm text-slate-400">Aucune notification.</div>
@@ -78,7 +146,7 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '@/services/api'
 import { useToast } from '@/composables/useToast'
@@ -96,6 +164,105 @@ const modules = ref([])
 const stats = reactive({ total: 0, non_lues: 0, lues: 0 })
 const filters = reactive({ module: '', statut: 'non_lues' })
 const allowedStatuses = ['non_lues', 'lues', 'toutes']
+const unreadItems = computed(() => items.value.filter((item) => !item.read))
+const dangerUnreadItems = computed(() => unreadItems.value.filter((item) => item.level === 'danger'))
+const warningUnreadItems = computed(() => unreadItems.value.filter((item) => item.level === 'warning'))
+const moduleBreakdown = computed(() => {
+  const map = new Map()
+
+  items.value.forEach((item) => {
+    const id = item.module || 'general'
+    if (!map.has(id)) {
+      map.set(id, { id, label: moduleLabel(id), total: 0, unread: 0, danger: 0 })
+    }
+    const row = map.get(id)
+    row.total += 1
+    if (!item.read) row.unread += 1
+    if (item.level === 'danger') row.danger += 1
+  })
+
+  return Array.from(map.values()).sort((a, b) => b.unread - a.unread || b.danger - a.danger || b.total - a.total)
+})
+const notificationHealth = computed(() => {
+  if (dangerUnreadItems.value.length) {
+    return {
+      label: 'Urgent',
+      title: 'Notifications critiques à traiter',
+      detail: `${dangerUnreadItems.value.length} alerte(s) danger non lue(s). Ouvrez-les avant de tout marquer comme lu.`,
+      badgeClass: 'text-red-700',
+      panelClass: 'border-red-200 bg-red-50 text-red-900',
+    }
+  }
+
+  if (unreadItems.value.length) {
+    return {
+      label: 'À lire',
+      title: 'Notifications en attente',
+      detail: `${unreadItems.value.length} notification(s) non lue(s), dont ${warningUnreadItems.value.length} avertissement(s).`,
+      badgeClass: 'text-amber-700',
+      panelClass: 'border-amber-200 bg-amber-50 text-amber-900',
+    }
+  }
+
+  return {
+    label: 'À jour',
+    title: 'Aucune notification urgente',
+    detail: 'Le centre est propre pour le filtre actuel. Continuez à surveiller la cloche.',
+    badgeClass: 'text-emerald-700',
+    panelClass: 'border-emerald-200 bg-emerald-50 text-emerald-900',
+  }
+})
+const notificationActionItems = computed(() => {
+  const itemsList = []
+
+  if (dangerUnreadItems.value.length) {
+    itemsList.push({
+      key: 'danger',
+      title: `${dangerUnreadItems.value.length} notification(s) danger`,
+      detail: dangerUnreadItems.value[0]?.title || 'À ouvrir en priorité.',
+      actionLabel: 'Voir',
+      status: 'non_lues',
+      class: 'border-red-200 bg-red-50',
+      dot: 'bg-red-500',
+    })
+  }
+
+  if (warningUnreadItems.value.length) {
+    itemsList.push({
+      key: 'warning',
+      title: `${warningUnreadItems.value.length} avertissement(s)`,
+      detail: warningUnreadItems.value[0]?.title || 'À traiter après les urgences.',
+      actionLabel: 'Voir',
+      status: 'non_lues',
+      class: 'border-amber-200 bg-amber-50',
+      dot: 'bg-amber-500',
+    })
+  }
+
+  const topModule = moduleBreakdown.value.find((module) => module.unread > 0)
+  if (topModule) {
+    itemsList.push({
+      key: 'module',
+      title: `Module le plus actif : ${topModule.label}`,
+      detail: `${topModule.unread} notification(s) non lue(s) sur ce module.`,
+      actionLabel: 'Filtrer',
+      module: topModule.id,
+      status: 'non_lues',
+      class: 'border-cyan-200 bg-cyan-50',
+      dot: 'bg-cyan-500',
+    })
+  }
+
+  return itemsList.length ? itemsList.slice(0, 3) : [{
+    key: 'ok',
+    title: 'Aucun point prioritaire',
+    detail: 'Les notifications affichées ne demandent pas d’action urgente.',
+    actionLabel: 'Actualiser',
+    action: 'refresh',
+    class: 'border-emerald-200 bg-emerald-50',
+    dot: 'bg-emerald-500',
+  }]
+})
 
 async function load() {
   if (loading.value) return
@@ -133,6 +300,21 @@ async function markAllRead() {
 
 function setStatus(statut) {
   filters.statut = statut
+  applyFilters()
+}
+
+function setModule(module) {
+  filters.module = module === 'general' ? '' : module
+  applyFilters()
+}
+
+function runNotificationAction(item) {
+  if (item.action === 'refresh') {
+    refreshCenter()
+    return
+  }
+  if (item.status) filters.statut = item.status
+  if (item.module) filters.module = item.module === 'general' ? '' : item.module
   applyFilters()
 }
 
