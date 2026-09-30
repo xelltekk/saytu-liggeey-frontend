@@ -30,7 +30,7 @@
             <CalendarCheck class="h-5 w-5" />
             Réserver une démo
           </a>
-          <a href="#essai" class="landing-ghost">Essai gratuit par email</a>
+          <a href="#essai" class="landing-ghost">5 jours gratuits par email</a>
           <RouterLink to="/offres" class="landing-ghost">Voir les offres</RouterLink>
         </div>
 
@@ -164,9 +164,9 @@
       <div class="landing-trial-card">
         <div>
           <p class="landing-kicker text-sky-700">Essai gratuit sécurisé</p>
-          <h2 class="mt-2 text-3xl font-black text-slate-950">Recevoir un espace d’essai par email.</h2>
+          <h2 class="mt-2 text-3xl font-black text-slate-950">Recevoir 5 jours gratuits par email.</h2>
           <p class="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-            Remplissez ce formulaire. Les accès ne sont jamais affichés sur la page : ils sont envoyés uniquement à l’email indiqué.
+            Remplissez ce formulaire. L’essai est activé automatiquement pendant 5 jours et les accès sont envoyés uniquement à l’email indiqué.
           </p>
         </div>
 
@@ -236,7 +236,7 @@
 
           <button type="submit" class="landing-submit md:col-span-2" :disabled="trialSubmitting">
             <Send class="h-5 w-5" />
-            {{ trialSubmitting ? 'Préparation...' : 'Recevoir mes accès d’essai par email' }}
+            {{ trialSubmitting ? 'Préparation...' : 'Recevoir mes 5 jours gratuits' }}
           </button>
 
           <div v-if="trialResult" class="landing-success md:col-span-2">
