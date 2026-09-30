@@ -16,6 +16,72 @@
       </div>
     </section>
 
+    <section class="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
+      <article class="rounded-3xl border border-cyan-200 bg-cyan-50/70 p-4 shadow-sm">
+        <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h2 class="font-black text-slate-950">Profils rapides conseillés</h2>
+            <p class="mt-1 text-sm text-slate-600">
+              Repères simples pour choisir le bon niveau d’accès avant de créer ou dupliquer un rôle.
+            </p>
+          </div>
+          <span class="rounded-full bg-white px-3 py-1 text-xs font-black text-cyan-700">
+            Lecture seule
+          </span>
+        </div>
+
+        <div class="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <article v-for="profile in quickProfiles" :key="profile.code" class="quick-profile-card">
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <p class="text-sm font-black text-slate-950">{{ profile.label }}</p>
+                <p class="mt-1 text-xs font-semibold text-slate-500">{{ profile.description }}</p>
+              </div>
+              <span class="text-xl">{{ profile.icon }}</span>
+            </div>
+            <div class="mt-3 flex flex-wrap gap-1">
+              <span v-for="tag in profile.tags" :key="tag" class="rounded-full bg-white px-2 py-0.5 text-[11px] font-bold text-slate-600">
+                {{ tag }}
+              </span>
+            </div>
+            <button type="button" class="mt-3 text-xs font-black text-cyan-700 hover:underline" @click="openQuickProfile(profile)">
+              {{ quickProfileRole(profile.code) ? 'Ouvrir le rôle modèle' : 'Créer avec cette base' }}
+            </button>
+          </article>
+        </div>
+      </article>
+
+      <article class="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <h2 class="font-black text-slate-950">Lecture du rôle sélectionné</h2>
+            <p class="mt-1 text-sm text-slate-600">
+              Résumé immédiat pour éviter d’accorder trop de droits sans s’en rendre compte.
+            </p>
+          </div>
+          <span class="rounded-full px-3 py-1 text-xs font-black" :class="selectedRoleRisk.badgeClass">
+            {{ selectedRoleRisk.label }}
+          </span>
+        </div>
+
+        <div v-if="form" class="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div v-for="card in selectedRoleCards" :key="card.label" class="rounded-2xl border border-slate-100 bg-slate-50 p-3">
+            <p class="text-xs font-black uppercase tracking-[0.16em] text-slate-500">{{ card.label }}</p>
+            <p class="mt-2 text-2xl font-black text-slate-950">{{ card.value }}</p>
+            <p class="mt-1 text-xs font-semibold text-slate-500">{{ card.hint }}</p>
+          </div>
+        </div>
+
+        <div v-if="form" class="mt-4 rounded-2xl border p-3 text-sm" :class="selectedRoleRisk.panelClass">
+          <p class="font-black">{{ selectedRoleRisk.title }}</p>
+          <p class="mt-1 font-semibold">{{ selectedRoleRisk.detail }}</p>
+        </div>
+        <div v-else class="mt-4 rounded-2xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-400">
+          Sélectionnez un rôle pour afficher son résumé.
+        </div>
+      </article>
+    </section>
+
     <section class="rounded-3xl border border-sky-200 bg-sky-50/70 p-4 shadow-sm">
       <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
@@ -43,7 +109,23 @@
         {{ accessAudit.unknown_role_users.map((user) => `${user.name} (${user.role})`).join(', ') }}
       </div>
 
-      <div v-if="accessAudit" class="mt-4 overflow-x-auto rounded-2xl border border-sky-100 bg-white">
+      <div v-if="accessAudit" class="mt-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+        <div class="flex flex-wrap gap-2">
+          <button
+            v-for="filter in auditFilters"
+            :key="filter.value"
+            type="button"
+            class="access-filter-pill"
+            :class="auditFilter === filter.value ? 'access-filter-pill-active' : ''"
+            @click="auditFilter = filter.value"
+          >
+            {{ filter.label }}
+          </button>
+        </div>
+        <input v-model.trim="auditSearch" class="input md:w-72" placeholder="Rechercher un rôle..." />
+      </div>
+
+      <div v-if="accessAudit" class="access-table-shell mt-4 rounded-2xl border border-sky-100 bg-white">
         <table class="min-w-full text-sm">
           <thead class="bg-sky-100/70 text-left text-xs uppercase tracking-wide text-slate-600">
             <tr>
@@ -56,7 +138,7 @@
             </tr>
           </thead>
           <tbody class="divide-y divide-sky-100">
-            <tr v-for="role in accessAudit.roles" :key="role.id">
+            <tr v-for="role in displayedAuditRoles" :key="role.id">
               <td class="px-3 py-3">
                 <div class="font-black text-slate-900">{{ role.label }}</div>
                 <div class="text-xs font-mono text-slate-500">{{ role.code }}</div>
@@ -83,6 +165,11 @@
                   <li v-for="warning in role.warnings" :key="warning">⚠ {{ warning }}</li>
                 </ul>
                 <span v-else class="text-xs text-emerald-600">RAS</span>
+              </td>
+            </tr>
+            <tr v-if="!displayedAuditRoles.length">
+              <td colspan="6" class="px-3 py-8 text-center text-sm font-semibold text-slate-400">
+                Aucun rôle ne correspond au filtre.
               </td>
             </tr>
           </tbody>
@@ -113,7 +200,23 @@
         </div>
       </div>
 
-      <div v-if="recommendedMatrix" class="mt-4 overflow-x-auto rounded-2xl border border-cyan-100 bg-white">
+      <div v-if="recommendedMatrix" class="mt-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+        <div class="flex flex-wrap gap-2">
+          <button
+            v-for="filter in matrixFilters"
+            :key="filter.value"
+            type="button"
+            class="access-filter-pill"
+            :class="matrixFilter === filter.value ? 'access-filter-pill-active' : ''"
+            @click="matrixFilter = filter.value"
+          >
+            {{ filter.label }}
+          </button>
+        </div>
+        <input v-model.trim="matrixSearch" class="input md:w-72" placeholder="Rechercher dans la matrice..." />
+      </div>
+
+      <div v-if="recommendedMatrix" class="access-table-shell mt-4 rounded-2xl border border-cyan-100 bg-white">
         <table class="min-w-full text-sm">
           <thead class="bg-cyan-100/70 text-left text-xs uppercase tracking-wide text-slate-600">
             <tr>
@@ -128,7 +231,7 @@
             </tr>
           </thead>
           <tbody class="divide-y divide-cyan-100">
-            <tr v-for="role in recommendedMatrix.roles" :key="role.id">
+            <tr v-for="role in displayedMatrixRoles" :key="role.id">
               <td class="px-3 py-3">
                 <div class="font-black text-slate-900">{{ role.label }}</div>
                 <div class="text-xs font-mono text-slate-500">{{ role.code }}</div>
@@ -188,6 +291,11 @@
                 </button>
                 <span v-else-if="role.status === 'ok'" class="text-xs font-bold text-emerald-600">Conforme</span>
                 <span v-else class="text-xs text-slate-400">Base à définir</span>
+              </td>
+            </tr>
+            <tr v-if="!displayedMatrixRoles.length">
+              <td colspan="8" class="px-3 py-8 text-center text-sm font-semibold text-slate-400">
+                Aucun rôle ne correspond au filtre.
               </td>
             </tr>
           </tbody>
@@ -259,8 +367,19 @@
         </div>
 
         <div class="mt-4 space-y-2">
+          <input v-model.trim="roleSearch" class="input" placeholder="Rechercher un rôle..." />
+          <select v-model="roleTypeFilter" class="input">
+            <option value="all">Tous les rôles</option>
+            <option value="system">Modèles système</option>
+            <option value="custom">Personnalisés</option>
+            <option value="active">Actifs</option>
+            <option value="inactive">Inactifs</option>
+          </select>
+        </div>
+
+        <div class="mt-4 space-y-2">
           <button
-            v-for="role in roles"
+            v-for="role in displayedRoles"
             :key="role.id"
             type="button"
             class="w-full rounded-2xl border p-3 text-left transition hover:-translate-y-0.5 hover:shadow-sm"
@@ -279,9 +398,13 @@
             <p class="mt-2 line-clamp-2 text-xs text-slate-500">{{ role.description || 'Aucune description.' }}</p>
             <div class="mt-3 flex flex-wrap gap-2 text-[11px] text-slate-500">
               <span class="rounded-full bg-slate-100 px-2 py-0.5">{{ role.users_count || 0 }} utilisateur(s)</span>
+              <span class="rounded-full bg-slate-100 px-2 py-0.5">{{ rolePermissionCount(role) }} droit(s)</span>
               <span v-if="!role.is_active" class="rounded-full bg-red-50 px-2 py-0.5 text-red-700">Inactif</span>
             </div>
           </button>
+          <div v-if="!displayedRoles.length" class="rounded-2xl border border-dashed border-slate-200 p-5 text-center text-sm font-semibold text-slate-400">
+            Aucun rôle trouvé.
+          </div>
         </div>
       </aside>
 
@@ -350,8 +473,17 @@
               </div>
             </div>
 
+            <div class="mb-4 grid gap-3 lg:grid-cols-[1fr_auto]">
+              <input v-model.trim="moduleSearch" class="input" placeholder="Filtrer les rubriques de permissions..." />
+              <select v-model="moduleScopeFilter" class="input lg:w-56">
+                <option value="all">Toutes les rubriques</option>
+                <option value="enabled">Avec droit actif</option>
+                <option value="sensitive">Avec droit sensible</option>
+              </select>
+            </div>
+
             <div class="space-y-4">
-              <section v-for="group in groupedModules" :key="group.name" class="rounded-2xl border border-slate-200 p-3">
+              <section v-for="group in displayedGroupedModules" :key="group.name" class="rounded-2xl border border-slate-200 p-3">
                 <h4 class="mb-3 text-sm font-black uppercase tracking-wide text-slate-500">{{ group.name }}</h4>
                 <div class="overflow-x-auto">
                   <table class="min-w-full text-sm">
@@ -382,6 +514,9 @@
                   </table>
                 </div>
               </section>
+              <div v-if="!displayedGroupedModules.length" class="rounded-2xl border border-dashed border-slate-200 p-8 text-center text-sm font-semibold text-slate-400">
+                Aucune rubrique ne correspond au filtre.
+              </div>
             </div>
           </div>
 
@@ -497,6 +632,74 @@ const users = ref([])
 const selectedUserId = ref('')
 const userAccess = ref(null)
 const overrideForm = ref({ module: '', permission: 'view', value: '1', expires_at: '', reason: '' })
+const roleSearch = ref('')
+const roleTypeFilter = ref('all')
+const auditSearch = ref('')
+const auditFilter = ref('all')
+const matrixSearch = ref('')
+const matrixFilter = ref('all')
+const moduleSearch = ref('')
+const moduleScopeFilter = ref('all')
+
+const sensitiveActionKeys = ['delete', 'restore', 'approve', 'validate', 'sensitive']
+const auditFilters = [
+  { label: 'Tous', value: 'all' },
+  { label: 'Avec utilisateurs', value: 'used' },
+  { label: 'Accès sensibles', value: 'sensitive' },
+  { label: 'Alertes', value: 'warnings' },
+  { label: 'Sans utilisateur', value: 'empty' },
+]
+const matrixFilters = [
+  { label: 'Tous', value: 'all' },
+  { label: 'À vérifier', value: 'review' },
+  { label: 'Trop accordé', value: 'extra' },
+  { label: 'Sensible', value: 'sensitive' },
+  { label: 'Conforme', value: 'ok' },
+]
+const quickProfiles = [
+  {
+    code: 'caissier',
+    label: 'Caissier',
+    icon: '💳',
+    description: 'Caisse, ticket et encaissement. Accès très limité au reste.',
+    tags: ['Caisse', 'Paiement', 'Minimal'],
+  },
+  {
+    code: 'commercial',
+    label: 'Commercial',
+    icon: '🤝',
+    description: 'Clients, prospection, devis et suivi commercial.',
+    tags: ['Clients', 'Devis', 'Relance'],
+  },
+  {
+    code: 'magasinier',
+    label: 'Stock',
+    icon: '📦',
+    description: 'Produits, stock, réception et mouvements physiques.',
+    tags: ['Produits', 'Stock', 'Réception'],
+  },
+  {
+    code: 'comptable',
+    label: 'Comptable',
+    icon: '📘',
+    description: 'Factures, règlements, comptabilité et rapprochements.',
+    tags: ['Factures', 'Compta', 'Paiements'],
+  },
+  {
+    code: 'gerant',
+    label: 'Gérant',
+    icon: '📊',
+    description: 'Pilotage large, validations et analyse, sans administration complète.',
+    tags: ['Pilotage', 'Validation', 'Analyse'],
+  },
+  {
+    code: 'admin',
+    label: 'Admin',
+    icon: '🔐',
+    description: 'Administration complète. À réserver au strict nécessaire.',
+    tags: ['Tout accès', 'Sensible', 'Rare'],
+  },
+]
 
 const actions = computed(() => definitions.value.actions || {})
 const actionKeys = computed(() => Object.keys(actions.value))
@@ -522,6 +725,148 @@ const matrixCards = computed(() => {
     { label: 'Sans modèle', value: summary.roles_without_recommendation ?? 0, hint: 'Base métier inconnue' },
   ]
 })
+const enabledPermissionEntries = computed(() => {
+  if (!form.value?.permissions) return []
+
+  const entries = []
+  Object.entries(form.value.permissions).forEach(([module, permissions]) => {
+    Object.entries(permissions || {}).forEach(([action, enabled]) => {
+      if (enabled) entries.push({ module, action, key: `${module}.${action}` })
+    })
+  })
+
+  return entries
+})
+const enabledModulesCount = computed(() => new Set(enabledPermissionEntries.value.map((entry) => entry.module)).size)
+const sensitivePermissionEntries = computed(() => enabledPermissionEntries.value.filter((entry) => isSensitivePermission(entry.key)))
+const currentAuditRole = computed(() => {
+  if (!form.value?.code || !accessAudit.value?.roles) return null
+  return accessAudit.value.roles.find((role) => role.code === form.value.code) || null
+})
+const selectedRoleRisk = computed(() => {
+  if (!form.value) {
+    return {
+      label: 'Aucun rôle',
+      badgeClass: 'bg-slate-100 text-slate-600',
+      panelClass: 'border-slate-200 bg-slate-50 text-slate-600',
+      title: 'Aucun rôle sélectionné',
+      detail: 'Sélectionnez un rôle pour afficher l’analyse.',
+    }
+  }
+
+  const sensitiveCount = sensitivePermissionEntries.value.length
+  const totalCount = enabledPermissionEntries.value.length
+  const baseRole = form.value.base_role || form.value.code
+
+  if (baseRole === 'admin' || sensitiveCount >= 8 || totalCount >= 80) {
+    return {
+      label: 'Risque élevé',
+      badgeClass: 'bg-red-100 text-red-700',
+      panelClass: 'border-red-200 bg-red-50 text-red-800',
+      title: 'Accès très large',
+      detail: 'À réserver aux administrateurs de confiance. Vérifiez surtout suppression, restauration, validation et données sensibles.',
+    }
+  }
+
+  if (sensitiveCount > 0 || totalCount >= 45) {
+    return {
+      label: 'À surveiller',
+      badgeClass: 'bg-amber-100 text-amber-700',
+      panelClass: 'border-amber-200 bg-amber-50 text-amber-800',
+      title: 'Quelques droits sensibles détectés',
+      detail: 'Le rôle peut agir sur des zones critiques. Gardez ces droits uniquement si la mission le justifie.',
+    }
+  }
+
+  return {
+    label: 'Prudent',
+    badgeClass: 'bg-emerald-100 text-emerald-700',
+    panelClass: 'border-emerald-200 bg-emerald-50 text-emerald-800',
+    title: 'Accès maîtrisé',
+    detail: 'Le rôle reste relativement limité. Continuez à privilégier le minimum nécessaire.',
+  }
+})
+const selectedRoleCards = computed(() => [
+  {
+    label: 'Modules',
+    value: enabledModulesCount.value,
+    hint: 'Rubriques accessibles',
+  },
+  {
+    label: 'Droits',
+    value: enabledPermissionEntries.value.length,
+    hint: 'Actions autorisées',
+  },
+  {
+    label: 'Sensibles',
+    value: sensitivePermissionEntries.value.length,
+    hint: 'À vérifier',
+  },
+  {
+    label: 'Utilisateurs',
+    value: currentAuditRole.value?.users_count ?? selectedRole.value?.users_count ?? 0,
+    hint: `${currentAuditRole.value?.active_users_count ?? 0} actif(s)`,
+  },
+])
+const displayedRoles = computed(() => {
+  const needle = normalizeSearch(roleSearch.value)
+  return roles.value.filter((role) => {
+    if (roleTypeFilter.value === 'system' && !role.is_system) return false
+    if (roleTypeFilter.value === 'custom' && role.is_system) return false
+    if (roleTypeFilter.value === 'active' && role.is_active === false) return false
+    if (roleTypeFilter.value === 'inactive' && role.is_active !== false) return false
+    if (!needle) return true
+
+    return normalizeSearch([
+      role.label,
+      role.code,
+      role.description,
+      role.base_role,
+    ].join(' ')).includes(needle)
+  })
+})
+const displayedAuditRoles = computed(() => {
+  const needle = normalizeSearch(auditSearch.value)
+  const rows = Array.isArray(accessAudit.value?.roles) ? accessAudit.value.roles : []
+
+  return rows.filter((role) => {
+    if (auditFilter.value === 'used' && Number(role.users_count || 0) <= 0) return false
+    if (auditFilter.value === 'sensitive' && !role.sensitive_permissions?.length) return false
+    if (auditFilter.value === 'warnings' && !role.warnings?.length) return false
+    if (auditFilter.value === 'empty' && Number(role.users_count || 0) > 0) return false
+    if (!needle) return true
+
+    return normalizeSearch([
+      role.label,
+      role.code,
+      role.base_role,
+      ...(role.warnings || []),
+      ...(role.sensitive_permissions || []),
+    ].join(' ')).includes(needle)
+  })
+})
+const displayedMatrixRoles = computed(() => {
+  const needle = normalizeSearch(matrixSearch.value)
+  const rows = Array.isArray(recommendedMatrix.value?.roles) ? recommendedMatrix.value.roles : []
+
+  return rows.filter((role) => {
+    if (matrixFilter.value === 'review' && role.status !== 'review') return false
+    if (matrixFilter.value === 'extra' && !role.extra_permissions?.length) return false
+    if (matrixFilter.value === 'sensitive' && !role.sensitive_extra_permissions?.length) return false
+    if (matrixFilter.value === 'ok' && role.status !== 'ok') return false
+    if (!needle) return true
+
+    return normalizeSearch([
+      role.label,
+      role.code,
+      role.base_role,
+      role.status,
+      ...(role.extra_permissions || []),
+      ...(role.missing_permissions || []),
+      ...(role.sensitive_extra_permissions || []),
+    ].join(' ')).includes(needle)
+  })
+})
 const availableOverrideActions = computed(() => {
   const module = definitions.value.modules?.[overrideForm.value.module]
   return module?.actions || ['view']
@@ -535,6 +880,29 @@ const groupedModules = computed(() => {
     groups.get(group).push({ key, ...module })
   })
   return Array.from(groups.entries()).map(([name, items]) => ({ name, items }))
+})
+const displayedGroupedModules = computed(() => {
+  const needle = normalizeSearch(moduleSearch.value)
+
+  return groupedModules.value
+    .map((group) => {
+      const items = group.items.filter((module) => {
+        if (needle && !normalizeSearch(`${module.label} ${module.key} ${group.name}`).includes(needle)) return false
+
+        if (moduleScopeFilter.value === 'enabled') {
+          return module.actions.some((action) => Boolean(form.value?.permissions?.[module.key]?.[action]))
+        }
+
+        if (moduleScopeFilter.value === 'sensitive') {
+          return module.actions.some((action) => isSensitivePermission(`${module.key}.${action}`))
+        }
+
+        return true
+      })
+
+      return { ...group, items }
+    })
+    .filter((group) => group.items.length)
 })
 
 onMounted(loadAll)
@@ -665,6 +1033,59 @@ async function saveOverride() {
 
 function moduleLabel(key) {
   return definitions.value.modules?.[key]?.label || key
+}
+
+function normalizeSearch(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+}
+
+function rolePermissionCount(role) {
+  return flattenPermissions(role?.permissions || {}).length
+}
+
+function flattenPermissions(permissions = {}) {
+  const flat = []
+  Object.entries(permissions || {}).forEach(([module, actionsMap]) => {
+    Object.entries(actionsMap || {}).forEach(([action, enabled]) => {
+      if (enabled) flat.push(`${module}.${action}`)
+    })
+  })
+  return flat
+}
+
+function isSensitivePermission(permission) {
+  const [module, action] = String(permission || '').split('.')
+  if (sensitiveActionKeys.includes(action)) return true
+  return ['access_control', 'xelltekk_admin', 'securite', 'licence', 'parametres', 'corbeille'].includes(module)
+}
+
+function quickProfileRole(code) {
+  return roles.value.find((role) => role.code === code || role.base_role === code) || null
+}
+
+function openQuickProfile(profile) {
+  const existing = quickProfileRole(profile.code)
+  if (existing) {
+    selectRole(existing)
+    return
+  }
+
+  newRole()
+  form.value.code = `${profile.code}_personnalise`
+  form.value.label = `${profile.label} personnalisé`
+  form.value.description = profile.description
+  form.value.base_role = profile.code
+
+  const baseRole = roles.value.find((role) => role.code === profile.code)
+  if (baseRole?.permissions) {
+    form.value.permissions = normalizePermissions(baseRole.permissions)
+  }
+
+  toast.info('Profil préparé en brouillon. Vérifiez puis enregistrez si besoin.')
 }
 
 function formatPermission(permission) {
@@ -871,6 +1292,53 @@ function setCommonReadOnly() {
 .access-hero span {
   background: color-mix(in srgb, var(--saytu-primary) 12%, white);
   color: var(--saytu-primary);
+}
+
+.quick-profile-card {
+  border: 1px solid color-mix(in srgb, var(--saytu-primary) 16%, #e2e8f0);
+  border-radius: 1rem;
+  background: rgb(255 255 255 / 0.85);
+  padding: 0.85rem;
+  transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+}
+
+.quick-profile-card:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--saytu-primary) 35%, #e2e8f0);
+  box-shadow: 0 14px 32px rgb(15 23 42 / 0.08);
+}
+
+.access-filter-pill {
+  border: 1px solid #cbd5e1;
+  border-radius: 9999px;
+  background: #ffffff;
+  color: #475569;
+  font-size: 0.75rem;
+  font-weight: 900;
+  padding: 0.45rem 0.75rem;
+  transition: background 160ms ease, color 160ms ease, border-color 160ms ease;
+}
+
+.access-filter-pill:hover,
+.access-filter-pill-active {
+  border-color: color-mix(in srgb, var(--saytu-primary) 45%, #cbd5e1);
+  background: color-mix(in srgb, var(--saytu-primary) 12%, #ffffff);
+  color: var(--saytu-primary);
+}
+
+.access-table-shell {
+  overflow: auto;
+  max-height: min(68vh, 720px);
+}
+
+.access-table-shell thead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.access-table-shell table {
+  min-width: 980px;
 }
 
 </style>
