@@ -5,7 +5,7 @@
       Chargement des paramètres...
     </div>
 
-    <div v-else class="space-y-5 max-w-5xl mx-auto">
+    <div v-else class="mx-auto max-w-7xl space-y-5">
       <!-- Bandeau intro -->
       <div class="theme-hero rounded-lg p-5 text-white shadow-sm">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -13,14 +13,60 @@
             <h2 class="text-xl font-bold">⚙️ Paramètres de la société</h2>
             <p class="mt-1 text-sm text-white/85">Ces informations apparaîtront sur tous vos PDF (factures, devis...).</p>
           </div>
-          <button @click="ouvrirApercu" class="theme-hero-action font-semibold px-4 py-2 rounded transition" :disabled="!apercuPossible">
-            👁️ Aperçu PDF
-          </button>
+          <div class="flex flex-wrap gap-2">
+            <button @click="ouvrirApercu" class="theme-hero-action rounded px-4 py-2 font-semibold transition" :disabled="!apercuPossible">
+              👁️ Aperçu PDF
+            </button>
+            <button @click="enregistrer" :disabled="saving" class="rounded bg-white px-4 py-2 font-bold text-cyan-700 shadow-sm transition hover:bg-cyan-50 disabled:opacity-60">
+              {{ saving ? '⏳ Enregistrement...' : '💾 Enregistrer' }}
+            </button>
+          </div>
         </div>
       </div>
 
+      <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <article v-for="card in summaryCards" :key="card.label" class="rounded-2xl border border-cyan-100 bg-white p-4 shadow-sm">
+          <div class="text-xs font-black uppercase tracking-[0.14em] text-cyan-700">{{ card.label }}</div>
+          <div class="mt-2 text-2xl font-black text-slate-900">{{ card.value }}</div>
+          <p class="mt-1 text-xs font-semibold text-slate-500">{{ card.detail }}</p>
+        </article>
+      </div>
+
+      <div v-if="missingCriticalFields.length" class="rounded-2xl border border-orange-200 bg-orange-50 p-4 text-orange-900">
+        <div class="font-black">Champs importants à compléter</div>
+        <p class="mt-1 text-sm">
+          {{ missingCriticalFields.join(' · ') }}
+        </p>
+      </div>
+
+      <div class="grid gap-5 lg:grid-cols-[260px_minmax(0,1fr)]">
+        <aside class="lg:sticky lg:top-4 lg:self-start">
+          <div class="rounded-2xl border border-cyan-100 bg-white p-4 shadow-sm">
+            <div class="flex items-center justify-between gap-3">
+              <div>
+                <p class="text-xs font-black uppercase tracking-[0.14em] text-cyan-700">Navigation</p>
+                <p class="mt-1 text-sm font-bold text-slate-900">Configuration société</p>
+              </div>
+              <span class="rounded-full bg-cyan-50 px-2.5 py-1 text-xs font-black text-cyan-700">{{ completionScore }}%</span>
+            </div>
+            <div class="mt-4 space-y-2">
+              <button
+                v-for="item in paramNav"
+                :key="item.id"
+                type="button"
+                class="flex w-full items-center justify-between rounded-xl border border-transparent px-3 py-2 text-left text-sm font-bold text-slate-700 transition hover:border-cyan-200 hover:bg-cyan-50 hover:text-cyan-700"
+                @click="scrollToSection(item.id)"
+              >
+                <span>{{ item.label }}</span>
+                <span class="text-xs text-cyan-600">{{ sectionCompletion(item.fields) }}</span>
+              </button>
+            </div>
+          </div>
+        </aside>
+
+        <div class="min-w-0 space-y-5">
       <!-- ===== SECTION 1 : INFORMATIONS LÉGALES ===== -->
-      <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+      <div id="param-legales" class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden scroll-mt-6">
         <div class="px-5 py-3 bg-gray-50 border-b border-gray-200">
           <h3 class="font-semibold text-gray-900">🏢 Informations légales</h3>
         </div>
@@ -76,7 +122,7 @@
       </div>
 
       <!-- ===== SECTION 2 : ADRESSE & CONTACT ===== -->
-      <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+      <div id="param-contact" class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden scroll-mt-6">
         <div class="px-5 py-3 bg-gray-50 border-b border-gray-200">
           <h3 class="font-semibold text-gray-900">📍 Adresse & Contact</h3>
         </div>
@@ -134,7 +180,7 @@
       </div>
 
       <!-- ===== SECTION 3 : BANQUE & PAIEMENTS ===== -->
-      <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+      <div id="param-paiements" class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden scroll-mt-6">
         <div class="px-5 py-3 bg-gray-50 border-b border-gray-200">
           <h3 class="font-semibold text-gray-900">💳 Informations bancaires & paiements</h3>
         </div>
@@ -182,7 +228,7 @@
       </div>
 
       <!-- ===== SECTION 4 : IDENTITÉ VISUELLE ===== -->
-      <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+      <div id="param-identite" class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden scroll-mt-6">
         <div class="px-5 py-3 bg-gray-50 border-b border-gray-200">
           <h3 class="font-semibold text-gray-900">🎨 Identité visuelle</h3>
         </div>
@@ -246,7 +292,7 @@
       </div>
 
       <!-- ===== SECTION 5 : MENTIONS PERSONNALISÉES ===== -->
-      <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+      <div id="param-mentions" class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden scroll-mt-6">
         <div class="px-5 py-3 bg-gray-50 border-b border-gray-200">
           <h3 class="font-semibold text-gray-900">📜 Mentions personnalisées</h3>
         </div>
@@ -259,7 +305,7 @@
       </div>
 
       <!-- ===== ACTIONS ===== -->
-      <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div class="sticky bottom-4 z-20 rounded-lg border border-cyan-100 bg-white/95 p-5 shadow-xl backdrop-blur flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div class="text-sm text-gray-500">
           <span v-if="lastSaved">✓ Dernière sauvegarde : {{ formatDate(lastSaved) }}</span>
           <span v-else>Configurez les informations puis cliquez sur Enregistrer</span>
@@ -270,6 +316,8 @@
             <span v-if="saving">⏳ Enregistrement...</span>
             <span v-else>💾 Enregistrer les paramètres</span>
           </button>
+        </div>
+      </div>
         </div>
       </div>
     </div>
@@ -303,6 +351,14 @@ const societe = reactive({
   pied_de_facture: '',
 })
 
+const paramNav = [
+  { id: 'param-legales', label: 'Informations légales', fields: ['nom', 'forme_juridique', 'ninea', 'rccm', 'devise_defaut'] },
+  { id: 'param-contact', label: 'Adresse & contact', fields: ['adresse', 'ville', 'pays', 'telephone', 'mobile', 'email', 'site_web'] },
+  { id: 'param-paiements', label: 'Banque & paiements', fields: ['banque', 'rib', 'titulaire_compte', 'iban', 'wave_business', 'orange_money_business'] },
+  { id: 'param-identite', label: 'Identité visuelle', fields: ['logo', 'couleur_principale', 'tva_defaut'] },
+  { id: 'param-mentions', label: 'Mentions PDF', fields: ['pied_de_facture'] },
+]
+
 const logoUrl = computed(() => {
   if (! societe.logo) return ''
   const separator = societe.logo.includes('?') ? '&' : '?'
@@ -310,6 +366,44 @@ const logoUrl = computed(() => {
 })
 
 const apercuPossible = computed(() => societe.id && societe.nom)
+const allNavFields = computed(() => [...new Set(paramNav.flatMap(item => item.fields))])
+const completedFields = computed(() => allNavFields.value.filter(field => filledField(field)).length)
+const completionScore = computed(() => {
+  const total = allNavFields.value.length || 1
+  return Math.round((completedFields.value / total) * 100)
+})
+const paymentMethodsCount = computed(() => ['banque', 'wave_business', 'orange_money_business', 'free_money_business'].filter(field => filledField(field)).length)
+const missingCriticalFields = computed(() => {
+  const missing = []
+  if (! filledField('nom')) missing.push('Raison sociale')
+  if (! filledField('email')) missing.push('Email professionnel')
+  if (! filledField('telephone') && ! filledField('mobile')) missing.push('Téléphone ou mobile')
+  if (! filledField('adresse') && ! filledField('ville')) missing.push('Adresse ou ville')
+  if (! filledField('devise_defaut')) missing.push('Devise')
+  return missing
+})
+const summaryCards = computed(() => [
+  {
+    label: 'Complétude',
+    value: `${completionScore.value}%`,
+    detail: `${completedFields.value}/${allNavFields.value.length} informations renseignées`,
+  },
+  {
+    label: 'Identité PDF',
+    value: societe.logo ? 'Logo OK' : 'Logo absent',
+    detail: societe.afficher_tva_facture ? `TVA affichée · ${formatPercent(societe.tva_defaut)}` : 'PDF sans colonne TVA',
+  },
+  {
+    label: 'Contact',
+    value: filledField('email') ? societe.email : 'Email manquant',
+    detail: filledField('telephone') || filledField('mobile') ? 'Téléphone renseigné' : 'Téléphone à compléter',
+  },
+  {
+    label: 'Paiements',
+    value: `${paymentMethodsCount.value} moyen(s)`,
+    detail: filledField('banque') ? `Banque : ${societe.banque}` : 'Banque non renseignée',
+  },
+])
 
 function notifierIdentiteSociete() {
   window.dispatchEvent(new CustomEvent('societe:updated', {
@@ -321,6 +415,28 @@ function notifierIdentiteSociete() {
       devise_defaut: societe.devise_defaut,
     },
   }))
+}
+
+function filledField(field) {
+  const value = societe[field]
+  if (value === null || value === undefined) return false
+  if (typeof value === 'number') return !Number.isNaN(value)
+  if (typeof value === 'boolean') return true
+  return String(value).trim() !== ''
+}
+
+function sectionCompletion(fields) {
+  const total = fields.length || 1
+  const count = fields.filter(field => filledField(field)).length
+  return `${count}/${total}`
+}
+
+function scrollToSection(id) {
+  document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
+function formatPercent(value) {
+  return `${new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 }).format(Number(value || 0))}%`
 }
 
 async function charger() {
