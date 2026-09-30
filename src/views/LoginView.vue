@@ -87,6 +87,59 @@
             Votre session a expir&eacute; apr&egrave;s 30 minutes d'inactivit&eacute;. Veuillez vous reconnecter.
           </div>
 
+          <div v-if="licenceAlert" class="login-licence-alert" role="alert">
+            <div class="flex items-start gap-3">
+              <span class="login-licence-alert-icon">
+                <AlertTriangle class="h-5 w-5" />
+              </span>
+              <div class="min-w-0 flex-1">
+                <p class="text-sm font-black text-red-800">{{ licenceAlert.title }}</p>
+                <p class="mt-1 text-sm font-semibold leading-relaxed text-red-700">
+                  {{ licenceAlert.message }}
+                </p>
+
+                <div class="mt-3 flex flex-wrap gap-2">
+                  <a
+                    v-if="licenceAlert.contacts?.email"
+                    class="login-contact-chip"
+                    :href="mailtoHref(licenceAlert.contacts.email)"
+                  >
+                    <Mail class="h-4 w-4" />
+                    {{ licenceAlert.contacts.email }}
+                  </a>
+                  <a
+                    v-if="licenceAlert.contacts?.phone"
+                    class="login-contact-chip"
+                    :href="telHref(licenceAlert.contacts.phone)"
+                  >
+                    <Phone class="h-4 w-4" />
+                    {{ licenceAlert.contacts.phone }}
+                  </a>
+                  <a
+                    v-if="licenceAlert.contacts?.whatsapp"
+                    class="login-contact-chip"
+                    :href="whatsappHref(licenceAlert.contacts.whatsapp)"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <MessageCircle class="h-4 w-4" />
+                    WhatsApp
+                  </a>
+                  <a
+                    v-if="licenceAlert.contacts?.website"
+                    class="login-contact-chip"
+                    :href="licenceAlert.contacts.website"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Globe2 class="h-4 w-4" />
+                    Site
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div v-if="error" class="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {{ error }}
           </div>
@@ -112,7 +165,7 @@
 <script setup>
 import { computed, onMounted, ref, reactive } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Eye, EyeOff, LockKeyhole, Mail, UserCircle } from 'lucide-vue-next'
+import { AlertTriangle, Eye, EyeOff, Globe2, LockKeyhole, Mail, MessageCircle, Phone, UserCircle } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
 import api from '@/services/api'
 import { hasAnyRole } from '@/utils/access'
@@ -129,6 +182,7 @@ const form = reactive({
 
 const loading = ref(false)
 const error = ref(null)
+const licenceAlert = ref(null)
 const showPassword = ref(false)
 const rememberEmail = ref(false)
 const sessionExpired = computed(() => route.query.expired === '1')
@@ -156,6 +210,7 @@ async function loadIdentity() {
 async function handleLogin() {
   loading.value = true
   error.value = null
+  licenceAlert.value = null
   try {
     const data = await auth.login(form.email, form.password)
     if (rememberEmail.value) {
@@ -168,12 +223,74 @@ async function handleLogin() {
     }
     router.push({ name: homeRouteForUser(data.user) })
   } catch (err) {
+    const blockedLicence = normalizeLicenceBlockedResponse(err.response?.data)
+    if (blockedLicence) {
+      auth.clearLocalSession()
+      licenceAlert.value = blockedLicence
+      error.value = null
+      notifyLicenceBlocked(blockedLicence)
+      return
+    }
+
     error.value = err.response?.data?.message
       || err.response?.data?.errors?.email?.[0]
       || 'Erreur de connexion. Vérifiez vos identifiants.'
   } finally {
     loading.value = false
   }
+}
+
+function normalizeLicenceBlockedResponse(data) {
+  if (!data || (data.code !== 'licence_blocked' && !data.licence?.login_blocked)) return null
+
+  const licence = data.licence || {}
+  const contacts = data.contacts || licence.support_contacts || {}
+
+  return {
+    title: data.title || licence.title || licence.etat_label || 'Licence bloquée',
+    message: data.message
+      || licence.display_message
+      || licence.message
+      || 'Votre licence ne permet pas la connexion. Merci de contacter XELLTEKK.',
+    contacts,
+  }
+}
+
+async function notifyLicenceBlocked(alert) {
+  if (typeof window === 'undefined' || !('Notification' in window) || !alert) return
+
+  try {
+    let permission = Notification.permission
+    if (permission === 'default' && Notification.requestPermission) {
+      permission = await Notification.requestPermission()
+    }
+
+    if (permission === 'granted') {
+      new Notification(alert.title, {
+        body: alert.message,
+        icon: logoUrl.value || undefined,
+      })
+    }
+  } catch (e) {
+    // Le navigateur peut refuser les notifications système : l’alerte reste visible dans la page.
+  }
+}
+
+function mailtoHref(email) {
+  const subject = encodeURIComponent('Licence Saytu Liggéey suspendue / expirée')
+  return `mailto:${email}?subject=${subject}`
+}
+
+function telHref(phone) {
+  return `tel:${String(phone || '').replace(/\s/g, '')}`
+}
+
+function whatsappHref(phone) {
+  const raw = String(phone || '')
+  if (/^https?:\/\//i.test(raw)) return raw
+
+  const digits = raw.replace(/\D/g, '')
+  return digits ? `https://wa.me/${digits}` : '#'
 }
 
 async function entrerPleinEcran() {
@@ -278,6 +395,44 @@ onMounted(() => {
 .login-input:focus {
   outline: none;
   box-shadow: none !important;
+}
+
+.login-licence-alert {
+  border: 1px solid rgb(254 202 202);
+  border-radius: 1.25rem;
+  background: linear-gradient(135deg, rgb(254 242 242), rgb(255 247 237));
+  padding: 0.9rem;
+  box-shadow: 0 16px 32px rgb(127 29 29 / 0.08);
+}
+
+.login-licence-alert-icon {
+  display: grid;
+  width: 2.5rem;
+  height: 2.5rem;
+  place-items: center;
+  flex-shrink: 0;
+  border-radius: 9999px;
+  background: rgb(254 226 226);
+  color: rgb(220 38 38);
+}
+
+.login-contact-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid rgb(254 202 202);
+  border-radius: 9999px;
+  background: rgb(255 255 255 / 0.85);
+  color: rgb(153 27 27);
+  font-size: 0.72rem;
+  font-weight: 900;
+  line-height: 1;
+  padding: 0.45rem 0.7rem;
+  text-decoration: none;
+}
+
+.login-contact-chip:hover {
+  background: rgb(254 226 226);
 }
 
 .login-input:-webkit-autofill,
