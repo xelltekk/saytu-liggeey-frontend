@@ -97,7 +97,7 @@ onMounted(load)
     <template v-if="!creating && !report">
       <section class="rounded-2xl border border-cyan-200 bg-white p-5">
         <h2 class="text-lg font-bold text-slate-900">1. Vérifier les sauvegardes</h2>
-        <p class="my-3 text-sm text-slate-700">Cette première étape inventorie vos données et signale les anomalies. Aucun client, produit, stock ou paiement n’est modifié. Le transfert des données sera disponible dans une prochaine étape.</p>
+        <p class="my-3 text-sm text-slate-700">Analysez les fichiers, comparez les clients et fournisseurs, puis confirmez les fiches à créer ou à rattacher. Les produits, stocks et paiements ne sont pas encore transférés.</p>
         <button type="button" class="rounded-xl bg-cyan-700 px-5 py-3 font-semibold text-white" @click="start">Nouvelle analyse Dolibarr</button>
       </section>
       <section class="rounded-2xl border border-cyan-200 bg-white p-5">
