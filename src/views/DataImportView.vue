@@ -2,12 +2,15 @@
 import { onMounted, ref } from 'vue'
 import api from '@/services/api'
 import DolibarrThirdPartyPreview from '@/components/DolibarrThirdPartyPreview.vue'
+import DolibarrProductImport from '@/components/DolibarrProductImport.vue'
 
 const reports = ref([])
 const report = ref(null)
 const creating = ref(false)
 const loading = ref(true)
 const busy = ref(false)
+const childBusy = ref(false)
+const importModule = ref('tiers')
 const error = ref('')
 const database = ref(null)
 const documents = ref(null)
@@ -86,7 +89,7 @@ onMounted(load)
 <template>
   <main class="import-page space-y-5">
     <header class="rounded-2xl border border-cyan-200 bg-cyan-50 p-5">
-      <button v-if="creating || report" type="button" class="mb-4 font-semibold text-cyan-800" :disabled="busy" @click="back">← Retour liste</button>
+      <button v-if="creating || report" type="button" class="mb-4 font-semibold text-cyan-800" :disabled="busy || childBusy" @click="back">← Retour liste</button>
       <p class="text-xs font-bold uppercase tracking-widest text-cyan-800">Administration · Migration Dolibarr</p>
       <h1 class="mt-2 text-2xl font-bold text-slate-900">{{ report ? 'Résultat de l’analyse' : creating ? 'Analyser une sauvegarde' : 'Importation des données' }}</h1>
       <p class="mt-2 text-sm text-slate-700">Préparez la reprise de vos clients, produits, stocks et documents commerciaux dans Saytu.</p>
@@ -97,7 +100,7 @@ onMounted(load)
     <template v-if="!creating && !report">
       <section class="rounded-2xl border border-cyan-200 bg-white p-5">
         <h2 class="text-lg font-bold text-slate-900">1. Vérifier les sauvegardes</h2>
-        <p class="my-3 text-sm text-slate-700">Analysez les fichiers, comparez les clients et fournisseurs, puis confirmez les fiches à créer ou à rattacher. Les produits, stocks et paiements ne sont pas encore transférés.</p>
+        <p class="my-3 text-sm text-slate-700">Analysez les fichiers, comparez les tiers ou le catalogue, puis confirmez les fiches à créer ou à rattacher. Les quantités de stock et les paiements ne sont pas transférés dans ces étapes.</p>
         <button type="button" class="rounded-xl bg-cyan-700 px-5 py-3 font-semibold text-white" @click="start">Nouvelle analyse Dolibarr</button>
       </section>
       <section class="rounded-2xl border border-cyan-200 bg-white p-5">
@@ -137,7 +140,10 @@ onMounted(load)
     </form>
 
     <template v-else-if="report">
-      <DolibarrThirdPartyPreview :key="report.id" :report="report" :limits="limits" />
+      <label class="block rounded-xl border border-cyan-200 bg-white p-4 font-semibold">Données à reprendre
+        <select v-model="importModule" :disabled="childBusy" class="ml-3 max-w-full rounded-lg border border-cyan-200 p-2"><option value="tiers">Clients / Fournisseurs</option><option value="products">Produits / Services</option></select>
+      </label>
+      <component :is="importModule === 'products' ? DolibarrProductImport : DolibarrThirdPartyPreview" :key="`${report.id}-${importModule}`" :report="report" :limits="limits" @busy="childBusy = $event" />
       <section class="rounded-2xl border border-cyan-200 bg-white p-5">
         <div class="flex flex-wrap items-center justify-between gap-3"><h2 class="break-all font-bold text-slate-900">{{ report.database_name }}</h2><button type="button" class="font-semibold text-cyan-800 underline" @click="download">Télécharger le rapport</button></div>
         <div class="mt-4 grid gap-3 sm:grid-cols-3">

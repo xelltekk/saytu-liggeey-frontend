@@ -3,8 +3,10 @@ import { computed, onMounted, ref, watch } from 'vue'
 import api from '@/services/api'
 
 const props = defineProps({ report: { type: Object, required: true }, limits: { type: Object, required: true } })
+const emit = defineEmits(['busy'])
 const file = ref(null)
 const busy = ref(false)
+watch(busy, value => emit('busy', value))
 const error = ref('')
 const result = ref(null)
 const mapping = ref({ nom: 'nom', code: 'code_client', email: 'email', telephone: 'phone', adresse: 'address', code_postal: 'zip', ville: 'town' })
