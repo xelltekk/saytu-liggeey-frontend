@@ -101,7 +101,7 @@ onMounted(load)
     <template v-if="!creating && !report">
       <section class="rounded-2xl border border-cyan-200 bg-white p-5">
         <h2 class="text-lg font-bold text-slate-900">1. Vérifier les sauvegardes</h2>
-        <p class="my-3 text-sm text-slate-700">Analysez les fichiers, comparez les tiers ou le catalogue, puis confirmez les fiches à créer ou à rattacher. Les quantités de stock et les paiements ne sont pas transférés dans ces étapes.</p>
+        <p class="my-3 text-sm text-slate-700">Analysez les fichiers, reprenez les tiers et le catalogue, puis préparez les soldes de stock dans leur bloc dédié. Chaque import exige votre confirmation. Les paiements ne sont pas encore transférés.</p>
         <button type="button" class="rounded-xl bg-cyan-700 px-5 py-3 font-semibold text-white" @click="start">Nouvelle analyse Dolibarr</button>
       </section>
       <section class="rounded-2xl border border-cyan-200 bg-white p-5">
@@ -142,7 +142,7 @@ onMounted(load)
 
     <template v-else-if="report">
       <label class="block rounded-xl border border-cyan-200 bg-white p-4 font-semibold">Données à reprendre
-        <select v-model="importModule" :disabled="childBusy" class="ml-3 max-w-full rounded-lg border border-cyan-200 p-2"><option value="tiers">Clients / Fournisseurs</option><option value="products">Produits / Services</option><option value="stock">Entrepôts / Stocks (aperçu)</option></select>
+        <select v-model="importModule" :disabled="childBusy" class="ml-3 max-w-full rounded-lg border border-cyan-200 p-2"><option value="tiers">Clients / Fournisseurs</option><option value="products">Produits / Services</option><option value="stock">Entrepôts / Stocks</option></select>
       </label>
       <component :is="importModule === 'stock' ? DolibarrStockPreview : importModule === 'products' ? DolibarrProductImport : DolibarrThirdPartyPreview" :key="`${report.id}-${importModule}`" :report="report" :limits="limits" @busy="childBusy = $event" />
       <section class="rounded-2xl border border-cyan-200 bg-white p-5">
