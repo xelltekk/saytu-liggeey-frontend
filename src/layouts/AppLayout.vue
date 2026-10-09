@@ -687,6 +687,12 @@ const tousLesMenus = [
     permission: 'dashboard.view',
     roles: ['admin'],
     tenantOnly: true
+  },
+  {
+    to: '/importation',
+    label: 'Importation des données',
+    icon: Settings,
+    roles: ['admin']
   }
 ]
 
@@ -858,7 +864,7 @@ const menuGroupDefinitions = [
     key: 'administration',
     label: 'Administration',
     icon: Settings,
-    items: ['/leasing', '/utilisateurs', '/roles-permissions', '/licence', '/xelltekk-admin', '/securite', '/parametres', '/demarrage']
+    items: ['/leasing', '/utilisateurs', '/roles-permissions', '/licence', '/xelltekk-admin', '/securite', '/parametres', '/demarrage', '/importation']
   },
 ]
 

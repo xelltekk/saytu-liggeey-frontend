@@ -442,6 +442,11 @@ const routes = [
         component: () => import('@/views/OnboardingView.vue'),
       },
       {
+        path: 'importation',
+        name: 'data-imports',
+        component: () => import('@/views/DataImportView.vue'),
+      },
+      {
         path: 'utilisateurs',
         name: 'utilisateurs',
         component: () => import('@/views/UtilisateursView.vue'),
@@ -559,6 +564,7 @@ const routeRoles = {
   '/rh': ['admin', 'gerant', 'commercial', 'magasinier', 'comptable'],
   '/parametres': ['admin'],
   '/demarrage': ['admin'],
+  '/importation': ['admin'],
 }
 
 const routePermissions = {
@@ -665,6 +671,9 @@ router.beforeEach(async (to, from, next) => {
   // 3) Vérification du rôle pour cette route
   const role = roleForAccess(auth.user)
   const directRole = auth.user?.role
+  if (to.path.startsWith('/importation') && role !== 'admin' && directRole !== 'admin') {
+    return next({ name: role === 'caissier' ? 'caisse' : 'dashboard' })
+  }
   if (to.name === 'licence' && isXelltekkAdmin(auth.user)) {
     return next({ name: 'xelltekk-admin' })
   }
