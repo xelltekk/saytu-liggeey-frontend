@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue'
 import api from '@/services/api'
 import DolibarrThirdPartyPreview from '@/components/DolibarrThirdPartyPreview.vue'
 import DolibarrProductImport from '@/components/DolibarrProductImport.vue'
+import DolibarrStockPreview from '@/components/DolibarrStockPreview.vue'
 
 const reports = ref([])
 const report = ref(null)
@@ -141,9 +142,9 @@ onMounted(load)
 
     <template v-else-if="report">
       <label class="block rounded-xl border border-cyan-200 bg-white p-4 font-semibold">Données à reprendre
-        <select v-model="importModule" :disabled="childBusy" class="ml-3 max-w-full rounded-lg border border-cyan-200 p-2"><option value="tiers">Clients / Fournisseurs</option><option value="products">Produits / Services</option></select>
+        <select v-model="importModule" :disabled="childBusy" class="ml-3 max-w-full rounded-lg border border-cyan-200 p-2"><option value="tiers">Clients / Fournisseurs</option><option value="products">Produits / Services</option><option value="stock">Entrepôts / Stocks (aperçu)</option></select>
       </label>
-      <component :is="importModule === 'products' ? DolibarrProductImport : DolibarrThirdPartyPreview" :key="`${report.id}-${importModule}`" :report="report" :limits="limits" @busy="childBusy = $event" />
+      <component :is="importModule === 'stock' ? DolibarrStockPreview : importModule === 'products' ? DolibarrProductImport : DolibarrThirdPartyPreview" :key="`${report.id}-${importModule}`" :report="report" :limits="limits" @busy="childBusy = $event" />
       <section class="rounded-2xl border border-cyan-200 bg-white p-5">
         <div class="flex flex-wrap items-center justify-between gap-3"><h2 class="break-all font-bold text-slate-900">{{ report.database_name }}</h2><button type="button" class="font-semibold text-cyan-800 underline" @click="download">Télécharger le rapport</button></div>
         <div class="mt-4 grid gap-3 sm:grid-cols-3">
