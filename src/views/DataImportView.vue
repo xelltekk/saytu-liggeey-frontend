@@ -1,6 +1,7 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import api from '@/services/api'
+import DolibarrThirdPartyPreview from '@/components/DolibarrThirdPartyPreview.vue'
 
 const reports = ref([])
 const report = ref(null)
@@ -136,6 +137,7 @@ onMounted(load)
     </form>
 
     <template v-else-if="report">
+      <DolibarrThirdPartyPreview :key="report.id" :report="report" :limits="limits" />
       <section class="rounded-2xl border border-cyan-200 bg-white p-5">
         <div class="flex flex-wrap items-center justify-between gap-3"><h2 class="break-all font-bold text-slate-900">{{ report.database_name }}</h2><button type="button" class="font-semibold text-cyan-800 underline" @click="download">Télécharger le rapport</button></div>
         <div class="mt-4 grid gap-3 sm:grid-cols-3">
