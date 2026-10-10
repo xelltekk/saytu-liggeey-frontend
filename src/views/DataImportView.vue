@@ -143,7 +143,7 @@ onMounted(load)
 
     <template v-else-if="report">
       <label class="block rounded-xl border border-cyan-200 bg-white p-4 font-semibold">Données à reprendre
-        <select v-model="importModule" :disabled="childBusy" class="ml-3 max-w-full rounded-lg border border-cyan-200 p-2"><option value="tiers">Clients / Fournisseurs</option><option value="products">Produits / Services</option><option value="stock">Entrepôts / Stocks</option><option value="quotes">Devis (aperçu)</option></select>
+        <select v-model="importModule" :disabled="childBusy" class="ml-3 max-w-full rounded-lg border border-cyan-200 p-2"><option value="tiers">Clients / Fournisseurs</option><option value="products">Produits / Services</option><option value="stock">Entrepôts / Stocks</option><option value="quotes">Devis</option></select>
       </label>
       <component :is="importModule === 'quotes' ? DolibarrQuotePreview : importModule === 'stock' ? DolibarrStockPreview : importModule === 'products' ? DolibarrProductImport : DolibarrThirdPartyPreview" :key="`${report.id}-${importModule}`" :report="report" :limits="limits" @busy="childBusy = $event" />
       <section class="rounded-2xl border border-cyan-200 bg-white p-5">
