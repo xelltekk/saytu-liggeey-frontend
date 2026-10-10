@@ -5,6 +5,7 @@ import DolibarrThirdPartyPreview from '@/components/DolibarrThirdPartyPreview.vu
 import DolibarrProductImport from '@/components/DolibarrProductImport.vue'
 import DolibarrStockPreview from '@/components/DolibarrStockPreview.vue'
 import DolibarrQuotePreview from '@/components/DolibarrQuotePreview.vue'
+import DolibarrInvoicePreview from '@/components/DolibarrInvoicePreview.vue'
 
 const reports = ref([])
 const report = ref(null)
@@ -143,9 +144,9 @@ onMounted(load)
 
     <template v-else-if="report">
       <label class="block rounded-xl border border-cyan-200 bg-white p-4 font-semibold">Données à reprendre
-        <select v-model="importModule" :disabled="childBusy" class="ml-3 max-w-full rounded-lg border border-cyan-200 p-2"><option value="tiers">Clients / Fournisseurs</option><option value="products">Produits / Services</option><option value="stock">Entrepôts / Stocks</option><option value="quotes">Devis</option></select>
+        <select v-model="importModule" :disabled="childBusy" class="ml-3 max-w-full rounded-lg border border-cyan-200 p-2"><option value="tiers">Clients / Fournisseurs</option><option value="products">Produits / Services</option><option value="stock">Entrepôts / Stocks</option><option value="quotes">Devis</option><option value="invoices">Factures (aperçu)</option></select>
       </label>
-      <component :is="importModule === 'quotes' ? DolibarrQuotePreview : importModule === 'stock' ? DolibarrStockPreview : importModule === 'products' ? DolibarrProductImport : DolibarrThirdPartyPreview" :key="`${report.id}-${importModule}`" :report="report" :limits="limits" @busy="childBusy = $event" />
+      <component :is="importModule === 'invoices' ? DolibarrInvoicePreview : importModule === 'quotes' ? DolibarrQuotePreview : importModule === 'stock' ? DolibarrStockPreview : importModule === 'products' ? DolibarrProductImport : DolibarrThirdPartyPreview" :key="`${report.id}-${importModule}`" :report="report" :limits="limits" @busy="childBusy = $event" />
       <section class="rounded-2xl border border-cyan-200 bg-white p-5">
         <div class="flex flex-wrap items-center justify-between gap-3"><h2 class="break-all font-bold text-slate-900">{{ report.database_name }}</h2><button type="button" class="font-semibold text-cyan-800 underline" @click="download">Télécharger le rapport</button></div>
         <div class="mt-4 grid gap-3 sm:grid-cols-3">
