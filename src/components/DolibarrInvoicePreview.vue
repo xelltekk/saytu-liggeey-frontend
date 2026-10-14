@@ -51,6 +51,17 @@ async function preview() {
     <template v-if="result">
       <p v-for="warning in result.warnings" :key="warning" class="text-sm text-slate-700">{{ warning }}</p>
       <p v-for="blocker in result.blockers" :key="blocker" class="rounded-xl bg-red-50 p-3 text-red-900">{{ blocker }}</p>
+      <section v-if="result.payments" class="space-y-2 rounded-xl border border-cyan-200 bg-cyan-50 p-4">
+        <h3 class="font-bold">Rapprochement des règlements</h3>
+        <p class="text-sm">{{ result.payments.notice }}</p>
+        <template v-if="result.payments.available">
+          <p class="text-sm">{{ result.payments.summary.payments }} paiement(s) · {{ result.payments.summary.allocations }} affectation(s) · {{ result.payments.summary.cash_checked }} facture(s) sans écart de paiement détecté · {{ result.payments.summary.review }} à vérifier</p>
+          <div v-if="result.payments.issues.length" class="max-h-48 overflow-auto rounded-lg bg-red-50 p-3 text-sm text-red-900" role="alert">
+            <p class="font-semibold">Les anomalies ci-dessous empêchent de fiabiliser les totaux de règlements du lot.</p>
+            <p v-for="issue in result.payments.issues" :key="issue">{{ issue }}</p>
+          </div>
+        </template>
+      </section>
       <div class="grid gap-3 sm:grid-cols-3" aria-live="polite">
         <p class="rounded-xl bg-cyan-50 p-3">Factures : <strong>{{ result.summary.total }}</strong></p>
         <p class="rounded-xl bg-cyan-50 p-3">À vérifier : <strong>{{ result.summary.review }}</strong></p>
@@ -73,6 +84,16 @@ async function preview() {
                 <strong>{{ labels[row.status] }}</strong>
                 <p v-for="issue in row.issues" :key="issue" class="mt-1 text-red-900">{{ issue }}</p>
                 <p v-for="warning in row.warnings" :key="warning" class="mt-1 text-slate-700">{{ warning }}</p>
+                <details v-if="row.payments" class="mt-2"><summary class="cursor-pointer font-semibold text-cyan-800">Règlements ({{ row.payments.allocations.length }}) — {{ row.payments.status === 'cash_checked' ? 'Paiements contrôlés' : 'À vérifier' }}</summary>
+                  <div class="max-h-64 space-y-2 overflow-auto rounded-lg bg-cyan-50 p-2">
+                    <p>Paiements affectés : {{ row.payments.cash_allocated ?? 'Non fiabilisés' }} {{ row.currency }}</p>
+                    <p>Différence TTC − paiements : {{ row.payments.cash_difference ?? 'Non calculée' }}</p>
+                    <p class="font-semibold">Ce n’est pas le solde client définitif. Avoirs, acomptes et remises à vérifier.</p>
+                    <p v-for="issue in row.payments.issues" :key="issue" class="text-red-900">{{ issue }}</p>
+                    <p v-for="allocation in row.payments.allocations" :key="allocation.source_id">Paiement #{{ allocation.payment_id }} · {{ allocation.date || 'Date invalide' }} · Mode source #{{ allocation.mode_source || '?' }} · {{ allocation.amount }} {{ row.currency }} (donnée source)</p>
+                    <p v-if="!row.payments.allocations.length">Aucune affectation trouvée.</p>
+                  </div>
+                </details>
                 <details class="mt-2"><summary class="cursor-pointer font-semibold text-cyan-800">Lignes et montants ({{ row.lines.length }})</summary>
                   <div class="max-h-72 space-y-2 overflow-auto py-2">
                     <div v-for="line in row.lines" :key="line.source_id" class="rounded-lg bg-cyan-50 p-2">
@@ -94,7 +115,7 @@ async function preview() {
         <span>{{ filtered.length }} facture(s) · Page {{ page }} / {{ pages }}</span>
         <button :disabled="page >= pages" class="rounded-lg border border-cyan-200 p-2 disabled:opacity-40" @click="page++">Suivant →</button>
       </div>
-      <p class="rounded-xl bg-cyan-50 p-3 text-sm font-semibold">Étape suivante : rapprochement des règlements et import confirmé. Aucun bouton d’import n’est activé dans cet aperçu.</p>
+      <p class="rounded-xl bg-cyan-50 p-3 text-sm font-semibold">Étape suivante : vérifier les avoirs et acomptes, puis préparer l’import confirmé. Aucun bouton d’import n’est activé dans cet aperçu.</p>
     </template>
   </section>
 </template>
