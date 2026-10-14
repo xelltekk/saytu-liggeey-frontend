@@ -12,6 +12,12 @@ const error = ref('')
 const search = ref('')
 const filter = ref('')
 const page = ref(1)
+const creditPage = ref(1)
+const creditFilter = ref('')
+const creditRows = computed(() => (result.value?.credits?.rows || []).filter(row => !creditFilter.value || row.status === creditFilter.value))
+const creditPages = computed(() => Math.max(1, Math.ceil(creditRows.value.length / 20)))
+const visibleCredits = computed(() => creditRows.value.slice((creditPage.value - 1) * 20, creditPage.value * 20))
+watch([result, creditFilter], () => { creditPage.value = 1 })
 const labels = { ready: 'Sans conflit détecté', review: 'À vérifier / règlements à rapprocher', blocked: 'À résoudre' }
 watch(busy, value => emit('busy', value))
 watch([file, sourceKey, currency], () => { result.value = null; error.value = '' })
@@ -63,6 +69,28 @@ async function preview() {
         </template>
       </section>
       <div class="grid gap-3 sm:grid-cols-3" aria-live="polite">
+        <section v-if="result.credits" class="space-y-3 rounded-xl border border-cyan-200 bg-cyan-50 p-4 sm:col-span-3">
+          <h3 class="font-bold">Avoirs, acomptes et remises</h3>
+          <p class="text-sm">{{ result.credits.notice }}</p>
+          <template v-if="result.credits.available">
+            <p class="text-sm">{{ result.credits.summary.available }} disponible(s) · {{ result.credits.summary.payment }} utilisé(s) en règlement · {{ result.credits.summary.line }} intégré(s) dans les lignes · {{ result.credits.summary.review }} à vérifier · {{ result.credits.summary.suppliers_excluded }} crédit(s) fournisseur exclu(s)</p>
+            <p class="text-sm">« Liens cohérents » ne confirme pas l’encaissement de l’acompte ni le solde définitif.</p>
+            <div v-if="result.credits.issues.length" class="max-h-40 overflow-auto text-sm text-red-900"><p v-for="issue in result.credits.issues" :key="issue">{{ issue }}</p></div>
+            <select v-model="creditFilter" aria-label="Filtrer les crédits" class="rounded-lg border border-cyan-200 p-2"><option value="">Tous les crédits clients</option><option value="review">À vérifier</option><option value="checked">Liens cohérents</option></select>
+            <div class="max-h-80 overflow-auto rounded-lg border border-cyan-200 bg-white">
+              <table class="w-full text-left text-sm">
+                <thead class="sticky top-0 bg-cyan-100"><tr><th class="p-2">Crédit source</th><th class="p-2">Utilisation</th><th class="p-2">Montant</th><th class="p-2">Contrôles</th></tr></thead>
+                <tbody><tr v-for="credit in visibleCredits" :key="credit.source_id" class="border-t border-cyan-100 align-top">
+                  <td class="p-2">#{{ credit.source_id }} · {{ credit.kind }}<p>Tiers source #{{ credit.source_client }}</p><p>Facture d’origine : {{ credit.source_invoice ? '#' + credit.source_invoice : 'Sans facture source' }}</p></td>
+                  <td class="p-2">{{ { available: 'Disponible, non affecté', payment: 'Utilisé en règlement', line: 'Déjà inclus dans les lignes' }[credit.usage] }}<p v-if="credit.target_invoice">Facture cible #{{ credit.target_invoice }}</p></td>
+                  <td class="whitespace-nowrap p-2">{{ credit.amount ?? 'Invalide' }} {{ currency }}</td>
+                  <td class="p-2">{{ credit.status === 'checked' ? 'Liens cohérents' : 'À vérifier' }}<p v-for="issue in credit.issues" :key="issue" class="text-red-900">{{ issue }}</p></td>
+                </tr><tr v-if="!visibleCredits.length"><td colspan="4" class="p-3">Aucun crédit client pour ce filtre.</td></tr></tbody>
+              </table>
+            </div>
+            <div class="flex items-center justify-between gap-2 text-sm"><button :disabled="creditPage <= 1" class="rounded border border-cyan-200 p-2 disabled:opacity-40" @click="creditPage--">← Précédent</button><span>{{ creditPage }} / {{ creditPages }}</span><button :disabled="creditPage >= creditPages" class="rounded border border-cyan-200 p-2 disabled:opacity-40" @click="creditPage++">Suivant →</button></div>
+          </template>
+        </section>
         <p class="rounded-xl bg-cyan-50 p-3">Factures : <strong>{{ result.summary.total }}</strong></p>
         <p class="rounded-xl bg-cyan-50 p-3">À vérifier : <strong>{{ result.summary.review }}</strong></p>
         <p class="rounded-xl bg-cyan-50 p-3">À résoudre : <strong>{{ result.summary.blocked }}</strong></p>
