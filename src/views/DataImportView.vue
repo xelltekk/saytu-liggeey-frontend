@@ -22,6 +22,8 @@ const limits = ref({ database: 20 * 1024 * 1024, documents: 100 * 1024 * 1024, t
 const megabytes = value => Math.floor(value / (1024 * 1024))
 const formatDate = value => value ? new Date(value).toLocaleDateString('fr-FR') : 'Non disponible'
 const count = value => Number(value || 0).toLocaleString('fr-FR')
+const targetLabel = value => ({ existing: 'Rubrique existante', partial: 'À compléter', to_develop: 'Rubrique à développer' }[value] || 'À étudier')
+const adapterLabel = value => ({ available: 'Import disponible sous conditions', preview_only: 'Aperçu seulement', to_develop: 'Import à développer' }[value] || 'À étudier')
 
 function message(e) {
   if (e.response?.status === 413) return 'Les fichiers dépassent la limite de dépôt du serveur. Réduisez leur taille ou contactez l’administrateur.'
@@ -156,6 +158,22 @@ onMounted(load)
         </div>
         <div v-if="report.blockers.length" class="mt-4 rounded-xl border border-red-300 bg-red-50 p-4 text-red-900"><h3 class="font-bold">À résoudre avant la migration</h3><p v-for="item in report.blockers" :key="item" class="mt-2">{{ item }}</p></div>
         <div class="mt-4 rounded-xl border border-cyan-200 bg-cyan-50 p-4 text-slate-800"><h3 class="font-bold">Points à vérifier</h3><p v-for="item in report.warnings" :key="item" class="mt-2 text-sm">{{ item }}</p></div>
+      </section>
+      <section v-if="report.coverage" class="rounded-2xl border border-cyan-200 bg-white p-5">
+        <h2 class="text-lg font-bold text-slate-900">Couverture des rubriques métier</h2>
+        <p class="my-3 text-sm text-slate-700">{{ report.coverage.notice }}</p>
+        <div class="max-h-[420px] overflow-auto rounded-xl border border-cyan-100" tabindex="0" aria-label="Cartographie des rubriques">
+          <table class="w-full text-left text-sm">
+            <thead class="sticky top-0 bg-cyan-50"><tr><th class="p-3">Rubrique</th><th class="p-3">Lignes source</th><th class="p-3">Dans Saytu</th><th class="p-3">Outil de reprise</th></tr></thead>
+            <tbody><tr v-for="group in report.coverage.groups" :key="group.key" class="border-t border-cyan-100 align-top">
+              <td class="p-3"><strong>{{ group.label }}</strong><details class="mt-1"><summary class="cursor-pointer text-cyan-900">Tables concernées</summary><p v-for="table in group.tables" :key="table.key" class="break-all">{{ table.key }} : {{ count(table.rows) }}</p></details></td>
+              <td class="p-3">{{ count(group.rows) }}</td><td class="p-3">{{ targetLabel(group.target) }}</td><td class="p-3">{{ adapterLabel(group.adapter) }}</td>
+            </tr></tbody>
+          </table>
+        </div>
+        <p class="mt-2 text-xs text-slate-700">Les lignes additionnent les tables de chaque rubrique : elles ne représentent pas le nombre de fiches uniques. Une table vide reste visible pour préparer les prochains exports.</p>
+        <details class="mt-4"><summary class="cursor-pointer font-semibold text-cyan-900">{{ report.coverage.excluded.length }} table(s) de sécurité/configuration exclue(s) du transfert automatique</summary><div class="mt-2 max-h-48 overflow-auto text-sm"><p v-for="table in report.coverage.excluded" :key="table.key">{{ table.key }} : {{ count(table.rows) }}</p></div></details>
+        <details class="mt-3"><summary class="cursor-pointer font-semibold text-cyan-900">{{ report.coverage.review.length }} autre(s) table(s) à examiner</summary><p class="mt-2 text-sm">Aucune rubrique n’est créée automatiquement à partir d’une table technique.</p><div class="mt-2 max-h-48 overflow-auto text-sm"><p v-for="table in report.coverage.review" :key="table.key">{{ table.key }} : {{ count(table.rows) }}</p></div></details>
       </section>
       <section class="rounded-2xl border border-cyan-200 bg-white p-5">
         <h2 class="mb-3 text-lg font-bold text-slate-900">Données détectées</h2>

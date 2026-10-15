@@ -19,6 +19,14 @@ const creditPages = computed(() => Math.max(1, Math.ceil(creditRows.value.length
 const visibleCredits = computed(() => creditRows.value.slice((creditPage.value - 1) * 20, creditPage.value * 20))
 watch([result, creditFilter], () => { creditPage.value = 1 })
 const labels = { ready: 'Sans conflit détecté', review: 'À vérifier / règlements à rapprocher', blocked: 'À résoudre' }
+function exportSimulation() {
+  if (!result.value?.preflight) return
+  const report = { report_id: props.report.id, source_key: sourceKey.value, currency: currency.value, generated_at: new Date().toISOString(), ...result.value.preflight }
+  const url = URL.createObjectURL(new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' }))
+  const link = document.createElement('a')
+  link.href = url; link.download = `simulation-migration-${props.report.id}.json`; link.click()
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
 watch(busy, value => emit('busy', value))
 watch([file, sourceKey, currency], () => { result.value = null; error.value = '' })
 watch([search, filter], () => { page.value = 1 })
@@ -55,6 +63,20 @@ async function preview() {
     </fieldset></form>
     <p v-if="error" role="alert" class="rounded-xl bg-red-50 p-4 text-red-900">{{ error }}</p>
     <template v-if="result">
+      <section v-if="result.preflight" class="space-y-3 rounded-xl border border-cyan-200 bg-cyan-50 p-4">
+        <div class="flex flex-wrap items-center justify-between gap-3"><h3 class="font-bold">Bilan global et simulation des contrôles</h3><button class="rounded-lg border border-cyan-300 bg-white p-2 text-sm font-semibold" @click="exportSimulation">Exporter le bilan JSON</button></div>
+        <p class="text-sm">{{ result.preflight.notice }}</p>
+        <p class="font-semibold">{{ result.preflight.checks_failed }} contrôle(s) à résoudre · {{ result.preflight.writes_performed }} écriture effectuée</p>
+        <div class="max-h-72 space-y-2 overflow-auto">
+          <div v-for="check in result.preflight.checks" :key="check.key" class="rounded-lg bg-white p-3 text-sm"><strong>{{ check.ok ? '✓' : '⚠' }} {{ check.label }}</strong><p v-if="!check.ok" class="mt-1 text-red-900">{{ check.action }}</p></div>
+        </div>
+        <details><summary class="cursor-pointer font-semibold">Autres données inventoriées et travaux restants</summary>
+          <p class="mt-2 text-sm">Les données ci-dessous ne sont pas encore transférées automatiquement. Elles restent dans la sauvegarde d’origine.</p>
+          <div class="my-2 max-h-48 overflow-auto text-sm"><p v-for="module in result.preflight.additional_modules" :key="module.key">{{ module.label }} : {{ module.rows }} ligne(s) — correspondance à développer</p><p>{{ result.preflight.unmapped_tables ?? 'Nombre inconnu de' }} table(s) non cartographiée(s).</p></div>
+          <div v-if="result.preflight.unmapped_inventory?.length" class="my-2 max-h-48 overflow-auto text-sm"><p class="font-semibold">Inventaire technique sans contenu des tables</p><p v-for="table in result.preflight.unmapped_inventory" :key="table.key">{{ table.key }} : {{ table.rows }} ligne(s)</p></div>
+          <ul class="list-disc space-y-1 pl-5 text-sm"><li v-for="item in result.preflight.remaining" :key="item">{{ item }}</li></ul>
+        </details>
+      </section>
       <p v-for="warning in result.warnings" :key="warning" class="text-sm text-slate-700">{{ warning }}</p>
       <p v-for="blocker in result.blockers" :key="blocker" class="rounded-xl bg-red-50 p-3 text-red-900">{{ blocker }}</p>
       <section v-if="result.payments" class="space-y-2 rounded-xl border border-cyan-200 bg-cyan-50 p-4">
