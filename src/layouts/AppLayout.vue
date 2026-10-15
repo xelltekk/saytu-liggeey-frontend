@@ -350,6 +350,7 @@ import { useViewport } from '@/composables/useViewport'
 import { useWindowDock } from '@/composables/useWindowDock'
 import api from '@/services/api'
 import { isXelltekkAdmin as userIsXelltekkAdmin } from '@/utils/platformAccess'
+import { businessModules, businessPermission } from '@/utils/businessModules'
 
 import ToastContainer from '@/components/ToastContainer.vue'
 import NotificationsBell from '@/components/NotificationsBell.vue'
@@ -438,6 +439,7 @@ const isMac = computed(() => {
 const minimizedWindows = computed(() => dock.windows.value)
 
 const tousLesMenus = [
+  ...businessModules.map(([key, label]) => ({ to: `/metier/${key}`, label, icon: FileText, roles: [], permission: `${key}.view`, businessKey: key })),
   {
     to: '/',
     label: 'Tableau de bord',
@@ -710,6 +712,7 @@ function canAccessMenuItem(item) {
   if (item.xelltekkOnly && !isXelltekkAdmin()) return false
   if (item.tenantOnly && (!auth.user?.tenant || auth.user.tenant.is_platform)) return false
   if (!licenceAllowsMenuItem(item)) return false
+  if (item.businessKey) return businessPermission(auth.user, item.businessKey)
   if (role === 'admin' || directRole === 'admin') return true
   if (item.roles.includes(role) || item.roles.includes(directRole)) return true
   if (item.permission && userHasPermission(item.permission)) return true
@@ -733,7 +736,7 @@ function licenceAllowsMenuItem(item) {
     return true
   }
 
-  const module = item.permission?.split('.')?.[0]
+  const module = item.businessKey ? 'clients' : item.permission?.split('.')?.[0]
   return !module || modules.includes(module)
 }
 
@@ -822,7 +825,7 @@ const menuGroupDefinitions = [
     key: 'ventes',
     label: 'Ventes',
     icon: Users,
-    items: ['/clients', '/prospection', '/devis', '/factures']
+    items: ['/clients', '/prospection', '/devis', '/factures', ...businessModules.map(([key]) => `/metier/${key}`)]
   },
   {
     key: 'boutique',

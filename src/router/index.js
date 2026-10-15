@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { isXelltekkAdmin } from '@/utils/platformAccess'
+import { businessPermission } from '@/utils/businessModules'
 
 const routes = [
   {
@@ -40,6 +41,9 @@ const routes = [
     component: () => import('@/layouts/AppLayout.vue'),
     meta: { requiresAuth: true },
     children: [
+      { path: 'metier', name: 'business-home', component: () => import('@/views/BusinessModuleView.vue') },
+      { path: 'metier/:module', name: 'business-list', component: () => import('@/views/BusinessModuleView.vue') },
+      { path: 'metier/:module/:id', name: 'business-detail', component: () => import('@/views/BusinessModuleView.vue') },
       {
         path: '',
         name: 'dashboard',
@@ -671,6 +675,11 @@ router.beforeEach(async (to, from, next) => {
   // 3) Vérification du rôle pour cette route
   const role = roleForAccess(auth.user)
   const directRole = auth.user?.role
+  if (to.path === '/metier' || to.path.startsWith('/metier/')) {
+    if (!licenceAllowsRoute(auth.user, 'clients.view') || (to.params.module && !businessPermission(auth.user, to.params.module))) {
+      return next({ name: role === 'caissier' ? 'caisse' : 'dashboard' })
+    }
+  }
   if (to.path.startsWith('/importation') && role !== 'admin' && directRole !== 'admin') {
     return next({ name: role === 'caissier' ? 'caisse' : 'dashboard' })
   }
