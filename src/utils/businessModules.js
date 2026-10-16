@@ -7,6 +7,28 @@ export const businessModules = [
   ['connaissances', 'Base de connaissances'],
 ]
 
+export const businessSections = {
+  ventes: ['contacts', 'commandes_clients'],
+  pilotage: ['projets'],
+  services: ['contrats_services', 'sav', 'connaissances'],
+}
+
+export const businessColumns = {
+  contacts: [['client_label', 'Tiers'], ['fonction', 'Fonction'], ['email', 'Email'], ['telephone', 'Téléphone']],
+  commandes_clients: [['client_label', 'Client'], ['date_debut', 'Date'], ['date_fin', 'Échéance'], ['total_ttc', 'Total TTC'], ['devise', 'Devise']],
+  contrats_services: [['client_label', 'Client'], ['date_fin', 'Fin'], ['renouvellement', 'Renouvellement'], ['montant', 'Montant HT / période'], ['periodicite', 'Périodicité']],
+  projets: [['client_label', 'Client'], ['owner_label', 'Responsable'], ['date_fin', 'Échéance']],
+  sav: [['client_label', 'Client'], ['owner_label', 'Responsable'], ['priorite', 'Priorité']],
+  connaissances: [['categorie', 'Catégorie'], ['updated_at', 'Mis à jour']],
+}
+
+export function applyCatalogProduct(line, product) {
+  if (!product) return
+  line.designation = product.label
+  line.prix = String(product.prix_vente_ht ?? '0')
+  line.tva = String(product.taux_tva ?? '0')
+}
+
 export function businessPermission(user, key, action = 'view') {
   return (user?.base_role || user?.role) === 'admin' || (user?.permissions?.flat || []).includes(`${key}.${action}`)
 }

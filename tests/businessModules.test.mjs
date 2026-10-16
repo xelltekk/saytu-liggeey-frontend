@@ -1,6 +1,26 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { businessModules, businessPayload, businessPermission } from '../src/utils/businessModules.js'
+import { businessModules, businessPayload, businessPermission, businessSections, businessColumns, applyCatalogProduct } from '../src/utils/businessModules.js'
+
+test('each module belongs to exactly one relevant section and has business columns', () => {
+  const keys = Object.values(businessSections).flat()
+  assert.equal(keys.length, 6)
+  assert.equal(new Set(keys).size, 6)
+  assert.ok(businessSections.ventes.includes('commandes_clients'))
+  assert.ok(businessSections.pilotage.includes('projets'))
+  for (const [key] of businessModules) {
+    assert.ok(keys.includes(key))
+    assert.ok(businessColumns[key].length > 0)
+  }
+})
+
+test('catalog selection copies sale price and VAT, preserving quantity', () => {
+  const line = { quantite: '3', designation: 'Libre', prix: '20', tva: '0' }
+  applyCatalogProduct(line, { label: 'Ordinateur', prix_vente_ht: '250000.00', taux_tva: '18.00' })
+  assert.deepEqual(line, { quantite: '3', designation: 'Ordinateur', prix: '250000.00', tva: '18.00' })
+  applyCatalogProduct(line, undefined)
+  assert.equal(line.prix, '250000.00')
+})
 
 test('six distinct routes and least-privilege permissions', () => {
   assert.equal(new Set(businessModules.map(([key]) => key)).size, 6)

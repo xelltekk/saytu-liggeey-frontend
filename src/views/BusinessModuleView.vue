@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router'
 import api from '@/services/api'
-import { businessPayload } from '@/utils/businessModules'
+import { businessPayload, businessColumns, applyCatalogProduct } from '@/utils/businessModules'
 
 const route = useRoute(), router = useRouter()
 const definitions = ref([]), definition = ref(null), records = ref([]), record = ref(null), form = ref({})
@@ -46,6 +46,12 @@ async function load() {
       requestId.value = crypto.randomUUID(); messageId.value = crypto.randomUUID()
       let data = { titre: '', statut: definition.value.statuses[0], lines: [], tasks: [] }
       for (const [field, , type, options] of definition.value.fields) data[field] = type === 'select' ? options[0] : ''
+      if ('devise' in data) data.devise = 'XOF'
+      if ('date_debut' in data) {
+        const today = new Date()
+        data.date_debut = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+      }
+      if (key.value === 'sav') data.priorite = 'normale'
       if (route.params.id !== 'nouveau') {
         data = (await api.get(`/metier/${key.value}/${route.params.id}`)).data
         if (current !== sequence) return
@@ -141,13 +147,16 @@ watch(() => route.fullPath, load, { immediate: true })
         <RouterLink v-if="definition.permissions.create" :to="{ name: 'business-detail', params: { module: key, id: 'nouveau' }, query: route.query }" class="action">+ Nouvelle fiche</RouterLink>
       </form>
       <div class="max-h-[520px] overflow-auto" tabindex="0" aria-label="Liste des fiches"><table class="w-full text-left text-sm">
-        <thead class="sticky top-0 bg-cyan-50"><tr><th>Référence</th><th>Titre / nom</th><th>Statut</th><th>Action</th></tr></thead>
-        <tbody><tr v-for="item in records" :key="item.id"><td>{{ item.reference }}</td><td>{{ item.titre }}</td><td>{{ statusText(item.statut) }}</td><td><RouterLink :to="{ name: 'business-detail', params: { module: key, id: item.id }, query: route.query }" class="font-semibold text-cyan-800 underline">Ouvrir</RouterLink></td></tr></tbody>
+        <thead class="sticky top-0 bg-cyan-50"><tr><th>Référence</th><th>Titre / nom</th><th v-for="[field, label] in businessColumns[key]" :key="field">{{ label }}</th><th>Statut</th><th>Action</th></tr></thead>
+        <tbody><tr v-for="item in records" :key="item.id"><td>{{ item.reference }}</td><td>{{ item.titre }}</td><td v-for="[field] in businessColumns[key]" :key="field">{{ item[field] ?? '—' }}</td><td>{{ statusText(item.statut) }}</td><td><RouterLink :to="{ name: 'business-detail', params: { module: key, id: item.id }, query: route.query }" class="font-semibold text-cyan-800 underline">Ouvrir</RouterLink></td></tr></tbody>
       </table><p v-if="!records.length" class="p-6">Aucune fiche trouvée.</p></div>
       <div class="mt-4 flex flex-wrap items-center justify-between gap-3"><span>{{ total }} fiche(s) · Page {{ page }} / {{ lastPage }}</span><div class="flex gap-2"><button :disabled="page <= 1" @click="filterList(page - 1)">Précédent</button><button :disabled="page >= lastPage" @click="filterList(page + 1)">Suivant</button></div></div>
     </section>
     <section v-else-if="definition && detail && (record || route.params.id === 'nouveau')" class="rounded-2xl border border-cyan-200 bg-white p-5">
       <h2 class="text-xl font-bold">{{ record?.reference || 'Nouvelle fiche' }}</h2>
+      <div v-if="record?.relation_links" class="my-3 flex flex-wrap gap-3" aria-label="Fiches liées">
+        <RouterLink v-for="(url, field) in record.relation_links" :key="field" :to="url" class="action">Ouvrir {{ record.relation_labels[field] }} →</RouterLink>
+      </div>
       <p v-if="record?.archived_at" class="my-3 font-semibold">Fiche archivée — lecture seule.</p>
       <p v-if="lockedOrder" class="my-3 text-sm">Commande figée : seul le statut peut être modifié. Les lignes et montants restent conservés.</p>
       <nav class="my-4 flex flex-wrap gap-2" aria-label="Sections de la fiche">
@@ -160,7 +169,7 @@ watch(() => route.fullPath, load, { immediate: true })
       <form novalidate @submit.prevent="save">
         <fieldset :disabled="saving || !editable" class="space-y-4">
           <div v-show="tab === 'fiche'" class="grid gap-4 md:grid-cols-2">
-            <label>Statut<select v-model="form.statut"><option v-for="s in record ? definition.statuses : [definition.statuses[0]]" :key="s" :value="s">{{ statusText(s) }}</option></select></label>
+            <label>Statut<select v-model="form.statut"><option v-for="s in record ? (record.allowed_statuses || [record.statut]) : [definition.statuses[0]]" :key="s" :value="s">{{ statusText(s) }}</option></select></label>
             <label>{{ key === 'contacts' ? 'Nom complet' : 'Titre / objet' }} *<input v-model="form.titre" :disabled="lockedOrder" maxlength="191"></label>
             <label v-for="[field, label, type, source, required] in definition.fields" :key="field" :class="{ 'md:col-span-2': type === 'textarea' }">
               {{ label }} {{ required ? '*' : '' }}
@@ -178,7 +187,7 @@ watch(() => route.fullPath, load, { immediate: true })
             <div v-if="!lockedOrder" class="flex gap-2"><input v-model="productText" placeholder="Rechercher un produit du catalogue" aria-label="Recherche produit" @keydown.enter.prevent="lookupProducts()"><button type="button" @click="lookupProducts()">Chercher</button></div>
             <fieldset v-for="(line, index) in form.lines" :key="index" :disabled="lockedOrder" class="grid gap-3 rounded-xl border border-cyan-200 bg-cyan-50 p-4 md:grid-cols-3">
               <legend>Ligne {{ index + 1 }}</legend>
-              <label>Produit (facultatif)<select v-model="line.produit_id" @change="line.designation = products.find(p => p.id === line.produit_id)?.label || line.designation"><option :value="null">Ligne libre</option><option v-if="line.produit_id && !products.some(p => p.id === line.produit_id)" :value="line.produit_id">Produit #{{ line.produit_id }}</option><option v-for="p in products" :key="p.id" :value="p.id">{{ p.label }}</option></select></label>
+              <label>Produit (facultatif)<select v-model="line.produit_id" @change="applyCatalogProduct(line, products.find(p => Number(p.id) === Number(line.produit_id)))"><option :value="null">Ligne libre</option><option v-if="line.produit_id && !products.some(p => p.id === line.produit_id)" :value="line.produit_id">Produit #{{ line.produit_id }}</option><option v-for="p in products" :key="p.id" :value="p.id">{{ p.label }}</option></select></label>
               <label>Désignation *<input v-model="line.designation" maxlength="191"></label><label>Quantité *<input v-model="line.quantite" inputmode="decimal"></label><label>Prix unitaire HT *<input v-model="line.prix" inputmode="decimal"></label><label>TVA (%) *<input v-model="line.tva" inputmode="decimal"></label><button type="button" @click="form.lines.splice(index, 1)">Retirer la ligne</button>
             </fieldset>
             <button v-if="!lockedOrder" type="button" :disabled="form.lines.length >= 100" @click="form.lines.push({ produit_id: null, designation: '', quantite: '1', prix: '0', tva: '0' })">+ Ajouter une ligne</button>

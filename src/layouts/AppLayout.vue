@@ -350,7 +350,7 @@ import { useViewport } from '@/composables/useViewport'
 import { useWindowDock } from '@/composables/useWindowDock'
 import api from '@/services/api'
 import { isXelltekkAdmin as userIsXelltekkAdmin } from '@/utils/platformAccess'
-import { businessModules, businessPermission } from '@/utils/businessModules'
+import { businessModules, businessPermission, businessSections } from '@/utils/businessModules'
 
 import ToastContainer from '@/components/ToastContainer.vue'
 import NotificationsBell from '@/components/NotificationsBell.vue'
@@ -819,13 +819,19 @@ const menuGroupDefinitions = [
     key: 'pilotage',
     label: 'Pilotage',
     icon: Sparkles,
-    items: ['/pilotage', '/agenda']
+    items: ['/pilotage', '/agenda', ...businessSections.pilotage.map(key => `/metier/${key}`)]
   },
   {
     key: 'ventes',
     label: 'Ventes',
     icon: Users,
-    items: ['/clients', '/prospection', '/devis', '/factures', ...businessModules.map(([key]) => `/metier/${key}`)]
+    items: ['/clients', '/metier/contacts', '/prospection', '/devis', '/metier/commandes_clients', '/factures']
+  },
+  {
+    key: 'services',
+    label: 'Services & SAV',
+    icon: BookOpen,
+    items: businessSections.services.map(key => `/metier/${key}`)
   },
   {
     key: 'boutique',
