@@ -24,7 +24,7 @@
 
         <div v-if="facture" class="flex flex-wrap gap-2">
           <button type="button" class="btn-secondary" @click="ouvrirPdf">PDF</button>
-          <button type="button" class="btn-secondary" @click="setTab('saisie')">Modifier</button>
+          <button v-if="!facture.livraison_verrouillee" type="button" class="btn-secondary" @click="setTab('saisie')">Modifier</button>
           <button
             v-if="canValidateInvoices && facture.type !== 'avoir' && facture.statut === 'brouillon'"
             type="button"
@@ -90,7 +90,7 @@
         </div>
         <div class="flex flex-wrap gap-2">
           <button type="button" class="rounded-full border border-sky-200 px-3 py-1.5 text-xs font-black text-sky-800 hover:bg-sky-50" @click="ouvrirPdf">PDF</button>
-          <button type="button" class="rounded-full border border-sky-200 px-3 py-1.5 text-xs font-black text-sky-800 hover:bg-sky-50" @click="setTab('saisie')">Modifier</button>
+          <button v-if="!facture.livraison_verrouillee" type="button" class="rounded-full border border-sky-200 px-3 py-1.5 text-xs font-black text-sky-800 hover:bg-sky-50" @click="setTab('saisie')">Modifier</button>
           <button v-if="canEncaisser" type="button" class="rounded-full bg-emerald-600 px-3 py-1.5 text-xs font-black text-white hover:bg-emerald-700" @click="setTab('paiements')">Encaisser</button>
           <button v-if="canRelancer(facture)" type="button" class="rounded-full border border-orange-200 px-3 py-1.5 text-xs font-black text-orange-800 hover:bg-orange-50" @click="setTab('suivi')">Relancer</button>
           <button v-if="canCreateAvoir" type="button" class="rounded-full border border-red-200 px-3 py-1.5 text-xs font-black text-red-700 hover:bg-red-50" @click="setTab('avoirs')">Avoir</button>
@@ -101,6 +101,10 @@
       </div>
     </div>
 
+    <section v-if="facture?.livraison_verrouillee" class="rounded-2xl border border-cyan-200 bg-cyan-50 p-4 text-cyan-950">
+      <p>Facture issue d’une livraison : le stock est déjà déduit. Les lignes sont figées ; utilisez un avoir pour une correction ou un retour.</p>
+      <RouterLink v-if="facture.livraison_commande" :to="`/metier/commandes_clients/${facture.livraison_commande.order_id}`" class="mt-2 block font-bold underline">Voir la commande et la livraison {{ facture.livraison_commande.reference }}</RouterLink>
+    </section>
     <div class="rounded-2xl border border-sky-200 bg-white shadow-sm">
       <div class="flex flex-wrap gap-1 border-b border-sky-100 px-3 pt-3">
         <button
@@ -212,7 +216,7 @@
               </tbody>
             </table>
           </div>
-          <button type="button" class="btn-secondary" @click="setTab('saisie')">Modifier les lignes</button>
+          <button v-if="!facture.livraison_verrouillee" type="button" class="btn-secondary" @click="setTab('saisie')">Modifier les lignes</button>
         </section>
 
         <section v-else-if="activeTab === 'paiements' && facture" class="grid grid-cols-1 gap-4 xl:grid-cols-[0.9fr_1.1fr]">
@@ -563,6 +567,7 @@ const canCreateAvoir = computed(() => facture.value
   && parseFloat(facture.value.avoir_resume?.reste_a_avoiriser ?? facture.value.total_ttc ?? 0) > 0.01
   && lignesAvoirisables.value.length > 0)
 const canCancelInvoice = computed(() => facture.value
+  && !facture.value.livraison_verrouillee
   && canValidateInvoices.value
   && !['payee', 'annulee'].includes(facture.value.statut)
   && parseFloat(facture.value.montant_paye || 0) <= 0.01
@@ -583,7 +588,7 @@ const tabs = computed(() => [
   { key: 'historique', label: 'Historique', count: pilotage.value?.historique?.length ?? 0, create: false },
   { key: 'documents', label: 'Documents PDF', count: null, create: false },
 ])
-const visibleTabs = computed(() => tabs.value.filter(tab => tab.create || !isCreate.value))
+const visibleTabs = computed(() => tabs.value.filter(tab => (tab.create || !isCreate.value) && !(tab.key === 'saisie' && facture.value?.livraison_verrouillee)))
 
 function routeTab() {
   const tab = typeof route.query.tab === 'string' ? route.query.tab : ''
@@ -592,6 +597,7 @@ function routeTab() {
 }
 
 function setTab(tab) {
+  if (tab === 'saisie' && facture.value?.livraison_verrouillee) tab = 'fiche'
   activeTab.value = tab
   router.replace({ query: { ...route.query, tab } })
   if (tab === 'paiements') resetEncaissementForm()

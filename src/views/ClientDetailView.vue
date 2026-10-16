@@ -57,6 +57,13 @@
       </div>
     </div>
 
+    <section v-if="client && businessLinks.length" class="rounded-2xl border border-cyan-200 bg-cyan-50 p-4">
+      <h2 class="mb-3 font-bold text-cyan-950">Contacts et suivi de ce client</h2>
+      <div class="flex flex-wrap gap-2">
+        <RouterLink v-for="[key, label] in businessLinks" :key="key" :to="{ name: 'business-list', params: { module: key }, query: { client_id: client.id } }" class="btn-secondary">{{ label }}</RouterLink>
+      </div>
+    </section>
+
     <div class="rounded-2xl border border-cyan-200 bg-white shadow-sm">
       <div class="flex flex-wrap gap-1 border-b border-cyan-100 px-3 pt-3">
         <button
@@ -237,6 +244,8 @@ import ClientForm from '@/components/ClientForm.vue'
 import EmailActionButtons from '@/components/EmailActionButtons.vue'
 import { useToast } from '@/composables/useToast'
 import { buildEmailDraft } from '@/utils/emailComposer'
+import { useAuthStore } from '@/stores/auth'
+import { businessModules, businessPermission } from '@/utils/businessModules'
 
 const ClientListPanel = defineComponent({
   props: {
@@ -257,6 +266,8 @@ const ClientListPanel = defineComponent({
 const route = useRoute()
 const router = useRouter()
 const toast = useToast()
+const auth = useAuthStore()
+const businessLinks = computed(() => businessModules.filter(([key]) => ['contacts', 'contrats_services', 'projets', 'sav'].includes(key) && businessPermission(auth.user, key)))
 
 const client = ref(null)
 const loading = ref(false)

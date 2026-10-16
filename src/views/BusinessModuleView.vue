@@ -11,6 +11,10 @@ const search = ref(''), status = ref(''), archives = ref(false), page = ref(1), 
 const choices = ref({}), lookupText = ref({}), productText = ref(''), products = ref([])
 const message = ref(''), requestId = ref(crypto.randomUUID()), messageId = ref(crypto.randomUUID())
 const clean = ref(''), dirty = computed(() => clean.value && JSON.stringify(form.value) !== clean.value)
+const followup = ref(''), renewalEnd = ref(''), renewalReminder = ref('')
+const renewalDirty = computed(() => !!renewalEnd.value || !!renewalReminder.value)
+const shipment = ref(null), shipmentClean = ref(''), shipmentId = ref(crypto.randomUUID())
+const shipmentDirty = computed(() => shipmentClean.value && JSON.stringify(shipment.value) !== shipmentClean.value)
 const key = computed(() => route.params.module), detail = computed(() => !!route.params.id)
 const lockedOrder = computed(() => key.value === 'commandes_clients' && record.value && record.value.statut !== 'brouillon')
 const editable = computed(() => !record.value?.archived_at && (record.value ? definition.value?.permissions.update : definition.value?.permissions.create))
@@ -19,16 +23,18 @@ const lookupSequence = {}
 const statusText = value => ({ actif: 'Actif', inactif: 'Inactif', brouillon: 'Brouillon', confirmee: 'Confirmée', cloturee: 'Clôturée', annulee: 'Annulée', termine: 'Terminé', resilie: 'Résilié', planifie: 'Planifié', en_cours: 'En cours', annule: 'Annulé', ouvert: 'Ouvert', en_attente: 'En attente', resolu: 'Résolu', ferme: 'Fermé', publie: 'Publié', retire: 'Retiré', a_faire: 'À faire', terminee: 'Terminée' }[value] || value)
 const explain = e => Object.values(e.response?.data?.errors || {}).flat().join(' · ') || e.response?.data?.message || 'Chargement impossible. Réessayez.'
 const listTarget = () => ({ name: 'business-list', params: { module: key.value }, query: route.query })
-const canLeave = () => !saving.value && ((!dirty.value && !message.value.trim()) || window.confirm('Quitter sans enregistrer les modifications ou le message en cours ?'))
+const canLeave = () => !saving.value && ((!dirty.value && !message.value.trim() && !renewalDirty.value && !shipmentDirty.value) || window.confirm('Quitter sans enregistrer les modifications ou le message en cours ?'))
 onBeforeRouteLeave(canLeave)
 onBeforeRouteUpdate(canLeave)
-const unload = e => { if (dirty.value || message.value.trim()) { e.preventDefault(); e.returnValue = '' } }
+const unload = e => { if (dirty.value || message.value.trim() || renewalDirty.value || shipmentDirty.value) { e.preventDefault(); e.returnValue = '' } }
 window.addEventListener('beforeunload', unload)
 onBeforeUnmount(() => { sequence++; window.removeEventListener('beforeunload', unload) })
 
 async function load() {
   const current = ++sequence
   loading.value = true; error.value = ''; success.value = ''; clean.value = ''; message.value = ''; record.value = null; definition.value = null; choices.value = {}; lookupText.value = {}; tab.value = 'fiche'; products.value = []
+  renewalEnd.value = ''; renewalReminder.value = ''
+  shipment.value = null; shipmentClean.value = ''; shipmentId.value = crypto.randomUUID()
   try {
     const catalog = (await api.get('/metier')).data.modules
     if (current !== sequence) return
@@ -39,7 +45,8 @@ async function load() {
     if (!detail.value) {
       search.value = String(route.query.q || ''); status.value = String(route.query.statut || ''); archives.value = route.query.archives === '1'
       page.value = Math.max(1, Number(route.query.page) || 1)
-      const data = (await api.get(`/metier/${key.value}`, { params: { q: search.value, statut: status.value || undefined, archives: archives.value ? 1 : 0, page: page.value } })).data
+      followup.value = String(route.query.suivi || '')
+      const data = (await api.get(`/metier/${key.value}`, { params: { q: search.value, statut: status.value || undefined, archives: archives.value ? 1 : 0, page: page.value, client_id: route.query.client_id || undefined, suivi: followup.value || undefined } })).data
       if (current !== sequence) return
       records.value = data.data; lastPage.value = data.last_page; total.value = data.total
     } else {
@@ -52,10 +59,18 @@ async function load() {
         data.date_debut = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
       }
       if (key.value === 'sav') data.priorite = 'normale'
+      if ('client_id' in data && /^[1-9]\d*$/.test(String(route.query.client_id || ''))) data.client_id = Number(route.query.client_id)
       if (route.params.id !== 'nouveau') {
         data = (await api.get(`/metier/${key.value}/${route.params.id}`)).data
         if (current !== sequence) return
         record.value = data
+        if (key.value === 'commandes_clients') {
+          const today = new Date(), due = new Date()
+          due.setDate(due.getDate() + 30)
+          const date = value => `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`
+          shipment.value = { date_livraison: date(today), date_echeance: date(due), notes: '', lines: data.lines.map(l => ({ line_id: l.id, quantite: '0' })) }
+          shipmentClean.value = JSON.stringify(shipment.value)
+        }
       }
       form.value = structuredClone(data)
       clean.value = JSON.stringify(form.value)
@@ -85,10 +100,12 @@ function clientChanged() {
   for (const [field, , type, source] of definition.value.fields) if (type === 'relation' && ['devis', 'contacts'].includes(source)) { form.value[field] = null; lookup(field, source) }
 }
 function filterList(nextPage = 1) {
-  router.push({ name: 'business-list', params: { module: key.value }, query: { q: search.value || undefined, statut: status.value || undefined, archives: archives.value ? '1' : undefined, page: nextPage > 1 ? nextPage : undefined } })
+  router.push({ name: 'business-list', params: { module: key.value }, query: { client_id: route.query.client_id || undefined, suivi: followup.value || undefined, q: search.value || undefined, statut: status.value || undefined, archives: archives.value ? '1' : undefined, page: nextPage > 1 ? nextPage : undefined } })
 }
 async function save() {
   if (saving.value || !editable.value) return
+  if (renewalDirty.value && !window.confirm('Enregistrer la fiche sans appliquer le renouvellement saisi ?')) return
+  if (shipmentDirty.value && !window.confirm('Enregistrer la fiche sans appliquer la livraison saisie ?')) return
   saving.value = true; error.value = ''; success.value = ''
   try {
     const payload = businessPayload(definition.value, form.value, record.value, requestId.value)
@@ -120,6 +137,40 @@ async function sendMessage() {
   } catch (e) { error.value = explain(e) }
   finally { saving.value = false }
 }
+async function renewContract() {
+  if (saving.value || dirty.value) return
+  saving.value = true; error.value = ''
+  try {
+    await api.post(`/metier/contrats_services/${record.value.id}/renouveler`, { version: record.value.version, date_fin: renewalEnd.value, renouvellement: renewalReminder.value || null })
+    await load(); success.value = 'Contrat renouvelé. Aucune facture ni aucun paiement créés.'
+  } catch (e) { error.value = explain(e) }
+  finally { saving.value = false }
+}
+async function deliverOrder() {
+  if (saving.value || dirty.value) return
+  const lines = shipment.value.lines.filter(l => Number(l.quantite) !== 0)
+  if (!lines.length) { error.value = 'Saisissez au moins une quantité à livrer.'; return }
+  if (!window.confirm('Confirmer la livraison ? Une facture sera créée et validée pour ces quantités, et leur stock sera déduit. Aucun paiement ne sera enregistré.')) return
+  saving.value = true; error.value = ''
+  try {
+    await api.post(`/metier/commandes_clients/${record.value.id}/livrer`, { ...shipment.value, lines, version: record.value.version, request_id: shipmentId.value })
+    await load(); tab.value = 'deliveries'; success.value = 'Livraison enregistrée et facture validée. Le paiement reste à encaisser dans Factures.'
+  } catch (e) { error.value = explain(e) }
+  finally { saving.value = false }
+}
+async function createArticle() {
+  if (saving.value || dirty.value || !window.confirm('Copier uniquement la solution dans une procédure interne en brouillon ? Relisez-la avant publication.')) return
+  saving.value = true; error.value = ''
+  try {
+    const { data } = await api.post(`/metier/sav/${record.value.id}/procedure`, { version: record.value.version })
+    saving.value = false
+    await router.push({ name: 'business-detail', params: { module: 'connaissances', id: data.id } })
+  } catch (e) { error.value = explain(e) }
+  finally { saving.value = false }
+}
+function eventDetails(event) {
+  try { const d = JSON.parse(event.details || '{}'); return d.ancienne_fin ? `Fin : ${d.ancienne_fin} → ${d.nouvelle_fin}` : d.livraison_id ? `Livraison #${d.livraison_id} · Facture #${d.facture_id}` : '' } catch { return '' }
+}
 watch(() => route.fullPath, load, { immediate: true })
 </script>
 
@@ -139,9 +190,11 @@ watch(() => route.fullPath, load, { immediate: true })
       <p v-if="!definitions.length">Aucune rubrique autorisée. Contactez votre administrateur.</p>
     </section>
     <section v-else-if="definition && !detail" class="rounded-2xl border border-cyan-200 bg-white p-5">
+      <p v-if="route.query.client_id" class="mb-4 text-sm">Liste limitée au client sélectionné. <RouterLink :to="{ name: 'business-list', params: { module: key } }" class="underline">Afficher tous les clients</RouterLink></p>
       <form class="mb-4 flex flex-wrap items-end gap-3" @submit.prevent="filterList()">
         <label>Recherche<input v-model="search" type="search" maxlength="100" placeholder="Titre ou référence"></label>
         <label>Statut<select v-model="status"><option value="">Tous</option><option v-for="s in definition.statuses" :key="s" :value="s">{{ statusText(s) }}</option></select></label>
+        <label>Suivi<select v-model="followup"><option value="">Tout</option><option value="a_traiter">Actifs / à traiter</option><option v-if="['contrats_services', 'projets'].includes(key)" value="echeance">Échus ou échéance sous 30 jours</option></select></label>
         <label class="flex items-center gap-2"><input v-model="archives" type="checkbox"> Archives</label>
         <button type="submit">Rechercher</button>
         <RouterLink v-if="definition.permissions.create" :to="{ name: 'business-detail', params: { module: key, id: 'nouveau' }, query: route.query }" class="action">+ Nouvelle fiche</RouterLink>
@@ -159,12 +212,19 @@ watch(() => route.fullPath, load, { immediate: true })
       </div>
       <p v-if="record?.archived_at" class="my-3 font-semibold">Fiche archivée — lecture seule.</p>
       <p v-if="lockedOrder" class="my-3 text-sm">Commande figée : seul le statut peut être modifié. Les lignes et montants restent conservés.</p>
+      <div v-if="key === 'sav' && record" class="my-3 flex flex-wrap gap-2">
+        <RouterLink v-if="record.article_id" :to="`/metier/connaissances/${record.article_id}`" class="action">Voir la procédure issue de ce ticket</RouterLink>
+        <button v-else-if="editable && record.can_create_article && ['resolu', 'ferme'].includes(record.statut)" :disabled="saving || dirty || !!message.trim()" type="button" @click="createArticle">Créer une procédure depuis la solution</button>
+      </div>
       <nav class="my-4 flex flex-wrap gap-2" aria-label="Sections de la fiche">
         <button type="button" :aria-pressed="tab === 'fiche'" @click="tab = 'fiche'">Fiche</button>
         <button v-if="definition.children === 'lines'" type="button" :aria-pressed="tab === 'lines'" @click="tab = 'lines'">Lignes de commande</button>
+        <button v-if="key === 'commandes_clients' && record" type="button" :aria-pressed="tab === 'deliveries'" @click="tab = 'deliveries'">Livraisons et factures</button>
         <button v-if="definition.children === 'tasks'" type="button" :aria-pressed="tab === 'tasks'" @click="tab = 'tasks'">Tâches et temps passé</button>
         <button v-if="definition.children === 'messages' && record" type="button" :aria-pressed="tab === 'messages'" @click="tab = 'messages'">Échanges internes</button>
         <button v-if="record" type="button" :aria-pressed="tab === 'history'" @click="tab = 'history'">Historique</button>
+        <button v-if="key === 'contrats_services' && editable && record && ['actif', 'termine'].includes(record.statut)" type="button" :aria-pressed="tab === 'renewal'" @click="tab = 'renewal'">Renouveler</button>
+        <button v-if="key === 'connaissances' && record" type="button" :aria-pressed="tab === 'lecture'" @click="tab = 'lecture'">Lire la procédure</button>
       </nav>
       <form novalidate @submit.prevent="save">
         <fieldset :disabled="saving || !editable" class="space-y-4">
@@ -201,16 +261,47 @@ watch(() => route.fullPath, load, { immediate: true })
             <button type="button" :disabled="form.tasks.length >= 200" @click="form.tasks.push({ titre: '', statut: 'a_faire', owner_id: null, echeance: null, minutes: 0 })">+ Ajouter une tâche</button>
             <p>Temps total : {{ form.tasks.reduce((sum, t) => sum + Number(t.minutes || 0), 0) }} minutes. La recherche de responsables se trouve dans la section Fiche.</p>
           </div>
-          <div v-if="!['messages', 'history'].includes(tab)" class="flex flex-wrap gap-3 border-t border-cyan-100 pt-4"><button v-if="editable" class="primary" type="submit">{{ saving ? 'Enregistrement…' : 'Enregistrer' }}</button><span v-if="dirty" class="self-center text-sm">Modifications non enregistrées</span></div>
+          <div v-if="!['messages', 'history', 'renewal', 'lecture', 'deliveries'].includes(tab)" class="flex flex-wrap gap-3 border-t border-cyan-100 pt-4"><button v-if="editable" class="primary" type="submit">{{ saving ? 'Enregistrement…' : 'Enregistrer' }}</button><span v-if="dirty" class="self-center text-sm">Modifications non enregistrées</span></div>
         </fieldset>
       </form>
+      <section v-if="tab === 'deliveries' && record && shipment" class="space-y-5">
+        <p>Chaque livraison crée une facture des quantités réellement livrées et déduit leur stock une seule fois. L’encaissement se fait ensuite dans Factures.</p>
+        <div class="overflow-auto"><table class="w-full text-sm"><thead><tr><th>Produit / prestation</th><th>Commandé</th><th>Livré</th><th>Reste</th><th>À livrer maintenant</th></tr></thead><tbody>
+          <tr v-for="(line, index) in record.lines" :key="line.id"><td>{{ line.designation }}</td><td>{{ line.quantite }}</td><td>{{ line.livree }}</td><td>{{ line.reste }}</td><td><input v-model="shipment.lines[index].quantite" :aria-label="`Quantité à livrer : ${line.designation}`" type="number" min="0" step="0.001" :max="line.reste" :disabled="saving || dirty || !record.can_deliver || !!record.archived_at || record.statut !== 'confirmee' || Number(line.reste) <= 0"></td></tr>
+        </tbody></table></div>
+        <form v-if="record.can_deliver && !record.archived_at && record.statut === 'confirmee'" class="space-y-3" @submit.prevent="deliverOrder">
+          <label>Date de livraison<input v-model="shipment.date_livraison" type="date" required :disabled="saving || dirty"></label>
+          <label>Échéance de paiement de la facture<input v-model="shipment.date_echeance" type="date" required :disabled="saving || dirty"></label>
+          <label>Notes de livraison<textarea v-model="shipment.notes" maxlength="2000" :disabled="saving || dirty" /></label>
+          <p v-if="dirty">Enregistrez les modifications de la fiche avant de livrer.</p>
+          <button type="submit" class="primary" :disabled="saving || dirty">{{ saving ? 'Enregistrement…' : 'Livrer et facturer ces quantités' }}</button>
+        </form>
+        <p v-else-if="record.statut === 'brouillon'">Confirmez la commande dans l’onglet Fiche pour commencer les livraisons.</p>
+        <p v-else-if="record.statut === 'cloturee'">Commande clôturée. Consultez ci-dessous les livraisons enregistrées.</p>
+        <p v-else-if="!record.can_deliver">La création et la validation des factures nécessitent les droits correspondants.</p>
+        <h3 class="font-bold">Historique des livraisons</h3>
+        <article v-for="delivery in record.deliveries" :key="delivery.id" class="rounded-xl border border-cyan-200 p-4"><p>{{ delivery.reference }} · {{ delivery.date_livraison }}</p><p class="whitespace-pre-wrap">{{ delivery.notes }}</p><RouterLink v-if="delivery.facture_id" :to="`/factures/${delivery.facture_id}`" class="font-bold underline">Ouvrir la facture</RouterLink></article>
+        <p v-if="!record.deliveries.length">Aucune livraison enregistrée.</p>
+      </section>
       <section v-if="tab === 'messages' && record" class="space-y-3">
         <p class="text-sm">{{ record.messages_total }} échange(s) · les 200 derniers échanges au maximum sont affichés.</p>
         <div class="max-h-96 space-y-3 overflow-auto"><article v-for="m in record.messages" :key="m.id" class="rounded-xl bg-cyan-50 p-4"><small>{{ m.created_at }} · Utilisateur #{{ m.user_id }}</small><p class="mt-2 whitespace-pre-wrap break-words">{{ m.contenu }}</p></article></div>
         <form v-if="editable && record.statut !== 'ferme'" @submit.prevent="sendMessage"><label>Nouvel échange interne<textarea v-model="message" maxlength="10000" rows="4" :disabled="saving || dirty" /></label><p v-if="dirty">Enregistrez la fiche avant d’ajouter un échange.</p><button class="mt-3" :disabled="saving || dirty || !message.trim()">Enregistrer l’échange</button></form>
       </section>
-      <section v-if="tab === 'history' && record" class="max-h-96 overflow-auto"><p class="mb-3 text-sm">100 derniers événements · les valeurs anciennes des champs ne sont pas conservées dans ce journal.</p><p v-for="(event, index) in record.events" :key="index" class="border-b border-cyan-100 py-3">{{ event.created_at }} · {{ event.action }} · {{ statusText(event.statut) }} · Utilisateur #{{ event.user_id }}</p></section>
-      <button v-if="record && !record.archived_at && definition.permissions.delete" class="mt-6" :disabled="saving || dirty" @click="archive">Archiver la fiche</button>
+      <section v-if="tab === 'history' && record" class="max-h-96 overflow-auto"><p class="mb-3 text-sm">100 derniers événements. Les anciennes et nouvelles dates de renouvellement sont conservées.</p><p v-for="(event, index) in record.events" :key="index" class="border-b border-cyan-100 py-3">{{ event.created_at }} · {{ event.action }} · {{ statusText(event.statut) }} · Utilisateur #{{ event.user_id }} <span class="block">{{ eventDetails(event) }}</span></p></section>
+      <form v-if="tab === 'renewal' && record" class="space-y-4" @submit.prevent="renewContract">
+        <p>Fin actuelle : {{ record.date_fin }}. Ce renouvellement prolonge le contrat et conserve son historique. Il ne génère pas de facture.</p>
+        <p v-if="dirty" role="alert">Enregistrez d’abord les modifications de la fiche.</p>
+        <label>Nouvelle date de fin *<input v-model="renewalEnd" type="date" required :disabled="saving || dirty"></label>
+        <label>Prochaine échéance de renouvellement<input v-model="renewalReminder" type="date" :disabled="saving || dirty"></label>
+        <button type="submit" :disabled="saving || dirty || !renewalEnd">Confirmer le renouvellement</button>
+      </form>
+      <article v-if="tab === 'lecture' && record" class="rounded-xl bg-cyan-50 p-5">
+        <p class="text-sm">{{ record.categorie }} · {{ statusText(record.statut) }} · Document interne</p>
+        <h3 class="my-4 text-xl font-bold">{{ record.titre }}</h3>
+        <p class="whitespace-pre-wrap break-words">{{ record.contenu }}</p>
+      </article>
+      <button v-if="record && !record.archived_at && definition.permissions.delete" class="mt-6" :disabled="saving || dirty || renewalDirty || shipmentDirty" @click="archive">Archiver la fiche</button>
     </section>
   </main>
 </template>

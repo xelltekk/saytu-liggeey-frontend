@@ -350,7 +350,7 @@ import { useViewport } from '@/composables/useViewport'
 import { useWindowDock } from '@/composables/useWindowDock'
 import api from '@/services/api'
 import { isXelltekkAdmin as userIsXelltekkAdmin } from '@/utils/platformAccess'
-import { businessModules, businessPermission, businessSections } from '@/utils/businessModules'
+import { activeBusinessModules, businessPermission, businessSections } from '@/utils/businessModules'
 
 import ToastContainer from '@/components/ToastContainer.vue'
 import NotificationsBell from '@/components/NotificationsBell.vue'
@@ -439,7 +439,7 @@ const isMac = computed(() => {
 const minimizedWindows = computed(() => dock.windows.value)
 
 const tousLesMenus = [
-  ...businessModules.map(([key, label]) => ({ to: `/metier/${key}`, label, icon: FileText, roles: [], permission: `${key}.view`, businessKey: key })),
+  ...activeBusinessModules.map(([key, label]) => ({ to: `/metier/${key}`, label, icon: FileText, roles: [], permission: `${key}.view`, businessKey: key })),
   {
     to: '/',
     label: 'Tableau de bord',

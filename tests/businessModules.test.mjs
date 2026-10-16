@@ -1,14 +1,16 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { businessModules, businessPayload, businessPermission, businessSections, businessColumns, applyCatalogProduct } from '../src/utils/businessModules.js'
+import { businessModules, activeBusinessModules, businessPayload, businessPermission, businessSections, businessColumns, applyCatalogProduct } from '../src/utils/businessModules.js'
 
-test('each module belongs to exactly one relevant section and has business columns', () => {
+test('active modules belong to one relevant section including customer orders', () => {
   const keys = Object.values(businessSections).flat()
   assert.equal(keys.length, 6)
   assert.equal(new Set(keys).size, 6)
-  assert.ok(businessSections.ventes.includes('commandes_clients'))
+  assert.equal(keys.includes('commandes_clients'), true)
+  assert.equal(activeBusinessModules.some(([key]) => key === 'commandes_clients'), true)
+  assert.equal(businessModules.some(([key]) => key === 'commandes_clients'), true)
   assert.ok(businessSections.pilotage.includes('projets'))
-  for (const [key] of businessModules) {
+  for (const [key] of activeBusinessModules) {
     assert.ok(keys.includes(key))
     assert.ok(businessColumns[key].length > 0)
   }
