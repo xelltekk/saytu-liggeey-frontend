@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router'
 import api from '@/services/api'
+import { ouvrirPDF } from '@/services/pdf'
 import { businessPayload, businessColumns, applyCatalogProduct } from '@/utils/businessModules'
 
 const route = useRoute(), router = useRouter()
@@ -22,6 +23,18 @@ let sequence = 0
 const lookupSequence = {}
 const statusText = value => ({ actif: 'Actif', inactif: 'Inactif', brouillon: 'Brouillon', confirmee: 'Confirmée', cloturee: 'Clôturée', annulee: 'Annulée', termine: 'Terminé', resilie: 'Résilié', planifie: 'Planifié', en_cours: 'En cours', annule: 'Annulé', ouvert: 'Ouvert', en_attente: 'En attente', resolu: 'Résolu', ferme: 'Fermé', publie: 'Publié', retire: 'Retiré', a_faire: 'À faire', terminee: 'Terminée' }[value] || value)
 const explain = e => Object.values(e.response?.data?.errors || {}).flat().join(' · ') || e.response?.data?.message || 'Chargement impossible. Réessayez.'
+const downloadingDelivery = ref(null)
+async function downloadDelivery(delivery) {
+  if (downloadingDelivery.value) return
+  const current = sequence
+  downloadingDelivery.value = delivery.id
+  error.value = ''
+  try {
+    await ouvrirPDF(`/metier/commandes_clients/${record.value.id}/livraisons/${delivery.id}/pdf`, `${delivery.reference}.pdf`)
+  } catch {
+    if (current === sequence) error.value = 'Téléchargement du bon de livraison impossible. Vérifiez vos droits et réessayez.'
+  } finally { downloadingDelivery.value = null }
+}
 const listTarget = () => ({ name: 'business-list', params: { module: key.value }, query: route.query })
 const canLeave = () => !saving.value && ((!dirty.value && !message.value.trim() && !renewalDirty.value && !shipmentDirty.value) || window.confirm('Quitter sans enregistrer les modifications ou le message en cours ?'))
 onBeforeRouteLeave(canLeave)
@@ -280,7 +293,7 @@ watch(() => route.fullPath, load, { immediate: true })
         <p v-else-if="record.statut === 'cloturee'">Commande clôturée. Consultez ci-dessous les livraisons enregistrées.</p>
         <p v-else-if="!record.can_deliver">La création et la validation des factures nécessitent les droits correspondants.</p>
         <h3 class="font-bold">Historique des livraisons</h3>
-        <article v-for="delivery in record.deliveries" :key="delivery.id" class="rounded-xl border border-cyan-200 p-4"><p>{{ delivery.reference }} · {{ delivery.date_livraison }}</p><p class="whitespace-pre-wrap">{{ delivery.notes }}</p><RouterLink v-if="delivery.facture_id" :to="`/factures/${delivery.facture_id}`" class="font-bold underline">Ouvrir la facture</RouterLink></article>
+        <article v-for="delivery in record.deliveries" :key="delivery.id" class="rounded-xl border border-cyan-200 p-4"><p>{{ delivery.reference }} · {{ delivery.date_livraison }}</p><p class="whitespace-pre-wrap">{{ delivery.notes }}</p><div class="mt-3 flex flex-wrap items-center gap-4"><button type="button" :disabled="!!downloadingDelivery" @click="downloadDelivery(delivery)">{{ downloadingDelivery === delivery.id ? 'Préparation du PDF…' : 'Bon de livraison PDF' }}</button><RouterLink v-if="delivery.facture_id" :to="`/factures/${delivery.facture_id}`" class="font-bold underline">Ouvrir la facture</RouterLink></div></article>
         <p v-if="!record.deliveries.length">Aucune livraison enregistrée.</p>
       </section>
       <section v-if="tab === 'messages' && record" class="space-y-3">
