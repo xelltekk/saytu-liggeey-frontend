@@ -102,7 +102,7 @@
     </div>
 
     <section v-if="facture?.livraison_verrouillee" class="rounded-2xl border border-cyan-200 bg-cyan-50 p-4 text-cyan-950">
-      <p>Facture issue d’une livraison : le stock est déjà déduit. Les lignes sont figées ; utilisez un avoir pour une correction ou un retour.</p>
+      <p>Facture liée à une commande ou une livraison : ses lignes sont figées. Consultez les livraisons pour connaître les quantités réellement sorties. Un avoir corrige la facturation ; un retour physique se traite séparément.</p>
       <RouterLink v-if="facture.livraison_commande" :to="`/metier/commandes_clients/${facture.livraison_commande.order_id}`" class="mt-2 block font-bold underline">Voir la commande et la livraison {{ facture.livraison_commande.reference }}</RouterLink>
     </section>
     <div class="rounded-2xl border border-sky-200 bg-white shadow-sm">
@@ -123,6 +123,8 @@
       <div v-if="loading" class="p-10 text-center text-slate-500">Chargement...</div>
 
       <div v-else class="p-4">
+        <InvoiceDeliveriesPanel v-if="activeTab === 'livraisons' && facture" :invoice-id="facture.id" @changed="loadAll" />
+        <p v-if="activeTab === 'avoirs' && facture?.stock_mode === 'livraison'" class="mb-4 rounded-xl bg-amber-50 p-4 text-amber-900">Dans ce parcours, un avoir corrige uniquement la facturation. Il ne remet aucun produit en stock. Un retour physique doit être enregistré séparément.</p>
         <section v-if="activeTab === 'fiche' && facture" class="space-y-4">
           <div class="grid grid-cols-1 gap-3 lg:grid-cols-4">
             <div class="rounded-xl border border-sky-100 bg-sky-50 p-4">
@@ -502,6 +504,7 @@
 </template>
 
 <script setup>
+import InvoiceDeliveriesPanel from '@/components/InvoiceDeliveriesPanel.vue'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import api from '@/services/api'
@@ -582,6 +585,7 @@ const tabs = computed(() => [
   { key: 'fiche', label: 'Fiche', count: null, create: false },
   { key: 'saisie', label: isCreate.value ? 'Saisie facture' : 'Modifier / lignes', count: null, create: true },
   { key: 'lignes', label: 'Lignes', count: facture.value?.lignes?.length ?? 0, create: false },
+  { key: 'livraisons', label: 'Livrer / Générer le BL', count: null, create: false },
   { key: 'paiements', label: 'Paiements', count: pilotage.value?.paiements?.length ?? 0, create: false },
   { key: 'suivi', label: 'Relances / suivi', count: pilotage.value?.recouvrements?.length ?? 0, create: false },
   { key: 'avoirs', label: 'Avoirs / annulation', count: facture.value?.avoir_resume?.avoirs_count ?? facture.value?.documents_lies?.avoirs?.length ?? 0, create: false },

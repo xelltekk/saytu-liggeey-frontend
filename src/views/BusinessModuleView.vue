@@ -163,11 +163,22 @@ async function deliverOrder() {
   if (saving.value || dirty.value) return
   const lines = shipment.value.lines.filter(l => Number(l.quantite) !== 0)
   if (!lines.length) { error.value = 'Saisissez au moins une quantité à livrer.'; return }
-  if (!window.confirm('Confirmer la livraison ? Une facture sera créée et validée pour ces quantités, et leur stock sera déduit. Aucun paiement ne sera enregistré.')) return
+  if (!window.confirm(record.value.legacy_delivery ? 'Commande historique : livrer et facturer ces quantités, sans encaissement ?' : 'Valider la livraison et déduire le stock ? Aucune facture ni paiement ne sera créé.')) return
   saving.value = true; error.value = ''
   try {
-    await api.post(`/metier/commandes_clients/${record.value.id}/livrer`, { ...shipment.value, lines, version: record.value.version, request_id: shipmentId.value })
-    await load(); tab.value = 'deliveries'; success.value = 'Livraison enregistrée et facture validée. Le paiement reste à encaisser dans Factures.'
+    const payload = { ...shipment.value, lines, version: record.value.version, request_id: shipmentId.value }
+    if (!record.value.legacy_delivery) delete payload.date_echeance
+    await api.post(`/metier/commandes_clients/${record.value.id}/livrer`, payload)
+    await load(); tab.value = 'deliveries'; success.value = 'Livraison enregistrée. Le bon de livraison PDF est disponible dans l’historique.'
+  } catch (e) { error.value = explain(e) }
+  finally { saving.value = false }
+}
+async function billOrder() {
+  if (saving.value || dirty.value || !window.confirm('Créer la facture complète de cette commande en brouillon ? Aucun stock ni paiement ne sera modifié.')) return
+  saving.value = true; error.value = ''
+  try {
+    await api.post(`/metier/commandes_clients/${record.value.id}/facturer`, { version: record.value.version, date_echeance: shipment.value.date_echeance })
+    await load(); tab.value = 'deliveries'; success.value = 'Facture créée en brouillon. Ouvrez-la pour la vérifier et la valider.'
   } catch (e) { error.value = explain(e) }
   finally { saving.value = false }
 }
@@ -182,7 +193,7 @@ async function createArticle() {
   finally { saving.value = false }
 }
 function eventDetails(event) {
-  try { const d = JSON.parse(event.details || '{}'); return d.ancienne_fin ? `Fin : ${d.ancienne_fin} → ${d.nouvelle_fin}` : d.livraison_id ? `Livraison #${d.livraison_id} · Facture #${d.facture_id}` : '' } catch { return '' }
+  try { const d = JSON.parse(event.details || '{}'); return d.ancienne_fin ? `Fin : ${d.ancienne_fin} → ${d.nouvelle_fin}` : [d.livraison_id ? `Livraison #${d.livraison_id}` : '', d.facture_id ? `Facture #${d.facture_id}` : ''].filter(Boolean).join(' · ') } catch { return '' }
 }
 watch(() => route.fullPath, load, { immediate: true })
 </script>
@@ -278,16 +289,19 @@ watch(() => route.fullPath, load, { immediate: true })
         </fieldset>
       </form>
       <section v-if="tab === 'deliveries' && record && shipment" class="space-y-5">
-        <p>Chaque livraison crée une facture des quantités réellement livrées et déduit leur stock une seule fois. L’encaissement se fait ensuite dans Factures.</p>
+        <p v-if="record.legacy_delivery">Commande historique déjà facturée par livraisons : son ancien fonctionnement est conservé pour éviter les doubles sorties de stock.</p>
+        <p v-else>Livrer crée un BL et déduit le stock, sans facturer. Vous pouvez créer la facture complète de la commande avant ou après les livraisons. Le paiement reste indépendant.</p>
+        <RouterLink v-if="record.facture_id" :to="`/factures/${record.facture_id}`" class="action">Ouvrir la facture de la commande</RouterLink>
+        <form v-if="record.can_bill" class="rounded-xl border border-cyan-200 p-4 space-y-3" @submit.prevent="billOrder"><label>Échéance de la facture<input v-model="shipment.date_echeance" type="date" required :disabled="saving || dirty"></label><button :disabled="saving || dirty">Créer la facture complète (brouillon)</button></form>
         <div class="overflow-auto"><table class="w-full text-sm"><thead><tr><th>Produit / prestation</th><th>Commandé</th><th>Livré</th><th>Reste</th><th>À livrer maintenant</th></tr></thead><tbody>
           <tr v-for="(line, index) in record.lines" :key="line.id"><td>{{ line.designation }}</td><td>{{ line.quantite }}</td><td>{{ line.livree }}</td><td>{{ line.reste }}</td><td><input v-model="shipment.lines[index].quantite" :aria-label="`Quantité à livrer : ${line.designation}`" type="number" min="0" step="0.001" :max="line.reste" :disabled="saving || dirty || !record.can_deliver || !!record.archived_at || record.statut !== 'confirmee' || Number(line.reste) <= 0"></td></tr>
         </tbody></table></div>
         <form v-if="record.can_deliver && !record.archived_at && record.statut === 'confirmee'" class="space-y-3" @submit.prevent="deliverOrder">
           <label>Date de livraison<input v-model="shipment.date_livraison" type="date" required :disabled="saving || dirty"></label>
-          <label>Échéance de paiement de la facture<input v-model="shipment.date_echeance" type="date" required :disabled="saving || dirty"></label>
+          <label v-if="record.legacy_delivery">Échéance de paiement de la facture<input v-model="shipment.date_echeance" type="date" required :disabled="saving || dirty"></label>
           <label>Notes de livraison<textarea v-model="shipment.notes" maxlength="2000" :disabled="saving || dirty" /></label>
           <p v-if="dirty">Enregistrez les modifications de la fiche avant de livrer.</p>
-          <button type="submit" class="primary" :disabled="saving || dirty">{{ saving ? 'Enregistrement…' : 'Livrer et facturer ces quantités' }}</button>
+          <button type="submit" class="primary" :disabled="saving || dirty">{{ saving ? 'Enregistrement…' : record.legacy_delivery ? 'Livrer et facturer ces quantités' : 'Valider la livraison / Générer le BL' }}</button>
         </form>
         <p v-else-if="record.statut === 'brouillon'">Confirmez la commande dans l’onglet Fiche pour commencer les livraisons.</p>
         <p v-else-if="record.statut === 'cloturee'">Commande clôturée. Consultez ci-dessous les livraisons enregistrées.</p>
