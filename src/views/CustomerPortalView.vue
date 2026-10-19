@@ -1,6 +1,6 @@
 <template>
   <main class="customer-portal">
-    <header><p class="eyebrow">PORTAIL CLIENTS</p><h1>{{ account?.entreprise || 'Bienvenue dans votre espace client' }}</h1><p v-if="account">{{ account.client }} · {{ account.name }}</p><p v-else>Connectez-vous avec l’accès reçu de votre fournisseur, distinct d’un compte employé Saytu.</p></header>
+    <header class="hero"><div><p class="eyebrow">VOTRE ESPACE CLIENT</p><h1>{{ account?.entreprise || 'Bienvenue dans votre espace client' }}</h1><p v-if="account">Bonjour {{ account.name }} · {{ account.client }}</p><p v-else>Un espace dédié pour vos demandes, vos commandes et vos contrats.</p></div><div class="hero-note">Un interlocuteur, un suivi clair.<br><small>Vos échanges et documents réunis au même endroit.</small></div></header>
     <p v-if="error" class="error" role="alert">{{ error }}</p><p v-if="notice" class="notice" role="status">{{ notice }}</p>
     <p v-if="loading">Chargement…</p>
     <form v-if="invitation" @submit.prevent="activate">
@@ -16,8 +16,9 @@
     </form>
     <template v-else-if="account">
       <nav aria-label="Rubriques du portail"><button v-for="[key, label] in sections" :key="key" class="secondary" :aria-pressed="kind === key" :disabled="busy" @click="changeSection(key)">{{ label }}</button><button class="secondary" :disabled="busy" @click="logout">Déconnexion</button></nav>
+      <div class="section-heading"><div><p class="eyebrow">{{ account.client }}</p><h2>{{ sectionTitle }}</h2><p>{{ sectionDescription }}</p></div><span class="privacy-badge">Espace réservé à votre entreprise</span></div>
       <section v-if="creating && !loading">
-        <button class="secondary" :disabled="busy" @click="creating = false">← Retour liste</button>
+        <button class="secondary" :disabled="busy" @click="cancelCreation">← Retour liste</button>
         <h2>{{ kind === 'tickets' ? 'Créer un ticket' : 'Soumettre un bon de commande' }}</h2>
         <p v-if="kind === 'commandes'">Indiquez les articles et quantités souhaités. Votre fournisseur vérifiera les disponibilités, les prix et les taxes avant d’accepter la commande. Cette demande ne vaut pas confirmation.</p>
         <form @submit.prevent="submit">
@@ -29,23 +30,32 @@
         </form>
       </section>
       <section v-else-if="selected && !loading">
-        <button class="secondary" @click="selected = null">← Retour liste</button><h2>{{ selected.reference }} — {{ selected.titre }}</h2><p>{{ status(selected.statut) }}</p>
-        <template v-if="kind === 'tickets'"><p class="text">{{ selected.description }}</p><article v-for="m in selected.messages" :key="m.id"><strong>{{ m.author_name }}</strong> · {{ m.created_at }}<p class="text">{{ m.body }}</p></article><form v-if="selected.statut !== 'ferme'" @submit.prevent="reply"><label>Ajouter une réponse<textarea v-model.trim="replyText" required maxlength="4000" rows="4" /></label><button :disabled="busy">Envoyer</button></form></template>
+        <button class="secondary" :disabled="busy" @click="back">← Retour liste</button><div class="detail-heading"><div><p class="eyebrow">{{ selected.reference }}</p><h2>{{ selected.titre }}</h2></div><span class="status-badge" :data-status="selected.statut">{{ status(selected.statut) }}</span></div>
+        <template v-if="kind === 'tickets'">
+          <div class="ticket-meta"><span>Priorité : {{ selected.priorite }}</span><span>Créé le {{ date(selected.created_at) }}</span></div>
+          <article class="original-request"><h3>Votre demande initiale</h3><p class="text">{{ selected.description }}</p></article>
+          <div class="conversation-heading"><h3>Conversation avec votre fournisseur</h3><button class="secondary" :disabled="refreshing || busy" @click="refreshTicket">{{ refreshing ? 'Actualisation…' : 'Actualiser' }}</button></div>
+          <p class="sync-state" role="status">{{ syncError || (lastSync ? `Actualisé à ${lastSync} · mise à jour automatique toutes les 15 secondes` : 'Les réponses apparaissent ici automatiquement.') }}</p>
+          <div class="conversation"><p v-if="!selected.messages?.length" class="empty">Votre ticket est enregistré. La première réponse de votre fournisseur apparaîtra ici.</p><article v-for="m in selected.messages" :key="m.id" class="message" :class="{ support: m.author_type === 'support' }"><div class="message-heading"><strong>{{ m.author_name }} <small>· {{ m.author_type === 'support' ? 'Équipe support' : 'Votre entreprise' }}</small></strong><time>{{ date(m.created_at) }}</time></div><p class="text">{{ m.body }}</p></article></div>
+          <form v-if="selected.statut !== 'ferme'" class="reply-box" @submit.prevent="reply"><label>Votre réponse<textarea v-model.trim="replyText" required maxlength="4000" rows="4" placeholder="Ajoutez une précision ou répondez à votre interlocuteur…" /></label><small>{{ replyText.length }} / 4 000 caractères · visible par votre fournisseur et les contacts de votre entreprise</small><button :disabled="busy || !replyText">{{ busy ? 'Envoi…' : 'Envoyer ma réponse' }}</button></form><p v-else class="notice">Ce ticket est fermé. Vous pouvez consulter les échanges ou créer une nouvelle demande.</p>
+        </template>
         <template v-if="kind === 'commandes'"><p v-if="selected.statut === 'brouillon'" class="notice">Demande en attente de vérification et de chiffrage. Les montants ne sont pas définitifs.</p><article v-for="(l, i) in selected.lines" :key="i"><strong>{{ l.designation }}</strong> · Quantité {{ l.quantite }}<p v-if="selected.statut !== 'brouillon'">Total TTC : {{ l.total_ttc }} {{ selected.devise }}</p></article><p v-if="selected.statut !== 'brouillon'">Total : {{ selected.total_ttc }} {{ selected.devise }}</p></template>
         <template v-if="kind === 'contrats'"><p>Du {{ selected.date_debut }} au {{ selected.date_fin }}</p><p>Montant HT : {{ selected.montant }} {{ selected.devise }} · {{ selected.periodicite }}</p><p>Pour toute précision sur votre contrat, créez un ticket.</p></template>
       </section>
       <section v-else-if="!loading">
+        <form class="filters" @submit.prevent="load()"><label>Rechercher<input v-model.trim="search" maxlength="191" placeholder="Objet ou référence…" type="search" /></label><label v-if="kind !== 'connaissances'">Statut<select v-model="filterStatus"><option value="">Tous les statuts</option><option v-for="s in statusOptions" :key="s" :value="s">{{ status(s) }}</option></select></label><button :disabled="busy">Rechercher</button><button type="button" class="secondary" @click="resetFilters">Réinitialiser</button></form>
+        <div class="list-summary"><span>{{ total }} résultat(s)</span><small>20 éléments par page</small></div>
         <button v-if="['tickets', 'commandes'].includes(kind)" @click="start">{{ kind === 'tickets' ? '+ Nouveau ticket' : '+ Bon de commande' }}</button>
         <p v-if="!records.length" class="empty">Aucun élément disponible dans cette rubrique.</p>
         <template v-if="kind === 'connaissances'"><details v-for="r in records" :key="r.id"><summary>{{ r.titre }} — {{ r.categorie }}</summary><p class="text">{{ r.contenu }}</p></details></template>
-        <template v-else><article v-for="r in records" :key="r.id"><h2>{{ r.reference }} — {{ r.titre }}</h2><p>{{ status(r.statut) }}</p><button class="secondary" @click="open(r)">Consulter</button></article></template>
+        <div v-else class="record-grid"><article v-for="r in records" :key="r.id" class="record-card"><div class="card-top"><span class="eyebrow">{{ r.reference }}</span><span class="status-badge" :data-status="r.statut">{{ status(r.statut) }}</span></div><h2>{{ r.titre }}</h2><p class="muted">Créé le {{ date(r.created_at) }}</p><button class="secondary" :disabled="busy" @click="open(r)">{{ kind === 'tickets' ? 'Voir la conversation →' : 'Consulter →' }}</button></article></div>
         <nav v-if="pages > 1"><button :disabled="page <= 1" @click="load(page - 1)">Précédent</button><span>{{ page }} / {{ pages }}</span><button :disabled="page >= pages" @click="load(page + 1)">Suivant</button></nav>
       </section>
     </template>
   </main>
 </template>
 <script setup>
-import { ref } from 'vue'
+import { computed, onBeforeUnmount, ref } from 'vue'
 import axios from 'axios'
 const sections = [['tickets', 'Mes tickets'], ['commandes', 'Mes commandes'], ['contrats', 'Mes contrats'], ['connaissances', 'Base de connaissances']]
 const key = 'saytu_customer_portal_session'
@@ -55,23 +65,56 @@ const account = ref(null), email = ref(''), password = ref(''), confirmation = r
 if (invitation.value) history.replaceState(null, '', location.pathname)
 const loading = ref(false), busy = ref(false), error = ref(''), notice = ref(''), kind = ref('tickets'), records = ref([]), selected = ref(null), creating = ref(false), page = ref(1), pages = ref(1)
 const form = ref({}), lines = ref([]), requestId = ref(''), replyText = ref(''), replyId = ref(crypto.randomUUID())
+const search = ref(''), filterStatus = ref(''), total = ref(0), refreshing = ref(false), lastSync = ref(''), syncError = ref('')
+const sectionTitle = computed(() => sections.find(([value]) => value === kind.value)?.[1])
+const sectionDescription = computed(() => ({ tickets: 'Décrivez votre besoin et suivez les réponses de notre équipe.', commandes: 'Préparez vos demandes ; votre fournisseur les chiffre avant confirmation.', contrats: 'Retrouvez les contrats partagés avec votre entreprise.', connaissances: 'Consultez les guides et les réponses aux questions fréquentes.' }[kind.value]))
+const statusOptions = computed(() => ({ tickets: ['ouvert', 'en_cours', 'en_attente', 'resolu', 'ferme'], commandes: ['brouillon', 'confirmee', 'cloturee', 'annulee'], contrats: ['actif', 'termine', 'resilie'] }[kind.value] || []))
+const date = value => { if (!value) return '—'; const d = new Date(String(value).replace(' ', 'T')); return Number.isNaN(d.getTime()) ? value : d.toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' }) }
 let sequence = 0
 const status = s => ({ brouillon: 'En attente de validation', confirmee: 'Confirmée', cloturee: 'Livrée', annulee: 'Annulée', ouvert: 'Ouvert', en_cours: 'En cours', en_attente: 'En attente', resolu: 'Résolu', ferme: 'Fermé', actif: 'Actif', termine: 'Terminé', resilie: 'Résilié' }[s] || s)
-function failed(e) { error.value = Object.values(e.response?.data?.errors || {}).flat().join(' · ') || e.response?.data?.message || 'Opération impossible. Réessayez.'; if (e.response?.status === 401) { account.value = null; sessionStorage.removeItem(key) } }
+function failed(e) { error.value = Object.values(e.response?.data?.errors || {}).flat().join(' · ') || e.response?.data?.message || 'Opération impossible. Réessayez.'; if ([401, 402, 403].includes(e.response?.status)) { sequence++; account.value = null; selected.value = null; records.value = []; sessionStorage.removeItem(key) } }
 async function run(fn) { if (busy.value) return; busy.value = true; error.value = ''; try { await fn() } catch (e) { failed(e) } finally { busy.value = false } }
 const activate = () => run(async () => { const { data } = await api.post('/activate', { token: invitation.value, password: password.value, password_confirmation: confirmation.value }); invitation.value = ''; password.value = ''; confirmation.value = ''; notice.value = data.message })
 const login = () => run(async () => { const { data } = await api.post('/login', { email: email.value, password: password.value }); sessionStorage.setItem(key, data.token); password.value = ''; account.value = (await api.get('/me')).data; notice.value = ''; await load() })
-const logout = () => run(async () => { try { await api.post('/logout') } finally { sequence++; account.value = null; selected.value = null; records.value = []; sessionStorage.removeItem(key) } })
-async function load(p = 1) { const version = ++sequence; loading.value = true; error.value = ''; try { const { data } = await api.get(`/${kind.value}`, { params: { page: p } }); if (version === sequence) { records.value = data.data; page.value = data.current_page; pages.value = data.last_page } } catch (e) { if (version === sequence) failed(e) } finally { if (version === sequence) loading.value = false } }
-function changeSection(value) { if (creating.value && !confirm('Quitter cette saisie sans envoyer ?')) return; kind.value = value; creating.value = false; selected.value = null; notice.value = ''; load() }
+const logout = () => { if (!canLeave()) return; return run(async () => { try { await api.post('/logout') } finally { sequence++; account.value = null; selected.value = null; records.value = []; creating.value = false; replyText.value = ''; sessionStorage.removeItem(key) } }) }
+async function load(p = 1) { const version = ++sequence; loading.value = true; error.value = ''; try { const { data } = await api.get(`/${kind.value}`, { params: { page: p, q: search.value || undefined, statut: filterStatus.value || undefined } }); if (version === sequence) { records.value = data.data; page.value = data.current_page; pages.value = data.last_page; total.value = data.total } } catch (e) { if (version === sequence) failed(e) } finally { if (version === sequence) loading.value = false } }
+const canLeave = () => !(creating.value || replyText.value) || confirm('Quitter cette saisie sans envoyer ?')
+function cancelCreation() { if (canLeave()) creating.value = false }
+function back() { if (!canLeave()) return; sequence++; selected.value = null; replyText.value = ''; load(page.value) }
+function resetFilters() { search.value = ''; filterStatus.value = ''; load() }
+function changeSection(value) { if (!canLeave()) return; kind.value = value; creating.value = false; selected.value = null; replyText.value = ''; notice.value = ''; resetFilters() }
 function start() { form.value = { titre: '', description: '', priorite: 'normale' }; lines.value = [{ designation: '', quantite: 1 }]; requestId.value = crypto.randomUUID(); creating.value = true; notice.value = '' }
-const open = r => run(async () => { selected.value = (await api.get(`/${kind.value}/${r.id}`)).data; replyText.value = ''; replyId.value = crypto.randomUUID() })
+const open = r => run(async () => { sequence++; selected.value = (await api.get(`/${kind.value}/${r.id}`)).data; replyText.value = ''; replyId.value = crypto.randomUUID(); lastSync.value = ''; syncError.value = '' })
 const submit = () => run(async () => { const payload = { ...form.value, request_id: requestId.value }; if (kind.value === 'commandes') payload.lines = lines.value; const { data } = await api.post(`/${kind.value}`, payload); notice.value = data.message; creating.value = false; await load(); selected.value = (await api.get(`/${kind.value}/${data.id}`)).data })
-const reply = () => run(async () => { selected.value = (await api.post(`/tickets/${selected.value.id}/messages`, { body: replyText.value, request_id: replyId.value })).data; replyText.value = ''; replyId.value = crypto.randomUUID() })
+const reply = () => run(async () => { sequence++; selected.value = (await api.post(`/tickets/${selected.value.id}/messages`, { body: replyText.value, request_id: replyId.value })).data; replyText.value = ''; replyId.value = crypto.randomUUID(); syncError.value = ''; notice.value = 'Votre réponse a été envoyée.' })
+async function refreshTicket() {
+  if (!account.value || kind.value !== 'tickets' || !selected.value || busy.value || refreshing.value || document.hidden) return
+  const id = selected.value.id, version = sequence
+  refreshing.value = true
+  try { const { data } = await api.get(`/tickets/${id}`); if (version === sequence && selected.value?.id === id) { selected.value = data; syncError.value = ''; lastSync.value = new Date().toLocaleTimeString('fr-FR') } }
+  catch (e) { if (version === sequence) { syncError.value = 'Actualisation interrompue. Cliquez sur Actualiser pour réessayer.'; if ([401, 403, 402].includes(e.response?.status)) failed(e) } }
+  finally { refreshing.value = false }
+}
+const timer = setInterval(refreshTicket, 15000)
+document.addEventListener('visibilitychange', refreshTicket)
+const beforeUnload = e => { if (replyText.value || creating.value) { e.preventDefault(); e.returnValue = '' } }
+window.addEventListener('beforeunload', beforeUnload)
+onBeforeUnmount(() => { sequence++; clearInterval(timer); document.removeEventListener('visibilitychange', refreshTicket); window.removeEventListener('beforeunload', beforeUnload) })
 async function boot() { if (!sessionStorage.getItem(key) || invitation.value) return; loading.value = true; try { account.value = (await api.get('/me')).data; await load() } catch (e) { failed(e) } finally { loading.value = false } }
 boot()
 </script>
 <style scoped>
+.hero { display: flex; justify-content: space-between; gap: 24px; padding: 30px; background: linear-gradient(120deg, #123d5b, #076982); color: #fff; border-radius: 18px; }
+.hero .eyebrow { color: #a4e8f1; } .hero p { margin-top: 8px; } .hero-note { align-self: center; max-width: 270px; line-height: 1.7; border-left: 2px solid #57cddd; padding-left: 22px; } .hero-note small { color: #d3edf5; }
+.section-heading, .detail-heading, .conversation-heading, .card-top, .message-heading, .list-summary { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+.section-heading { margin: 28px 0; } .section-heading h2 { font-size: 1.65rem; margin: 5px 0; } .section-heading p, .muted, .sync-state, .ticket-meta { color: #526778; } .privacy-badge { border: 1px solid #d1e3eb; border-radius: 30px; padding: 8px 12px; font-size: .8rem; }
+.customer-portal .filters { display: flex; flex-wrap: wrap; align-items: end; background: #f3f7fa; padding: 18px; border-radius: 14px; } .filters label:first-child { flex: 1; min-width: 180px; }
+.list-summary { margin: 18px 0; color: #526778; } .record-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; } .record-grid article { margin: 0; box-shadow: 0 4px 15px #143e5910; } .record-card button { margin-top: 18px; }
+.status-badge { display: inline-block; padding: 6px 10px; border-radius: 30px; background: #edf2f7; color: #334d62; font-size: .8rem; font-weight: 700; }
+.status-badge[data-status=ouvert], .status-badge[data-status=en_cours] { color: #115b92; background: #e2f1ff; } .status-badge[data-status=en_attente], .status-badge[data-status=brouillon] { color: #815000; background: #fff3d6; } .status-badge[data-status=resolu], .status-badge[data-status=actif], .status-badge[data-status=confirmee] { color: #126442; background: #e0f6eb; }
+.detail-heading { margin-top: 24px; } .ticket-meta { display: flex; flex-wrap: wrap; gap: 22px; font-size: .85rem; margin-top: 14px; } h3 { font-weight: 700; } .original-request { background: #f5f8fa; } .sync-state { font-size: .8rem; margin: 12px 0; }
+.conversation { max-height: 600px; overflow: auto; padding: 4px; } .message { margin-left: 30px; background: #f8fafc; } .message.support { margin-left: 0; margin-right: 30px; background: #eff9fc; border-left: 4px solid #007b99; } .message-heading small, time { font-size: .78rem; color: #526778; } .reply-box { background: #f3f7fa; padding: 22px; border-radius: 14px; } .reply-box small { color: #526778; }
+@media(max-width: 720px) { .hero { flex-direction: column; padding: 22px; } .hero-note { display: none; } .record-grid { grid-template-columns: 1fr; } .privacy-badge { display: none; } .message, .message.support { margin-left: 0; margin-right: 0; } }
 .customer-portal { max-width: 1080px; margin: 32px auto; padding: clamp(20px, 4vw, 48px); background: #fff; color: #163448; border-radius: 20px; min-height: 75vh; }
 h1 { font-size: 1.8rem; font-weight: 800; } h2 { font-size: 1.15rem; font-weight: 700; margin: 12px 0; } header { margin-bottom: 24px; } .eyebrow { font-size: .75rem; letter-spacing: .12em; font-weight: 700; color: #006787; }
 form { display: grid; gap: 16px; margin: 20px 0; } label { display: grid; gap: 6px; font-weight: 600; } input, textarea, select { width: 100%; border: 1px solid #91b6ca; padding: 12px; border-radius: 9px; background: white; color: #163448; }

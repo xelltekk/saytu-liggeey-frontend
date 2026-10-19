@@ -12,6 +12,7 @@ const loading = ref(false), saving = ref(false), error = ref(''), success = ref(
 const search = ref(''), status = ref(''), archives = ref(false), page = ref(1), lastPage = ref(1), total = ref(0)
 const choices = ref({}), lookupText = ref({}), productText = ref(''), products = ref([])
 const message = ref(''), requestId = ref(crypto.randomUUID()), messageId = ref(crypto.randomUUID())
+const portalDraft = ref('')
 const clean = ref(''), dirty = computed(() => clean.value && JSON.stringify(form.value) !== clean.value)
 const followup = ref(''), renewalEnd = ref(''), renewalReminder = ref('')
 const renewalDirty = computed(() => !!renewalEnd.value || !!renewalReminder.value)
@@ -37,10 +38,10 @@ async function downloadDelivery(delivery) {
   } finally { downloadingDelivery.value = null }
 }
 const listTarget = () => ({ name: 'business-list', params: { module: key.value }, query: route.query })
-const canLeave = () => !saving.value && ((!dirty.value && !message.value.trim() && !renewalDirty.value && !shipmentDirty.value) || window.confirm('Quitter sans enregistrer les modifications ou le message en cours ?'))
+const canLeave = () => !saving.value && ((!dirty.value && !message.value.trim() && !portalDraft.value && !renewalDirty.value && !shipmentDirty.value) || window.confirm('Quitter sans enregistrer les modifications ou le message en cours ?'))
 onBeforeRouteLeave(canLeave)
 onBeforeRouteUpdate(canLeave)
-const unload = e => { if (dirty.value || message.value.trim() || renewalDirty.value || shipmentDirty.value) { e.preventDefault(); e.returnValue = '' } }
+const unload = e => { if (dirty.value || message.value.trim() || portalDraft.value || renewalDirty.value || shipmentDirty.value) { e.preventDefault(); e.returnValue = '' } }
 window.addEventListener('beforeunload', unload)
 onBeforeUnmount(() => { sequence++; window.removeEventListener('beforeunload', unload) })
 
@@ -78,6 +79,7 @@ async function load() {
         data = (await api.get(`/metier/${key.value}/${route.params.id}`)).data
         if (current !== sequence) return
         record.value = data
+        if (key.value === 'sav' && data.portal_user_id) tab.value = 'portal'
         if (key.value === 'commandes_clients') {
           const today = new Date(), due = new Date()
           due.setDate(due.getDate() + 30)
@@ -118,6 +120,7 @@ function filterList(nextPage = 1) {
 }
 async function save() {
   if (saving.value || !editable.value) return
+  if (portalDraft.value && !window.confirm('Enregistrer la fiche et abandonner la réponse client non publiée ?')) return
   if (renewalDirty.value && !window.confirm('Enregistrer la fiche sans appliquer le renouvellement saisi ?')) return
   if (shipmentDirty.value && !window.confirm('Enregistrer la fiche sans appliquer la livraison saisie ?')) return
   saving.value = true; error.value = ''; success.value = ''
@@ -248,7 +251,7 @@ watch(() => route.fullPath, load, { immediate: true })
         <button v-if="key === 'commandes_clients' && record" type="button" :aria-pressed="tab === 'deliveries'" @click="tab = 'deliveries'">Livraisons et factures</button>
         <button v-if="definition.children === 'tasks'" type="button" :aria-pressed="tab === 'tasks'" @click="tab = 'tasks'">Tâches et temps passé</button>
         <button v-if="definition.children === 'messages' && record" type="button" :aria-pressed="tab === 'messages'" @click="tab = 'messages'">Échanges internes</button>
-        <button v-if="key === 'sav' && record?.portal_user_id" type="button" :aria-pressed="tab === 'portal'" @click="tab = 'portal'">Conversation client</button>
+        <button v-if="key === 'sav' && record?.portal_user_id" type="button" :aria-pressed="tab === 'portal'" @click="tab = 'portal'">Répondre au client</button>
         <button v-if="record" type="button" :aria-pressed="tab === 'history'" @click="tab = 'history'">Historique</button>
         <button v-if="key === 'contrats_services' && editable && record && ['actif', 'termine'].includes(record.statut)" type="button" :aria-pressed="tab === 'renewal'" @click="tab = 'renewal'">Renouveler</button>
         <button v-if="key === 'connaissances' && record" type="button" :aria-pressed="tab === 'lecture'" @click="tab = 'lecture'">Lire la procédure</button>
@@ -289,7 +292,7 @@ watch(() => route.fullPath, load, { immediate: true })
             <button type="button" :disabled="form.tasks.length >= 200" @click="form.tasks.push({ titre: '', statut: 'a_faire', owner_id: null, echeance: null, minutes: 0 })">+ Ajouter une tâche</button>
             <p>Temps total : {{ form.tasks.reduce((sum, t) => sum + Number(t.minutes || 0), 0) }} minutes. La recherche de responsables se trouve dans la section Fiche.</p>
           </div>
-          <div v-if="!['messages', 'history', 'renewal', 'lecture', 'deliveries'].includes(tab)" class="flex flex-wrap gap-3 border-t border-cyan-100 pt-4"><button v-if="editable" class="primary" type="submit">{{ saving ? 'Enregistrement…' : 'Enregistrer' }}</button><span v-if="dirty" class="self-center text-sm">Modifications non enregistrées</span></div>
+          <div v-if="!['messages', 'portal', 'history', 'renewal', 'lecture', 'deliveries'].includes(tab)" class="flex flex-wrap gap-3 border-t border-cyan-100 pt-4"><button v-if="editable" class="primary" type="submit">{{ saving ? 'Enregistrement…' : 'Enregistrer' }}</button><span v-if="dirty" class="self-center text-sm">Modifications non enregistrées</span></div>
         </fieldset>
       </form>
       <section v-if="tab === 'deliveries' && record && shipment" class="space-y-5">
@@ -315,11 +318,12 @@ watch(() => route.fullPath, load, { immediate: true })
         <p v-if="!record.deliveries.length">Aucune livraison enregistrée.</p>
       </section>
       <section v-if="tab === 'messages' && record" class="space-y-3">
+        <p v-if="record.portal_user_id" class="rounded-xl bg-amber-50 p-4 font-semibold">Notes confidentielles : le client ne voit pas ces échanges. <button type="button" @click="tab = 'portal'">Répondre au client →</button></p>
         <p class="text-sm">{{ record.messages_total }} échange(s) · les 200 derniers échanges au maximum sont affichés.</p>
         <div class="max-h-96 space-y-3 overflow-auto"><article v-for="m in record.messages" :key="m.id" class="rounded-xl bg-cyan-50 p-4"><small>{{ m.created_at }} · Utilisateur #{{ m.user_id }}</small><p class="mt-2 whitespace-pre-wrap break-words">{{ m.contenu }}</p></article></div>
         <form v-if="editable && record.statut !== 'ferme'" @submit.prevent="sendMessage"><label>Nouvel échange interne<textarea v-model="message" maxlength="10000" rows="4" :disabled="saving || dirty" /></label><p v-if="dirty">Enregistrez la fiche avant d’ajouter un échange.</p><button class="mt-3" :disabled="saving || dirty || !message.trim()">Enregistrer l’échange</button></form>
       </section>
-      <PortalTicketConversation v-if="tab === 'portal' && record?.portal_user_id" :key="record.id" :id="record.id" :editable="editable && record.statut !== 'ferme' && !dirty" />
+      <PortalTicketConversation v-if="key === 'sav' && record?.portal_user_id" v-show="tab === 'portal'" :key="record.id" :id="record.id" :editable="editable && record.statut !== 'ferme' && !dirty" @draft="portalDraft = $event" />
       <section v-if="tab === 'history' && record" class="max-h-96 overflow-auto"><p class="mb-3 text-sm">100 derniers événements. Les anciennes et nouvelles dates de renouvellement sont conservées.</p><p v-for="(event, index) in record.events" :key="index" class="border-b border-cyan-100 py-3">{{ event.created_at }} · {{ event.action }} · {{ statusText(event.statut) }} · Utilisateur #{{ event.user_id }} <span class="block">{{ eventDetails(event) }}</span></p></section>
       <form v-if="tab === 'renewal' && record" class="space-y-4" @submit.prevent="renewContract">
         <p>Fin actuelle : {{ record.date_fin }}. Ce renouvellement prolonge le contrat et conserve son historique. Il ne génère pas de facture.</p>
