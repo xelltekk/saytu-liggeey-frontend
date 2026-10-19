@@ -264,6 +264,7 @@ watch(() => route.fullPath, load, { immediate: true })
             <label>{{ key === 'contacts' ? 'Nom complet' : 'Titre / objet' }} *<input v-model="form.titre" :disabled="lockedOrder" maxlength="191"></label>
             <label v-for="[field, label, type, source, required] in definition.fields" :key="field" :class="{ 'md:col-span-2': type === 'textarea' }">
               {{ label }} {{ required ? '*' : '' }}
+              <small v-if="key === 'sav' && field === 'resolution' && record?.portal_user_id" class="font-semibold text-sky-800">Visible dans le portail du client dès l’enregistrement. Pour une note confidentielle, utilisez « Échanges internes ».</small>
               <textarea v-if="type === 'textarea'" v-model="form[field]" :disabled="lockedOrder" rows="6" maxlength="20000" />
               <select v-else-if="type === 'select'" v-model="form[field]" :disabled="lockedOrder"><option v-for="s in source" :key="s" :value="s">{{ statusText(s) }}</option></select>
               <template v-else-if="type === 'relation'">

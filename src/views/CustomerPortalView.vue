@@ -34,6 +34,7 @@
         <template v-if="kind === 'tickets'">
           <div class="ticket-meta"><span>Priorité : {{ selected.priorite }}</span><span>Créé le {{ date(selected.created_at) }}</span></div>
           <article class="original-request"><h3>Votre demande initiale</h3><p class="text">{{ selected.description }}</p></article>
+          <article v-if="selected.resolution?.trim()" class="ticket-resolution" aria-label="Solution apportée"><h3>Solution apportée par votre fournisseur</h3><p class="text">{{ selected.resolution }}</p></article>
           <div class="conversation-heading"><h3>Conversation avec votre fournisseur</h3><button class="secondary" :disabled="refreshing || busy" @click="refreshTicket">{{ refreshing ? 'Actualisation…' : 'Actualiser' }}</button></div>
           <p class="sync-state" role="status">{{ syncError || (lastSync ? `Actualisé à ${lastSync} · mise à jour automatique toutes les 15 secondes` : 'Les réponses apparaissent ici automatiquement.') }}</p>
           <div class="conversation"><p v-if="!selected.messages?.length" class="empty">Votre ticket est enregistré. La première réponse de votre fournisseur apparaîtra ici.</p><article v-for="m in selected.messages" :key="m.id" class="message" :class="{ support: m.author_type === 'support' }"><div class="message-heading"><strong>{{ m.author_name }} <small>· {{ m.author_type === 'support' ? 'Équipe support' : 'Votre entreprise' }}</small></strong><time>{{ date(m.created_at) }}</time></div><p class="text">{{ m.body }}</p></article></div>
@@ -104,6 +105,7 @@ async function boot() { if (!sessionStorage.getItem(key) || invitation.value) re
 boot()
 </script>
 <style scoped>
+.ticket-resolution { background: #eaf8f0; border: 1px solid #9dceb1; border-left: 4px solid #238154; color: #174b32; }
 .hero { display: flex; justify-content: space-between; gap: 24px; padding: 30px; background: linear-gradient(120deg, #123d5b, #076982); color: #fff; border-radius: 18px; }
 .hero .eyebrow { color: #a4e8f1; } .hero p { margin-top: 8px; } .hero-note { align-self: center; max-width: 270px; line-height: 1.7; border-left: 2px solid #57cddd; padding-left: 22px; } .hero-note small { color: #d3edf5; }
 .section-heading, .detail-heading, .conversation-heading, .card-top, .message-heading, .list-summary { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }

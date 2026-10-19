@@ -28,6 +28,17 @@ test('opened ticket receives public reply without erasing draft', async () => {
   assert.equal(p.replyText.value, 'Ma réponse en cours')
 })
 
+test('saved solution is refreshed on a closed ticket and rendered as text', async () => {
+  const p = portal()
+  p.account.value = {}; p.selected.value = { id: 1, statut: 'resolu', resolution: null }
+  p.api.get = async () => ({ data: { id: 1, statut: 'ferme', resolution: 'Redémarrez le poste.', messages: [] } })
+  await p.refreshTicket()
+  assert.equal(p.selected.value.resolution, 'Redémarrez le poste.')
+  const template = readFileSync(new URL('../src/views/CustomerPortalView.vue', import.meta.url), 'utf8').split('<script setup>')[0]
+  assert.match(template, /\{\{ selected\.resolution \}\}/)
+  assert.doesNotMatch(template, /v-html/)
+})
+
 test('late refresh cannot reopen a ticket after return to list', async () => {
   const p = portal()
   p.account.value = {}; p.selected.value = { id: 1 }
