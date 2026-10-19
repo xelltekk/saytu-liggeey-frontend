@@ -476,6 +476,11 @@ const routes = [
         component: () => import('@/views/LicenceView.vue'),
       },
       {
+        path: 'espace-client/:section(contrats|tickets|connaissances)',
+        name: 'espace-client',
+        component: () => import('@/views/SubscriberPortalView.vue'),
+      },
+      {
         path: 'xelltekk-admin',
         name: 'xelltekk-admin',
         component: () => import('@/views/XelltekkAdminView.vue'),
@@ -685,6 +690,11 @@ router.beforeEach(async (to, from, next) => {
   }
   if (to.name === 'licence' && isXelltekkAdmin(auth.user)) {
     return next({ name: 'xelltekk-admin' })
+  }
+
+  if (to.name === 'espace-client' && (!auth.user?.tenant?.has_subscription_account
+      || auth.user.tenant.is_platform || !['admin', 'gerant'].includes(role))) {
+    return next({ name: role === 'caissier' ? 'caisse' : 'dashboard' })
   }
 
   if (to.path.startsWith('/xelltekk-admin') && !isXelltekkAdmin(auth.user)) {

@@ -423,6 +423,9 @@
                   <p v-if="ticket.last_message" class="mt-1 line-clamp-2 text-[11px] font-semibold text-[color:var(--saytu-muted,#64748b)]">
                     {{ ticket.last_message.author_label }} : {{ ticket.last_message.message }}
                   </p>
+                  <button v-if="ticket.notification_pending" type="button" class="mt-2 text-xs font-bold text-amber-800" :disabled="updatingSupportTicketId === ticket.id" @click="retrySupportNotification(ticket)">
+                    Email en attente — Réessayer l’envoi
+                  </button>
                 </div>
                 <span class="xell-mini-chip" :class="supportTicketClass(ticket.priorite)">
                   {{ ticket.priorite_label }}
@@ -2439,6 +2442,18 @@ async function submitAdminSupportReply(ticket) {
   } finally {
     supportReplySaving.value = false
   }
+}
+
+async function retrySupportNotification(ticket) {
+  updatingSupportTicketId.value = ticket.id
+  try {
+    const { data } = await api.post(`/admin/xelltekk/support-tickets/${ticket.id}/notification`)
+    hydrate(data)
+    if (data.ticket?.notification_pending) toast.error(data.message)
+    else toast.success(data.message)
+  } catch (error) {
+    toast.error(error.response?.data?.message || 'Impossible de réessayer l’envoi.')
+  } finally { updatingSupportTicketId.value = null }
 }
 
 async function closeAdminSupportTicket(ticket) {

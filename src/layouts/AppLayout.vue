@@ -351,6 +351,7 @@ import { useWindowDock } from '@/composables/useWindowDock'
 import api from '@/services/api'
 import { isXelltekkAdmin as userIsXelltekkAdmin } from '@/utils/platformAccess'
 import { activeBusinessModules, businessPermission, businessSections } from '@/utils/businessModules'
+import { canUseSubscriberPortal, subscriberSections } from '@/utils/subscriberPortal'
 
 import ToastContainer from '@/components/ToastContainer.vue'
 import NotificationsBell from '@/components/NotificationsBell.vue'
@@ -440,6 +441,7 @@ const minimizedWindows = computed(() => dock.windows.value)
 
 const tousLesMenus = [
   ...activeBusinessModules.map(([key, label]) => ({ to: `/metier/${key}`, label, icon: FileText, roles: [], permission: `${key}.view`, businessKey: key })),
+  ...subscriberSections.map(([key, label]) => ({ to: `/espace-client/${key}`, label, icon: BookOpen, roles: ['admin', 'gerant'], subscriberOnly: true })),
   {
     to: '/',
     label: 'Tableau de bord',
@@ -709,6 +711,8 @@ function canAccessMenuItem(item) {
   const role = roleForAccess(auth.user)
   const directRole = auth.user?.role
   if (!role) return false
+  if (item.subscriberOnly) return canUseSubscriberPortal(auth.user)
+  if (businessSections.services.includes(item.businessKey) && !auth.user?.tenant?.is_platform) return false
   if (item.xelltekkOnly && !isXelltekkAdmin()) return false
   if (item.tenantOnly && (!auth.user?.tenant || auth.user.tenant.is_platform)) return false
   if (!licenceAllowsMenuItem(item)) return false
@@ -831,7 +835,7 @@ const menuGroupDefinitions = [
     key: 'services',
     label: 'Services & SAV',
     icon: BookOpen,
-    items: businessSections.services.map(key => `/metier/${key}`)
+    items: [...businessSections.services.map(key => `/metier/${key}`), ...subscriberSections.map(([key]) => `/espace-client/${key}`)]
   },
   {
     key: 'boutique',
