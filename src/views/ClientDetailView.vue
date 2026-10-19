@@ -82,6 +82,7 @@
       <div v-if="loading" class="p-10 text-center text-slate-500">Chargement...</div>
 
       <div v-else class="p-4">
+        <ClientPortalAccess v-if="activeTab === 'portail' && client && canManagePortal" :key="client.id" :client="client" />
         <section v-if="activeTab === 'fiche' && client" class="space-y-4">
           <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
             <div class="client-card">
@@ -241,6 +242,7 @@ import { useRoute, useRouter } from 'vue-router'
 import api from '@/services/api'
 import { ouvrirPDF } from '@/services/pdf'
 import ClientForm from '@/components/ClientForm.vue'
+import ClientPortalAccess from '@/components/ClientPortalAccess.vue'
 import EmailActionButtons from '@/components/EmailActionButtons.vue'
 import { useToast } from '@/composables/useToast'
 import { buildEmailDraft } from '@/utils/emailComposer'
@@ -267,6 +269,7 @@ const route = useRoute()
 const router = useRouter()
 const toast = useToast()
 const auth = useAuthStore()
+const canManagePortal = computed(() => ['admin', 'gerant'].includes(auth.user?.base_role || auth.user?.role) && businessPermission(auth.user, 'clients') && businessPermission(auth.user, 'clients', 'update'))
 const businessLinks = computed(() => businessModules.filter(([key]) => ['contacts', 'contrats_services', 'projets', 'sav'].includes(key) && businessPermission(auth.user, key)))
 
 const client = ref(null)
@@ -280,6 +283,7 @@ const summary = computed(() => client.value?.resume_commercial || {})
 const situation = computed(() => client.value?.situation_financiere || {})
 const formKey = computed(() => isCreate.value ? 'new-client' : `client-${client.value?.id || route.params.id || 'loading'}`)
 const tabs = computed(() => [
+  ...(canManagePortal.value ? [{ key: 'portail', label: 'Accès portail clients', count: null, create: false }] : []),
   { key: 'fiche', label: 'Fiche', count: null, create: false },
   { key: 'saisie', label: isCreate.value ? 'Saisie client' : 'Modifier', count: null, create: true },
   { key: 'situation', label: 'Situation', count: situation.value.factures_impayees_count || 0, create: false },

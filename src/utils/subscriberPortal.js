@@ -4,7 +4,7 @@ export function canUseSubscriberPortal(user) {
 }
 
 export const subscriberSections = [
-  ['contrats', 'Mes contrats Saytu'],
-  ['tickets', 'Mes tickets support'],
-  ['connaissances', 'Base de connaissances'],
+  ['contrats', 'Abonnement Saytu — Contrats'],
+  ['tickets', 'Assistance Saytu'],
+  ['connaissances', 'Documentation Saytu'],
 ]

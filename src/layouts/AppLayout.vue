@@ -712,7 +712,6 @@ function canAccessMenuItem(item) {
   const directRole = auth.user?.role
   if (!role) return false
   if (item.subscriberOnly) return canUseSubscriberPortal(auth.user)
-  if (businessSections.services.includes(item.businessKey) && !auth.user?.tenant?.is_platform) return false
   if (item.xelltekkOnly && !isXelltekkAdmin()) return false
   if (item.tenantOnly && (!auth.user?.tenant || auth.user.tenant.is_platform)) return false
   if (!licenceAllowsMenuItem(item)) return false
@@ -835,7 +834,13 @@ const menuGroupDefinitions = [
     key: 'services',
     label: 'Services & SAV',
     icon: BookOpen,
-    items: [...businessSections.services.map(key => `/metier/${key}`), ...subscriberSections.map(([key]) => `/espace-client/${key}`)]
+    items: businessSections.services.map(key => `/metier/${key}`)
+  },
+  {
+    key: 'support_saytu',
+    label: 'Support Saytu',
+    icon: BookOpen,
+    items: subscriberSections.map(([key]) => `/espace-client/${key}`)
   },
   {
     key: 'boutique',

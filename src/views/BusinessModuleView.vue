@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router'
 import api from '@/services/api'
+import PortalTicketConversation from '@/components/PortalTicketConversation.vue'
 import { ouvrirPDF } from '@/services/pdf'
 import { businessPayload, businessColumns, applyCatalogProduct } from '@/utils/businessModules'
 
@@ -235,6 +236,7 @@ watch(() => route.fullPath, load, { immediate: true })
         <RouterLink v-for="(url, field) in record.relation_links" :key="field" :to="url" class="action">Ouvrir {{ record.relation_labels[field] }} →</RouterLink>
       </div>
       <p v-if="record?.archived_at" class="my-3 font-semibold">Fiche archivée — lecture seule.</p>
+      <p v-if="record?.portal_user_id" class="my-3 rounded-xl bg-amber-50 p-3">Demande reçue du portail clients. <span v-if="key === 'commandes_clients'">Les quantités sont demandées par le client ; renseignez vos produits, prix et taxes avant validation. Aucun stock n’a été déduit.</span><span v-else>Le titre et la description sont visibles par ce client. Utilisez « Échanges internes » pour vos notes confidentielles.</span></p>
       <p v-if="lockedOrder" class="my-3 text-sm">Commande figée : seul le statut peut être modifié. Les lignes et montants restent conservés.</p>
       <div v-if="key === 'sav' && record" class="my-3 flex flex-wrap gap-2">
         <RouterLink v-if="record.article_id" :to="`/metier/connaissances/${record.article_id}`" class="action">Voir la procédure issue de ce ticket</RouterLink>
@@ -246,6 +248,7 @@ watch(() => route.fullPath, load, { immediate: true })
         <button v-if="key === 'commandes_clients' && record" type="button" :aria-pressed="tab === 'deliveries'" @click="tab = 'deliveries'">Livraisons et factures</button>
         <button v-if="definition.children === 'tasks'" type="button" :aria-pressed="tab === 'tasks'" @click="tab = 'tasks'">Tâches et temps passé</button>
         <button v-if="definition.children === 'messages' && record" type="button" :aria-pressed="tab === 'messages'" @click="tab = 'messages'">Échanges internes</button>
+        <button v-if="key === 'sav' && record?.portal_user_id" type="button" :aria-pressed="tab === 'portal'" @click="tab = 'portal'">Conversation client</button>
         <button v-if="record" type="button" :aria-pressed="tab === 'history'" @click="tab = 'history'">Historique</button>
         <button v-if="key === 'contrats_services' && editable && record && ['actif', 'termine'].includes(record.statut)" type="button" :aria-pressed="tab === 'renewal'" @click="tab = 'renewal'">Renouveler</button>
         <button v-if="key === 'connaissances' && record" type="button" :aria-pressed="tab === 'lecture'" @click="tab = 'lecture'">Lire la procédure</button>
@@ -253,6 +256,7 @@ watch(() => route.fullPath, load, { immediate: true })
       <form novalidate @submit.prevent="save">
         <fieldset :disabled="saving || !editable" class="space-y-4">
           <div v-show="tab === 'fiche'" class="grid gap-4 md:grid-cols-2">
+            <label v-if="key === 'commandes_clients' && record?.portal_user_id && record.statut === 'brouillon'" class="md:col-span-2"><input v-model="form.portal_review_confirmed" type="checkbox"> J’ai vérifié les produits, quantités, prix et taxes de cette demande client avant confirmation.</label>
             <label>Statut<select v-model="form.statut"><option v-for="s in record ? (record.allowed_statuses || [record.statut]) : [definition.statuses[0]]" :key="s" :value="s">{{ statusText(s) }}</option></select></label>
             <label>{{ key === 'contacts' ? 'Nom complet' : 'Titre / objet' }} *<input v-model="form.titre" :disabled="lockedOrder" maxlength="191"></label>
             <label v-for="[field, label, type, source, required] in definition.fields" :key="field" :class="{ 'md:col-span-2': type === 'textarea' }">
@@ -315,6 +319,7 @@ watch(() => route.fullPath, load, { immediate: true })
         <div class="max-h-96 space-y-3 overflow-auto"><article v-for="m in record.messages" :key="m.id" class="rounded-xl bg-cyan-50 p-4"><small>{{ m.created_at }} · Utilisateur #{{ m.user_id }}</small><p class="mt-2 whitespace-pre-wrap break-words">{{ m.contenu }}</p></article></div>
         <form v-if="editable && record.statut !== 'ferme'" @submit.prevent="sendMessage"><label>Nouvel échange interne<textarea v-model="message" maxlength="10000" rows="4" :disabled="saving || dirty" /></label><p v-if="dirty">Enregistrez la fiche avant d’ajouter un échange.</p><button class="mt-3" :disabled="saving || dirty || !message.trim()">Enregistrer l’échange</button></form>
       </section>
+      <PortalTicketConversation v-if="tab === 'portal' && record?.portal_user_id" :key="record.id" :id="record.id" :editable="editable && record.statut !== 'ferme' && !dirty" />
       <section v-if="tab === 'history' && record" class="max-h-96 overflow-auto"><p class="mb-3 text-sm">100 derniers événements. Les anciennes et nouvelles dates de renouvellement sont conservées.</p><p v-for="(event, index) in record.events" :key="index" class="border-b border-cyan-100 py-3">{{ event.created_at }} · {{ event.action }} · {{ statusText(event.statut) }} · Utilisateur #{{ event.user_id }} <span class="block">{{ eventDetails(event) }}</span></p></section>
       <form v-if="tab === 'renewal' && record" class="space-y-4" @submit.prevent="renewContract">
         <p>Fin actuelle : {{ record.date_fin }}. Ce renouvellement prolonge le contrat et conserve son historique. Il ne génère pas de facture.</p>

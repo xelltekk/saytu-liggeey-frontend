@@ -34,6 +34,14 @@ test('six distinct routes and least-privilege permissions', () => {
 test('confirmed orders only submit version and status', () => {
   assert.deepEqual(businessPayload({ key: 'commandes_clients' }, { titre: 'Should not be sent', statut: 'cloturee', lines: [] }, { statut: 'confirmee', version: 2 }), { statut: 'cloturee', version: 2 })
 })
+
+test('portal orders require explicit review acknowledgment only while draft', () => {
+  const definition = { key: 'commandes_clients', fields: [] }
+  const record = { statut: 'brouillon', portal_user_id: 42, version: 1 }
+  assert.equal(businessPayload(definition, { statut: 'confirmee' }, record).portal_review_confirmed, false)
+  assert.equal(businessPayload(definition, { statut: 'confirmee', portal_review_confirmed: true }, record).portal_review_confirmed, true)
+  assert.equal('portal_review_confirmed' in businessPayload(definition, { statut: 'confirmee', portal_review_confirmed: true }, { ...record, statut: 'confirmee' }), false)
+})
 test('create whitelists fields and preserves retry identity', () => {
   assert.deepEqual(businessPayload({ key: 'contacts', fields: [['client_id'], ['telephone']] }, { titre: 'Nom', statut: 'actif', client_id: 1, telephone: '', societe_id: 999, request_hash: 'bad' }, null, 'retry-id'), { titre: 'Nom', statut: 'actif', client_id: 1, telephone: null, request_id: 'retry-id' })
 })

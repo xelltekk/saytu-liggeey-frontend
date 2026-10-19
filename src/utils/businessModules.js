@@ -40,6 +40,7 @@ export function businessPayload(definition, form, record, requestId) {
     return { statut: form.statut, version: record.version }
   }
   const payload = { titre: form.titre, statut: form.statut }
+  if (definition.key === 'commandes_clients' && record?.portal_user_id && record.statut === 'brouillon') payload.portal_review_confirmed = Boolean(form.portal_review_confirmed)
   for (const [field] of definition.fields) payload[field] = form[field] === '' ? null : form[field]
   if (definition.children === 'lines') payload.lines = form.lines.map(({ produit_id, designation, quantite, prix, tva }) => ({ produit_id: produit_id || null, designation, quantite, prix, tva }))
   if (definition.children === 'tasks') payload.tasks = form.tasks.map(({ titre, statut, owner_id, echeance, minutes }) => ({ titre, statut, owner_id: owner_id || null, echeance: echeance || null, minutes }))

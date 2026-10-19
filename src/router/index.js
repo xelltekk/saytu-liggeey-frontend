@@ -5,6 +5,10 @@ import { businessPermission } from '@/utils/businessModules'
 
 const routes = [
   {
+    path: '/portail-clients', name: 'customer-portal',
+    component: () => import('@/views/CustomerPortalView.vue'), meta: { guest: true },
+  },
+  {
     path: '/login',
     name: 'login',
     component: () => import('@/views/LoginView.vue'),
