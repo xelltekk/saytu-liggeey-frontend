@@ -16,11 +16,13 @@
       <div class="flex gap-3"><button v-if="u.is_active" class="btn-secondary" :disabled="busy" @click="invite(u)">Renvoyer l’invitation</button><button class="btn-secondary" :disabled="busy" @click="toggle(u)">{{ u.is_active ? 'Désactiver' : 'Réactiver' }}</button></div>
     </article>
     <p v-if="!users.length">Aucun accès portail pour ce client.</p>
+    <ClientPriceRequests :key="client.id" :client-id="client.id" />
   </section>
 </template>
 <script setup>
 import { ref, watch } from 'vue'
 import api from '@/services/api'
+import ClientPriceRequests from '@/components/ClientPriceRequests.vue'
 const props = defineProps({ client: { type: Object, required: true } })
 const name = ref(''), email = ref(props.client.email || ''), users = ref([]), pending = ref(0), url = ref(''), error = ref(''), notice = ref(''), busy = ref(false)
 const explain = e => Object.values(e.response?.data?.errors || {}).flat().join(' · ') || e.response?.data?.message || 'Opération impossible.'

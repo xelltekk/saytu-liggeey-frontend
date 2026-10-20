@@ -131,6 +131,10 @@
           </div>
 
           <!-- Alertes intelligentes -->
+          <div v-if="store.details.portail_clients?.length" class="p-3">
+            <h4 class="text-xs font-semibold text-cyan-700 uppercase">Portail clients</h4>
+            <button v-for="n in store.details.portail_clients" :key="n.key" type="button" class="block w-full rounded p-3 text-left hover:bg-cyan-50" @click="ouvrirNotificationGenerique(n)"><strong class="block">{{ n.title }}</strong><span>{{ n.message }}</span></button>
+          </div>
           <div v-if="store.details.alertes_intelligentes?.length" class="p-3">
             <div class="flex items-center justify-between mb-2">
               <h4 class="text-xs font-semibold text-cyan-700 uppercase">Alertes intelligentes</h4>

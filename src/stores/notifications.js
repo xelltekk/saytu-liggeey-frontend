@@ -13,6 +13,7 @@ function emptyDetails() {
     rh_alertes: [],
     achats: [],
     alertes_intelligentes: [],
+    portail_clients: [],
   }
 }
 
@@ -26,6 +27,7 @@ export const useNotificationsStore = defineStore('notifications', {
       rh_alertes: 0,
       achats: 0,
       alertes_intelligentes: 0,
+      portail_clients: 0,
     },
     details: emptyDetails(),
     loading: false,
@@ -90,6 +92,6 @@ export const useNotificationsStore = defineStore('notifications', {
       state.badges.demandes_validation +
       state.badges.rh_alertes +
       state.badges.achats +
-      state.badges.alertes_intelligentes,
+      state.badges.alertes_intelligentes + (state.badges.portail_clients || 0),
   },
 })
