@@ -133,7 +133,11 @@
           <!-- Alertes intelligentes -->
           <div v-if="store.details.portail_clients?.length" class="p-3">
             <h4 class="text-xs font-semibold text-cyan-700 uppercase">Portail clients</h4>
-            <button v-for="n in store.details.portail_clients" :key="n.key" type="button" class="block w-full rounded p-3 text-left hover:bg-cyan-50" @click="ouvrirNotificationGenerique(n)"><strong class="block">{{ n.title }}</strong><span>{{ n.message }}</span></button>
+            <button v-for="n in store.details.portail_clients" :key="n.key" type="button" class="portal-notification" @click="ouvrirNotificationGenerique(n)">
+              <strong class="portal-notification-title">{{ n.title }}</strong>
+              <span class="portal-notification-message">{{ n.message }}</span>
+              <time v-if="n.date" class="portal-notification-date">{{ formatDateTime(n.date) }}</time>
+            </button>
           </div>
           <div v-if="store.details.alertes_intelligentes?.length" class="p-3">
             <div class="flex items-center justify-between mb-2">
@@ -408,6 +412,49 @@ function roleLabel(role) {
 </script>
 
 <style scoped>
+#notifications-panel {
+  color: #0f172a;
+  background-color: #ffffff;
+}
+#notifications-panel .portal-notification {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  padding: 12px;
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  background: #f0f9ff;
+  color: #0f172a;
+  border: 1px solid #bae6fd;
+  border-radius: 10px;
+  line-height: 1.5;
+}
+#notifications-panel .portal-notification:hover {
+  background: #e0f2fe;
+  border-color: #0284c7;
+}
+#notifications-panel .portal-notification:focus-visible {
+  outline: 3px solid #0369a1;
+  outline-offset: 2px;
+}
+#notifications-panel .portal-notification-title {
+  display: block;
+  color: #0f172a;
+  font-size: 14px;
+  font-weight: 700;
+}
+#notifications-panel .portal-notification-message {
+  display: block;
+  color: #334155;
+  font-size: 13px;
+}
+#notifications-panel .portal-notification-date {
+  display: block;
+  margin-top: 6px;
+  color: #475569;
+  font-size: 12px;
+}
 .fade-down-enter-active, .fade-down-leave-active {
   transition: opacity 0.15s, transform 0.15s;
 }
