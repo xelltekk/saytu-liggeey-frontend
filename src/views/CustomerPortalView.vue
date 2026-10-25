@@ -47,6 +47,18 @@
         <template v-if="kind === 'prix'"><p class="text">{{ selected.description }}</p><article v-for="(l, i) in selected.lines" :key="i">{{ l.designation }} · Quantité {{ l.quantite }}</article><p v-if="!selected.devis" class="notice">Votre demande est en cours de traitement. Le devis sera visible après son envoi par votre fournisseur.</p><article v-else><h3>Devis {{ selected.devis.numero }}</h3><p>Valable jusqu’au {{ selected.devis.date_validite }}</p><p>Total TTC : {{ selected.devis.total_ttc }} {{ selected.devis.devise }}</p></article></template>
         <template v-if="kind === 'contrats'"><p>Du {{ selected.date_debut }} au {{ selected.date_fin }}</p><p>Montant HT : {{ selected.montant }} {{ selected.devise }} · {{ selected.periodicite }}</p><p>Pour toute précision sur votre contrat, créez un ticket.</p></template>
         <button v-if="kind === 'prix' && selected.devis" class="secondary" :disabled="busy" @click="downloadQuote">Télécharger le devis PDF</button>
+        <section v-if="kind === 'prix' && selected.devis" class="notice">
+          <p>Statut du devis : {{ status(selected.devis.statut) }}</p>
+          <template v-if="selected.devis.can_decide">
+            <p>Consultez le PDF avant de répondre. Votre décision concerne l’ensemble du devis, ses prix et ses conditions.</p>
+            <label>Commentaire (facultatif)<textarea v-model="selected.draftComment" maxlength="1000" :disabled="busy" /></label>
+            <button :disabled="busy" @click="decideQuote('accepte')">Accepter le devis</button>
+            <button class="secondary" :disabled="busy" @click="decideQuote('refuse')">Refuser le devis</button>
+          </template>
+          <p v-else-if="!selected.decision && selected.devis.statut === 'envoye'">Ce devis a expiré. Contactez votre fournisseur pour le renouveler.</p>
+          <template v-if="selected.decision"><p>Décision enregistrée le {{ date(selected.decision.created_at) }} : {{ status(selected.decision.decision) }}</p><p class="text">{{ selected.decision.comment }}</p></template>
+          <button v-if="selected.order_id" class="secondary" :disabled="busy" @click="openQuoteOrder">Suivre la commande et les livraisons</button>
+        </section>
       </section>
       <section v-else-if="!loading">
         <form class="filters" @submit.prevent="load()"><label>Rechercher<input v-model.trim="search" maxlength="191" placeholder="Objet ou référence…" type="search" /></label><label v-if="kind !== 'connaissances'">Statut<select v-model="filterStatus"><option value="">Tous les statuts</option><option v-for="s in statusOptions" :key="s" :value="s">{{ status(s) }}</option></select></label><button :disabled="busy">Rechercher</button><button type="button" class="secondary" @click="resetFilters">Réinitialiser</button></form>
@@ -78,14 +90,14 @@ const sectionDescription = computed(() => ({ prix: 'Décrivez vos besoins et rec
 const statusOptions = computed(() => ({ prix: ['recue', 'en_chiffrage'], tickets: ['ouvert', 'en_cours', 'en_attente', 'resolu', 'ferme'], commandes: ['brouillon', 'confirmee', 'cloturee', 'annulee'], contrats: ['actif', 'termine', 'resilie'] }[kind.value] || []))
 const date = value => { if (!value) return '—'; const d = new Date(String(value).replace(' ', 'T')); return Number.isNaN(d.getTime()) ? value : d.toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' }) }
 let sequence = 0
-const status = s => ({ recue: 'Demande reçue', en_chiffrage: 'Devis en préparation / suivi', brouillon: 'En attente de validation', confirmee: 'Confirmée', cloturee: 'Livrée', annulee: 'Annulée', ouvert: 'Ouvert', en_cours: 'En cours', en_attente: 'En attente', resolu: 'Résolu', ferme: 'Fermé', actif: 'Actif', termine: 'Terminé', resilie: 'Résilié' }[s] || s)
+const status = s => ({ envoye: 'Envoyé', accepte: 'Accepté', refuse: 'Refusé', facture: 'Facturé', expire: 'Expiré', recue: 'Demande reçue', en_chiffrage: 'Devis en préparation / suivi', brouillon: 'En attente de validation', confirmee: 'Confirmée', cloturee: 'Livrée', annulee: 'Annulée', ouvert: 'Ouvert', en_cours: 'En cours', en_attente: 'En attente', resolu: 'Résolu', ferme: 'Fermé', actif: 'Actif', termine: 'Terminé', resilie: 'Résilié' }[s] || s)
 function failed(e) { error.value = Object.values(e.response?.data?.errors || {}).flat().join(' · ') || e.response?.data?.message || 'Opération impossible. Réessayez.'; if ([401, 402, 403].includes(e.response?.status)) { sequence++; account.value = null; selected.value = null; records.value = []; sessionStorage.removeItem(key) } }
 async function run(fn) { if (busy.value) return; busy.value = true; error.value = ''; try { await fn() } catch (e) { failed(e) } finally { busy.value = false } }
 const activate = () => run(async () => { const { data } = await api.post('/activate', { token: invitation.value, password: password.value, password_confirmation: confirmation.value }); invitation.value = ''; password.value = ''; confirmation.value = ''; notice.value = data.message })
 const login = () => run(async () => { const { data } = await api.post('/login', { email: email.value, password: password.value }); sessionStorage.setItem(key, data.token); password.value = ''; notifications.value = { unread: 0, items: [] }; account.value = (await api.get('/me')).data; notice.value = ''; await load(); await loadNotifications() })
 const logout = () => { if (!canLeave()) return; return run(async () => { try { await api.post('/logout') } finally { sequence++; account.value = null; selected.value = null; records.value = []; creating.value = false; replyText.value = ''; sessionStorage.removeItem(key) } }) }
 async function load(p = 1) { const version = ++sequence; loading.value = true; error.value = ''; try { const { data } = await api.get(`/${kind.value}`, { params: { page: p, q: search.value || undefined, statut: filterStatus.value || undefined } }); if (version === sequence) { records.value = data.data; page.value = data.current_page; pages.value = data.last_page; total.value = data.total } } catch (e) { if (version === sequence) failed(e) } finally { if (version === sequence) loading.value = false } }
-const canLeave = () => !(creating.value || replyText.value) || confirm('Quitter cette saisie sans envoyer ?')
+const canLeave = () => !(creating.value || replyText.value || selected.value?.draftComment) || confirm('Quitter cette saisie sans envoyer ?')
 function cancelCreation() { if (canLeave()) creating.value = false }
 function back() { if (!canLeave()) return; sequence++; selected.value = null; replyText.value = ''; load(page.value) }
 function resetFilters() { search.value = ''; filterStatus.value = ''; load() }
@@ -98,6 +110,21 @@ async function loadNotifications() { if (!account.value || notificationsLoading 
 async function openNotification(n) { if (busy.value || !canLeave()) return; await run(async () => { sequence++; kind.value = n.kind; selected.value = null; creating.value = false; replyText.value = ''; search.value = ''; filterStatus.value = ''; await load(); selected.value = (await api.get(`/${n.kind}/${n.record_id}`)).data; replyId.value = crypto.randomUUID(); await api.post(`/notifications/${n.id}/read`); showNotifications.value = false; await loadNotifications() }) }
 const downloadBL = d => run(async () => { const { data } = await api.get(`/commandes/${selected.value.id}/livraisons/${d.id}/pdf`, { responseType: 'blob' }); const url = URL.createObjectURL(data); const a = document.createElement('a'); a.href = url; a.download = `BL-${d.id}.pdf`; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000) })
 const downloadQuote = () => run(async () => { const { data } = await api.get(`/prix/${selected.value.id}/devis/pdf`, { responseType: 'blob' }); const url = URL.createObjectURL(data); const a = document.createElement('a'); a.href = url; a.download = `devis-${selected.value.id}.pdf`; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000) })
+const decideQuote = decision => {
+  if (busy.value || !selected.value?.devis?.can_decide) return
+  if (!confirm(`${decision === 'accepte' ? 'Accepter' : 'Refuser'} le devis ${selected.value.devis.numero} (${selected.value.devis.total_ttc} ${selected.value.devis.devise}) ? Cette décision sera transmise à votre fournisseur.`)) return
+  return run(async () => {
+    const row = selected.value
+    const content = { decision, comment: row.draftComment || null, fingerprint: row.devis.fingerprint }
+    const hash = JSON.stringify(content)
+    if (row.decisionRequest?.hash !== hash) row.decisionRequest = { hash, id: crypto.randomUUID() }
+    const { data } = await api.post(`/prix/${row.id}/devis/decision`, { ...content, request_id: row.decisionRequest.id })
+    // Clear only after successful submission; keep the UUID if a response is lost.
+    row.draftComment = ''; notice.value = data.message
+    selected.value = (await api.get(`/prix/${row.id}`)).data
+  })
+}
+const openQuoteOrder = () => { if (!canLeave()) return; return run(async () => { const id = selected.value.order_id; const { data } = await api.get(`/commandes/${id}`); sequence++; kind.value = 'commandes'; selected.value = data; search.value = ''; filterStatus.value = '' }) }
 const reply = () => run(async () => { sequence++; selected.value = (await api.post(`/tickets/${selected.value.id}/messages`, { body: replyText.value, request_id: replyId.value })).data; replyText.value = ''; replyId.value = crypto.randomUUID(); syncError.value = ''; notice.value = 'Votre réponse a été envoyée.' })
 async function refreshTicket() {
   if (!account.value || kind.value !== 'tickets' || !selected.value || busy.value || refreshing.value || document.hidden) return
@@ -111,7 +138,7 @@ const timer = setInterval(refreshTicket, 15000)
 const notificationTimer = setInterval(loadNotifications, 30000)
 onBeforeUnmount(() => clearInterval(notificationTimer))
 document.addEventListener('visibilitychange', refreshTicket)
-const beforeUnload = e => { if (replyText.value || creating.value) { e.preventDefault(); e.returnValue = '' } }
+const beforeUnload = e => { if (replyText.value || creating.value || selected.value?.draftComment) { e.preventDefault(); e.returnValue = '' } }
 window.addEventListener('beforeunload', beforeUnload)
 onBeforeUnmount(() => { sequence++; clearInterval(timer); document.removeEventListener('visibilitychange', refreshTicket); window.removeEventListener('beforeunload', beforeUnload) })
 async function boot() { if (!sessionStorage.getItem(key) || invitation.value) return; loading.value = true; try { account.value = (await api.get('/me')).data; await load(); await loadNotifications() } catch (e) { failed(e) } finally { loading.value = false } }
