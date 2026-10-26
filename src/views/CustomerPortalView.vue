@@ -47,6 +47,7 @@
         <template v-if="kind === 'prix'"><p class="text">{{ selected.description }}</p><article v-for="(l, i) in selected.lines" :key="i">{{ l.designation }} · Quantité {{ l.quantite }}</article><p v-if="!selected.devis" class="notice">Votre demande est en cours de traitement. Le devis sera visible après son envoi par votre fournisseur.</p><article v-else><h3>Devis {{ selected.devis.numero }}</h3><p>Valable jusqu’au {{ selected.devis.date_validite }}</p><p>Total TTC : {{ selected.devis.total_ttc }} {{ selected.devis.devise }}</p></article></template>
         <template v-if="kind === 'contrats'"><p>Du {{ selected.date_debut }} au {{ selected.date_fin }}</p><p>Montant HT : {{ selected.montant }} {{ selected.devise }} · {{ selected.periodicite }}</p><p>Pour toute précision sur votre contrat, créez un ticket.</p></template>
         <button v-if="kind === 'prix' && selected.devis" class="secondary" :disabled="busy" @click="downloadQuote">Télécharger le devis PDF</button>
+        <OrderWorkflow v-if="kind === 'commandes' && selected.workflow" :record="selected" :api="api" external :disabled="busy" @busy="busy = $event" @draft="selected.orderDraft = $event" @changed="refreshOrder" />
         <section v-if="kind === 'prix' && selected.devis" class="notice">
           <p>Statut du devis : {{ status(selected.devis.statut) }}</p>
           <template v-if="selected.devis.can_decide">
@@ -75,6 +76,7 @@
 <script setup>
 import { computed, onBeforeUnmount, ref } from 'vue'
 import axios from 'axios'
+import OrderWorkflow from '@/components/OrderWorkflow.vue'
 const sections = [['tickets', 'Mes tickets'], ['prix', 'Demandes de prix'], ['commandes', 'Mes commandes'], ['contrats', 'Mes contrats'], ['connaissances', 'Base de connaissances']]
 const key = 'saytu_customer_portal_session'
 const api = axios.create({ baseURL: '/api/client-portal', headers: { Accept: 'application/json' } })
@@ -97,7 +99,7 @@ const activate = () => run(async () => { const { data } = await api.post('/activ
 const login = () => run(async () => { const { data } = await api.post('/login', { email: email.value, password: password.value }); sessionStorage.setItem(key, data.token); password.value = ''; notifications.value = { unread: 0, items: [] }; account.value = (await api.get('/me')).data; notice.value = ''; await load(); await loadNotifications() })
 const logout = () => { if (!canLeave()) return; return run(async () => { try { await api.post('/logout') } finally { sequence++; account.value = null; selected.value = null; records.value = []; creating.value = false; replyText.value = ''; sessionStorage.removeItem(key) } }) }
 async function load(p = 1) { const version = ++sequence; loading.value = true; error.value = ''; try { const { data } = await api.get(`/${kind.value}`, { params: { page: p, q: search.value || undefined, statut: filterStatus.value || undefined } }); if (version === sequence) { records.value = data.data; page.value = data.current_page; pages.value = data.last_page; total.value = data.total } } catch (e) { if (version === sequence) failed(e) } finally { if (version === sequence) loading.value = false } }
-const canLeave = () => !(creating.value || replyText.value || selected.value?.draftComment) || confirm('Quitter cette saisie sans envoyer ?')
+const canLeave = () => !busy.value && (!(creating.value || replyText.value || selected.value?.draftComment || selected.value?.orderDraft) || confirm('Quitter cette saisie sans envoyer ?'))
 function cancelCreation() { if (canLeave()) creating.value = false }
 function back() { if (!canLeave()) return; sequence++; selected.value = null; replyText.value = ''; load(page.value) }
 function resetFilters() { search.value = ''; filterStatus.value = ''; load() }
@@ -125,6 +127,7 @@ const decideQuote = decision => {
   })
 }
 const openQuoteOrder = () => { if (!canLeave()) return; return run(async () => { const id = selected.value.order_id; const { data } = await api.get(`/commandes/${id}`); sequence++; kind.value = 'commandes'; selected.value = data; search.value = ''; filterStatus.value = '' }) }
+const refreshOrder = () => run(async () => { const id = selected.value.id; selected.value = (await api.get(`/commandes/${id}`)).data; notice.value = 'Commande actualisée.' })
 const reply = () => run(async () => { sequence++; selected.value = (await api.post(`/tickets/${selected.value.id}/messages`, { body: replyText.value, request_id: replyId.value })).data; replyText.value = ''; replyId.value = crypto.randomUUID(); syncError.value = ''; notice.value = 'Votre réponse a été envoyée.' })
 async function refreshTicket() {
   if (!account.value || kind.value !== 'tickets' || !selected.value || busy.value || refreshing.value || document.hidden) return
@@ -138,7 +141,7 @@ const timer = setInterval(refreshTicket, 15000)
 const notificationTimer = setInterval(loadNotifications, 30000)
 onBeforeUnmount(() => clearInterval(notificationTimer))
 document.addEventListener('visibilitychange', refreshTicket)
-const beforeUnload = e => { if (replyText.value || creating.value || selected.value?.draftComment) { e.preventDefault(); e.returnValue = '' } }
+const beforeUnload = e => { if (replyText.value || creating.value || selected.value?.draftComment || selected.value?.orderDraft) { e.preventDefault(); e.returnValue = '' } }
 window.addEventListener('beforeunload', beforeUnload)
 onBeforeUnmount(() => { sequence++; clearInterval(timer); document.removeEventListener('visibilitychange', refreshTicket); window.removeEventListener('beforeunload', beforeUnload) })
 async function boot() { if (!sessionStorage.getItem(key) || invitation.value) return; loading.value = true; try { account.value = (await api.get('/me')).data; await load(); await loadNotifications() } catch (e) { failed(e) } finally { loading.value = false } }

@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router'
 import api from '@/services/api'
 import PortalTicketConversation from '@/components/PortalTicketConversation.vue'
+import OrderWorkflow from '@/components/OrderWorkflow.vue'
 import { ouvrirPDF } from '@/services/pdf'
 import { businessPayload, businessColumns, applyCatalogProduct } from '@/utils/businessModules'
 
@@ -48,7 +49,7 @@ onBeforeUnmount(() => { sequence++; window.removeEventListener('beforeunload', u
 async function load() {
   const current = ++sequence
   loading.value = true; error.value = ''; success.value = ''; clean.value = ''; message.value = ''; record.value = null; definition.value = null; choices.value = {}; lookupText.value = {}; tab.value = 'fiche'; products.value = []
-  renewalEnd.value = ''; renewalReminder.value = ''
+  renewalEnd.value = ''; renewalReminder.value = ''; portalDraft.value = ''
   shipment.value = null; shipmentClean.value = ''; shipmentId.value = crypto.randomUUID()
   try {
     const catalog = (await api.get('/metier')).data.modules
@@ -197,6 +198,10 @@ async function createArticle() {
   finally { saving.value = false }
 }
 function eventDetails(event) {
+  try {
+    const d = JSON.parse(event.details || '{}')
+    if (d.before && d.after) return `Total TTC : ${d.before.total_ttc} → ${d.after.total_ttc}. Avant : ${d.before.lines.map(l => `${l.designation} × ${l.quantite} à ${l.prix} HT`).join(' ; ')}. Après : ${d.after.lines.map(l => `${l.designation} × ${l.quantite} à ${l.prix} HT`).join(' ; ')}`
+  } catch { /* Legacy events can have no structured details. */ }
   try { const d = JSON.parse(event.details || '{}'); return d.ancienne_fin ? `Fin : ${d.ancienne_fin} → ${d.nouvelle_fin}` : [d.livraison_id ? `Livraison #${d.livraison_id}` : '', d.facture_id ? `Facture #${d.facture_id}` : ''].filter(Boolean).join(' · ') } catch { return '' }
 }
 watch(() => route.fullPath, load, { immediate: true })
@@ -256,11 +261,12 @@ watch(() => route.fullPath, load, { immediate: true })
         <button v-if="key === 'contrats_services' && editable && record && ['actif', 'termine'].includes(record.statut)" type="button" :aria-pressed="tab === 'renewal'" @click="tab = 'renewal'">Renouveler</button>
         <button v-if="key === 'connaissances' && record" type="button" :aria-pressed="tab === 'lecture'" @click="tab = 'lecture'">Lire la procédure</button>
       </nav>
+      <OrderWorkflow v-if="key === 'commandes_clients' && record?.workflow" v-show="['fiche', 'history'].includes(tab)" :history-only="tab === 'history'" :record="record" :api="api" :disabled="!!dirty || saving" :editable="editable" @changed="load" @busy="saving = $event" @draft="portalDraft = $event" />
       <form novalidate @submit.prevent="save">
         <fieldset :disabled="saving || !editable" class="space-y-4">
           <div v-show="tab === 'fiche'" class="grid gap-4 md:grid-cols-2">
-            <label v-if="key === 'commandes_clients' && record?.portal_user_id && record.statut === 'brouillon'" class="md:col-span-2"><input v-model="form.portal_review_confirmed" type="checkbox"> J’ai vérifié les produits, quantités, prix et taxes de cette demande client avant confirmation.</label>
-            <label>Statut<select v-model="form.statut"><option v-for="s in record ? (record.allowed_statuses || [record.statut]) : [definition.statuses[0]]" :key="s" :value="s">{{ statusText(s) }}</option></select></label>
+            <p v-if="key === 'commandes_clients' && record?.workflow" class="md:col-span-2">Utilisez les boutons de validation ci-dessus pour accepter ou refuser. Enregistrez d’abord les lignes et les prix.</p>
+            <label>Statut<select v-model="form.statut" :disabled="key === 'commandes_clients' && !!record?.workflow && record.statut === 'brouillon'"><option v-for="s in record ? (record.allowed_statuses || [record.statut]) : [definition.statuses[0]]" :key="s" :value="s">{{ statusText(s) }}</option></select></label>
             <label>{{ key === 'contacts' ? 'Nom complet' : 'Titre / objet' }} *<input v-model="form.titre" :disabled="lockedOrder" maxlength="191"></label>
             <label v-for="[field, label, type, source, required] in definition.fields" :key="field" :class="{ 'md:col-span-2': type === 'textarea' }">
               {{ label }} {{ required ? '*' : '' }}
@@ -305,6 +311,7 @@ watch(() => route.fullPath, load, { immediate: true })
           <tr v-for="(line, index) in record.lines" :key="line.id"><td>{{ line.designation }}</td><td>{{ line.quantite }}</td><td>{{ line.livree }}</td><td>{{ line.reste }}</td><td><input v-model="shipment.lines[index].quantite" :aria-label="`Quantité à livrer : ${line.designation}`" type="number" min="0" step="0.001" :max="line.reste" :disabled="saving || dirty || !record.can_deliver || !!record.archived_at || record.statut !== 'confirmee' || Number(line.reste) <= 0"></td></tr>
         </tbody></table></div>
         <form v-if="record.can_deliver && !record.archived_at && record.statut === 'confirmee'" class="space-y-3" @submit.prevent="deliverOrder">
+          <button type="button" :disabled="saving || dirty" @click="shipment.lines = record.lines.map(l => ({ line_id: l.id, quantite: l.reste }))">Livrer le reliquat : remplir les quantités restantes</button>
           <label>Date de livraison<input v-model="shipment.date_livraison" type="date" required :disabled="saving || dirty"></label>
           <label v-if="record.legacy_delivery">Échéance de paiement de la facture<input v-model="shipment.date_echeance" type="date" required :disabled="saving || dirty"></label>
           <label>Notes de livraison<textarea v-model="shipment.notes" maxlength="2000" :disabled="saving || dirty" /></label>
