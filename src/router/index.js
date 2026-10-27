@@ -276,6 +276,11 @@ const routes = [
         component: () => import('@/views/LeasingView.vue'),
       },
       {
+        path: 'leasing/comparaison',
+        name: 'leasing-comparaison',
+        component: () => import('@/views/LeasingComparaisonView.vue'),
+      },
+      {
         path: 'leasing/imprimantes/nouveau',
         name: 'leasing-imprimante-create',
         component: () => import('@/views/LeasingImprimanteDetailView.vue'),

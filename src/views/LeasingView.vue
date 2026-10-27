@@ -10,6 +10,7 @@
           </p>
         </div>
         <div class="flex flex-wrap gap-2">
+          <RouterLink class="btn-secondary bg-white/95 text-slate-900 hover:bg-white" :to="{ name: 'leasing-comparaison' }">Comparer deux relevés</RouterLink>
           <button type="button" class="btn-secondary bg-white/95 text-slate-900 hover:bg-white" @click="openImprimanteModal">+ Imprimante</button>
           <button type="button" class="btn-secondary bg-white/95 text-slate-900 hover:bg-white" @click="openContratModal">+ Contrat</button>
           <button type="button" class="btn-primary bg-white text-xelltekk-700 hover:bg-blue-50" @click="openReleveModal">+ Relevé</button>
@@ -99,6 +100,7 @@
                   <button v-if="contrat.statut === 'brouillon'" type="button" class="text-sm font-semibold text-emerald-700 hover:text-emerald-900" @click="activerContrat(contrat)">Activer</button>
                   <button v-if="['actif', 'suspendu'].includes(contrat.statut)" type="button" class="text-sm font-semibold text-orange-700 hover:text-orange-900" @click="cloturerContrat(contrat)">Clôturer</button>
                   <button type="button" class="text-sm font-semibold text-xelltekk-700 hover:text-xelltekk-900" @click="openReleveModal(contrat)">Relevé</button>
+                  <RouterLink class="text-sm font-semibold text-blue-700" :to="{ name: 'leasing-comparaison', query: { contrat: contrat.id } }">Comparer</RouterLink>
                   <button type="button" class="text-sm font-semibold text-blue-700 hover:text-blue-900" @click="downloadContratPdf(contrat)">Contrat PDF</button>
                 </div>
               </td>
