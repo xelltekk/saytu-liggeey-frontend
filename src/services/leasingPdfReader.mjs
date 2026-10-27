@@ -1,6 +1,6 @@
 import { COUNTERS, parseReport, columnRectangle, mergeCounterColumn } from '../utils/leasingComparison.mjs'
 
-const base = '/vendor/leasing-comparator/runtime/'
+const base = '/assets/leasing-comparator/runtime/'
 let enginePromise
 async function engines() {
   if (!enginePromise) enginePromise = (async () => {
@@ -85,6 +85,7 @@ export async function readLeasingPdf(file, { signal, onProgress = () => {}, load
             workerPath: new URL(`${base}worker.min.js`, location.origin).href,
             corePath: new URL(`${base}core/`, location.origin).href,
             langPath: new URL(`${base}lang/`, location.origin).href,
+            gzip: false,
             cacheMethod: 'none',
             logger: m => { if (!stopped && !signal?.aborted) onProgress(`Reconnaissance page ${p} : ${Math.round((m.progress || 0) * 100)} %`) },
           }).then(created => {
