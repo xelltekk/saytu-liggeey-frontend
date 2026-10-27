@@ -110,6 +110,6 @@ jobs:
 
       - name: Verify leasing PDF and OCR resources online
         run: |
-          for asset in pdf.mjs pdf.worker.mjs tesseract.min.js worker.min.js core/tesseract-core-lstm.wasm.js core/tesseract-core-simd-lstm.wasm.js core/tesseract-core-relaxedsimd-lstm.wasm.js lang/eng.traineddata; do
+          for asset in pdf.mjs pdf.worker.mjs pdf-wasm/openjpeg.wasm pdf-wasm/jbig2.wasm pdf-wasm/qcms_bg.wasm tesseract.min.js worker.min.js core/tesseract-core-lstm.wasm.js core/tesseract-core-simd-lstm.wasm.js core/tesseract-core-relaxedsimd-lstm.wasm.js lang/eng.traineddata; do
             curl --fail --silent --show-error --head --retry 2 "https://saytu.xelltekk.com/assets/leasing-comparator/runtime/$asset" >/dev/null
           done

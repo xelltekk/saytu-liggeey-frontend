@@ -29,3 +29,14 @@ node_modules des dépendances de test) et éventuellement `SAYTU_TEST_BROWSER=ms
 Le test génère ses propres PDF texte/scanné, vérifie OCR, résultat, export CSV,
 impression sur une page, largeur mobile et absence de requêtes externes.
 Le point d’entrée `tests/browser/leasing.html` n’est pas inclus dans le build déployé.
+
+La lecture affiche chaque étape (texte, aperçu, moteur OCR, chargement du modèle,
+reconnaissance), avec un compteur de secondes et un arrêt vers la saisie manuelle.
+Chaque étape PDF est limitée à 30 secondes ; le premier chargement OCR à 90 secondes ;
+la durée totale à 3 minutes. Une erreur ou un arrêt ne doit pas attendre la fermeture
+d’un worker bloqué. L’aperçu déjà rendu reste disponible pour la saisie manuelle.
+Les décodeurs JPEG 2000, JBIG2 et profils couleur de PDF.js sont servis localement.
+`SAYTU_TEST_PYTHON` permet de tester un PDF scanné JPEG 2000 en plus du scénario PNG.
+`SAYTU_TEST_PDF` permet aussi de vérifier un relevé local réel, sans l'ajouter au
+dépôt ni le téléverser. Les numéros de série non reconnus restent à saisir ;
+la confirmation visuelle reste obligatoire avant tout calcul.

@@ -14,3 +14,7 @@ Le modèle `eng.traineddata.gz` est décompressé en `eng.traineddata` sans chan
 de contenu et chargé avec `gzip: false`. Les ressources publiques sont dans
 `/assets/leasing-comparator/` : les protections serveur bloquant `/vendor/` et les
 archives `.gz` restent inchangées.
+
+Les décodeurs `pdf-wasm`, polices `standard_fonts` et tables `cmaps` proviennent
+du même PDF.js 5.6.205. Leurs licences sont conservées dans leurs répertoires.
+Ils permettent notamment de lire les images JPEG 2000 / JBIG2 des PDF scannés.

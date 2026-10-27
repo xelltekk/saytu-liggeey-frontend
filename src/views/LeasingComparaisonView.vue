@@ -26,10 +26,14 @@
         <section v-for="(report, i) in reports" :key="i" class="panel min-w-0">
           <h2 class="text-xl font-bold">{{ i === 0 ? '1. Relevé précédent' : '2. Relevé récent' }}</h2>
           <label class="field">PDF {{ i === 0 ? 'précédent' : 'récent' }}
-            <input :key="fileKey" type="file" accept="application/pdf,.pdf" class="input" :disabled="busy || contractLoading" @change="importPdf($event, i)" />
+            <input :key="fileKey" type="file" accept="application/pdf,.pdf" class="input" :disabled="busy || contractLoading" @click="$event.target.value = ''" @change="importPdf($event, i)" />
           </label>
           <p role="status" aria-live="polite" class="mt-2 text-sm text-slate-700">{{ files[i].status }}</p>
-          <button v-if="files[i].busy" type="button" class="btn-secondary mt-2" @click="cancelReading(i)">Annuler la lecture</button>
+          <div v-if="files[i].busy" class="mt-2 rounded-xl border border-cyan-200 bg-cyan-50 p-3">
+            <p class="text-sm font-semibold text-slate-800">Lecture en cours · {{ files[i].elapsed }} s</p>
+            <p class="mt-1 text-sm text-slate-700">La première lecture d’un PDF scanné nécessite le chargement du modèle OCR. Vous pouvez arrêter et saisir les compteurs.</p>
+            <button type="button" class="btn-secondary mt-2" @click="cancelReading(i)">Arrêter et saisir manuellement</button>
+          </div>
           <fieldset :disabled="busy">
             <label class="field">Date du relevé {{ i === 0 ? 'précédent' : 'récent' }}<input v-model="report.date" type="date" class="input" required /></label>
             <label class="field">Numéro de série {{ i === 0 ? 'précédent' : 'récent' }}<input v-model="report.serial" class="input" maxlength="100" required /></label>
@@ -101,7 +105,7 @@ import { readLeasingPdf } from '@/services/leasingPdfReader.mjs'
 
 const route = useRoute()
 const reports = reactive([emptyReport(), emptyReport()])
-const emptyFile = () => ({ busy: false, status: 'Importez un PDF ou saisissez les valeurs manuellement.', previews: [], text: '' })
+const emptyFile = () => ({ busy: false, elapsed: 0, status: 'Importez un PDF ou saisissez les valeurs manuellement.', previews: [], text: '' })
 const files = reactive([emptyFile(), emptyFile()])
 const options = reactive({ blackPrice: 20, colorPrice: 60, largeColor: '', a4: false, verified: false })
 const counters = [{ code: '102', label: 'Total 2' }, { code: '409', label: 'Couleur / 2' }, { code: '112', label: 'Noir grand format' }]
@@ -143,15 +147,24 @@ async function importPdf(event, i) {
   const controller = new AbortController(); controllers[i] = controller
   reports[i] = emptyReport(); files[i] = { ...emptyFile(), busy: true, status: 'Chargement des outils de lecture…' }
   options.a4 = false
+  const started = Date.now()
+  const clock = setInterval(() => { if (alive && controllers[i] === controller) files[i].elapsed = Math.floor((Date.now() - started) / 1000) }, 1000)
   try {
-    const parsed = await readLeasingPdf(file, { signal: controller.signal, onProgress: status => { if (alive && controllers[i] === controller) files[i].status = status } })
+    const parsed = await readLeasingPdf(file, {
+      signal: controller.signal,
+      onProgress: status => { if (alive && controllers[i] === controller) files[i].status = status },
+      onPreview: preview => { if (alive && controllers[i] === controller) { files[i].previews = preview.previews; files[i].text = preview.text } },
+    })
     if (!alive || controllers[i] !== controller) return
     reports[i] = { ...emptyReport(), ...parsed.report, counters: { ...emptyReport().counters, ...parsed.report.counters } }
     files[i].previews = parsed.previews; files[i].text = parsed.text
     files[i].status = Object.keys(parsed.report.counters).length === 3 ? 'Trois compteurs lus. Vérifiez les valeurs avec l’aperçu avant de confirmer.' : 'Lecture incomplète : complétez les valeurs avec votre PDF. Aucun compteur manquant n’est remplacé par zéro.'
   } catch (e) {
-    if (alive && controllers[i] === controller) files[i].status = e.message + ' Saisie manuelle disponible.'
-  } finally { if (alive && controllers[i] === controller) { files[i].busy = false; controllers[i] = null } }
+    if (alive && controllers[i] === controller) files[i].status = (e?.message || 'Lecture automatique impossible pour ce PDF.') + ' Saisie manuelle disponible.'
+  } finally {
+    clearInterval(clock)
+    if (alive && controllers[i] === controller) { files[i].busy = false; controllers[i] = null }
+  }
 }
 function cancelReading(i) {
   controllers[i]?.abort(); controllers[i] = null

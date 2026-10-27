@@ -66,16 +66,47 @@ test('cancellation settles even while an engine download is pending', async () =
   controller.abort()
   await assert.rejects(pending, /annulée/)
 })
+test('a stalled PDF page reports its stage and does not await a broken cleanup', async () => {
+  const statuses = []
+  const file = { name: 'a.pdf', size: 12, arrayBuffer: async () => new TextEncoder().encode('%PDF-1.4').buffer }
+  const doc = { numPages: 1, getPage: async () => ({ getTextContent: () => new Promise(() => {}) }) }
+  let options
+  await assert.rejects(readLeasingPdf(file, {
+    stageTimeoutMs: 15, timeoutMs: 1000, onProgress: text => statuses.push(text),
+    loadEngines: async () => ({ pdfjs: { getDocument: o => { options = o; return { promise: Promise.resolve(doc), destroy: () => new Promise(() => {}) } } } }),
+  }), /Extraction du texte.*Délai dépassé/)
+  assert.ok(statuses.some(s => s.includes('Extraction du texte')))
+  assert.match(options.wasmUrl, /pdf-wasm\/$/)
+})
+test('asynchronous OCR initialization failure returns a useful error and keeps its preview', async () => {
+  const originalDocument = globalThis.document, originalLocation = globalThis.location
+  globalThis.location = { origin: 'http://localhost' }
+  globalThis.document = { createElement: () => ({ getContext: () => ({ drawImage() {} }), toDataURL: () => 'data:image/jpeg;base64,AA==' }) }
+  let preview
+  try {
+    const file = { name: 'a.pdf', size: 12, arrayBuffer: async () => new TextEncoder().encode('%PDF-1.4').buffer }
+    const page = { getTextContent: async () => ({ items: [] }), getViewport: () => ({ width: 100, height: 200 }), render: () => ({ promise: Promise.resolve(), cancel() {} }), cleanup() {} }
+    await assert.rejects(readLeasingPdf(file, {
+      timeoutMs: 1000, onPreview: p => { preview = p },
+      loadEngines: async () => ({
+        pdfjs: { getDocument: () => ({ promise: Promise.resolve({ numPages: 1, getPage: async () => page }), destroy: async () => {} }) },
+        tesseract: { createWorker: (_language, _oem, options) => { queueMicrotask(() => options.errorHandler('network failure')); return new Promise(() => {}) } },
+      }),
+    }), /moteur OCR/)
+    assert.equal(preview.previews.length, 1)
+  } finally { globalThis.document = originalDocument; globalThis.location = originalLocation }
+})
 
 function view() {
   const file = readFileSync(new URL('../src/views/LeasingComparaisonView.vue', import.meta.url), 'utf8')
   const script = file.split('<script setup>')[1].split('</script>')[0].replace(/^import .*$/gm, '')
   const cleanup = [], route = { query: {} }, api = { get: async () => ({ data: {} }) }
   const context = vm.createContext({ ref, reactive, computed, watch, nextTick, emptyReport, compareReports, comparisonCsv, AbortController,
+    setInterval, clearInterval,
     useRoute: () => route, api, onBeforeRouteLeave() {}, onMounted() {}, onBeforeUnmount: fn => cleanup.push(fn),
     window: { confirm: () => true, removeEventListener() {} }, document: { body: { classList: { remove() {} } } },
     readLeasingPdf: async () => ({ report: sample()[0], previews: [], text: '' }) })
-  vm.runInContext(script + '\nglobalThis.v = { reports, options, result, files, busy, calculate, reset, importPdf, loadContract, contract, contractError, contractLoading };', context)
+  vm.runInContext(script + '\nglobalThis.v = { reports, options, result, files, busy, calculate, reset, importPdf, cancelReading, loadContract, contract, contractError, contractLoading };', context)
   return { ...context.v, api, route, context, cleanup, file }
 }
 test('editing a counter removes old result and requires reconfirmation', async () => {
@@ -94,6 +125,14 @@ test('late OCR cannot restore erased data', async () => {
   resolve({ report: sample()[0], previews: [], text: '' }); await pending
   assert.equal(p.reports[0].date, ''); assert.equal(p.busy.value, false)
 })
+test('failed OCR preserves the preview and immediately unlocks manual entry', async () => {
+  const p = view()
+  p.context.readLeasingPdf = async (_file, options) => { options.onPreview({ previews: ['safe-preview'], text: '' }); throw Error('Lecture trop longue') }
+  await p.importPdf({ target: { files: [{}] } }, 0)
+  assert.equal(p.busy.value, false)
+  assert.equal(p.files[0].previews[0], 'safe-preview')
+  assert.match(p.files[0].status, /Saisie manuelle disponible/)
+})
 test('contract pricing and failed access do not produce calculations', async () => {
   const p = view(); p.route.query.contrat = '4'
   p.api.get = async url => { assert.equal(url, '/leasing/contrats/4'); return { data: { prix_page_noir_ht: 15, prix_page_couleur_ht: 50 } } }
@@ -111,4 +150,5 @@ test('native protected route; no HTML injection, customer writes or PDF uploadin
   const reader = readFileSync(new URL('../src/services/leasingPdfReader.mjs', import.meta.url), 'utf8')
   assert.match(reader, /gzip: false/)
   assert.match(reader, /\/assets\/leasing-comparator\/runtime\//)
+  for (const f of ['pdf-wasm/openjpeg.wasm', 'pdf-wasm/jbig2.wasm', 'pdf-wasm/qcms_bg.wasm', 'standard_fonts/LiberationSans-Regular.ttf']) assert.equal(existsSync(new URL('../public/assets/leasing-comparator/runtime/' + f, import.meta.url)), true)
 })
