@@ -13,7 +13,7 @@ function portal() {
     sessionStorage: { getItem: () => null, removeItem() {} }, location: { hash: '' }, URLSearchParams,
     crypto: { randomUUID: () => 'test-id' }, document: { hidden: false, addEventListener() {}, removeEventListener() {} },
     window: { addEventListener() {}, removeEventListener() {} }, setInterval: fn => { intervals.push(fn); return 1 }, clearInterval() {}, confirm: () => true })
-  vm.runInContext(script + '\n globalThis.testPortal = { account, kind, selected, replyText, busy, refreshTicket, back, syncError, decideQuote, openQuoteOrder };', context)
+  vm.runInContext(script + '\n globalThis.testPortal = { account, kind, selected, replyText, busy, refreshTicket, back, syncError, decideQuote, openQuoteOrder, openOrderQuote };', context)
   return { ...context.testPortal, api, cleanup, intervals, context }
 }
 
@@ -106,4 +106,16 @@ test('quote order opens order detail without an undefined request', async () => 
   p.api.get = async url => { assert.equal(url, '/commandes/9'); return { data: { id: 9, statut: 'confirmee' } } }
   await p.openQuoteOrder()
   assert.equal(p.kind.value, 'commandes'); assert.equal(p.selected.value.id, 9)
+})
+
+test('source request opens quotation follow-up without a second order agreement', async () => {
+  const p = portal(); p.kind.value = 'commandes'; p.selected.value = { id: 9, quote_request_id: 5 }
+  p.api.get = async url => { assert.equal(url, '/prix/5'); return { data: { id: 5, devis: { numero: 'DE-5' } } } }
+  await p.openOrderQuote()
+  assert.equal(p.kind.value, 'prix'); assert.equal(p.selected.value.id, 5)
+  const file = readFileSync(new URL('../src/views/CustomerPortalView.vue', import.meta.url), 'utf8')
+  assert.doesNotMatch(file, /<OrderWorkflow/)
+  const internal = readFileSync(new URL('../src/views/BusinessModuleView.vue', import.meta.url), 'utf8')
+  assert.match(internal, /Transformer en devis/)
+  assert.match(internal, /history-only/)
 })

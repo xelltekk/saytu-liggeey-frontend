@@ -21,12 +21,22 @@ const shipment = ref(null), shipmentClean = ref(''), shipmentId = ref(crypto.ran
 const shipmentDirty = computed(() => shipmentClean.value && JSON.stringify(shipment.value) !== shipmentClean.value)
 const key = computed(() => route.params.module), detail = computed(() => !!route.params.id)
 const lockedOrder = computed(() => key.value === 'commandes_clients' && record.value && record.value.statut !== 'brouillon')
-const editable = computed(() => !record.value?.archived_at && (record.value ? definition.value?.permissions.update : definition.value?.permissions.create))
+const editable = computed(() => !record.value?.archived_at && !record.value?.converted_to_quote && (record.value ? definition.value?.permissions.update : definition.value?.permissions.create))
 let sequence = 0
 const lookupSequence = {}
 const statusText = value => ({ actif: 'Actif', inactif: 'Inactif', brouillon: 'Brouillon', confirmee: 'Confirmée', cloturee: 'Clôturée', annulee: 'Annulée', termine: 'Terminé', resilie: 'Résilié', planifie: 'Planifié', en_cours: 'En cours', annule: 'Annulé', ouvert: 'Ouvert', en_attente: 'En attente', resolu: 'Résolu', ferme: 'Fermé', publie: 'Publié', retire: 'Retiré', a_faire: 'À faire', terminee: 'Terminée' }[value] || value)
 const explain = e => Object.values(e.response?.data?.errors || {}).flat().join(' · ') || e.response?.data?.message || 'Chargement impossible. Réessayez.'
 const downloadingDelivery = ref(null)
+async function transformOrderToQuote() {
+  if (saving.value || dirty.value || !record.value?.can_transform_to_quote) return
+  saving.value = true; error.value = ''
+  try {
+    const { data } = await api.post(`/metier/commandes_clients/${record.value.id}/devis`, { version: record.value.version })
+    saving.value = false
+    await router.push(`/devis/${data.devis_id}`)
+  } catch (e) { error.value = explain(e) }
+  finally { saving.value = false }
+}
 async function downloadDelivery(delivery) {
   if (downloadingDelivery.value) return
   const current = sequence
@@ -198,6 +208,7 @@ async function createArticle() {
   finally { saving.value = false }
 }
 function eventDetails(event) {
+  try { const d = JSON.parse(event.details || '{}'); if (d.devis_id) return `Devis ${d.numero || '#' + d.devis_id}` } catch { /* Older event. */ }
   try {
     const d = JSON.parse(event.details || '{}')
     if (d.before && d.after) return `Total TTC : ${d.before.total_ttc} → ${d.after.total_ttc}. Avant : ${d.before.lines.map(l => `${l.designation} × ${l.quantite} à ${l.prix} HT`).join(' ; ')}. Après : ${d.after.lines.map(l => `${l.designation} × ${l.quantite} à ${l.prix} HT`).join(' ; ')}`
@@ -234,7 +245,7 @@ watch(() => route.fullPath, load, { immediate: true })
       </form>
       <div class="max-h-[520px] overflow-auto" tabindex="0" aria-label="Liste des fiches"><table class="w-full text-left text-sm">
         <thead class="sticky top-0 bg-cyan-50"><tr><th>Référence</th><th>Titre / nom</th><th v-for="[field, label] in businessColumns[key]" :key="field">{{ label }}</th><th>Statut</th><th>Action</th></tr></thead>
-        <tbody><tr v-for="item in records" :key="item.id"><td>{{ item.reference }}</td><td>{{ item.titre }}</td><td v-for="[field] in businessColumns[key]" :key="field">{{ item[field] ?? '—' }}</td><td>{{ statusText(item.statut) }}</td><td><RouterLink :to="{ name: 'business-detail', params: { module: key, id: item.id }, query: route.query }" class="font-semibold text-cyan-800 underline">Ouvrir</RouterLink></td></tr></tbody>
+        <tbody><tr v-for="item in records" :key="item.id"><td>{{ item.reference }}</td><td>{{ item.titre }}</td><td v-for="[field] in businessColumns[key]" :key="field">{{ item[field] ?? '—' }}</td><td>{{ item.portal_review_state === 'quoted' ? 'Transformée en devis' : statusText(item.statut) }}</td><td><RouterLink :to="{ name: 'business-detail', params: { module: key, id: item.id }, query: route.query }" class="font-semibold text-cyan-800 underline">Ouvrir</RouterLink></td></tr></tbody>
       </table><p v-if="!records.length" class="p-6">Aucune fiche trouvée.</p></div>
       <div class="mt-4 flex flex-wrap items-center justify-between gap-3"><span>{{ total }} fiche(s) · Page {{ page }} / {{ lastPage }}</span><div class="flex gap-2"><button :disabled="page <= 1" @click="filterList(page - 1)">Précédent</button><button :disabled="page >= lastPage" @click="filterList(page + 1)">Suivant</button></div></div>
     </section>
@@ -244,7 +255,7 @@ watch(() => route.fullPath, load, { immediate: true })
         <RouterLink v-for="(url, field) in record.relation_links" :key="field" :to="url" class="action">Ouvrir {{ record.relation_labels[field] }} →</RouterLink>
       </div>
       <p v-if="record?.archived_at" class="my-3 font-semibold">Fiche archivée — lecture seule.</p>
-      <p v-if="record?.portal_user_id" class="my-3 rounded-xl bg-amber-50 p-3">Demande reçue du portail clients. <span v-if="key === 'commandes_clients'">Les quantités sont demandées par le client ; renseignez vos produits, prix et taxes avant validation. Aucun stock n’a été déduit.</span><span v-else>Le titre et la description sont visibles par ce client. Utilisez « Échanges internes » pour vos notes confidentielles.</span></p>
+      <p v-if="record?.portal_user_id" class="my-3 rounded-xl bg-amber-50 p-3">Demande reçue du portail clients. <span v-if="key === 'commandes_clients'">Pour une nouvelle demande, préparez directement un devis. Les commandes déjà confirmées conservent leur suivi de livraison.</span><span v-else>Le titre et la description sont visibles par ce client. Utilisez « Échanges internes » pour vos notes confidentielles.</span></p>
       <p v-if="lockedOrder" class="my-3 text-sm">Commande figée : seul le statut peut être modifié. Les lignes et montants restent conservés.</p>
       <div v-if="key === 'sav' && record" class="my-3 flex flex-wrap gap-2">
         <RouterLink v-if="record.article_id" :to="`/metier/connaissances/${record.article_id}`" class="action">Voir la procédure issue de ce ticket</RouterLink>
@@ -261,12 +272,18 @@ watch(() => route.fullPath, load, { immediate: true })
         <button v-if="key === 'contrats_services' && editable && record && ['actif', 'termine'].includes(record.statut)" type="button" :aria-pressed="tab === 'renewal'" @click="tab = 'renewal'">Renouveler</button>
         <button v-if="key === 'connaissances' && record" type="button" :aria-pressed="tab === 'lecture'" @click="tab = 'lecture'">Lire la procédure</button>
       </nav>
-      <OrderWorkflow v-if="key === 'commandes_clients' && record?.workflow" v-show="['fiche', 'history'].includes(tab)" :history-only="tab === 'history'" :record="record" :api="api" :disabled="!!dirty || saving" :editable="editable" @changed="load" @busy="saving = $event" @draft="portalDraft = $event" />
+      <section v-if="key === 'commandes_clients' && record?.portal_user_id && (record.statut === 'brouillon' || record.converted_to_quote)" class="my-4 rounded-xl border border-cyan-200 bg-cyan-50 p-4">
+        <h3 class="font-bold">{{ record.converted_to_quote ? 'Demande transformée en devis' : 'Demande reçue du client' }}</h3>
+        <p>Préparez le devis, complétez les prix puis suivez le parcours habituel : acceptation du devis, livraison / BL et facture.</p>
+        <button v-if="record.can_transform_to_quote" type="button" class="primary mt-3" :disabled="saving || dirty" @click="transformOrderToQuote">{{ saving ? 'Création du devis…' : 'Transformer en devis' }}</button>
+        <RouterLink v-if="record.quote_id" :to="`/devis/${record.quote_id}`" class="mt-3 block font-bold underline">Ouvrir le devis</RouterLink>
+        <p v-if="dirty">Enregistrez vos modifications avant la transformation.</p>
+      </section>
+      <OrderWorkflow v-if="key === 'commandes_clients' && record?.workflow" v-show="tab === 'history'" history-only :record="record" :api="api" :editable="false" />
       <form novalidate @submit.prevent="save">
         <fieldset :disabled="saving || !editable" class="space-y-4">
           <div v-show="tab === 'fiche'" class="grid gap-4 md:grid-cols-2">
-            <p v-if="key === 'commandes_clients' && record?.workflow" class="md:col-span-2">Utilisez les boutons de validation ci-dessus pour accepter ou refuser. Enregistrez d’abord les lignes et les prix.</p>
-            <label>Statut<select v-model="form.statut" :disabled="key === 'commandes_clients' && !!record?.workflow && record.statut === 'brouillon'"><option v-for="s in record ? (record.allowed_statuses || [record.statut]) : [definition.statuses[0]]" :key="s" :value="s">{{ statusText(s) }}</option></select></label>
+            <label>Statut<select v-model="form.statut" :disabled="key === 'commandes_clients' && !!record?.portal_user_id && record.statut === 'brouillon'"><option v-for="s in record ? (record.allowed_statuses || [record.statut]) : [definition.statuses[0]]" :key="s" :value="s">{{ statusText(s) }}</option></select></label>
             <label>{{ key === 'contacts' ? 'Nom complet' : 'Titre / objet' }} *<input v-model="form.titre" :disabled="lockedOrder" maxlength="191"></label>
             <label v-for="[field, label, type, source, required] in definition.fields" :key="field" :class="{ 'md:col-span-2': type === 'textarea' }">
               {{ label }} {{ required ? '*' : '' }}
