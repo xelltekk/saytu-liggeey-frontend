@@ -40,3 +40,10 @@ Les décodeurs JPEG 2000, JBIG2 et profils couleur de PDF.js sont servis localem
 `SAYTU_TEST_PDF` permet aussi de vérifier un relevé local réel, sans l'ajouter au
 dépôt ni le téléverser. Les numéros de série non reconnus restent à saisir ;
 la confirmation visuelle reste obligatoire avant tout calcul.
+
+Le moteur OCR démarre depuis son fichier local (`workerBlobURL: false`), sans
+worker blob. La politique CSP Apache doit autoriser `worker-src 'self'` et
+`script-src 'self' 'wasm-unsafe-eval'` pour WebAssembly (sans `unsafe-eval`).
+Pour tester les protections réelles, définir `SAYTU_TEST_CSP_FILE` vers le
+fichier `public/.htaccess` du backend : le test navigateur applique cette
+politique aux documents et ressources, y compris aux workers.

@@ -5,6 +5,7 @@ import { createRequire } from 'node:module'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { execFileSync } from 'node:child_process'
+import { readFileSync } from 'node:fs'
 import assert from 'node:assert/strict'
 const require = createRequire(import.meta.url)
 const runtime = process.env.SAYTU_TEST_RUNTIME
@@ -15,6 +16,14 @@ const { createCanvas } = require(join(runtime, '@napi-rs/canvas'))
 const browser = await chromium.launch({ headless: true, ...(process.env.SAYTU_TEST_BROWSER ? { channel: process.env.SAYTU_TEST_BROWSER } : {}) })
 const page = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
 const errors = [], external = [], warnings = []
+if (process.env.SAYTU_TEST_CSP_FILE) {
+  const policy = readFileSync(process.env.SAYTU_TEST_CSP_FILE, 'utf8').match(/Header always set Content-Security-Policy "([^"]+)"/)[1]
+  assert.ok(!policy.includes("'unsafe-eval'"), 'JavaScript eval must remain prohibited')
+  await page.route('http://127.0.0.1:5179/**', async route => {
+    const response = await route.fetch()
+    await route.fulfill({ response, headers: { ...response.headers(), 'content-security-policy': policy } })
+  })
+}
 page.on('console', message => { if (['warning', 'error'].includes(message.type()) || message.text().includes('Warning:')) warnings.push(message.text()) })
 page.on('pageerror', error => errors.push(error.message))
 page.on('request', request => { if (/^https?:/.test(request.url()) && !request.url().startsWith('http://127.0.0.1:5179/')) external.push(request.url()) })
@@ -91,6 +100,10 @@ try {
     await page.screenshot({ path: join(tmpdir(), 'saytu-leasing-provided-pdf.png'), fullPage: true })
   }
   assert.deepEqual(errors, []); assert.deepEqual(external, [])
+  if (process.env.SAYTU_TEST_CSP_FILE) {
+    assert.equal(await page.evaluate(() => { try { new Function('return 1')(); return true } catch { return false } }), false)
+    console.log('PASS: OCR works under server CSP while JavaScript eval remains blocked')
+  }
   console.log('PASS: text PDF + scanned PDF OCR, 129580 CFA, CSV download, print PDF, responsive width, invalidation, no external requests or JS errors')
   console.log('Screenshots and PDF:', tmpdir())
 } catch (error) {

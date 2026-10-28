@@ -78,6 +78,10 @@ test('a stalled PDF page reports its stage and does not await a broken cleanup',
   assert.ok(statuses.some(s => s.includes('Extraction du texte')))
   assert.match(options.wasmUrl, /pdf-wasm\/$/)
 })
+test('engine failures without a message identify the failing stage', async () => {
+  const file = { name: 'a.pdf', size: 12, arrayBuffer: async () => new TextEncoder().encode('%PDF-1.4').buffer }
+  await assert.rejects(readLeasingPdf(file, { loadEngines: async () => { throw {} } }), /Chargement des outils PDF.*Échec du moteur/)
+})
 test('asynchronous OCR initialization failure returns a useful error and keeps its preview', async () => {
   const originalDocument = globalThis.document, originalLocation = globalThis.location
   globalThis.location = { origin: 'http://localhost' }
@@ -149,6 +153,7 @@ test('native protected route; no HTML injection, customer writes or PDF uploadin
   for (const f of ['pdf.mjs', 'pdf.worker.mjs', 'tesseract.min.js', 'worker.min.js', 'lang/eng.traineddata', 'core/tesseract-core-lstm.wasm.js']) assert.equal(existsSync(new URL('../public/assets/leasing-comparator/runtime/' + f, import.meta.url)), true)
   const reader = readFileSync(new URL('../src/services/leasingPdfReader.mjs', import.meta.url), 'utf8')
   assert.match(reader, /gzip: false/)
+  assert.match(reader, /workerBlobURL: false/)
   assert.match(reader, /\/assets\/leasing-comparator\/runtime\//)
   for (const f of ['pdf-wasm/openjpeg.wasm', 'pdf-wasm/jbig2.wasm', 'pdf-wasm/qcms_bg.wasm', 'standard_fonts/LiberationSans-Regular.ttf']) assert.equal(existsSync(new URL('../public/assets/leasing-comparator/runtime/' + f, import.meta.url)), true)
 })

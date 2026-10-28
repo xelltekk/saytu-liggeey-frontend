@@ -31,6 +31,7 @@ export async function readLeasingPdf(file, { signal, onProgress = () => {}, onPr
   validatePdfFile(file)
   let worker, loadingTask, doc, renderTask, timer
   let stopped = false
+  let currentStage = 'Lecture du fichier PDF'
   let cancelRead
   const cancelled = new Promise((_, reject) => { cancelRead = reject })
   // Cancellation can occur between awaited operations.
@@ -38,6 +39,7 @@ export async function readLeasingPdf(file, { signal, onProgress = () => {}, onPr
   const wait = promise => Promise.race([promise, cancelled])
   const cleanup = fn => { try { Promise.resolve(fn()).catch(() => {}) } catch {} }
   const stage = async (promise, label, limit = stageTimeoutMs) => {
+    currentStage = label
     onProgress(label)
     let deadline
     try {
@@ -100,6 +102,7 @@ export async function readLeasingPdf(file, { signal, onProgress = () => {}, onPr
         onPreview({ previews: [...previews], text: [...texts, text].join('\n\n') })
         if (COUNTERS.some(c => report.counters[c] === undefined)) {
           if (!worker) worker = await stage(tesseract.createWorker('eng', 1, {
+            workerBlobURL: false,
             workerPath: new URL(`${base}worker.min.js`, location.origin).href,
             corePath: new URL(`${base}core/`, location.origin).href,
             langPath: new URL(`${base}lang/`, location.origin).href,
@@ -139,7 +142,7 @@ export async function readLeasingPdf(file, { signal, onProgress = () => {}, onPr
   } catch (error) {
     if (!loadingTask) enginePromise = null
     if (stopped || signal?.aborted) throw new DOMException('Lecture annulée ou délai dépassé. Vous pouvez saisir les valeurs manuellement.', 'AbortError')
-    throw error
+    throw error?.message ? error : Error(`${currentStage} Échec du moteur de lecture. Vérifiez que le navigateur autorise les outils PDF/OCR de ce site, puis réessayez.`)
   } finally {
     stopped = true
     clearTimeout(timer)
