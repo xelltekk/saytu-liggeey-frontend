@@ -101,7 +101,10 @@ try {
   }
   assert.deepEqual(errors, []); assert.deepEqual(external, [])
   if (process.env.SAYTU_TEST_CSP_FILE) {
-    assert.equal(await page.evaluate(() => { try { new Function('return 1')(); return true } catch { return false } }), false)
+    // DevTools evaluate itself bypasses CSP; run the probe as an ordinary script.
+    await page.route('**/csp-probe.js', route => route.fulfill({ contentType: 'application/javascript', body: "try { new Function('return 1')(); window.cspEvalAllowed=true } catch { window.cspEvalAllowed=false }" }))
+    await page.addScriptTag({ url: 'http://127.0.0.1:5179/csp-probe.js' })
+    assert.equal(await page.evaluate(() => window.cspEvalAllowed), false)
     console.log('PASS: OCR works under server CSP while JavaScript eval remains blocked')
   }
   console.log('PASS: text PDF + scanned PDF OCR, 129580 CFA, CSV download, print PDF, responsive width, invalidation, no external requests or JS errors')
