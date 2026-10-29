@@ -18,10 +18,11 @@
     <div class="panel text-sm">
       <strong>PDF Canon avec compteurs 102, 409 et 112 uniquement.</strong>
       <p>Chaque fichier : 10 pages / 30 Mo maximum. Les scans « Lecture » sont exclus. Un recto verso représente deux faces.</p>
-      <p>Les PDF restent sur votre appareil. Aucun enregistrement automatique : exportez le résultat avant de quitter la page.</p>
+      <p>Les PDF restent sur votre appareil. Après le calcul, exportez le résultat ou choisissez un client pour créer une facture brouillon.</p>
     </div>
 
     <form @submit.prevent="calculate">
+      <fieldset :disabled="invoicing">
       <div class="grid gap-4 lg:grid-cols-2">
         <section v-for="(report, i) in reports" :key="i" class="panel min-w-0">
           <h2 class="text-xl font-bold">{{ i === 0 ? '1. Relevé précédent' : '2. Relevé récent' }}</h2>
@@ -68,6 +69,7 @@
         </div>
         <p v-if="error" class="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-red-800" role="alert">{{ error }}</p>
       </section>
+      </fieldset>
     </form>
 
     <section v-if="result" id="leasing-comparison-result" ref="resultElement" class="panel" aria-live="polite">
@@ -92,6 +94,7 @@
         <button class="btn-primary" @click="printResult">Imprimer / enregistrer en PDF</button>
         <button class="btn-secondary" @click="exportCsv">Exporter CSV</button>
       </div>
+      <LeasingComparisonInvoice :result="result" :reports="reports" :options="options" :client="contract?.client || null" @busy="invoicing = $event" />
     </section>
   </div>
 </template>
@@ -102,8 +105,10 @@ import { onBeforeRouteLeave, useRoute } from 'vue-router'
 import api from '@/services/api'
 import { emptyReport, compareReports, comparisonCsv } from '@/utils/leasingComparison.mjs'
 import { readLeasingPdf } from '@/services/leasingPdfReader.mjs'
+import LeasingComparisonInvoice from '@/components/LeasingComparisonInvoice.vue'
 
 const route = useRoute()
+const invoicing = ref(false)
 const reports = reactive([emptyReport(), emptyReport()])
 const emptyFile = () => ({ busy: false, elapsed: 0, status: 'Importez un PDF ou saisissez les valeurs manuellement.', previews: [], text: '' })
 const files = reactive([emptyFile(), emptyFile()])
@@ -198,7 +203,7 @@ function printResult() {
 }
 function afterPrint() { document.body.classList.remove('printing-leasing-comparison') }
 function beforeUnload(event) { if (hasData()) { event.preventDefault(); event.returnValue = '' } }
-onBeforeRouteLeave(() => !hasData() || window.confirm('Quitter la comparaison ? Les données non exportées seront perdues.'))
+onBeforeRouteLeave(() => !invoicing.value && (!hasData() || window.confirm('Quitter la comparaison ? Les données non exportées seront perdues.')))
 onMounted(() => { loadContract(); window.addEventListener('beforeunload', beforeUnload); window.addEventListener('afterprint', afterPrint) })
 onBeforeUnmount(() => { alive = false; controllers.forEach(c => c?.abort()); afterPrint(); window.removeEventListener('beforeunload', beforeUnload); window.removeEventListener('afterprint', afterPrint) })
 </script>

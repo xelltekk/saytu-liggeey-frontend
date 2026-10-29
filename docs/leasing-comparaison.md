@@ -16,7 +16,12 @@ Scans exclus ; recto verso = deux faces. Calcul spécifique aux compteurs Canon
 compatibles, pas un interpréteur universel de compteurs.
 
 La valorisation HT n’applique PAS les pages incluses, loyers ou taxes des contrats.
-Aucun relevé cumulatif, facture ou mouvement de stock n’est créé. Les valeurs Canon
+Aucun relevé cumulatif ni mouvement de stock n’est créé. Une action explicite après
+calcul permet de choisir un client et la TVA, puis de créer une facture brouillon
+de services A4. Les quantités sont recalculées côté serveur. Les droits
+`leasing.view`, `factures.view` et `factures.create` sont requis. La création
+verrouille le client et retrouve une facture déjà créée pour la même série/période
+via sa signature dans les notes privées (à conserver). Les valeurs Canon
 pondérées ne doivent pas être copiées comme des compteurs A4 cumulatifs dans Saytu.
 Les fichiers et résultats restent en mémoire ; pas d’archivage, pas d’envoi à un
 service tiers. La saisie manuelle est disponible en cas d’OCR incomplet.
