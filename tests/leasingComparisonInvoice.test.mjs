@@ -10,7 +10,7 @@ function mount() {
   const auth = { user: { permissions: ['factures.create', 'factures.view'] } }
   const source = readFileSync(new URL('../src/components/LeasingComparisonInvoice.vue', import.meta.url), 'utf8').split('<script setup>')[1].split('</script>')[0].replace(/^import .*$/gm, '')
   const context = vm.createContext({ ref, computed, watch, defineProps: () => props, defineEmits: () => (...args) => events.push(args), api, useAuthStore: () => auth, hasPermission: (user,p) => user.permissions.includes(p) })
-  vm.runInContext(source + '\nglobalThis.component = { createInvoice, clientId, confirmed, saving, invoice, error, tva, totalTtc }', context)
+  vm.runInContext(source + '\nglobalThis.component = { createInvoice, clientId, confirmed, saving, invoice, error, tva, totalTtc, rentalFee, totalHt }', context)
   return {...context.component, props, events, calls, api, auth}
 }
 test('invoice is a confirmed action and double clicks submit only once', async () => {
@@ -34,4 +34,16 @@ test('retry preserves client and calculation; changing calculation clears old in
 test('creation requires invoice permissions', async () => {
   const c=mount(); c.auth.user.permissions=[]; c.clientId.value=3; await nextTick(); c.confirmed.value=true
   await c.createInvoice(); assert.equal(c.calls.length,0)
+})
+test('fixed rental adds to HT and TVA; changes require confirmation', async () => {
+  const c=mount(); c.clientId.value=3; c.confirmed.value=true; c.rentalFee.value=25000; await nextTick()
+  assert.equal(c.confirmed.value,false); assert.equal(c.totalHt.value,154580); assert.equal(c.totalTtc.value,182404.4)
+  c.tva.value=0; await nextTick(); assert.equal(c.totalTtc.value,154580)
+  c.confirmed.value=true; await c.createInvoice(); assert.equal(c.calls[0].data.rentalFee,25000)
+})
+test('invalid rental never submits', async () => {
+  for (const amount of [-1, '', 'abc', '1.001']) {
+    const c=mount(); c.clientId.value=3; c.rentalFee.value=amount; await nextTick(); c.confirmed.value=true
+    await c.createInvoice(); assert.equal(c.calls.length,0); assert.match(c.error.value,/forfait/)
+  }
 })

@@ -18,7 +18,11 @@ compatibles, pas un interpréteur universel de compteurs.
 La valorisation HT n’applique PAS les pages incluses, loyers ou taxes des contrats.
 Aucun relevé cumulatif ni mouvement de stock n’est créé. Une action explicite après
 calcul permet de choisir un client et la TVA, puis de créer une facture brouillon
-de services A4. Les quantités sont recalculées côté serveur. Les droits
+de services A4. Les quantités sont recalculées côté serveur.
+Le champ optionnel « Forfait de location HT » ajoute une ligne de service distincte,
+quantité 1, au même taux de TVA que les impressions. Il vaut 0 par défaut et est
+appliqué une seule fois à la facture de la période, sans prorata ni pages incluses.
+Un forfait positif peut être facturé même lorsque la consommation est nulle. Les droits
 `leasing.view`, `factures.view` et `factures.create` sont requis. La création
 verrouille le client et retrouve une facture déjà créée pour la même série/période
 via sa signature dans les notes privées (à conserver). Les valeurs Canon
