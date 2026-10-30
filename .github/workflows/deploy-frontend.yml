@@ -83,7 +83,7 @@ jobs:
           set net:max-retries 2
           set net:timeout 30
           cd "$destination"
-          mirror --reverse --verbose dist/ .
+          mirror --reverse --verbose dist/ . --exclude-glob "index.html" --exclude-glob "deploy-version.json"
           put dist/index.html -o index.html
           put dist/deploy-version.json -o deploy-version.json
           bye
@@ -107,6 +107,29 @@ jobs:
 
           echo "::error title=Frontend not refreshed::The deployment finished, but saytu.xelltekk.com still serves a different bundle than dist/index.html."
           exit 1
+
+      - name: Verify frontend entrypoint resources
+        run: |
+          python3 - <<'PY'
+          import os
+          import re
+          from urllib.request import Request, urlopen
+          base = "https://saytu.xelltekk.com"
+          with urlopen(Request(base + "/index.html?resource_check=" + os.environ["GITHUB_SHA"], headers={"Cache-Control": "no-cache"}), timeout=30) as response:
+              html = response.read().decode("utf-8")
+          assets = re.findall(r'(?:src|href)="([^"?#]+\.(?:js|css))"', html)
+          if not assets:
+              raise SystemExit("No frontend resources found")
+          for path in assets:
+              if not path.startswith("/assets/") or ".." in path:
+                  raise SystemExit("Unexpected resource path")
+              with urlopen(base + path, timeout=30) as response:
+                  content_type = response.headers.get("Content-Type", "").lower()
+                  expected = "javascript" if path.endswith(".js") else "text/css"
+                  if response.status != 200 or expected not in content_type:
+                      raise SystemExit("Invalid frontend resource: " + path)
+          print(f"Verified {len(assets)} initial JS/CSS resources, including their MIME types.")
+          PY
 
       - name: Verify leasing PDF and OCR resources online
         run: |
