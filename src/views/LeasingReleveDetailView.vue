@@ -25,7 +25,7 @@
       <div class="rounded-2xl border border-blue-100 bg-blue-50 p-4">
         <div class="mb-3">
           <strong class="text-slate-900">Comptage manuel</strong>
-          <p class="text-xs text-slate-600">L’ancien comptage est prérempli depuis le dernier relevé ou le compteur initial.</p>
+          <p class="text-xs text-slate-600">L’ancien comptage reprend le dernier relevé ou le compteur de départ du contrat.</p>
         </div>
         <div class="grid gap-4 md:grid-cols-2">
           <label class="field-label">Ancien comptage noir
@@ -63,9 +63,9 @@
             <p>Supplément : <strong>{{ money(preview.montant_supp_ht) }}</strong></p>
           </div>
           <div class="rounded-xl bg-white/70 p-3">
-            <span class="caption">Total facturable estimatif</span>
+            <span class="caption">Montants du mois</span>
             <div class="mt-1 space-y-1">
-              <p class="flex justify-between"><span>Loyer période HT</span><strong>{{ money(preview.loyer_periode_ht) }}</strong></p>
+              <p class="flex justify-between"><span>Loyer mensuel HT</span><strong>{{ money(preview.loyer_periode_ht) }}</strong></p>
               <p class="flex justify-between"><span>Total HT</span><strong>{{ money(preview.total_ht) }}</strong></p>
               <p class="flex justify-between"><span>TVA</span><strong>{{ money(preview.total_tva) }}</strong></p>
               <p class="flex justify-between border-t border-blue-100 pt-1 text-base"><span>Total TTC</span><strong class="text-xelltekk-700">{{ money(preview.total_ttc) }}</strong></p>
@@ -74,7 +74,9 @@
         </div>
       </div>
 
+      <p v-if="preview?.echeance_facturation" class="text-sm text-slate-600">Échéance : {{ preview.echeance_facturation.split('-').reverse().join('/') }}</p>
       <label class="field-label">Notes <textarea v-model="form.notes" class="input mt-1 min-h-20"></textarea></label>
+      <p v-if="previewError" role="alert" class="text-sm text-red-700">{{ previewError }}</p>
 
       <div class="flex justify-end gap-2 border-t border-cyan-100 pt-4">
         <button type="button" class="btn-secondary" @click="goBack">Annuler</button>
@@ -85,10 +87,11 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '@/services/api'
 import { useToast } from '@/composables/useToast'
+import { leasingOptions } from '@/services/leasingLists.mjs'
 
 const route = useRoute()
 const router = useRouter()
@@ -96,8 +99,10 @@ const toast = useToast()
 const saving = ref(false)
 const previewLoading = ref(false)
 const preview = ref(null)
+const previewError = ref('')
 const contrats = ref([])
 let previewTimer = null
+let previewSequence = 0
 
 const form = reactive({
   contrat_id: '',
@@ -110,7 +115,7 @@ const form = reactive({
   notes: '',
 })
 
-const contratsReleves = computed(() => contrats.value.filter(item => ['brouillon', 'actif', 'suspendu'].includes(item.statut)))
+const contratsReleves = computed(() => contrats.value.filter(item => ['actif', 'suspendu', 'termine', 'resilie'].includes(item.statut)))
 
 watch(
   () => [form.contrat_id, form.periode, form.ancien_compteur_noir, form.compteur_noir, form.ancien_compteur_couleur, form.compteur_couleur],
@@ -136,11 +141,14 @@ function today() {
 }
 
 async function loadContrats() {
-  const { data } = await api.get('/leasing/contrats', { params: { per_page: 100 } })
-  contrats.value = data.data || []
+  contrats.value = await leasingOptions(api, '/leasing/contrats')
 }
 
 function schedulePreview() {
+  previewSequence++
+  previewLoading.value = false
+  preview.value = null
+  previewError.value = ''
   if (previewTimer) clearTimeout(previewTimer)
   if (!form.contrat_id || !form.periode) {
     preview.value = null
@@ -151,6 +159,7 @@ function schedulePreview() {
 
 async function previewReleve(silent = false) {
   if (!form.contrat_id || !form.periode) return
+  const sequence = ++previewSequence
   previewLoading.value = true
   try {
     const { data } = await api.post('/leasing/releves/previsualiser', normalizePayload({
@@ -161,18 +170,23 @@ async function previewReleve(silent = false) {
       ancien_compteur_couleur: form.ancien_compteur_couleur,
       compteur_couleur: form.compteur_couleur,
     }))
+    if (sequence !== previewSequence) return
     preview.value = data
+    previewError.value = ''
     hydrateAncienCompteurs(data)
   } catch (error) {
+    if (sequence !== previewSequence) return
+    preview.value = null
+    previewError.value = Object.values(error?.response?.data?.errors || {})[0]?.[0] || error?.response?.data?.message || 'Calcul du releve impossible.'
     if (!silent) handleApiError(error, 'Calcul du relevé impossible.')
   } finally {
-    previewLoading.value = false
+    if (sequence === previewSequence) previewLoading.value = false
   }
 }
 
 function hydrateAncienCompteurs(data) {
   if (!data) return
-  if (isEmptyCounter(form.ancien_compteur_noir)) form.ancien_compteur_noir = data.ancien_compteur_noir ?? 0
+  if (isEmptyCounter(form.ancien_compteur_noir) && data.ancien_compteur_noir !== null && data.ancien_compteur_noir !== undefined) form.ancien_compteur_noir = data.ancien_compteur_noir
   if (isEmptyCounter(form.ancien_compteur_couleur) && data.ancien_compteur_couleur !== null && data.ancien_compteur_couleur !== undefined) {
     form.ancien_compteur_couleur = data.ancien_compteur_couleur
   }
@@ -221,9 +235,12 @@ function handleApiError(error, fallback) {
 }
 
 onMounted(async () => {
-  await loadContrats()
-  if (route.query.contrat_id) form.contrat_id = route.query.contrat_id
+  try {
+    await loadContrats()
+    if (route.query.contrat_id) form.contrat_id = route.query.contrat_id
+  } catch (error) { handleApiError(error, 'Chargement des contrats impossible.') }
 })
+onBeforeUnmount(() => { previewSequence++; clearTimeout(previewTimer) })
 </script>
 
 <style scoped>

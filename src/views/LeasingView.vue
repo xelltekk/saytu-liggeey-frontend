@@ -51,7 +51,8 @@
       </div>
     </section>
 
-    <section v-if="activeTab === 'contrats'" class="rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <section v-if="activeTab === 'contrats'" aria-label="Contrats de leasing" class="rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <fieldset :disabled="listLoading.contrats"><AppPagination v-if="pages.contrats.total" :meta="pages.contrats" label="contrats" @page="loadContrats" /></fieldset>
       <div class="flex flex-col gap-3 border-b border-slate-100 p-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h3 class="font-bold text-slate-900">Contrats de leasing</h3>
@@ -113,7 +114,8 @@
       </div>
     </section>
 
-    <section v-if="activeTab === 'imprimantes'" class="rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <section v-if="activeTab === 'imprimantes'" aria-label="Parc imprimantes" class="rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <fieldset :disabled="listLoading.imprimantes"><AppPagination v-if="pages.imprimantes.total" :meta="pages.imprimantes" label="imprimantes" @page="loadImprimantes" /></fieldset>
       <div class="flex flex-col gap-3 border-b border-slate-100 p-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h3 class="font-bold text-slate-900">Parc imprimantes</h3>
@@ -181,7 +183,8 @@
       </div>
     </section>
 
-    <section v-if="activeTab === 'releves'" class="rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <section v-if="activeTab === 'releves'" aria-label="Releves compteur" class="rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <fieldset :disabled="listLoading.releves"><AppPagination v-if="pages.releves.total" :meta="pages.releves" label="releves" @page="loadReleves" /></fieldset>
       <div class="flex items-center justify-between border-b border-slate-100 p-4">
         <div>
           <h3 class="font-bold text-slate-900">Relevés compteur</h3>
@@ -212,7 +215,9 @@
               <td class="px-4 py-3 text-sm text-slate-800">{{ releve.contrat?.client?.nom || '-' }}</td>
               <td class="px-4 py-3 text-right text-sm">{{ releve.ancien_compteur_noir }} → <strong>{{ releve.compteur_noir }}</strong> <span class="text-slate-400">({{ releve.copies_noir }} pages)</span></td>
               <td class="px-4 py-3 text-right text-sm">{{ releve.ancien_compteur_couleur ?? '-' }} → <strong>{{ releve.compteur_couleur ?? '-' }}</strong> <span v-if="releve.copies_couleur" class="text-slate-400">({{ releve.copies_couleur }} pages)</span></td>
-              <td class="px-4 py-3 text-right font-semibold text-slate-900">{{ money(releve.montant_supp_ht) }}</td>
+              <td class="px-4 py-3 text-right font-semibold text-slate-900">{{ money(releve.montant_supp_ht) }}
+                <span v-if="releve.tarifs_snapshot?.historique" class="block text-xs font-normal text-amber-700">Historique à vérifier</span>
+              </td>
               <td class="px-4 py-3 text-right text-sm">
                 <div v-if="releve.facture" class="flex flex-col items-end gap-1">
                   <router-link :to="{ path: '/factures', query: { open: releve.facture.id } }" class="font-mono font-semibold text-emerald-700 hover:text-emerald-900 hover:underline">
@@ -224,10 +229,10 @@
                   v-else-if="canGenerateFactures"
                   type="button"
                   class="rounded-lg border border-xelltekk-200 px-3 py-1.5 text-xs font-semibold text-xelltekk-700 transition hover:bg-xelltekk-50 disabled:cursor-wait disabled:opacity-60"
-                  :disabled="factureLoadingId === releve.id"
+                  :disabled="!!factureLoadingId || !!releve.anomalie_facturation || !!releve.echeance_facturation && String(releve.date_releve).slice(0, 7) !== releve.echeance_facturation.slice(0, 7)"
                   @click="facturerReleve(releve)"
                 >
-                  {{ factureLoadingId === releve.id ? 'Génération...' : 'Générer facture' }}
+                  {{ factureLoadingId === releve.id ? 'Génération...' : releve.echeance_facturation && String(releve.date_releve).slice(0, 7) !== releve.echeance_facturation.slice(0, 7) ? `Échéance ${dateLabel(releve.echeance_facturation)}` : 'Générer facture' }}
                 </button>
                 <span v-else class="text-slate-400">-</span>
               </td>
@@ -244,7 +249,8 @@
       </div>
     </section>
 
-    <section v-if="activeTab === 'interventions'" class="rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <section v-if="activeTab === 'interventions'" aria-label="Interventions leasing" class="rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <fieldset :disabled="listLoading.interventions"><AppPagination v-if="pages.interventions.total" :meta="pages.interventions" label="interventions" @page="loadInterventions" /></fieldset>
       <div class="flex flex-col gap-3 border-b border-slate-100 p-4 xl:flex-row xl:items-center xl:justify-between">
         <div>
           <h3 class="font-bold text-slate-900">Interventions</h3>
@@ -361,6 +367,8 @@ import { useToast } from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
 import { useAuthStore } from '@/stores/auth'
 import { hasAnyRole } from '@/utils/access'
+import AppPagination from '@/components/AppPagination.vue'
+import { pageMeta } from '@/services/leasingLists.mjs'
 
 const toast = useToast()
 const auth = useAuthStore()
@@ -395,6 +403,9 @@ const contrats = ref([])
 const imprimantes = ref([])
 const releves = ref([])
 const interventions = ref([])
+const pages = reactive(Object.fromEntries(['contrats', 'imprimantes', 'releves', 'interventions'].map(key => [key, pageMeta({})])))
+const listLoading = reactive({})
+const listSequence = {}
 const editingImprimante = ref(null)
 const editingIntervention = ref(null)
 const canManageImprimantes = computed(() => hasAnyRole(auth.user, 'admin'))
@@ -417,13 +428,14 @@ const releveForm = reactive(defaultReleveForm())
 const interventionForm = reactive(defaultInterventionForm())
 
 const contratsReleves = computed(() => contrats.value.filter(item => ['brouillon', 'actif', 'suspendu'].includes(item.statut)))
+const interventionSummary = reactive({})
 const interventionStats = computed(() => {
   const rows = interventions.value || []
   return {
-    ouvertes: rows.filter(item => ['planifiee', 'en_cours'].includes(item.statut)).length,
-    terminees: rows.filter(item => item.statut === 'terminee').length,
-    cout_ht: rows.reduce((total, item) => total + Number(item.cout_ht || 0), 0),
-    techniciens: new Set(rows.map(item => item.technicien).filter(Boolean)).size,
+    ouvertes: interventionSummary.ouvertes ?? rows.filter(item => ['planifiee', 'en_cours'].includes(item.statut)).length,
+    terminees: interventionSummary.terminees ?? rows.filter(item => item.statut === 'terminee').length,
+    cout_ht: interventionSummary.cout_ht ?? rows.reduce((total, item) => total + Number(item.cout_ht || 0), 0),
+    techniciens: interventionSummary.techniciens ?? new Set(rows.map(item => item.technicien).filter(Boolean)).size,
   }
 })
 let relevePreviewTimer = null
@@ -525,44 +537,29 @@ async function loadStats() {
   }
 }
 
-async function loadContrats() {
+async function loadList(key, rows, filters, perPage, requestedPage = 1) {
+  const page = Number.isInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1
+  const sequence = listSequence[key] = (listSequence[key] || 0) + 1
+  listLoading[key] = true
   loading.value = true
   try {
-    const { data } = await api.get('/leasing/contrats', { params: { per_page: 50, ...filters.contrats } })
-    contrats.value = data.data || []
+    const { data } = await api.get(`/leasing/${key}`, { params: { per_page: perPage, page, ...filters } })
+    if (sequence !== listSequence[key]) return
+    rows.value = data.data || []
+    pages[key] = pageMeta(data)
+    if (key === 'interventions') Object.assign(interventionSummary, data.summary || {})
   } catch (error) {
-    handleApiError(error, 'Impossible de charger les contrats.')
+    if (sequence === listSequence[key]) handleApiError(error, 'Impossible de charger la liste leasing.')
   } finally {
-    loading.value = false
+    if (sequence === listSequence[key]) listLoading[key] = false
+    loading.value = Object.values(listLoading).some(Boolean)
   }
 }
 
-async function loadImprimantes() {
-  try {
-    const { data } = await api.get('/leasing/imprimantes', { params: { per_page: 100, ...filters.imprimantes } })
-    imprimantes.value = data.data || []
-  } catch (error) {
-    handleApiError(error, 'Impossible de charger les imprimantes.')
-  }
-}
-
-async function loadReleves() {
-  try {
-    const { data } = await api.get('/leasing/releves', { params: { per_page: 50 } })
-    releves.value = data.data || []
-  } catch (error) {
-    handleApiError(error, 'Impossible de charger les relevés.')
-  }
-}
-
-async function loadInterventions() {
-  try {
-    const { data } = await api.get('/leasing/interventions', { params: { per_page: 100, ...filters.interventions } })
-    interventions.value = data.data || []
-  } catch (error) {
-    handleApiError(error, 'Impossible de charger les interventions.')
-  }
-}
+function loadContrats(page = 1) { return loadList('contrats', contrats, filters.contrats, 50, page) }
+function loadImprimantes(page = 1) { return loadList('imprimantes', imprimantes, filters.imprimantes, 100, page) }
+function loadReleves(page = 1) { return loadList('releves', releves, {}, 50, page) }
+function loadInterventions(page = 1) { return loadList('interventions', interventions, filters.interventions, 100, page) }
 
 function openImprimanteModal() {
   router.push({ name: 'leasing-imprimante-create' })
@@ -770,19 +767,19 @@ async function cloturerContrat(contrat) {
 }
 
 async function facturerReleve(releve) {
-  if (!releve?.id) return
+  if (!releve?.id || factureLoadingId.value) return
   const contrat = releve.contrat?.numero || 'ce contrat'
   const periode = releve.periode || dateLabel(releve.date_releve)
   if (!await askConfirm({
     message: `Générer une facture brouillon pour le relevé ${periode} du contrat ${contrat} ?`,
-    hint: `Supplément HT affiché : ${money(releve.montant_supp_ht)}.`,
+    hint: `Les relevés mensuels de l'échéance seront regroupés. Pour les anciens relevés, vérifiez les loyers et la TVA repris lors de la migration : les tarifs d'origine inconnus ne peuvent pas être reconstitués.`,
     tone: 'primary',
     confirmLabel: 'Générer',
   })) return
 
   factureLoadingId.value = releve.id
   try {
-    const { data } = await api.post(`/leasing/releves/${releve.id}/facture`)
+    const { data } = await api.post(`/leasing/releves/${releve.id}/facture`, { confirm_historique: true })
     toast.success(data.message || `Facture ${data.facture?.numero || ''} générée.`)
     await Promise.all([loadReleves(), loadContrats(), loadStats()])
   } catch (error) {

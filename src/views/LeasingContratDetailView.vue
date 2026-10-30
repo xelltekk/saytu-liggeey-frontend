@@ -33,9 +33,9 @@
         </label>
         <label class="field-label">Loyer mensuel HT <input v-model.number="form.loyer_mensuel_ht" type="number" min="0" step="1" class="input mt-1" required /></label>
         <label class="field-label">TVA % <input v-model.number="form.taux_tva" type="number" min="0" max="100" step="0.01" class="input mt-1" /></label>
-        <label class="field-label">Forfait pages noir <input v-model.number="form.forfait_pages_noir" type="number" min="0" class="input mt-1" /></label>
+        <label class="field-label">Forfait mensuel pages noir <input v-model.number="form.forfait_pages_noir" type="number" min="0" class="input mt-1" /></label>
         <label class="field-label">Prix page noir HT <input v-model.number="form.prix_page_noir_ht" type="number" min="0" step="0.01" class="input mt-1" /></label>
-        <label class="field-label">Forfait pages couleur <input v-model.number="form.forfait_pages_couleur" type="number" min="0" class="input mt-1" /></label>
+        <label class="field-label">Forfait mensuel pages couleur <input v-model.number="form.forfait_pages_couleur" type="number" min="0" class="input mt-1" /></label>
         <label class="field-label">Prix page couleur HT <input v-model.number="form.prix_page_couleur_ht" type="number" min="0" step="0.01" class="input mt-1" /></label>
         <label class="field-label">Frais de pose / dépôt HT <input v-model.number="form.depot_garantie" type="number" min="0" step="1" class="input mt-1" /></label>
         <label class="field-label md:col-span-2">Conditions particulières <textarea v-model="form.conditions" class="input mt-1 min-h-24"></textarea></label>
