@@ -108,7 +108,7 @@ function view() {
   const context = vm.createContext({ ref, reactive, computed, watch, nextTick, emptyReport, compareReports, comparisonCsv, AbortController,
     setInterval, clearInterval,
     useRoute: () => route, api, onBeforeRouteLeave() {}, onMounted() {}, onBeforeUnmount: fn => cleanup.push(fn),
-    window: { confirm: () => true, removeEventListener() {} }, document: { body: { classList: { remove() {} } } },
+    appConfirm: async () => true, window: { removeEventListener() {} }, document: { body: { classList: { remove() {} } } },
     readLeasingPdf: async () => ({ report: sample()[0], previews: [], text: '' }) })
   vm.runInContext(script + '\nglobalThis.v = { reports, options, result, files, busy, calculate, reset, importPdf, cancelReading, loadContract, contract, contractError, contractLoading };', context)
   return { ...context.v, api, route, context, cleanup, file }
@@ -125,7 +125,7 @@ test('late OCR cannot restore erased data', async () => {
   p.context.readLeasingPdf = () => new Promise(r => { resolve = r })
   const pending = p.importPdf({ target: { files: [{}] } }, 0)
   assert.equal(p.busy.value, true)
-  p.reset()
+  await p.reset()
   resolve({ report: sample()[0], previews: [], text: '' }); await pending
   assert.equal(p.reports[0].date, ''); assert.equal(p.busy.value, false)
 })

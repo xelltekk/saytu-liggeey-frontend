@@ -261,6 +261,7 @@
 </template>
 
 <script setup>
+import { requestConfirmation as appConfirm } from '@/composables/useConfirm'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import api from '@/services/api'
@@ -419,7 +420,7 @@ async function changeStatutDevis(action) {
 
 async function convertirEnFacture() {
   if (!devis.value) return
-  if (!window.confirm(`Convertir le devis ${devis.value.numero} en facture ?`)) return
+  if (!await appConfirm(`Convertir le devis ${devis.value.numero} en facture ?`)) return
   actionLoading.value = 'convertir'
   try {
     const { data } = await api.post(`/devis/${devis.value.id}/convertir-en-facture`)
@@ -515,9 +516,9 @@ watch(() => route.query.tab, () => {
   activeTab.value = routeTab()
 })
 
-onBeforeRouteLeave(() => {
+onBeforeRouteLeave(async () => {
   if (formDirty.value) {
-    return window.confirm('Quitter la saisie ? Les modifications non enregistrées seront perdues.')
+    return await appConfirm('Quitter la saisie ? Les modifications non enregistrées seront perdues.')
   }
   return true
 })

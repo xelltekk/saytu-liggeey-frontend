@@ -10,6 +10,14 @@
           <p v-if="hint" class="text-xs text-slate-500">{{ hint }}</p>
         </div>
       </div>
+      <input
+        v-if="prompt"
+        :value="inputValue"
+        aria-label="Votre réponse"
+        class="w-full rounded-2xl border border-sky-200 bg-white px-4 py-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-400"
+        @input="emit('update:inputValue', $event.target.value)"
+        @keydown.enter.prevent="confirm"
+      />
     </div>
 
     <template #footer>
@@ -37,12 +45,14 @@ const props = defineProps({
   title: { type: String, default: 'Confirmation' },
   message: { type: String, required: true },
   hint: { type: String, default: '' },
+  prompt: { type: Boolean, default: false },
+  inputValue: { type: String, default: '' },
   confirmLabel: { type: String, default: 'Continuer' },
   cancelLabel: { type: String, default: 'Annuler' },
   tone: { type: String, default: 'danger' }, // danger, primary, neutral
 })
 
-const emit = defineEmits(['update:modelValue', 'confirm'])
+const emit = defineEmits(['update:modelValue', 'update:inputValue', 'confirm'])
 
 const visible = computed({
   get: () => props.modelValue,

@@ -19,6 +19,7 @@
   </section>
 </template>
 <script setup>
+import { requestConfirmation as appConfirm } from '@/composables/useConfirm'
 import { ref, watch } from 'vue'
 import api from '@/services/api'
 const props = defineProps({ clientId: Number })
@@ -26,7 +27,7 @@ const rows = ref([]), page = ref(1), pages = ref(1), busy = ref(false), error = 
 async function load(p = 1) { error.value = ''; try { const { data } = await api.get(`/clients/${props.clientId}/portal-prices`, { params: { page: p } }); rows.value = data.data; page.value = data.current_page; pages.value = data.last_page } catch (e) { error.value = e.response?.data?.message || 'Chargement impossible.' } }
 async function convert(r) { if (busy.value) return; busy.value = true; try { const { data } = await api.post(`/clients/${props.clientId}/portal-prices/${r.id}/convert`); notice.value = data.message; await load(page.value) } catch (e) { error.value = e.response?.data?.message || 'Conversion impossible.' } finally { busy.value = false } }
 async function createOrder(r) {
-  if (busy.value || !confirm('Avez-vous vérifié les produits, les prix et les disponibilités du devis accepté ? La commande sera confirmée sans sortie de stock. Vous enregistrerez ensuite les livraisons depuis sa fiche.')) return
+  if (busy.value || !await appConfirm('Avez-vous vérifié les produits, les prix et les disponibilités du devis accepté ? La commande sera confirmée sans sortie de stock. Vous enregistrerez ensuite les livraisons depuis sa fiche.')) return
   busy.value = true; error.value = ''
   try { const { data } = await api.post(`/clients/${props.clientId}/portal-prices/${r.id}/order`, { reviewed: true }); notice.value = data.message; await load(page.value) }
   catch (e) { error.value = e.response?.data?.message || 'Création de la commande impossible.' }

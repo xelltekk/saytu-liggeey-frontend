@@ -504,6 +504,7 @@
 </template>
 
 <script setup>
+import { requestConfirmation as appConfirm } from '@/composables/useConfirm'
 import InvoiceDeliveriesPanel from '@/components/InvoiceDeliveriesPanel.vue'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
@@ -968,9 +969,9 @@ watch(() => route.query.tab, () => {
   activeTab.value = routeTab()
 })
 
-onBeforeRouteLeave(() => {
+onBeforeRouteLeave(async () => {
   if (formDirty.value) {
-    return window.confirm('Quitter la saisie ? Les modifications non enregistrées seront perdues.')
+    return await appConfirm('Quitter la saisie ? Les modifications non enregistrées seront perdues.')
   }
   return true
 })

@@ -1295,6 +1295,7 @@
 </template>
 
 <script setup>
+import { requestConfirmation as appConfirm, requestPrompt as appPrompt } from '@/composables/useConfirm'
 import { ref, reactive, onMounted, onUnmounted, computed, h, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '@/services/api'
@@ -1800,7 +1801,7 @@ async function recevoirTransfert(transfer) {
 async function annulerTransfert(transfer) {
   if (!transfer?.id) return
 
-  const motif = window.prompt(`Motif d’annulation du transfert ${transfer.reference}`, 'Annulation transfert')
+  const motif = await appPrompt(`Motif d’annulation du transfert ${transfer.reference}`, 'Annulation transfert')
   if (motif === null) return
 
   transferActionId.value = transfer.id
@@ -2174,7 +2175,7 @@ async function updateSerieStatus(serie, statut) {
 }
 
 async function validateMovement(mouvement) {
-  const commentaire = window.prompt('Commentaire de validation', 'Contrôle stock validé')
+  const commentaire = await appPrompt('Commentaire de validation', 'Contrôle stock validé')
   if (commentaire === null) return
 
   try {
@@ -2266,7 +2267,7 @@ async function createPurchaseDemandFromAlerts(source = null) {
     ? `Créer une demande d’achat pour ${rows[0].reference || rows[0].libelle} ?`
     : `Créer une demande d’achat avec ${rows.length} ligne(s) du filtre actuel ?`
 
-  if (!window.confirm(message)) return
+  if (!await appConfirm(message)) return
 
   alertDemandCreating.value = true
   alertDemandCreatingId.value = source?.id || null
@@ -2578,7 +2579,7 @@ async function validateInventorySession() {
 
 async function cancelInventorySession() {
   if (!activeInventory.value?.id) return
-  if (!window.confirm('Annuler cette session d’inventaire ? Les comptages saisis seront conservés dans l’historique mais aucun écart ne sera appliqué.')) return
+  if (!await appConfirm('Annuler cette session d’inventaire ? Les comptages saisis seront conservés dans l’historique mais aucun écart ne sera appliqué.')) return
 
   inventorySessionActionLoading.value = true
   try {

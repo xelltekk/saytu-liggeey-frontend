@@ -1,4 +1,5 @@
 <script setup>
+import { requestConfirmation as appConfirm } from '@/composables/useConfirm'
 import { ref, watch } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 import api from '@/services/api'
@@ -23,7 +24,7 @@ async function deliver() {
   if (busy.value) return
   const lines = Object.entries(quantities.value).filter(([, q]) => Number(q) > 0).map(([id, q]) => ({ line_id: Number(id), quantite: String(q) }))
   if (!lines.length) { error.value = 'Saisissez au moins une quantité à livrer.'; return }
-  if (!window.confirm('Valider cette livraison et déduire les quantités du stock ? Aucun paiement ni nouvelle facture ne sera créé.')) return
+  if (!await appConfirm('Valider cette livraison et déduire les quantités du stock ? Aucun paiement ni nouvelle facture ne sera créé.')) return
   busy.value = true; error.value = ''
   try {
     await api.post(`/factures/${props.invoiceId}/livraisons`, { request_id: requestId.value, date_livraison: date.value, lines })
@@ -37,7 +38,7 @@ async function download(delivery) {
   catch { error.value = 'Téléchargement du BL impossible. Réessayez.' }
   finally { busy.value = false }
 }
-onBeforeRouteLeave(() => !busy.value && (!Object.values(quantities.value).some(q => Number(q) > 0) || window.confirm('Quitter sans enregistrer la livraison ?')))
+onBeforeRouteLeave(async () => !busy.value && (!Object.values(quantities.value).some(q => Number(q) > 0) || await appConfirm('Quitter sans enregistrer la livraison ?')))
 watch(() => props.invoiceId, load, { immediate: true })
 </script>
 

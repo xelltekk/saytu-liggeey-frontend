@@ -100,6 +100,7 @@
 </template>
 
 <script setup>
+import { requestConfirmation as appConfirm } from '@/composables/useConfirm'
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute } from 'vue-router'
 import api from '@/services/api'
@@ -183,8 +184,8 @@ async function calculate() {
     await nextTick(); resultElement.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   } catch (e) { error.value = e.message }
 }
-function reset() {
-  if (hasData() && !window.confirm('Effacer les relevés et le résultat non enregistré ?')) return
+async function reset() {
+  if (hasData() && !await appConfirm('Effacer les relevés et le résultat non enregistré ?')) return
   controllers.forEach(c => c?.abort())
   controllers.fill(null)
   reports.splice(0, 2, emptyReport(), emptyReport()); files.splice(0, 2, emptyFile(), emptyFile())
@@ -203,7 +204,7 @@ function printResult() {
 }
 function afterPrint() { document.body.classList.remove('printing-leasing-comparison') }
 function beforeUnload(event) { if (hasData()) { event.preventDefault(); event.returnValue = '' } }
-onBeforeRouteLeave(() => !invoicing.value && (!hasData() || window.confirm('Quitter la comparaison ? Les données non exportées seront perdues.')))
+onBeforeRouteLeave(async () => !invoicing.value && (!hasData() || await appConfirm('Quitter la comparaison ? Les données non exportées seront perdues.')))
 onMounted(() => { loadContract(); window.addEventListener('beforeunload', beforeUnload); window.addEventListener('afterprint', afterPrint) })
 onBeforeUnmount(() => { alive = false; controllers.forEach(c => c?.abort()); afterPrint(); window.removeEventListener('beforeunload', beforeUnload); window.removeEventListener('afterprint', afterPrint) })
 </script>

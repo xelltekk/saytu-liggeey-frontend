@@ -7,6 +7,8 @@
     :confirm-label="state.confirmLabel"
     :cancel-label="state.cancelLabel"
     :tone="state.tone"
+    :prompt="state.mode === 'prompt'"
+    v-model:input-value="state.inputValue"
     @update:model-value="handleVisibility"
     @confirm="confirm"
   />

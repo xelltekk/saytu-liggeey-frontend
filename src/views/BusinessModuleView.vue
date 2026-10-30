@@ -1,4 +1,5 @@
 <script setup>
+import { requestConfirmation as appConfirm } from '@/composables/useConfirm'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router'
 import api from '@/services/api'
@@ -49,7 +50,7 @@ async function downloadDelivery(delivery) {
   } finally { downloadingDelivery.value = null }
 }
 const listTarget = () => ({ name: 'business-list', params: { module: key.value }, query: route.query })
-const canLeave = () => !saving.value && ((!dirty.value && !message.value.trim() && !portalDraft.value && !renewalDirty.value && !shipmentDirty.value) || window.confirm('Quitter sans enregistrer les modifications ou le message en cours ?'))
+const canLeave = async () => !saving.value && ((!dirty.value && !message.value.trim() && !portalDraft.value && !renewalDirty.value && !shipmentDirty.value) || await appConfirm('Quitter sans enregistrer les modifications ou le message en cours ?'))
 onBeforeRouteLeave(canLeave)
 onBeforeRouteUpdate(canLeave)
 const unload = e => { if (dirty.value || message.value.trim() || portalDraft.value || renewalDirty.value || shipmentDirty.value) { e.preventDefault(); e.returnValue = '' } }
@@ -131,9 +132,9 @@ function filterList(nextPage = 1) {
 }
 async function save() {
   if (saving.value || !editable.value) return
-  if (portalDraft.value && !window.confirm('Enregistrer la fiche et abandonner la réponse client non publiée ?')) return
-  if (renewalDirty.value && !window.confirm('Enregistrer la fiche sans appliquer le renouvellement saisi ?')) return
-  if (shipmentDirty.value && !window.confirm('Enregistrer la fiche sans appliquer la livraison saisie ?')) return
+  if (portalDraft.value && !await appConfirm('Enregistrer la fiche et abandonner la réponse client non publiée ?')) return
+  if (renewalDirty.value && !await appConfirm('Enregistrer la fiche sans appliquer le renouvellement saisi ?')) return
+  if (shipmentDirty.value && !await appConfirm('Enregistrer la fiche sans appliquer la livraison saisie ?')) return
   saving.value = true; error.value = ''; success.value = ''
   try {
     const payload = businessPayload(definition.value, form.value, record.value, requestId.value)
@@ -148,7 +149,7 @@ async function save() {
   finally { saving.value = false }
 }
 async function archive() {
-  if (!window.confirm('Archiver cette fiche ? Elle restera consultable dans les archives.')) return
+  if (!await appConfirm('Archiver cette fiche ? Elle restera consultable dans les archives.')) return
   saving.value = true; error.value = ''
   try {
     await api.delete(`/metier/${key.value}/${record.value.id}`, { data: { version: record.value.version } })
@@ -178,7 +179,7 @@ async function deliverOrder() {
   if (saving.value || dirty.value) return
   const lines = shipment.value.lines.filter(l => Number(l.quantite) !== 0)
   if (!lines.length) { error.value = 'Saisissez au moins une quantité à livrer.'; return }
-  if (!window.confirm(record.value.legacy_delivery ? 'Commande historique : livrer et facturer ces quantités, sans encaissement ?' : 'Valider la livraison et déduire le stock ? Aucune facture ni paiement ne sera créé.')) return
+  if (!await appConfirm(record.value.legacy_delivery ? 'Commande historique : livrer et facturer ces quantités, sans encaissement ?' : 'Valider la livraison et déduire le stock ? Aucune facture ni paiement ne sera créé.')) return
   saving.value = true; error.value = ''
   try {
     const payload = { ...shipment.value, lines, version: record.value.version, request_id: shipmentId.value }
@@ -189,7 +190,7 @@ async function deliverOrder() {
   finally { saving.value = false }
 }
 async function billOrder() {
-  if (saving.value || dirty.value || !window.confirm('Créer la facture complète de cette commande en brouillon ? Aucun stock ni paiement ne sera modifié.')) return
+  if (saving.value || dirty.value || !await appConfirm('Créer la facture complète de cette commande en brouillon ? Aucun stock ni paiement ne sera modifié.')) return
   saving.value = true; error.value = ''
   try {
     await api.post(`/metier/commandes_clients/${record.value.id}/facturer`, { version: record.value.version, date_echeance: shipment.value.date_echeance })
@@ -198,7 +199,7 @@ async function billOrder() {
   finally { saving.value = false }
 }
 async function createArticle() {
-  if (saving.value || dirty.value || !window.confirm('Copier uniquement la solution dans une procédure interne en brouillon ? Relisez-la avant publication.')) return
+  if (saving.value || dirty.value || !await appConfirm('Copier uniquement la solution dans une procédure interne en brouillon ? Relisez-la avant publication.')) return
   saving.value = true; error.value = ''
   try {
     const { data } = await api.post(`/metier/sav/${record.value.id}/procedure`, { version: record.value.version })

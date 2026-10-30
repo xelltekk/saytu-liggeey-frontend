@@ -3,10 +3,11 @@ import { createApp, h } from 'vue'
 import { createPinia } from 'pinia'
 import { createRouter, createMemoryHistory, RouterView } from 'vue-router'
 import View from '../../src/views/LeasingComparaisonView.vue'
+import ConfirmDialogHost from '../../src/components/ConfirmDialogHost.vue'
 import '../../src/style.css'
 const router = createRouter({ history: createMemoryHistory(), routes: [
   { path: '/', name: 'leasing-comparaison', component: View },
   { path: '/leasing', name: 'leasing', component: { render: () => h('p', 'Liste de test') } },
   { path: '/factures/:id', name: 'facture-detail', component: { render: () => h('p', 'Facture de test') } },
 ] })
-createApp({ render: () => h('main', { style: 'max-width:1400px;margin:auto;padding:20px' }, [h(RouterView)]) }).use(createPinia()).use(router).mount('#app')
+createApp({ render: () => h('main', { style: 'max-width:1400px;margin:auto;padding:20px' }, [h(RouterView), h(ConfirmDialogHost)]) }).use(createPinia()).use(router).mount('#app')

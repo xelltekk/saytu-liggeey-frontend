@@ -74,6 +74,7 @@
   </main>
 </template>
 <script setup>
+import { requestConfirmation as appConfirm } from '@/composables/useConfirm'
 import { computed, onBeforeUnmount, ref } from 'vue'
 import axios from 'axios'
 const sections = [['tickets', 'Mes tickets'], ['prix', 'Demandes de prix'], ['commandes', 'Mes commandes'], ['contrats', 'Mes contrats'], ['connaissances', 'Base de connaissances']]
@@ -96,24 +97,24 @@ function failed(e) { error.value = Object.values(e.response?.data?.errors || {})
 async function run(fn) { if (busy.value) return; busy.value = true; error.value = ''; try { await fn() } catch (e) { failed(e) } finally { busy.value = false } }
 const activate = () => run(async () => { const { data } = await api.post('/activate', { token: invitation.value, password: password.value, password_confirmation: confirmation.value }); invitation.value = ''; password.value = ''; confirmation.value = ''; notice.value = data.message })
 const login = () => run(async () => { const { data } = await api.post('/login', { email: email.value, password: password.value }); sessionStorage.setItem(key, data.token); password.value = ''; notifications.value = { unread: 0, items: [] }; account.value = (await api.get('/me')).data; notice.value = ''; await load(); await loadNotifications() })
-const logout = () => { if (!canLeave()) return; return run(async () => { try { await api.post('/logout') } finally { sequence++; account.value = null; selected.value = null; records.value = []; creating.value = false; replyText.value = ''; sessionStorage.removeItem(key) } }) }
+const logout = async () => { if (!await canLeave()) return; return run(async () => { try { await api.post('/logout') } finally { sequence++; account.value = null; selected.value = null; records.value = []; creating.value = false; replyText.value = ''; sessionStorage.removeItem(key) } }) }
 async function load(p = 1) { const version = ++sequence; loading.value = true; error.value = ''; try { const { data } = await api.get(`/${kind.value}`, { params: { page: p, q: search.value || undefined, statut: filterStatus.value || undefined } }); if (version === sequence) { records.value = data.data; page.value = data.current_page; pages.value = data.last_page; total.value = data.total } } catch (e) { if (version === sequence) failed(e) } finally { if (version === sequence) loading.value = false } }
-const canLeave = () => !busy.value && (!(creating.value || replyText.value || selected.value?.draftComment || selected.value?.orderDraft) || confirm('Quitter cette saisie sans envoyer ?'))
-function cancelCreation() { if (canLeave()) creating.value = false }
-function back() { if (!canLeave()) return; sequence++; selected.value = null; replyText.value = ''; load(page.value) }
+const canLeave = async () => !busy.value && (!(creating.value || replyText.value || selected.value?.draftComment || selected.value?.orderDraft) || await appConfirm('Quitter cette saisie sans envoyer ?'))
+async function cancelCreation() { if (await canLeave()) creating.value = false }
+async function back() { if (!await canLeave()) return; sequence++; selected.value = null; replyText.value = ''; load(page.value) }
 function resetFilters() { search.value = ''; filterStatus.value = ''; load() }
-function changeSection(value) { if (!canLeave()) return; kind.value = value; creating.value = false; selected.value = null; replyText.value = ''; notice.value = ''; resetFilters() }
+async function changeSection(value) { if (!await canLeave()) return; kind.value = value; creating.value = false; selected.value = null; replyText.value = ''; notice.value = ''; resetFilters() }
 function start() { form.value = { titre: '', description: '', priorite: 'normale' }; lines.value = [{ designation: '', quantite: 1 }]; requestId.value = crypto.randomUUID(); creating.value = true; notice.value = '' }
 const open = r => run(async () => { sequence++; selected.value = (await api.get(`/${kind.value}/${r.id}`)).data; replyText.value = ''; replyId.value = crypto.randomUUID(); lastSync.value = ''; syncError.value = '' })
 const submit = () => run(async () => { const payload = { ...form.value, request_id: requestId.value }; if (['commandes', 'prix'].includes(kind.value)) payload.lines = lines.value; const { data } = await api.post(`/${kind.value}`, payload); notice.value = data.message; creating.value = false; await load(); selected.value = (await api.get(`/${kind.value}/${data.id}`)).data })
 let notificationsLoading = false
 async function loadNotifications() { if (!account.value || notificationsLoading || document.hidden) return; const identity = account.value; notificationsLoading = true; try { const { data } = await api.get('/notifications'); if (account.value === identity) { notifications.value = data; notificationError.value = '' } } catch { if (account.value === identity) notificationError.value = 'Notifications indisponibles. Réessayez.' } finally { notificationsLoading = false } }
-async function openNotification(n) { if (busy.value || !canLeave()) return; await run(async () => { sequence++; kind.value = n.kind; selected.value = null; creating.value = false; replyText.value = ''; search.value = ''; filterStatus.value = ''; await load(); selected.value = (await api.get(`/${n.kind}/${n.record_id}`)).data; replyId.value = crypto.randomUUID(); await api.post(`/notifications/${n.id}/read`); showNotifications.value = false; await loadNotifications() }) }
+async function openNotification(n) { if (busy.value || !await canLeave()) return; await run(async () => { sequence++; kind.value = n.kind; selected.value = null; creating.value = false; replyText.value = ''; search.value = ''; filterStatus.value = ''; await load(); selected.value = (await api.get(`/${n.kind}/${n.record_id}`)).data; replyId.value = crypto.randomUUID(); await api.post(`/notifications/${n.id}/read`); showNotifications.value = false; await loadNotifications() }) }
 const downloadBL = d => run(async () => { const { data } = await api.get(`/commandes/${selected.value.id}/livraisons/${d.id}/pdf`, { responseType: 'blob' }); const url = URL.createObjectURL(data); const a = document.createElement('a'); a.href = url; a.download = `BL-${d.id}.pdf`; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000) })
 const downloadQuote = () => run(async () => { const { data } = await api.get(`/prix/${selected.value.id}/devis/pdf`, { responseType: 'blob' }); const url = URL.createObjectURL(data); const a = document.createElement('a'); a.href = url; a.download = `devis-${selected.value.id}.pdf`; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000) })
-const decideQuote = decision => {
+const decideQuote = async decision => {
   if (busy.value || !selected.value?.devis?.can_decide) return
-  if (!confirm(`${decision === 'accepte' ? 'Accepter' : 'Refuser'} le devis ${selected.value.devis.numero} (${selected.value.devis.total_ttc} ${selected.value.devis.devise}) ? Cette décision sera transmise à votre fournisseur.`)) return
+  if (!await appConfirm(`${decision === 'accepte' ? 'Accepter' : 'Refuser'} le devis ${selected.value.devis.numero} (${selected.value.devis.total_ttc} ${selected.value.devis.devise}) ? Cette décision sera transmise à votre fournisseur.`)) return
   return run(async () => {
     const row = selected.value
     const content = { decision, comment: row.draftComment || null, fingerprint: row.devis.fingerprint }
@@ -125,7 +126,7 @@ const decideQuote = decision => {
     selected.value = (await api.get(`/prix/${row.id}`)).data
   })
 }
-const openQuoteOrder = () => { if (!canLeave()) return; return run(async () => { const id = selected.value.order_id; const { data } = await api.get(`/commandes/${id}`); sequence++; kind.value = 'commandes'; selected.value = data; search.value = ''; filterStatus.value = '' }) }
+const openQuoteOrder = async () => { if (!await canLeave()) return; return run(async () => { const id = selected.value.order_id; const { data } = await api.get(`/commandes/${id}`); sequence++; kind.value = 'commandes'; selected.value = data; search.value = ''; filterStatus.value = '' }) }
 const refreshOrder = () => run(async () => { const id = selected.value.id; selected.value = (await api.get(`/commandes/${id}`)).data; notice.value = 'Commande actualisée.' })
 const openOrderQuote = () => run(async () => { const id = selected.value.quote_request_id; if (!id) return; const { data } = await api.get(`/prix/${id}`); sequence++; kind.value = 'prix'; selected.value = data; search.value = ''; filterStatus.value = '' })
 const reply = () => run(async () => { sequence++; selected.value = (await api.post(`/tickets/${selected.value.id}/messages`, { body: replyText.value, request_id: replyId.value })).data; replyText.value = ''; replyId.value = crypto.randomUUID(); syncError.value = ''; notice.value = 'Votre réponse a été envoyée.' })

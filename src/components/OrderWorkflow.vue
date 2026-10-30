@@ -1,4 +1,5 @@
 <script setup>
+import { requestConfirmation as appConfirm } from '@/composables/useConfirm'
 import { computed, ref } from 'vue'
 const props = defineProps({ record: Object, api: [Object, Function], external: Boolean, disabled: Boolean, historyOnly: Boolean, editable: { type: Boolean, default: true } })
 const emit = defineEmits(['changed', 'busy', 'draft'])
@@ -10,7 +11,8 @@ const draft = () => emit('draft', !!body.value || !!expected.value)
 labels.reply = 'Réponse de l’équipe'
 async function action(name) {
   if (blocked.value) return
-  if (['approve', 'refuse', 'accept_offer', 'reject_offer'].includes(name) && !window.confirm(`${labels[name]} : confirmer cette action ?`)) return
+  if (['approve', 'refuse', 'accept_offer', 'reject_offer'].includes(name) && !await appConfirm(`${labels[name]} : confirmer cette action ?`)) return
+  if (blocked.value) return
   const data = { action: name, version: flow.value.version, body: body.value || null }
   if (name === 'schedule') data.expected_at = expected.value
   if (props.external && ['accept_offer', 'reject_offer'].includes(name)) data.offer_hash = flow.value.offer_hash

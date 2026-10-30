@@ -7,6 +7,8 @@ const defaultOptions = {
   confirmLabel: 'OK',
   cancelLabel: 'Annuler',
   tone: 'primary',
+  mode: 'confirm',
+  inputValue: '',
 }
 
 const state = reactive({
@@ -57,9 +59,13 @@ export function resolveConfirmation(confirmed) {
   const resolve = activeResolve
   activeResolve = null
   state.visible = false
-  resolve(Boolean(confirmed))
+  resolve(state.mode === 'prompt' ? (confirmed ? state.inputValue : null) : Boolean(confirmed))
 
   window.requestAnimationFrame(showNext)
+}
+
+export function requestPrompt(message, defaultValue = '') {
+  return requestConfirmation({ message, mode: 'prompt', inputValue: String(defaultValue), confirmLabel: 'Valider' })
 }
 
 export function useConfirm() {

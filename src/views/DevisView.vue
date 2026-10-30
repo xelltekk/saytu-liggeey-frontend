@@ -534,6 +534,7 @@
 </template>
 
 <script setup>
+import { requestConfirmation as appConfirm } from '@/composables/useConfirm'
 import { computed, ref, reactive, onMounted, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import api from '@/services/api'
@@ -927,7 +928,7 @@ async function handleDelete() {
 
 async function confirmConvertir(devi) {
   if (!devi?.id) return
-  const confirmed = window.confirm(`Convertir le devis ${devi.numero} en facture ?`)
+  const confirmed = await appConfirm(`Convertir le devis ${devi.numero} en facture ?`)
   if (!confirmed) return
   await handleConvertir(devi)
 }

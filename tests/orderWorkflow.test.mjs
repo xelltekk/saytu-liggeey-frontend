@@ -9,7 +9,7 @@ function workflow(external = false) {
   const script = file.split('<script setup>')[1].split('</script>')[0].replace(/^import .*$/gm, '')
   const events = [], calls = []
   const props = reactive({ external, disabled: false, editable: true, record: { id: 9, workflow: { version: 4, offer_hash: 'current-offer' } }, api: { post: async (url, data) => { calls.push({ url, data }); return {} } } })
-  const context = vm.createContext({ ref, computed, defineProps: () => props, defineEmits: () => (...args) => events.push(args), crypto: { randomUUID: () => 'unique-action' }, window: { confirm: () => true } })
+  const context = vm.createContext({ ref, computed, defineProps: () => props, defineEmits: () => (...args) => events.push(args), crypto: { randomUUID: () => 'unique-action' }, appConfirm: async () => true })
   vm.runInContext(script + '\nglobalThis.subject = { action, body, expected, saving, error };', context)
   return { ...context.subject, props, events, calls }
 }

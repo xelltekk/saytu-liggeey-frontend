@@ -12,7 +12,7 @@ function portal() {
   const context = vm.createContext({ ref, computed, onBeforeUnmount: fn => cleanup.push(fn), axios: { create: () => api },
     sessionStorage: { getItem: () => null, removeItem() {} }, location: { hash: '' }, URLSearchParams,
     crypto: { randomUUID: () => 'test-id' }, document: { hidden: false, addEventListener() {}, removeEventListener() {} },
-    window: { addEventListener() {}, removeEventListener() {} }, setInterval: fn => { intervals.push(fn); return 1 }, clearInterval() {}, confirm: () => true })
+    window: { addEventListener() {}, removeEventListener() {} }, setInterval: fn => { intervals.push(fn); return 1 }, clearInterval() {}, appConfirm: async () => true })
   vm.runInContext(script + '\n globalThis.testPortal = { account, kind, selected, replyText, busy, refreshTicket, back, syncError, decideQuote, openQuoteOrder, openOrderQuote };', context)
   return { ...context.testPortal, api, cleanup, intervals, context }
 }
@@ -45,7 +45,7 @@ test('late refresh cannot reopen a ticket after return to list', async () => {
   let resolve
   p.api.get = url => url === '/tickets/1' ? new Promise(r => { resolve = r }) : Promise.resolve({ data: { data: [], current_page: 1, last_page: 1, total: 0 } })
   const pending = p.refreshTicket()
-  p.back()
+  await p.back()
   resolve({ data: { id: 1, messages: [] } })
   await pending
   assert.equal(p.selected.value, null)
@@ -97,8 +97,8 @@ test('quote decision network error keeps draft and reuses idempotency ID', async
   await p.decideQuote('refuse'); await p.decideQuote('refuse')
   assert.equal(ids.length, 2); assert.equal(ids[0], ids[1])
   assert.equal(p.selected.value.draftComment, 'À discuter')
-  p.context.confirm = () => false
-  p.back(); assert.equal(p.selected.value.id, 7)
+  p.context.appConfirm = async () => false
+  await p.back(); assert.equal(p.selected.value.id, 7)
 })
 
 test('quote order opens order detail without an undefined request', async () => {

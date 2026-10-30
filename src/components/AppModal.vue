@@ -8,6 +8,7 @@
         @click.self="requestClose('backdrop')"
       >
         <div
+          ref="panel"
           role="dialog"
           aria-modal="true"
           :aria-labelledby="titleId"
@@ -70,6 +71,7 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue', 'minimize', 'restore', 'minimized-change'])
 const closeButton = ref(null)
+const panel = ref(null)
 const titleId = `modal-title-${Math.random().toString(36).slice(2, 9)}`
 const modalId = `modal-${Math.random().toString(36).slice(2, 10)}`
 const isMinimized = ref(false)
@@ -149,7 +151,23 @@ function handleDockClose(event) {
 }
 
 function onKeydown(event) {
-  if (props.modelValue && !isMinimized.value && event.key === 'Escape') requestClose('escape')
+  if (!props.modelValue || isMinimized.value || event.defaultPrevented) return
+  const dialogs = [...document.querySelectorAll('[role="dialog"]')].filter(el => el.getClientRects().length)
+  dialogs.sort((a, b) => Number(getComputedStyle(a.parentElement).zIndex) - Number(getComputedStyle(b.parentElement).zIndex))
+  if (dialogs.at(-1) !== panel.value) return
+  if (event.key === 'Escape') {
+    event.preventDefault()
+    requestClose('escape')
+  }
+  if (event.key === 'Tab') {
+    const controls = [...panel.value.querySelectorAll('button, input, textarea, select, a[href], [tabindex]')].filter(el => !el.disabled && el.tabIndex >= 0 && el.getClientRects().length)
+    const first = controls[0], last = controls.at(-1)
+    if (event.shiftKey && (document.activeElement === first || !panel.value.contains(document.activeElement))) {
+      event.preventDefault(); last?.focus()
+    } else if (!event.shiftKey && (document.activeElement === last || !panel.value.contains(document.activeElement))) {
+      event.preventDefault(); first?.focus()
+    }
+  }
 }
 
 watch(() => props.modelValue, async (isOpen) => {
