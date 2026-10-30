@@ -56,10 +56,11 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '@/services/api'
 import { useToast } from '@/composables/useToast'
+import { leasingOptions } from '@/services/leasingLists.mjs'
 
 const route = useRoute()
 const router = useRouter()
@@ -70,6 +71,10 @@ const imprimantes = ref([])
 const intervention = ref(null)
 const isEdit = computed(() => !!route.params.id)
 const form = reactive(defaultForm())
+watch(() => form.contrat_id, (id) => {
+  const contrat = contrats.value.find(item => Number(item.id) === Number(id))
+  form.imprimante_id = contrat?.imprimante_id || contrat?.imprimante?.id || ''
+})
 
 function defaultForm() {
   return {
@@ -100,12 +105,12 @@ function normalizePayload(source) {
 }
 
 async function loadLists() {
-  const [{ data: contratsData }, { data: imprimantesData }] = await Promise.all([
-    api.get('/leasing/contrats', { params: { per_page: 100 } }),
-    api.get('/leasing/imprimantes', { params: { per_page: 100 } }),
+  const [contratsData, imprimantesData] = await Promise.all([
+    leasingOptions(api, '/leasing/contrats'),
+    leasingOptions(api, '/leasing/imprimantes'),
   ])
-  contrats.value = contratsData.data || []
-  imprimantes.value = imprimantesData.data || []
+  contrats.value = contratsData
+  imprimantes.value = imprimantesData
 }
 
 async function loadIntervention() {
@@ -153,8 +158,11 @@ function goBack() {
 }
 
 onMounted(async () => {
-  await Promise.all([loadLists(), loadIntervention()])
-  if (!isEdit.value && route.query.contrat_id) form.contrat_id = route.query.contrat_id
+  try {
+    await loadLists()
+    await loadIntervention()
+    if (!isEdit.value && route.query.contrat_id) form.contrat_id = route.query.contrat_id
+  } catch (error) { toast.error(error?.response?.data?.message || 'Chargement de l intervention impossible.') }
 })
 </script>
 
