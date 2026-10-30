@@ -112,7 +112,7 @@ function view() {
     onMounted() {}, onBeforeUnmount: fn => cleanup.push(fn),
     appConfirm: async () => true, window: { removeEventListener() {} }, document: { body: { classList: { remove() {} } } },
     readLeasingPdf: async () => ({ report: sample()[0], previews: [], text: '' }) })
-  vm.runInContext(script + '\nglobalThis.v = { reports, options, result, files, busy, invoicing, calculate, reset, importPdf, cancelReading, loadContract, contract, contractError, contractLoading };', context)
+  vm.runInContext(script + '\nglobalThis.v = { reports, options, result, files, busy, invoicing, calculate, reset, importPdf, cancelReading, loadContract, contract, contractError, contractLoading, loadCorrection, correction, sourceError, hasData, markArchived };', context)
   return { ...context.v, api, route, context, cleanup, file, guards }
 }
 
@@ -136,6 +136,22 @@ test('switching readings mode, tab or contract protects unexported comparison da
   p.invoicing.value = true
   assert.equal(await p.guards.update({ query: { tab: 'releves' } }, from), false)
   assert.equal(await p.guards.leave(), false)
+})
+
+test('archived correction loads its sources but requires renewed format and value confirmation', async () => {
+  const p=view();p.route.query.correction='3'
+  p.api.get=async()=>({data:{id:3,modifiable:true,client:{id:4},facture:{id:8},payload:{reports:sample(),...opts(),tva:0,rentalFee:25000}}})
+  await p.loadCorrection();assert.equal(p.correction.value.id,3);assert.equal(p.options.a4,false);assert.equal(p.options.verified,false)
+  assert.equal(p.hasData(),false)
+  p.reports[1].counters[102]++;assert.equal(p.hasData(),true)
+  p.markArchived();assert.equal(p.hasData(),false)
+})
+
+test('a paid or inaccessible archive cannot become an editable new comparison', async () => {
+  const p=view();p.route.query.correction='3'
+  p.api.get=async()=>({data:{id:3,modifiable:false,blocage:'Facture payée'}})
+  await p.loadCorrection();assert.match(p.sourceError.value,/payée/);assert.equal(p.correction.value,null)
+  await p.calculate();assert.equal(p.result.value,null)
 })
 test('editing a counter removes old result and requires reconfirmation', async () => {
   const p = view(); p.reports.splice(0, 2, ...sample()); Object.assign(p.options, opts()); p.options.verified = true; await nextTick()

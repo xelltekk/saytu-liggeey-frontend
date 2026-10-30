@@ -1,6 +1,6 @@
 export function leasingTabLocation(tab, currentQuery = {}) {
   const query = { ...currentQuery, tab }
-  for (const key of ['vue', 'contrat', 'contrat_id', 'releve', 'intervention']) delete query[key]
+  for (const key of ['vue', 'contrat', 'contrat_id', 'releve', 'intervention', 'suivi', 'correction']) delete query[key]
   return { name: 'leasing', query }
 }
 

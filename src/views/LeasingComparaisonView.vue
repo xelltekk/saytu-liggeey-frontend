@@ -21,8 +21,11 @@
       <p>Les PDF restent sur votre appareil. Après le calcul, exportez le résultat ou choisissez un client pour créer une facture brouillon.</p>
     </div>
 
+    <div v-if="sourceLoading" role="status" class="panel">Chargement du relevé archivé...</div>
+    <div v-if="sourceError" role="alert" class="panel text-red-800">{{ sourceError }} <RouterLink :to="{ name: 'leasing', query: { tab: 'releves', suivi: route.query.correction } }" class="font-semibold underline">Retour au suivi</RouterLink></div>
+    <p v-if="correction" class="border-l-4 border-blue-500 bg-blue-50 p-3 text-sm text-blue-900">Correction de {{ correction.facture.numero }} · Version {{ correction.revision }} · {{ correction.client?.nom }}</p>
     <form @submit.prevent="calculate">
-      <fieldset :disabled="invoicing">
+      <fieldset :disabled="invoicing || sourceLoading || !!sourceError || finalized">
       <div class="grid gap-4 lg:grid-cols-2">
         <section v-for="(report, i) in reports" :key="i" class="panel min-w-0">
           <h2 class="text-xl font-bold">{{ i === 0 ? '1. Relevé précédent' : '2. Relevé récent' }}</h2>
@@ -94,7 +97,7 @@
         <button class="btn-primary" @click="printResult">Imprimer / enregistrer en PDF</button>
         <button class="btn-secondary" @click="exportCsv">Exporter CSV</button>
       </div>
-      <LeasingComparisonInvoice :result="result" :reports="reports" :options="options" :client="contract?.client || null" @busy="invoicing = $event" />
+      <LeasingComparisonInvoice :result="result" :reports="reports" :options="options" :client="contract?.client || null" :correction="correction" @busy="invoicing = $event" @archived="markArchived" />
     </section>
   </div>
 </template>
@@ -110,6 +113,7 @@ import LeasingComparisonInvoice from '@/components/LeasingComparisonInvoice.vue'
 
 defineProps({ embedded: Boolean })
 const route = useRoute()
+const correction = ref(null), sourceLoading = ref(false), sourceError = ref(''), archivedSnapshot = ref(''), finalized = ref(false)
 const invoicing = ref(false)
 const reports = reactive([emptyReport(), emptyReport()])
 const emptyFile = () => ({ busy: false, elapsed: 0, status: 'Importez un PDF ou saisissez les valeurs manuellement.', previews: [], text: '' })
@@ -123,7 +127,9 @@ const controllers = [null, null]
 let alive = true, contractSequence = 0
 const fmt = value => Number(value).toLocaleString('fr-FR', { maximumFractionDigits: 2 })
 const dateLabel = value => value.split('-').reverse().join('/')
-const hasData = () => reports.some(r => r.date || r.serial || Object.values(r.counters).some(v => v !== '')) || busy.value
+const fingerprint = () => JSON.stringify({ reports, options })
+const hasData = () => busy.value || (reports.some(r => r.date || r.serial || Object.values(r.counters).some(v => v !== '')) && archivedSnapshot.value !== fingerprint())
+function markArchived() { archivedSnapshot.value = fingerprint(); finalized.value = true }
 
 watch(() => [reports, options.blackPrice, options.colorPrice, options.largeColor, options.a4], () => {
   options.verified = false; result.value = null; error.value = ''
@@ -146,6 +152,21 @@ async function loadContract() {
     options.colorPrice = data.prix_page_couleur_ht ?? 60
   } catch { if (alive && sequence === contractSequence) contractError.value = 'Contrat inaccessible. Vérifiez vos droits ou revenez à la liste.' }
   finally { if (alive && sequence === contractSequence) contractLoading.value = false }
+}
+async function loadCorrection() {
+  const id = String(route.query.correction || '')
+  if (!/^\d+$/.test(id)) { sourceError.value = 'Référence de correction invalide.'; return }
+  sourceLoading.value = true; sourceError.value = ''
+  try {
+    const { data } = await api.get('/leasing/comparaisons/' + id)
+    if (!alive) return
+    if (!data.modifiable || !Array.isArray(data.payload?.reports) || data.payload.reports.length !== 2) throw Error(data.blocage || 'Ce relevé ne peut pas être corrigé directement.')
+    correction.value = data
+    reports.splice(0, 2, ...data.payload.reports.map(report => ({ ...report, counters: { ...report.counters } })))
+    Object.assign(options, { blackPrice: data.payload.blackPrice, colorPrice: data.payload.colorPrice, largeColor: data.payload.largeColor, a4: false, verified: false })
+    archivedSnapshot.value = fingerprint()
+  } catch (e) { if (alive) sourceError.value = e.response?.data?.message || e.message || 'Chargement du relevé impossible.' }
+  finally { if (alive) sourceLoading.value = false }
 }
 async function importPdf(event, i) {
   const file = event.target.files?.[0]
@@ -179,7 +200,7 @@ function cancelReading(i) {
 }
 async function calculate() {
   result.value = null; error.value = ''
-  if (busy.value || contractLoading.value || contractError.value) return
+  if (busy.value || contractLoading.value || contractError.value || sourceLoading.value || sourceError.value) return
   try {
     result.value = compareReports(reports, { ...options, expectedSerial: contract.value?.imprimante?.numero_serie })
     await nextTick(); resultElement.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -210,10 +231,10 @@ async function canLeaveComparison() {
 }
 onBeforeRouteLeave(canLeaveComparison)
 onBeforeRouteUpdate((to, from) => {
-  if (to.query.tab !== 'releves' || to.query.vue !== 'comparaison' || to.query.contrat !== from.query.contrat) return canLeaveComparison()
+  if (to.query.tab !== 'releves' || to.query.vue !== 'comparaison' || to.query.contrat !== from.query.contrat || to.query.correction !== from.query.correction) return canLeaveComparison()
   return true
 })
-onMounted(() => { loadContract(); window.addEventListener('beforeunload', beforeUnload); window.addEventListener('afterprint', afterPrint) })
+onMounted(() => { if (route.query.correction) loadCorrection(); else loadContract(); window.addEventListener('beforeunload', beforeUnload); window.addEventListener('afterprint', afterPrint) })
 onBeforeUnmount(() => { alive = false; controllers.forEach(c => c?.abort()); afterPrint(); window.removeEventListener('beforeunload', beforeUnload); window.removeEventListener('afterprint', afterPrint) })
 </script>
 

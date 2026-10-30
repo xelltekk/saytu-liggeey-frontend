@@ -24,7 +24,8 @@
 
         <div v-if="facture" class="flex flex-wrap gap-2">
           <button type="button" class="btn-secondary" @click="ouvrirPdf">PDF</button>
-          <button v-if="!facture.livraison_verrouillee" type="button" class="btn-secondary" @click="setTab('saisie')">Modifier</button>
+          <button v-if="!facture.livraison_verrouillee && !facture.leasing_comparison_id" type="button" class="btn-secondary" @click="setTab('saisie')">Modifier</button>
+          <RouterLink v-if="facture.leasing_comparison_id" class="btn-secondary" :to="{ name: 'leasing', query: { tab: 'releves', suivi: facture.leasing_comparison_id } }">Relevé et corrections</RouterLink>
           <button
             v-if="canValidateInvoices && facture.type !== 'avoir' && facture.statut === 'brouillon'"
             type="button"
@@ -90,7 +91,7 @@
         </div>
         <div class="flex flex-wrap gap-2">
           <button type="button" class="rounded-full border border-sky-200 px-3 py-1.5 text-xs font-black text-sky-800 hover:bg-sky-50" @click="ouvrirPdf">PDF</button>
-          <button v-if="!facture.livraison_verrouillee" type="button" class="rounded-full border border-sky-200 px-3 py-1.5 text-xs font-black text-sky-800 hover:bg-sky-50" @click="setTab('saisie')">Modifier</button>
+          <button v-if="!facture.livraison_verrouillee && !facture.leasing_comparison_id" type="button" class="rounded-full border border-sky-200 px-3 py-1.5 text-xs font-black text-sky-800 hover:bg-sky-50" @click="setTab('saisie')">Modifier</button>
           <button v-if="canEncaisser" type="button" class="rounded-full bg-emerald-600 px-3 py-1.5 text-xs font-black text-white hover:bg-emerald-700" @click="setTab('paiements')">Encaisser</button>
           <button v-if="canRelancer(facture)" type="button" class="rounded-full border border-orange-200 px-3 py-1.5 text-xs font-black text-orange-800 hover:bg-orange-50" @click="setTab('suivi')">Relancer</button>
           <button v-if="canCreateAvoir" type="button" class="rounded-full border border-red-200 px-3 py-1.5 text-xs font-black text-red-700 hover:bg-red-50" @click="setTab('avoirs')">Avoir</button>
@@ -218,7 +219,7 @@
               </tbody>
             </table>
           </div>
-          <button v-if="!facture.livraison_verrouillee" type="button" class="btn-secondary" @click="setTab('saisie')">Modifier les lignes</button>
+          <button v-if="!facture.livraison_verrouillee && !facture.leasing_comparison_id" type="button" class="btn-secondary" @click="setTab('saisie')">Modifier les lignes</button>
         </section>
 
         <section v-else-if="activeTab === 'paiements' && facture" class="grid grid-cols-1 gap-4 xl:grid-cols-[0.9fr_1.1fr]">
@@ -593,7 +594,7 @@ const tabs = computed(() => [
   { key: 'historique', label: 'Historique', count: pilotage.value?.historique?.length ?? 0, create: false },
   { key: 'documents', label: 'Documents PDF', count: null, create: false },
 ])
-const visibleTabs = computed(() => tabs.value.filter(tab => (tab.create || !isCreate.value) && !(tab.key === 'saisie' && facture.value?.livraison_verrouillee)))
+const visibleTabs = computed(() => tabs.value.filter(tab => (tab.create || !isCreate.value) && !(tab.key === 'saisie' && (facture.value?.livraison_verrouillee || facture.value?.leasing_comparison_id))))
 
 function routeTab() {
   const tab = typeof route.query.tab === 'string' ? route.query.tab : ''
@@ -602,7 +603,7 @@ function routeTab() {
 }
 
 function setTab(tab) {
-  if (tab === 'saisie' && facture.value?.livraison_verrouillee) tab = 'fiche'
+  if (tab === 'saisie' && (facture.value?.livraison_verrouillee || facture.value?.leasing_comparison_id)) tab = 'fiche'
   activeTab.value = tab
   router.replace({ query: { ...route.query, tab } })
   if (tab === 'paiements') resetEncaissementForm()

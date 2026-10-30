@@ -37,6 +37,7 @@ try {
       }
       if(path.endsWith('/referentiels')) return route.fulfill({json:{clients:[],produits:[],imprimantes_disponibles:[],statuts_contrats:[],statuts_imprimantes:[]}})
       if(path.endsWith('/stats')) return route.fulfill({json:{contrats_actifs:100,imprimantes_disponibles:101,loyer_mensuel_ht:100000}})
+      if(path.endsWith('/comparaisons')) return route.fulfill({json:{data:[],current_page:1,last_page:1,total:0}})
       if(path.endsWith('/contrats')) return route.fulfill({json:paginate(contracts)})
       const contractId=path.match(/\/contrats\/(\d+)$/)?.[1]
       if(contractId) return route.fulfill({json:contracts.find(contract=>contract.id===Number(contractId))})
@@ -59,6 +60,7 @@ try {
     for (const [tab,region,last] of [['Parc imprimantes','Parc imprimantes','Machine fictive 101'],['Relevés compteur','Releves compteur','Page 2 / 2'],['Interventions','Interventions leasing','INT-101']]) {
       await page.getByRole('button',{name:tab,exact:true}).click()
       section=page.getByRole('region',{name:region,exact:true})
+      if(tab==='Relevés compteur') await section.getByText('Anciens relevés mensuels',{exact:true}).click()
       await section.getByRole('button',{name:'Afficher la page suivante',exact:true}).click()
       await expect(section.getByText(last,{exact:true})).toBeVisible()
     }
@@ -85,7 +87,7 @@ try {
     await page.getByRole('button',{name:'Historique',exact:true}).click()
     await page.getByRole('button',{name:'OK',exact:true}).click()
     await expect(page.getByRole('button',{name:'Historique',exact:true})).toHaveAttribute('aria-pressed','true')
-    await expect(page.getByRole('region',{name:'Releves compteur',exact:true}).getByRole('table')).toBeVisible()
+    await expect(page.getByRole('region',{name:'Comparaisons facturées',exact:true})).toBeVisible()
     await page.getByRole('button',{name:'Comparaison',exact:true}).click()
     await expect(page.getByLabel('Numéro de série précédent',{exact:true})).toHaveValue('')
     await page.getByRole('button',{name:'Contrats',exact:true}).click()

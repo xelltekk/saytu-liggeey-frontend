@@ -13,6 +13,7 @@ const router = createRouter({ history:createWebHashHistory(), routes:[
   {path:'/leasing/releves/nouveau',name:'leasing-releve-create',redirect:to=>leasingComparisonLocation(to.query)},
   {path:'/leasing/interventions/nouveau',name:'leasing-intervention-create',component:Intervention},
   {path:'/leasing/interventions/:id',name:'leasing-intervention-detail',component:Intervention},
+  {path:'/factures/:id',name:'facture-detail',component:placeholder},
   ...['leasing-contrat-create','leasing-imprimante-create','leasing-imprimante-detail'].map(name=>({path:'/test/'+name,name,component:placeholder})),
 ] })
 createApp({render:()=>h('main',{style:'max-width:1400px;min-width:0;margin:auto;padding:16px'},[h(RouterView),h(ConfirmDialogHost)])})
