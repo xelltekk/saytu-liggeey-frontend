@@ -10,7 +10,6 @@
           </p>
         </div>
         <div class="flex flex-wrap gap-2">
-          <RouterLink class="btn-secondary bg-white/95 text-slate-900 hover:bg-white" :to="{ name: 'leasing-comparaison' }">Comparer deux relevés</RouterLink>
           <button type="button" class="btn-secondary bg-white/95 text-slate-900 hover:bg-white" @click="openImprimanteModal">+ Imprimante</button>
           <button type="button" class="btn-secondary bg-white/95 text-slate-900 hover:bg-white" @click="openContratModal">+ Contrat</button>
           <button type="button" class="btn-primary bg-white text-xelltekk-700 hover:bg-blue-50" @click="openReleveModal">+ Relevé</button>
@@ -45,7 +44,7 @@
 
     <section class="rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
       <div class="flex flex-wrap gap-2">
-        <button v-for="tab in tabs" :key="tab.key" type="button" class="rounded-xl px-4 py-2 text-sm font-semibold transition" :class="activeTab === tab.key ? 'bg-xelltekk-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'" @click="activeTab = tab.key">
+        <button v-for="tab in tabs" :key="tab.key" type="button" class="rounded-xl px-4 py-2 text-sm font-semibold transition" :class="activeTab === tab.key ? 'bg-xelltekk-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'" @click="selectTab(tab.key)">
           {{ tab.label }}
         </button>
       </div>
@@ -101,7 +100,7 @@
                   <button v-if="contrat.statut === 'brouillon'" type="button" class="text-sm font-semibold text-emerald-700 hover:text-emerald-900" @click="activerContrat(contrat)">Activer</button>
                   <button v-if="['actif', 'suspendu'].includes(contrat.statut)" type="button" class="text-sm font-semibold text-orange-700 hover:text-orange-900" @click="cloturerContrat(contrat)">Clôturer</button>
                   <button type="button" class="text-sm font-semibold text-xelltekk-700 hover:text-xelltekk-900" @click="openReleveModal(contrat)">Relevé</button>
-                  <RouterLink class="text-sm font-semibold text-blue-700" :to="{ name: 'leasing-comparaison', query: { contrat: contrat.id } }">Comparer</RouterLink>
+                  <RouterLink class="text-sm font-semibold text-blue-700" :to="leasingComparisonLocation({ contrat: contrat.id })">Comparer</RouterLink>
                   <button type="button" class="text-sm font-semibold text-blue-700 hover:text-blue-900" @click="downloadContratPdf(contrat)">Contrat PDF</button>
                 </div>
               </td>
@@ -183,15 +182,17 @@
       </div>
     </section>
 
-    <section v-if="activeTab === 'releves'" aria-label="Releves compteur" class="rounded-2xl border border-slate-200 bg-white shadow-sm">
-      <fieldset :disabled="listLoading.releves"><AppPagination v-if="pages.releves.total" :meta="pages.releves" label="releves" @page="loadReleves" /></fieldset>
-      <div class="flex items-center justify-between border-b border-slate-100 p-4">
-        <div>
-          <h3 class="font-bold text-slate-900">Relevés compteur</h3>
-          <p class="text-sm text-slate-500">Pages consommées et dépassements de forfait.</p>
+    <section v-if="activeTab === 'releves'" aria-label="Releves compteur" class="space-y-4">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <h3 class="font-bold text-slate-900">Relevés compteur</h3>
+        <div role="group" aria-label="Affichage des relevés" class="inline-flex rounded-lg border border-slate-200 bg-white p-1">
+          <button type="button" :aria-pressed="!comparisonActive" class="rounded-md px-3 py-2 text-sm font-semibold" :class="!comparisonActive ? 'bg-xelltekk-600 text-white' : 'text-slate-600 hover:bg-slate-100'" @click="selectTab('releves')">Historique</button>
+          <button type="button" :aria-pressed="comparisonActive" class="rounded-md px-3 py-2 text-sm font-semibold" :class="comparisonActive ? 'bg-xelltekk-600 text-white' : 'text-slate-600 hover:bg-slate-100'" @click="router.push(leasingComparisonLocation(route.query))">Comparaison</button>
         </div>
-        <button class="btn-primary" @click="openReleveModal">+ Relevé</button>
       </div>
+      <LeasingComparaisonView v-if="comparisonActive" :key="String(route.query.contrat || '')" embedded />
+      <div v-else class="overflow-hidden rounded-lg border border-slate-200 bg-white">
+      <fieldset :disabled="listLoading.releves"><AppPagination v-if="pages.releves.total" :meta="pages.releves" label="releves" @page="loadReleves" /></fieldset>
       <div class="overflow-x-auto">
         <table class="w-full min-w-[1220px]">
           <thead class="bg-slate-50 text-xs uppercase text-slate-500">
@@ -246,6 +247,7 @@
             </tr>
           </tbody>
         </table>
+      </div>
       </div>
     </section>
 
@@ -369,6 +371,8 @@ import { useAuthStore } from '@/stores/auth'
 import { hasAnyRole } from '@/utils/access'
 import AppPagination from '@/components/AppPagination.vue'
 import { pageMeta } from '@/services/leasingLists.mjs'
+import { leasingTabLocation, leasingComparisonLocation } from '@/services/leasingNavigation.mjs'
+import LeasingComparaisonView from './LeasingComparaisonView.vue'
 
 const toast = useToast()
 const auth = useAuthStore()
@@ -376,6 +380,7 @@ const { confirm: askConfirm } = useConfirm()
 const route = useRoute()
 const router = useRouter()
 const activeTab = ref(tabFromRoute(route.query) || 'contrats')
+const comparisonActive = computed(() => route.query.vue === 'comparaison')
 const loading = ref(false)
 const saving = ref(false)
 const previewLoading = ref(false)
@@ -494,7 +499,7 @@ watch(
 
 function applyRouteContext(reload = false) {
   const tab = tabFromRoute(route.query)
-  if (tab) activeTab.value = tab
+  activeTab.value = tab || 'contrats'
 
   if (tab === 'interventions' && route.query.search !== undefined) {
     const search = String(route.query.search || '')
@@ -503,6 +508,10 @@ function applyRouteContext(reload = false) {
       if (reload) loadInterventions()
     }
   }
+}
+
+function selectTab(tab) {
+  return router.push(leasingTabLocation(tab, route.query))
 }
 
 function tabFromRoute(query = {}) {

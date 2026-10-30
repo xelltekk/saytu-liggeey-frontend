@@ -104,15 +104,39 @@ test('asynchronous OCR initialization failure returns a useful error and keeps i
 function view() {
   const file = readFileSync(new URL('../src/views/LeasingComparaisonView.vue', import.meta.url), 'utf8')
   const script = file.split('<script setup>')[1].split('</script>')[0].replace(/^import .*$/gm, '')
-  const cleanup = [], route = { query: {} }, api = { get: async () => ({ data: {} }) }
+  const cleanup = [], guards = {}, route = { query: {} }, api = { get: async () => ({ data: {} }) }
   const context = vm.createContext({ ref, reactive, computed, watch, nextTick, emptyReport, compareReports, comparisonCsv, AbortController,
     setInterval, clearInterval,
-    useRoute: () => route, api, onBeforeRouteLeave() {}, onMounted() {}, onBeforeUnmount: fn => cleanup.push(fn),
+    useRoute: () => route, api, defineProps: () => ({}),
+    onBeforeRouteLeave: fn => { guards.leave = fn }, onBeforeRouteUpdate: fn => { guards.update = fn },
+    onMounted() {}, onBeforeUnmount: fn => cleanup.push(fn),
     appConfirm: async () => true, window: { removeEventListener() {} }, document: { body: { classList: { remove() {} } } },
     readLeasingPdf: async () => ({ report: sample()[0], previews: [], text: '' }) })
-  vm.runInContext(script + '\nglobalThis.v = { reports, options, result, files, busy, calculate, reset, importPdf, cancelReading, loadContract, contract, contractError, contractLoading };', context)
-  return { ...context.v, api, route, context, cleanup, file }
+  vm.runInContext(script + '\nglobalThis.v = { reports, options, result, files, busy, invoicing, calculate, reset, importPdf, cancelReading, loadContract, contract, contractError, contractLoading };', context)
+  return { ...context.v, api, route, context, cleanup, file, guards }
 }
+
+test('switching readings mode, tab or contract protects unexported comparison data', async () => {
+  const p = view()
+  const from = { query: { tab: 'releves', vue: 'comparaison', contrat: '1' } }
+  let confirmations = 0
+  p.context.appConfirm = async () => { confirmations++; return false }
+  assert.equal(await p.guards.update({ query: { tab: 'releves' } }, from), true)
+  p.reports[0].serial = 'UNEXPORTED'
+  for (const query of [{ tab: 'releves' }, { tab: 'contrats' }, { ...from.query, contrat: '2' }]) {
+    assert.equal(await p.guards.update({ query }, from), false)
+    assert.equal(p.reports[0].serial, 'UNEXPORTED')
+  }
+  assert.equal(confirmations, 3)
+  assert.equal(await p.guards.update({ query: { ...from.query, search: 'unchanged view' } }, from), true)
+  assert.equal(confirmations, 3)
+  assert.equal(await p.guards.leave(), false)
+  p.context.appConfirm = async () => true
+  assert.equal(await p.guards.update({ query: { tab: 'releves' } }, from), true)
+  p.invoicing.value = true
+  assert.equal(await p.guards.update({ query: { tab: 'releves' } }, from), false)
+  assert.equal(await p.guards.leave(), false)
+})
 test('editing a counter removes old result and requires reconfirmation', async () => {
   const p = view(); p.reports.splice(0, 2, ...sample()); Object.assign(p.options, opts()); p.options.verified = true; await nextTick()
   await p.calculate(); assert.equal(p.result.value.total, 129580)

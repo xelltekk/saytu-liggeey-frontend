@@ -1,6 +1,6 @@
 <template>
   <div class="comparison space-y-5">
-    <header class="rounded-3xl border border-cyan-200 bg-cyan-50 p-6">
+    <header v-if="!embedded" class="rounded-3xl border border-cyan-200 bg-cyan-50 p-6">
       <RouterLink :to="{ name: 'leasing', query: { tab: 'releves' } }" class="font-bold text-cyan-800">← Retour liste</RouterLink>
       <p class="mt-5 text-xs font-bold uppercase tracking-widest text-cyan-800">Leasing imprimantes · Compteurs Canon</p>
       <h1 class="mt-2 text-3xl font-bold text-slate-900">Comparer deux relevés</h1>
@@ -102,12 +102,13 @@
 <script setup>
 import { requestConfirmation as appConfirm } from '@/composables/useConfirm'
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
-import { onBeforeRouteLeave, useRoute } from 'vue-router'
+import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute } from 'vue-router'
 import api from '@/services/api'
 import { emptyReport, compareReports, comparisonCsv } from '@/utils/leasingComparison.mjs'
 import { readLeasingPdf } from '@/services/leasingPdfReader.mjs'
 import LeasingComparisonInvoice from '@/components/LeasingComparisonInvoice.vue'
 
+defineProps({ embedded: Boolean })
 const route = useRoute()
 const invoicing = ref(false)
 const reports = reactive([emptyReport(), emptyReport()])
@@ -204,7 +205,14 @@ function printResult() {
 }
 function afterPrint() { document.body.classList.remove('printing-leasing-comparison') }
 function beforeUnload(event) { if (hasData()) { event.preventDefault(); event.returnValue = '' } }
-onBeforeRouteLeave(async () => !invoicing.value && (!hasData() || await appConfirm('Quitter la comparaison ? Les données non exportées seront perdues.')))
+async function canLeaveComparison() {
+  return !invoicing.value && (!hasData() || await appConfirm('Quitter la comparaison ? Les données non exportées seront perdues.'))
+}
+onBeforeRouteLeave(canLeaveComparison)
+onBeforeRouteUpdate((to, from) => {
+  if (to.query.tab !== 'releves' || to.query.vue !== 'comparaison' || to.query.contrat !== from.query.contrat) return canLeaveComparison()
+  return true
+})
 onMounted(() => { loadContract(); window.addEventListener('beforeunload', beforeUnload); window.addEventListener('afterprint', afterPrint) })
 onBeforeUnmount(() => { alive = false; controllers.forEach(c => c?.abort()); afterPrint(); window.removeEventListener('beforeunload', beforeUnload); window.removeEventListener('afterprint', afterPrint) })
 </script>

@@ -4,6 +4,7 @@ import vm from 'node:vm'
 import { readFileSync } from 'node:fs'
 import { ref, reactive, computed, watch, nextTick } from 'vue'
 import { leasingOptions, pageMeta } from '../src/services/leasingLists.mjs'
+import { leasingTabLocation, leasingComparisonLocation } from '../src/services/leasingNavigation.mjs'
 
 function mount(view, extra = {}) {
   const source = readFileSync(new URL(`../src/views/${view}.vue`, import.meta.url), 'utf8').split('<script setup>')[1].split('</script>')[0].replace(/^import .*$/gm, '')
@@ -12,7 +13,7 @@ function mount(view, extra = {}) {
     useRoute: () => ({query:{},params:{}}), useRouter: () => ({push:()=>{}}),
     useToast: () => ({error:()=>{},success:()=>{}}), useConfirm: () => ({confirm:async()=>true}),
     useAuthStore: () => ({user:{role:'admin'}}), hasAnyRole:()=>true, setTimeout:()=>1, clearTimeout:()=>{}, api,
-    pageMeta, leasingOptions,
+    pageMeta, leasingOptions, leasingTabLocation, leasingComparisonLocation,
   })
   vm.runInContext(source + `\nglobalThis.component = { ${extra.expose || ''} }`, context)
   return { ...context.component, api, calls }

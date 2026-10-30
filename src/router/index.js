@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { isXelltekkAdmin } from '@/utils/platformAccess'
 import { businessPermission } from '@/utils/businessModules'
+import { leasingComparisonLocation } from '@/services/leasingNavigation.mjs'
 
 const routes = [
   {
@@ -278,7 +279,7 @@ const routes = [
       {
         path: 'leasing/comparaison',
         name: 'leasing-comparaison',
-        component: () => import('@/views/LeasingComparaisonView.vue'),
+        redirect: to => ({ ...leasingComparisonLocation(to.query), hash: to.hash }),
       },
       {
         path: 'leasing/imprimantes/nouveau',
