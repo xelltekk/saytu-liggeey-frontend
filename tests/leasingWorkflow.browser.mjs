@@ -31,12 +31,6 @@ try {
         const page=Number(params.get('page')||1),per=Number(params.get('per_page')||100),start=(page-1)*per
         return {data:rows.slice(start,start+per),current_page:page,last_page:Math.ceil(rows.length/per),total:rows.length,from:start+1,to:Math.min(rows.length,start+per)}
       }
-      if(path.endsWith('/releves/previsualiser')) {
-        const data=request.postDataJSON()
-        return route.fulfill({json:{ancien_compteur_noir:10000,compteur_noir:data.compteur_noir,ancien_compteur_couleur:null,
-          copies_noir:data.compteur_noir==null?0:data.compteur_noir-10000,copies_couleur:0,montant_supp_ht:500,loyer_periode_ht:1000,
-          total_ht:1500,total_tva:270,total_ttc:1770,echeance_facturation:'2026-12-31'}})
-      }
       if(request.method()!=='GET') {
         writes.push({path,data:request.postDataJSON()})
         return route.fulfill({status:201,json:{id:900}})
@@ -44,7 +38,8 @@ try {
       if(path.endsWith('/referentiels')) return route.fulfill({json:{clients:[],produits:[],imprimantes_disponibles:[],statuts_contrats:[],statuts_imprimantes:[]}})
       if(path.endsWith('/stats')) return route.fulfill({json:{contrats_actifs:100,imprimantes_disponibles:101,loyer_mensuel_ht:100000}})
       if(path.endsWith('/contrats')) return route.fulfill({json:paginate(contracts)})
-      if(path.endsWith('/contrats/1')) return route.fulfill({json:contracts[0]})
+      const contractId=path.match(/\/contrats\/(\d+)$/)?.[1]
+      if(contractId) return route.fulfill({json:contracts.find(contract=>contract.id===Number(contractId))})
       if(path.endsWith('/imprimantes')) return route.fulfill({json:paginate(printers)})
       if(path.endsWith('/releves')) return route.fulfill({json:paginate(readings)})
       if(path.endsWith('/interventions')) return route.fulfill({json:{...paginate(interventions),summary:{ouvertes:101,terminees:0,cout_ht:1010,techniciens:1}}})
@@ -97,15 +92,23 @@ try {
     await expect(page.getByRole('region',{name:'Contrats de leasing',exact:true})).toBeVisible()
     await page.goBack()
     await expect(page.getByRole('button',{name:'Comparaison',exact:true})).toHaveAttribute('aria-pressed','true')
-    await page.goto(base+'#/leasing/releves/nouveau')
-    await expect(page.getByRole('heading',{name:'Nouveau relevé compteur',exact:true})).toBeVisible()
-    const contractSelect=page.getByRole('combobox',{name:'Contrat',exact:true})
-    await expect(contractSelect.locator('option[value="101"]')).toHaveCount(1)
-    await expect(contractSelect.locator('option[value="2"]')).toHaveCount(0)
-    await contractSelect.selectOption('101')
-    await expect(page.getByLabel('Ancien comptage noir',{exact:true})).toHaveValue('10000')
-    await page.getByLabel('Nouveau comptage noir',{exact:true}).fill('10150')
-    await expect(page.getByText('150 pages noir · 0 pages couleur',{exact:true})).toBeVisible()
+    await page.goto(base+'#/leasing/releves/nouveau?contrat_id=1')
+    await expect(page.getByRole('button',{name:'Calculer la consommation',exact:true})).toBeVisible()
+    await expect(page.getByText('LC-1 · Client fictif 1',{exact:true})).toBeVisible()
+    await expect(page.getByRole('heading',{name:'Nouveau relevé compteur',exact:true})).toHaveCount(0)
+    await expect(page.getByLabel('Ancien comptage noir',{exact:true})).toHaveCount(0)
+    assert.match(page.url(),/contrat=1/)
+    assert.doesNotMatch(page.url(),/contrat_id=/)
+    await page.getByRole('button',{name:'Contrats',exact:true}).click()
+    await page.getByRole('button',{name:'+ Relevé',exact:true}).click()
+    await expect(page.getByRole('button',{name:'Comparaison',exact:true})).toHaveAttribute('aria-pressed','true')
+    await expect(page.locator('input[type=file]')).toHaveCount(2)
+    await page.getByRole('button',{name:'Contrats',exact:true}).click()
+    const contractSection=page.getByRole('region',{name:'Contrats de leasing',exact:true})
+    await expect(contractSection.getByRole('link',{name:'Comparer',exact:true})).toHaveCount(0)
+    await contractSection.getByRole('button',{name:'Relevé',exact:true}).first().click()
+    await expect(page.getByText(/Tarifs du contrat préremplis/)).toBeVisible()
+    await expect(page.getByRole('button',{name:'Calculer la consommation',exact:true})).toBeVisible()
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false)
     await page.screenshot({path:join(output,`reading-${width}.png`)})
     await page.goto(base+'#/leasing/interventions/900')
@@ -121,7 +124,7 @@ try {
     assert.equal(writes[0].data.imprimante_id,1101)
     assert.deepEqual(unexpected,[])
     assert.deepEqual(errors,[])
-    console.log(`PASS ${width}px: four paginated lists, complete selectors, draft exclusion, preview and intervention synchronization; no real API writes`)
+    console.log(`PASS ${width}px: paginated history, replacement reading workflow, legacy links, contract context and intervention synchronization; no real API writes`)
     await context.close()
   }
 } finally {await browser.close()}

@@ -2,7 +2,6 @@ import { createApp, h } from 'vue'
 import { createPinia } from 'pinia'
 import { createRouter, createWebHashHistory, RouterView } from 'vue-router'
 import List from '../../src/views/LeasingView.vue'
-import Reading from '../../src/views/LeasingReleveDetailView.vue'
 import Intervention from '../../src/views/LeasingInterventionDetailView.vue'
 import ConfirmDialogHost from '../../src/components/ConfirmDialogHost.vue'
 import '../../src/style.css'
@@ -11,7 +10,7 @@ const placeholder = { render: () => h('p', 'Fiche de test') }
 const router = createRouter({ history:createWebHashHistory(), routes:[
   {path:'/leasing',name:'leasing',component:List},
   {path:'/leasing/comparaison',name:'leasing-comparaison',redirect:to=>leasingComparisonLocation(to.query)},
-  {path:'/leasing/releves/nouveau',name:'leasing-releve-create',component:Reading},
+  {path:'/leasing/releves/nouveau',name:'leasing-releve-create',redirect:to=>leasingComparisonLocation(to.query)},
   {path:'/leasing/interventions/nouveau',name:'leasing-intervention-create',component:Intervention},
   {path:'/leasing/interventions/:id',name:'leasing-intervention-detail',component:Intervention},
   ...['leasing-contrat-create','leasing-imprimante-create','leasing-imprimante-detail'].map(name=>({path:'/test/'+name,name,component:placeholder})),

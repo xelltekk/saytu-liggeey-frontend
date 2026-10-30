@@ -100,7 +100,6 @@
                   <button v-if="contrat.statut === 'brouillon'" type="button" class="text-sm font-semibold text-emerald-700 hover:text-emerald-900" @click="activerContrat(contrat)">Activer</button>
                   <button v-if="['actif', 'suspendu'].includes(contrat.statut)" type="button" class="text-sm font-semibold text-orange-700 hover:text-orange-900" @click="cloturerContrat(contrat)">Clôturer</button>
                   <button type="button" class="text-sm font-semibold text-xelltekk-700 hover:text-xelltekk-900" @click="openReleveModal(contrat)">Relevé</button>
-                  <RouterLink class="text-sm font-semibold text-blue-700" :to="leasingComparisonLocation({ contrat: contrat.id })">Comparer</RouterLink>
                   <button type="button" class="text-sm font-semibold text-blue-700 hover:text-blue-900" @click="downloadContratPdf(contrat)">Contrat PDF</button>
                 </div>
               </td>
@@ -383,9 +382,7 @@ const activeTab = ref(tabFromRoute(route.query) || 'contrats')
 const comparisonActive = computed(() => route.query.vue === 'comparaison')
 const loading = ref(false)
 const saving = ref(false)
-const previewLoading = ref(false)
 const moduleWarning = ref('')
-const relevePreview = ref(null)
 const factureLoadingId = ref(null)
 
 const tabs = [
@@ -424,15 +421,12 @@ const filters = reactive({
 
 const showImprimanteModal = ref(false)
 const showContratModal = ref(false)
-const showReleveModal = ref(false)
 const showInterventionModal = ref(false)
 
 const imprimanteForm = reactive(defaultImprimanteForm())
 const contratForm = reactive(defaultContratForm())
-const releveForm = reactive(defaultReleveForm())
 const interventionForm = reactive(defaultInterventionForm())
 
-const contratsReleves = computed(() => contrats.value.filter(item => ['brouillon', 'actif', 'suspendu'].includes(item.statut)))
 const interventionSummary = reactive({})
 const interventionStats = computed(() => {
   const rows = interventions.value || []
@@ -443,38 +437,9 @@ const interventionStats = computed(() => {
     techniciens: interventionSummary.techniciens ?? new Set(rows.map(item => item.technicien).filter(Boolean)).size,
   }
 })
-let relevePreviewTimer = null
-
-watch(
-  () => [
-    showReleveModal.value,
-    releveForm.contrat_id,
-    releveForm.periode,
-    releveForm.ancien_compteur_noir,
-    releveForm.compteur_noir,
-    releveForm.ancien_compteur_couleur,
-    releveForm.compteur_couleur,
-  ],
-  () => scheduleRelevePreview()
-)
-
 watch(showImprimanteModal, (isOpen) => {
   if (!isOpen) editingImprimante.value = null
 })
-
-watch(
-  () => [releveForm.contrat_id, releveForm.periode],
-  ([contratId, periode], [oldContratId, oldPeriode] = []) => {
-    if (!showReleveModal.value || oldContratId === undefined) return
-    if (contratId !== oldContratId || periode !== oldPeriode) {
-      releveForm.ancien_compteur_noir = ''
-      releveForm.ancien_compteur_couleur = ''
-      releveForm.compteur_noir = ''
-      releveForm.compteur_couleur = ''
-      relevePreview.value = null
-    }
-  }
-)
 
 onMounted(init)
 
@@ -584,10 +549,7 @@ function openContratModal() {
 }
 
 function openReleveModal(contrat = null) {
-  router.push({
-    name: 'leasing-releve-create',
-    query: contrat?.id ? { contrat_id: contrat.id } : {},
-  })
+  router.push(leasingComparisonLocation(contrat?.id ? { contrat: contrat.id } : {}))
 }
 
 function openInterventionModal() {
@@ -638,68 +600,6 @@ async function saveContrat() {
     await refreshAll()
   } catch (error) {
     handleApiError(error, 'Enregistrement du contrat impossible.')
-  } finally {
-    saving.value = false
-  }
-}
-
-function scheduleRelevePreview() {
-  if (relevePreviewTimer) clearTimeout(relevePreviewTimer)
-  if (!showReleveModal.value || !releveForm.contrat_id || !releveForm.periode) {
-    relevePreview.value = null
-    return
-  }
-  relevePreviewTimer = setTimeout(() => previewReleve(true), 450)
-}
-
-async function previewReleve(silent = false) {
-  if (!releveForm.contrat_id || !releveForm.periode) return
-  previewLoading.value = true
-  try {
-    const { data } = await api.post('/leasing/releves/previsualiser', normalizePayload({
-      contrat_id: releveForm.contrat_id,
-      periode: releveForm.periode,
-      ancien_compteur_noir: releveForm.ancien_compteur_noir,
-      compteur_noir: releveForm.compteur_noir,
-      ancien_compteur_couleur: releveForm.ancien_compteur_couleur,
-      compteur_couleur: releveForm.compteur_couleur,
-    }))
-    relevePreview.value = data
-    hydrateAncienCompteurs(data)
-  } catch (error) {
-    if (!silent) handleApiError(error, 'Calcul du relevé impossible.')
-  } finally {
-    previewLoading.value = false
-  }
-}
-
-function hydrateAncienCompteurs(data) {
-  if (!data) return
-  if (isEmptyCounter(releveForm.ancien_compteur_noir)) {
-    releveForm.ancien_compteur_noir = data.ancien_compteur_noir ?? 0
-  }
-  if (isEmptyCounter(releveForm.ancien_compteur_couleur) && data.ancien_compteur_couleur !== null && data.ancien_compteur_couleur !== undefined) {
-    releveForm.ancien_compteur_couleur = data.ancien_compteur_couleur
-  }
-}
-
-function isEmptyCounter(value) {
-  return value === '' || value === null || value === undefined
-}
-
-async function saveReleve() {
-  saving.value = true
-  try {
-    const payload = new FormData()
-    for (const [key, value] of Object.entries(releveForm)) {
-      if (value !== '' && value !== null && value !== undefined) payload.append(key, value)
-    }
-    await api.post('/leasing/releves', payload, { headers: { 'Content-Type': 'multipart/form-data' } })
-    toast.success('Relevé compteur enregistré.')
-    showReleveModal.value = false
-    await refreshAll()
-  } catch (error) {
-    handleApiError(error, 'Enregistrement du relevé impossible.')
   } finally {
     saving.value = false
   }
@@ -885,19 +785,6 @@ function defaultContratForm() {
   }
 }
 
-function defaultReleveForm() {
-  return {
-    contrat_id: '',
-    periode: today().slice(0, 7),
-    ancien_compteur_noir: '',
-    compteur_noir: '',
-    ancien_compteur_couleur: '',
-    compteur_couleur: '',
-    fichier_releve: null,
-    notes: '',
-  }
-}
-
 function defaultInterventionForm() {
   return {
     contrat_id: '',
@@ -930,10 +817,6 @@ function interventionToForm(intervention) {
     notes: intervention.notes || '',
   }
 }
-function onReleveFileChange(event) {
-  releveForm.fichier_releve = event.target.files?.[0] || null
-}
-
 function today() {
   return new Date().toISOString().slice(0, 10)
 }

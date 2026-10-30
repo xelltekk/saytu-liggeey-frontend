@@ -299,7 +299,7 @@ const routes = [
       {
         path: 'leasing/releves/nouveau',
         name: 'leasing-releve-create',
-        component: () => import('@/views/LeasingReleveDetailView.vue'),
+        redirect: to => ({ ...leasingComparisonLocation(to.query), hash: to.hash }),
       },
       {
         path: 'leasing/interventions/nouveau',

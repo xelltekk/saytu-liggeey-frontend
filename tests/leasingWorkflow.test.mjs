@@ -9,14 +9,15 @@ import { leasingTabLocation, leasingComparisonLocation } from '../src/services/l
 function mount(view, extra = {}) {
   const source = readFileSync(new URL(`../src/views/${view}.vue`, import.meta.url), 'utf8').split('<script setup>')[1].split('</script>')[0].replace(/^import .*$/gm, '')
   const calls = [], api = { get: async (url, config) => { calls.push({ url, config }); return { data: { data: [], current_page: 1, last_page: 1, total: 0 } } }, post: async () => ({data:{}}) }
+  const navigation = []
   const context = vm.createContext({ ref, reactive, computed, watch, nextTick, onMounted: () => {}, onBeforeUnmount: () => {},
-    useRoute: () => ({query:{},params:{}}), useRouter: () => ({push:()=>{}}),
+    useRoute: () => ({query:{},params:{}}), useRouter: () => ({push:location=>navigation.push(location)}),
     useToast: () => ({error:()=>{},success:()=>{}}), useConfirm: () => ({confirm:async()=>true}),
     useAuthStore: () => ({user:{role:'admin'}}), hasAnyRole:()=>true, setTimeout:()=>1, clearTimeout:()=>{}, api,
     pageMeta, leasingOptions, leasingTabLocation, leasingComparisonLocation,
   })
   vm.runInContext(source + `\nglobalThis.component = { ${extra.expose || ''} }`, context)
-  return { ...context.component, api, calls }
+  return { ...context.component, api, calls, navigation }
 }
 
 test('select options include every page and refuse a broken pagination response', async () => {
@@ -62,27 +63,16 @@ test('changing an intervention contract replaces its printer and clearing it rem
   c.form.contrat_id='';await nextTick();assert.equal(c.form.imprimante_id,'')
 })
 
-test('an unknown legacy baseline stays blank and drafts are not offered for readings', async () => {
-  const c=mount('LeasingReleveDetailView',{expose:'form,contrats,contratsReleves,hydrateAncienCompteurs'})
-  c.hydrateAncienCompteurs({ancien_compteur_noir:null,ancien_compteur_couleur:null})
-  assert.equal(c.form.ancien_compteur_noir,'')
-  c.contrats.value=[{id:1,statut:'brouillon'},{id:2,statut:'actif'}]
-  assert.deepEqual(Array.from(c.contratsReleves.value,r=>r.id),[2])
-})
-
-test('late calculation cannot hydrate a different contract and failures clear the old estimate', async () => {
-  const c=mount('LeasingReleveDetailView',{expose:'form,preview,previewError,previewReleve'})
-  c.form.contrat_id=1;await nextTick()
-  let resolveOld
-  c.api.post=()=>new Promise(resolve=>resolveOld=resolve)
-  const old=c.previewReleve(true)
-  c.form.contrat_id=2;await nextTick()
-  resolveOld({data:{ancien_compteur_noir:999,total_ht:500}});await old
-  assert.equal(c.preview.value,null)
-  assert.equal(c.form.ancien_compteur_noir,'')
-  c.preview.value={total_ht:500}
-  c.api.post=async()=>{throw {response:{data:{message:'Periode obsolete'}}}}
-  await c.previewReleve(true)
-  assert.equal(c.preview.value,null)
-  assert.match(c.previewError.value,/obsolete/)
+test('every new-reading action opens the replacement comparison without creating a monthly reading', () => {
+  const c=mount('LeasingView',{expose:'openReleveModal'})
+  c.openReleveModal()
+  c.openReleveModal({id:101})
+  c.openReleveModal({type:'click'})
+  assert.equal(c.navigation[0].name,'leasing')
+  assert.equal(c.navigation[0].query.tab,'releves')
+  assert.equal(c.navigation[0].query.vue,'comparaison')
+  assert.equal(c.navigation[0].query.contrat,undefined)
+  assert.equal(c.navigation[1].query.contrat,101)
+  assert.equal(c.navigation[2].query.contrat,undefined)
+  assert.equal(c.calls.length,0)
 })
