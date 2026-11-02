@@ -7,12 +7,15 @@
       <p class="mt-2 text-slate-700">Importez les PDF, vérifiez les valeurs reconnues et calculez la consommation A4 de la période.</p>
     </header>
 
+    <LeasingContractPicker v-if="!route.query.contrat && !route.query.correction && !route.query.preparation" />
     <div v-if="contractLoading" role="status" class="panel">Chargement du contrat…</div>
     <div v-if="contractError" role="alert" class="panel text-red-800">{{ contractError }} <button class="btn-secondary" @click="loadContract">Réessayer</button></div>
     <div v-if="contract" class="panel">
       <strong>{{ contract.numero }} · {{ contract.client?.nom }}</strong>
       <p>{{ contract.imprimante?.designation }} · Série : {{ contract.imprimante?.numero_serie || 'Non renseignée' }}</p>
-      <p class="mt-2 text-sm">Tarifs du contrat préremplis. Cette comparaison n’applique ni le forfait de pages, ni le loyer, ni la TVA ; elle ne constitue pas une facture.</p>
+      <p class="mt-2 text-sm">Tarifs, forfait fixe et TVA préremplis depuis le contrat. Vérifiez le forfait pour la période : aucun prorata automatique ni pages incluses.</p>
+      <p v-if="previousLoaded" class="mt-2 font-semibold">Dernier relevé facturé repris comme point de départ. Vérifiez-le avant de calculer.</p>
+      <LeasingContractRates :key="contract.id" :contract="contract" :disabled="invoicing" />
     </div>
 
     <div class="panel text-sm">
@@ -97,7 +100,7 @@
         <button class="btn-primary" @click="printResult">Imprimer / enregistrer en PDF</button>
         <button class="btn-secondary" @click="exportCsv">Exporter CSV</button>
       </div>
-      <LeasingComparisonInvoice :result="result" :reports="reports" :options="options" :client="contract?.client || null" :correction="correction" @busy="invoicing = $event" @archived="markArchived" />
+      <LeasingComparisonInvoice :result="result" :reports="reports" :options="options" :client="contract?.client || null" :contract="contract" :preparation="preparation" :correction="correction" @busy="invoicing = $event" @archived="markArchived" @prepared="markPrepared" @billing="Object.assign(options, $event)" />
     </section>
   </div>
 </template>
@@ -110,6 +113,8 @@ import api from '@/services/api'
 import { emptyReport, compareReports, comparisonCsv } from '@/utils/leasingComparison.mjs'
 import { readLeasingPdf } from '@/services/leasingPdfReader.mjs'
 import LeasingComparisonInvoice from '@/components/LeasingComparisonInvoice.vue'
+import LeasingContractPicker from '@/components/LeasingContractPicker.vue'
+import LeasingContractRates from '@/components/LeasingContractRates.vue'
 
 defineProps({ embedded: Boolean })
 const route = useRoute()
@@ -123,6 +128,7 @@ const counters = [{ code: '102', label: 'Total 2' }, { code: '409', label: 'Coul
 const busy = computed(() => files.some(f => f.busy))
 const result = ref(null), resultElement = ref(null), error = ref(''), fileKey = ref(0)
 const contract = ref(null), contractLoading = ref(false), contractError = ref('')
+const preparation = ref(null), previousLoaded = ref(false)
 const controllers = [null, null]
 let alive = true, contractSequence = 0
 const fmt = value => Number(value).toLocaleString('fr-FR', { maximumFractionDigits: 2 })
@@ -130,6 +136,7 @@ const dateLabel = value => value.split('-').reverse().join('/')
 const fingerprint = () => JSON.stringify({ reports, options })
 const hasData = () => busy.value || (reports.some(r => r.date || r.serial || Object.values(r.counters).some(v => v !== '')) && archivedSnapshot.value !== fingerprint())
 function markArchived() { archivedSnapshot.value = fingerprint(); finalized.value = true }
+function markPrepared(row) { preparation.value = row; archivedSnapshot.value = fingerprint() }
 
 watch(() => [reports, options.blackPrice, options.colorPrice, options.largeColor, options.a4], () => {
   options.verified = false; result.value = null; error.value = ''
@@ -145,13 +152,39 @@ async function loadContract() {
   if (!/^\d+$/.test(String(route.query.contrat))) { contractError.value = 'Référence de contrat invalide.'; return }
   contractLoading.value = true
   try {
-    const { data } = await api.get(`/leasing/contrats/${route.query.contrat}`)
+    const { data: context } = await api.get(`/leasing/preparations/contexte/${route.query.contrat}`)
+    const data = context.contract
     if (!alive || sequence !== contractSequence) return
     contract.value = data
     options.blackPrice = data.prix_page_noir_ht ?? 20
     options.colorPrice = data.prix_page_couleur_ht ?? 60
+    options.rentalFee = Number(data.loyer_mensuel_ht || 0); options.tva = Number(data.taux_tva ?? 18)
+    if (Number(data.forfait_pages_noir) > 0 || Number(data.forfait_pages_couleur) > 0 || data.statut !== 'actif') {
+      contractError.value = 'Utilisez un contrat actif sans pages incluses pour cette comparaison.'; return
+    }
+    if (context.previous_report) {
+      reports[0] = { ...context.previous_report, counters: { ...context.previous_report.counters } }; previousLoaded.value = true
+    }
+    reports[0].serial ||= data.imprimante?.numero_serie || ''
+    reports[1].serial = data.imprimante?.numero_serie || ''
   } catch { if (alive && sequence === contractSequence) contractError.value = 'Contrat inaccessible. Vérifiez vos droits ou revenez à la liste.' }
   finally { if (alive && sequence === contractSequence) contractLoading.value = false }
+}
+async function loadPreparation() {
+  const id = String(route.query.preparation || '')
+  if (!/^\d+$/.test(id)) { sourceError.value = 'Référence de préparation invalide.'; return }
+  sourceLoading.value = true; sourceError.value = ''
+  try {
+    const { data } = await api.get('/leasing/preparations/' + id)
+    if (!alive) return
+    if (data.facture_id) throw Error('Cette préparation est déjà facturée. Retrouvez sa facture dans l’historique.')
+    if (!data.contrat || !data.imprimante) throw Error('Le contrat ou l’imprimante est indisponible.')
+    preparation.value = data; contract.value = { ...data.contrat, client: data.client, imprimante: data.imprimante }
+    reports.splice(0, 2, ...data.payload.reports.map(r => ({ ...r, counters: { ...r.counters } })))
+    Object.assign(options, { blackPrice: data.payload.blackPrice, colorPrice: data.payload.colorPrice, largeColor: data.payload.largeColor, rentalFee: data.payload.rentalFee, tva: data.payload.tva, a4: false, verified: false })
+    archivedSnapshot.value = fingerprint()
+  } catch (e) { if (alive) sourceError.value = e.response?.data?.message || e.message || 'Préparation inaccessible.' }
+  finally { if (alive) sourceLoading.value = false }
 }
 async function loadCorrection() {
   const id = String(route.query.correction || '')
@@ -231,10 +264,10 @@ async function canLeaveComparison() {
 }
 onBeforeRouteLeave(canLeaveComparison)
 onBeforeRouteUpdate((to, from) => {
-  if (to.query.tab !== 'releves' || to.query.vue !== 'comparaison' || to.query.contrat !== from.query.contrat || to.query.correction !== from.query.correction) return canLeaveComparison()
+  if (to.query.tab !== 'releves' || to.query.vue !== 'comparaison' || to.query.contrat !== from.query.contrat || to.query.correction !== from.query.correction || to.query.preparation !== from.query.preparation) return canLeaveComparison()
   return true
 })
-onMounted(() => { if (route.query.correction) loadCorrection(); else loadContract(); window.addEventListener('beforeunload', beforeUnload); window.addEventListener('afterprint', afterPrint) })
+onMounted(() => { if (route.query.correction) loadCorrection(); else if (route.query.preparation) loadPreparation(); else loadContract(); window.addEventListener('beforeunload', beforeUnload); window.addEventListener('afterprint', afterPrint) })
 onBeforeUnmount(() => { alive = false; controllers.forEach(c => c?.abort()); afterPrint(); window.removeEventListener('beforeunload', beforeUnload); window.removeEventListener('afterprint', afterPrint) })
 </script>
 

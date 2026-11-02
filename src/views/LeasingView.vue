@@ -189,8 +189,9 @@
           <button type="button" :aria-pressed="comparisonActive" class="rounded-md px-3 py-2 text-sm font-semibold" :class="comparisonActive ? 'bg-xelltekk-600 text-white' : 'text-slate-600 hover:bg-slate-100'" @click="router.push(leasingComparisonLocation(route.query))">Comparaison</button>
         </div>
       </div>
-      <LeasingComparaisonView v-if="comparisonActive" :key="String(route.query.correction ? 'correction-' + route.query.correction : route.query.contrat || '')" embedded />
+      <LeasingComparaisonView v-if="comparisonActive" :key="String(route.query.preparation ? 'preparation-' + route.query.preparation : route.query.correction ? 'correction-' + route.query.correction : route.query.contrat || '')" embedded />
       <template v-else>
+      <LeasingPreparations v-if="!route.query.suivi" />
       <LeasingComparisonHistory />
       <details v-if="releves.length" class="border-t border-slate-200 pt-4">
       <summary class="cursor-pointer font-semibold text-slate-600">Anciens relevés mensuels</summary>
@@ -379,6 +380,7 @@ import { pageMeta } from '@/services/leasingLists.mjs'
 import { leasingTabLocation, leasingComparisonLocation } from '@/services/leasingNavigation.mjs'
 import LeasingComparaisonView from './LeasingComparaisonView.vue'
 import LeasingComparisonHistory from '@/components/LeasingComparisonHistory.vue'
+import LeasingPreparations from '@/components/LeasingPreparations.vue'
 
 const toast = useToast()
 const auth = useAuthStore()

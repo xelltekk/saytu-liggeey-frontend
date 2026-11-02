@@ -34,6 +34,7 @@ try{
     return route.fulfill({json:{facture:detail.facture,suivi:{id:9,revision:2}}})
    }
    if(request.method()!=='GET'){unexpected.push(request.method()+' '+path);return route.fulfill({status:500,json:{message:'Unexpected test write'}})}
+   if(path==='/api/leasing/preparations')return route.fulfill({json:{data:[],total:0,current_page:1,last_page:1}})
    if(path==='/api/leasing/comparaisons')return route.fulfill({json:{data:[detail,paid],total:2,current_page:1,last_page:1,from:1,to:2}})
    if(path==='/api/leasing/comparaisons/9')return route.fulfill({json:detail})
    if(path==='/api/leasing/comparaisons/10')return route.fulfill({json:paid})

@@ -10,9 +10,22 @@ function mount(correction = null) {
   const auth = { user: { permissions: correction ? ['factures.update', 'factures.view', 'leasing.update'] : ['factures.create', 'factures.view'] } }
   const source = readFileSync(new URL('../src/components/LeasingComparisonInvoice.vue', import.meta.url), 'utf8').split('<script setup>')[1].split('</script>')[0].replace(/^import .*$/gm, '')
   const context = vm.createContext({ ref, computed, watch, defineProps: () => props, defineEmits: () => (...args) => events.push(args), api, useAuthStore: () => auth, hasPermission: (user,p) => user.permissions.includes(p) })
-  vm.runInContext(source + '\nglobalThis.component = { createInvoice, clientId, confirmed, saving, invoice, error, tva, totalTtc, rentalFee, totalHt, reason, followUp }', context)
+  vm.runInContext(source + '\nglobalThis.component = { createInvoice, clientId, confirmed, saving, invoice, error, tva, totalTtc, rentalFee, totalHt, reason, followUp, saved, savedNotice }', context)
   return {...context.component, props, events, calls, api, auth}
 }
+
+test('saving a contract comparison never creates an invoice and passes version on invoicing', async () => {
+  const c = mount(); c.props.contract = { id: 4 }; c.auth.user.permissions.push('leasing.create', 'leasing.update')
+  c.clientId.value = 3; await nextTick(); c.confirmed.value = true
+  c.api.post = async (url, data) => { c.calls.push({ url, data }); return { data: { id: 12, version: 1 } } }
+  await c.createInvoice(true)
+  assert.equal(c.calls[0].url, '/leasing/preparations'); assert.equal(c.calls[0].data.contrat_id, 4)
+  assert.equal(c.invoice.value, null); assert.equal(c.saved.value.id, 12)
+  assert.ok(c.events.some(e => e[0] === 'prepared')); assert.ok(!c.events.some(e => e[0] === 'archived'))
+  c.api.post = async (url, data) => { c.calls.push({ url, data }); return { data: { facture: { id: 8 }, suivi: { id: 3 } } } }
+  await c.createInvoice()
+  assert.equal(c.calls[1].url, '/leasing/comparaison/facture'); assert.equal(c.calls[1].data.preparation_id, 12); assert.equal(c.calls[1].data.expected_version, 1)
+})
 test('invoice is a confirmed action and double clicks submit only once', async () => {
   const c=mount(); assert.equal(c.totalTtc.value,152904.4)
   await c.createInvoice(); assert.equal(c.calls.length,0)

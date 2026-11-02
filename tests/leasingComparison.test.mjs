@@ -179,8 +179,10 @@ test('failed OCR preserves the preview and immediately unlocks manual entry', as
 })
 test('contract pricing and failed access do not produce calculations', async () => {
   const p = view(); p.route.query.contrat = '4'
-  p.api.get = async url => { assert.equal(url, '/leasing/contrats/4'); return { data: { prix_page_noir_ht: 15, prix_page_couleur_ht: 50 } } }
+  p.api.get = async url => { assert.equal(url, '/leasing/preparations/contexte/4'); return { data: { contract: { statut: 'actif', prix_page_noir_ht: 15, prix_page_couleur_ht: 50, loyer_mensuel_ht: 25000, taux_tva: 18 }, previous_report: sample()[0] } } }
   await p.loadContract(); assert.equal(p.options.blackPrice, 15)
+  assert.equal(p.options.rentalFee, 25000); assert.equal(p.options.tva, 18)
+  assert.equal(p.reports[0].counters[102], sample()[0].counters[102])
   p.api.get = async () => { throw Error('403') }
   await p.loadContract(); assert.match(p.contractError.value, /inaccessible/); assert.equal(p.contract.value, null)
   await p.calculate(); assert.equal(p.result.value, null)

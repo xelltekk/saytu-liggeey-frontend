@@ -38,6 +38,9 @@ try {
       if(path.endsWith('/referentiels')) return route.fulfill({json:{clients:[],produits:[],imprimantes_disponibles:[],statuts_contrats:[],statuts_imprimantes:[]}})
       if(path.endsWith('/stats')) return route.fulfill({json:{contrats_actifs:100,imprimantes_disponibles:101,loyer_mensuel_ht:100000}})
       if(path.endsWith('/comparaisons')) return route.fulfill({json:{data:[],current_page:1,last_page:1,total:0}})
+      if(path.endsWith('/preparations')) return route.fulfill({json:{data:[],current_page:1,last_page:1,total:0}})
+      const contextId=path.match(/\/preparations\/contexte\/(\d+)$/)?.[1]
+      if(contextId) return route.fulfill({json:{contract:contracts.find(contract=>contract.id===Number(contextId)),previous_report:null}})
       if(path.endsWith('/contrats')) return route.fulfill({json:paginate(contracts)})
       const contractId=path.match(/\/contrats\/(\d+)$/)?.[1]
       if(contractId) return route.fulfill({json:contracts.find(contract=>contract.id===Number(contractId))})
@@ -109,7 +112,7 @@ try {
     const contractSection=page.getByRole('region',{name:'Contrats de leasing',exact:true})
     await expect(contractSection.getByRole('link',{name:'Comparer',exact:true})).toHaveCount(0)
     await contractSection.getByRole('button',{name:'Relevé',exact:true}).first().click()
-    await expect(page.getByText(/Tarifs du contrat préremplis/)).toBeVisible()
+    await expect(page.getByText(/Tarifs, forfait fixe et TVA préremplis/)).toBeVisible()
     await expect(page.getByRole('button',{name:'Calculer la consommation',exact:true})).toBeVisible()
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false)
     await page.screenshot({path:join(output,`reading-${width}.png`)})
