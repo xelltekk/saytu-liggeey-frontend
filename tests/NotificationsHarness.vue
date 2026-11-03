@@ -1,0 +1,2 @@
+<template><header style="position:relative;z-index:25;backdrop-filter:blur(14px);transform:translateZ(0);height:90px;background:#164e63;display:flex;justify-content:flex-end;padding:20px 35px"><NotificationsBell/></header><main><div style="position:relative;z-index:90;margin-top:140px;height:220px;background:#cffafe">Bloc de page au premier plan</div></main></template>
+<script setup>import NotificationsBell from '/src/components/NotificationsBell.vue'</script>

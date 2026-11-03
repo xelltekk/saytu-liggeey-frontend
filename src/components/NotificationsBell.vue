@@ -15,21 +15,25 @@
       </span>
     </button>
 
-    <!-- Panneau dropdown -->
+    <!-- Render outside the transformed topbar stacking context. -->
+    <Teleport to="body">
     <transition name="fade-down">
       <div v-if="showPanel"
+           ref="panelRef"
            id="notifications-panel"
+           :style="panelStyle"
            role="dialog"
            aria-label="Notifications"
-           class="fixed inset-x-3 top-16 z-50 max-h-[calc(100vh-5rem)] overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-xl sm:absolute sm:inset-auto sm:right-0 sm:top-auto sm:mt-2 sm:w-96 sm:max-h-[600px]">
+           class="notifications-floating-panel rounded-lg border border-gray-200 bg-white shadow-xl">
         <!-- Header -->
-        <div class="px-4 py-3 border-b border-gray-200 sticky top-0 bg-white">
+        <div class="px-4 py-3 border-b border-gray-200 shrink-0 bg-white">
           <div class="flex items-center justify-between">
             <h3 class="font-semibold text-gray-900">🔔 Notifications</h3>
-            <span class="text-xs text-gray-500">{{ store.total }} alerte(s)</span>
+            <div class="flex items-center gap-3"><span class="text-xs text-gray-500">{{ store.total }} alerte(s)</span><button type="button" aria-label="Fermer les notifications" class="p-1 rounded hover:bg-gray-100" @click="closePanel">✕</button></div>
           </div>
         </div>
 
+        <div class="notifications-scroll-area">
         <div v-if="store.loading" class="p-6 text-center text-gray-500 text-sm" role="status" aria-live="polite">
           Chargement...
         </div>
@@ -255,8 +259,9 @@
           </div>
         </div>
 
+        </div>
         <!-- Footer -->
-        <div class="px-3 py-2 border-t border-gray-200 bg-gray-50 text-center sticky bottom-0">
+        <div class="px-3 py-2 border-t border-gray-200 bg-gray-50 text-center shrink-0">
           <router-link to="/notifications" @click="closePanel" class="mr-3 text-xs font-semibold text-xelltekk-600 hover:underline">
             Centre complet
           </router-link>
@@ -266,6 +271,7 @@
         </div>
       </div>
     </transition>
+    </Teleport>
   </div>
 </template>
 
@@ -278,13 +284,24 @@ const router = useRouter()
 const store = useNotificationsStore()
 const showPanel = ref(false)
 const containerRef = ref(null)
+const panelRef = ref(null)
+const panelStyle = ref({})
+
+function positionPanel() {
+  if (!showPanel.value || !containerRef.value) return
+  const rect = containerRef.value.getBoundingClientRect()
+  const width = Math.min(480, window.innerWidth - 24)
+  const top = Math.max(12, Math.min(rect.bottom + 8, window.innerHeight - 180))
+  const left = Math.max(12, Math.min(rect.right - width, window.innerWidth - width - 12))
+  panelStyle.value = { left: `${left}px`, top: `${top}px`, width: `${width}px`, maxHeight: `${Math.max(100, Math.min(600, window.innerHeight - top - 12))}px` }
+}
 let refreshTimer = null
 
-async function togglePanel() {
-  if (! showPanel.value) {
-    await store.fetchDetails()
-  }
-  showPanel.value = ! showPanel.value
+function togglePanel() {
+  if (showPanel.value) { closePanel(); return }
+  showPanel.value = true
+  positionPanel()
+  store.fetchDetails()
 }
 
 function closePanel() {
@@ -357,15 +374,16 @@ async function ouvrirStock(produit) {
 
 // Click-outside handler
 function handleClickOutside(event) {
-  if (containerRef.value && !containerRef.value.contains(event.target)) {
+  if (containerRef.value && !containerRef.value.contains(event.target) && !panelRef.value?.contains(event.target)) {
     closePanel()
   }
 }
 
 // Escape key handler
 function handleEscape(event) {
-  if (event.key === 'Escape') {
+  if (event.key === 'Escape' && showPanel.value) {
     closePanel()
+    containerRef.value?.querySelector('button')?.focus()
   }
 }
 
@@ -376,8 +394,10 @@ function refreshBadgesIfVisible() {
 }
 
 onMounted(async () => {
-  await store.fetchBadges()
+  store.fetchBadges()
   refreshTimer = setInterval(refreshBadgesIfVisible, 60000)
+  window.addEventListener('resize', positionPanel)
+  window.addEventListener('scroll', positionPanel, true)
   document.addEventListener('click', handleClickOutside)
   document.addEventListener('keydown', handleEscape)
   document.addEventListener('visibilitychange', refreshBadgesIfVisible)
@@ -385,6 +405,8 @@ onMounted(async () => {
 
 onUnmounted(() => {
   if (refreshTimer) clearInterval(refreshTimer)
+  window.removeEventListener('resize', positionPanel)
+  window.removeEventListener('scroll', positionPanel, true)
   document.removeEventListener('click', handleClickOutside)
   document.removeEventListener('keydown', handleEscape)
   document.removeEventListener('visibilitychange', refreshBadgesIfVisible)
@@ -412,6 +434,9 @@ function roleLabel(role) {
 </script>
 
 <style scoped>
+.notifications-floating-panel { position:fixed; z-index:1000; display:flex; flex-direction:column; overflow:hidden; isolation:isolate; }
+.notifications-scroll-area { min-height:0; overflow-y:auto; overscroll-behavior:contain; scrollbar-gutter:stable; }
+
 #notifications-panel {
   color: #0f172a;
   background-color: #ffffff;

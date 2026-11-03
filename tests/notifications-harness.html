@@ -1,0 +1,8 @@
+<!doctype html><html lang="fr"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><div id="app"></div><script type="module">
+import { createApp } from 'vue'
+import { createPinia } from 'pinia'
+import { createRouter, createMemoryHistory } from 'vue-router'
+import Harness from '/tests/NotificationsHarness.vue'
+import '/src/style.css'
+createApp(Harness).use(createPinia()).use(createRouter({history:createMemoryHistory(),routes:[{path:'/:pathMatch(.*)*',component:{template:'<div />'}}]})).mount('#app')
+</script></html>
