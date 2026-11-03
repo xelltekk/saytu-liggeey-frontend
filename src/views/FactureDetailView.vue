@@ -205,7 +205,7 @@
               <tbody class="divide-y divide-sky-100">
                 <tr v-for="ligne in facture.lignes || []" :key="ligne.id">
                   <td class="px-3 py-2">
-                    <div class="font-bold text-slate-950">{{ ligne.designation }}</div>
+                    <FormattedDesignation :text="ligne.designation" :html="ligne.designation_html" />
                     <div v-if="ligne.description" class="text-xs text-slate-500">{{ ligne.description }}</div>
                   </td>
                   <td class="px-3 py-2 text-right">{{ formatQte(ligne.quantite) }} {{ ligne.unite }}</td>
@@ -394,7 +394,7 @@
                     <div v-for="ligne in lignesAvoirisables" :key="ligne.id" class="grid grid-cols-1 gap-3 p-3 sm:grid-cols-[auto_1fr_120px] sm:items-center">
                       <input type="checkbox" :checked="Boolean(lignesAvoirPartiel[ligne.id])" class="h-4 w-4" @change="toggleLigneAvoir(ligne)" />
                       <div>
-                        <div class="font-bold text-slate-950">{{ ligne.designation }}</div>
+                        <FormattedDesignation :text="ligne.designation" :html="ligne.designation_html" />
                         <div class="text-xs text-slate-500">
                           Facturée {{ formatQte(ligne.quantite) }} · déjà avoirisée {{ formatQte(ligne.quantite_avoirisee || 0) }} · reste {{ formatQte(quantiteRestanteAvoir(ligne)) }}
                         </div>
@@ -505,6 +505,7 @@
 </template>
 
 <script setup>
+import FormattedDesignation from "@/components/FormattedDesignation.vue"
 import { requestConfirmation as appConfirm } from '@/composables/useConfirm'
 import InvoiceDeliveriesPanel from '@/components/InvoiceDeliveriesPanel.vue'
 import { computed, onMounted, reactive, ref, watch } from 'vue'

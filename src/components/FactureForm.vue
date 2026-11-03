@@ -93,16 +93,17 @@
           </div>
 
           <div class="grid grid-cols-1 gap-2 lg:grid-cols-[minmax(260px,1fr)_88px_120px_88px_88px_120px]">
-            <label class="block">
+            <div class="block">
               <span class="document-line-label">Désignation</span>
-              <ProductDesignationSearch
+              <RichDesignationEditor
                 v-model="ligne.designation"
+                v-model:html="ligne.designation_html"
                 :products="produits"
                 placeholder="Désignation"
                 required
                 @select="(produit) => appliquerProduit(index, produit)"
               />
-            </label>
+            </div>
             <label class="block">
               <span class="document-line-label">Quantité</span>
               <input v-model.number="ligne.quantite" type="number" step="0.001" min="0.001" class="input text-sm text-right" placeholder="Qté" required />
@@ -179,7 +180,7 @@ import api from '@/services/api'
 import { useToast } from '@/composables/useToast'
 import FormErrorSummary from '@/components/FormErrorSummary.vue'
 import ClientSearchSelect from '@/components/ClientSearchSelect.vue'
-import ProductDesignationSearch from '@/components/ProductDesignationSearch.vue'
+import RichDesignationEditor from '@/components/RichDesignationEditor.vue'
 import { errorMessagesFromResponse, validationErrors } from '@/utils/formErrors'
 
 const props = defineProps({
@@ -280,6 +281,7 @@ function appliquerProduit(index, produit) {
   const ligne = form.lignes[index]
   ligne.produit_id = produit.id
   ligne.designation = produit.libelle
+  ligne.designation_html = null
   ligne.description = produit.description || ''
   ligne._descriptionOpen = Boolean(String(ligne.description || '').trim())
   ligne.prix_unitaire_ht = parseFloat(produit.prix_vente_ht || 0)

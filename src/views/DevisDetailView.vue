@@ -153,7 +153,7 @@
               <tbody class="divide-y divide-cyan-100">
                 <tr v-for="ligne in devis.lignes || []" :key="ligne.id">
                   <td class="px-3 py-2">
-                    <div class="font-bold text-slate-950">{{ ligne.designation }}</div>
+                    <FormattedDesignation :text="ligne.designation" :html="ligne.designation_html" />
                     <div v-if="ligne.description" class="text-xs text-slate-500">{{ ligne.description }}</div>
                   </td>
                   <td class="px-3 py-2 text-right">{{ formatQte(ligne.quantite) }} {{ ligne.unite }}</td>
@@ -261,6 +261,7 @@
 </template>
 
 <script setup>
+import FormattedDesignation from "@/components/FormattedDesignation.vue"
 import { requestConfirmation as appConfirm } from '@/composables/useConfirm'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
