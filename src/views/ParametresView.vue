@@ -10,13 +10,14 @@
       <div class="theme-hero rounded-lg p-5 text-white shadow-sm">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 class="text-xl font-bold">⚙️ Paramètres de la société</h2>
-            <p class="mt-1 text-sm text-white/85">Ces informations apparaîtront sur tous vos PDF (factures, devis...).</p>
+            <h2 class="text-xl font-bold">Ma société</h2>
+            <p class="mt-1 text-sm text-white/85">Personnalisez le logo et les coordonnées de votre société pour votre espace, vos devis et vos factures.</p>
           </div>
           <div class="flex flex-wrap gap-2">
-            <button @click="ouvrirApercu" class="theme-hero-action rounded px-4 py-2 font-semibold transition" :disabled="!apercuPossible">
-              👁️ Aperçu PDF
+            <button @click="ouvrirApercu('facture')" class="theme-hero-action rounded px-4 py-2 font-semibold transition" :disabled="!apercuPossible">
+              Aperçu facture
             </button>
+            <button @click="ouvrirApercu('devis')" class="theme-hero-action rounded px-4 py-2 font-semibold transition" :disabled="!apercuPossible">Aperçu devis</button>
             <button @click="enregistrer" :disabled="saving" class="rounded bg-white px-4 py-2 font-bold text-cyan-700 shadow-sm transition hover:bg-cyan-50 disabled:opacity-60">
               {{ saving ? '⏳ Enregistrement...' : '💾 Enregistrer' }}
             </button>
@@ -24,6 +25,7 @@
         </div>
       </div>
 
+      <p class="text-sm text-slate-600">Ces paramètres concernent uniquement votre société. Enregistrez vos modifications avant d’ouvrir un aperçu PDF.</p>
       <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         <article v-for="card in summaryCards" :key="card.label" class="rounded-2xl border border-cyan-100 bg-white p-4 shadow-sm">
           <div class="text-xs font-black uppercase tracking-[0.14em] text-cyan-700">{{ card.label }}</div>
@@ -103,7 +105,7 @@
         <div class="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
           <div class="md:col-span-2">
             <label class="label">Raison sociale <span class="text-red-500">*</span></label>
-            <input v-model="societe.nom" type="text" class="input" placeholder="Ex: XELLTEKK SARL" required />
+            <input v-model="societe.nom" type="text" class="input" placeholder="Ex. : Votre société SARL" required />
           </div>
 
           <div>
@@ -159,7 +161,7 @@
         <div class="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
           <div class="md:col-span-2">
             <label class="label">Adresse</label>
-            <input v-model="societe.adresse" type="text" class="input" placeholder="Parcelles Assainies Unité 13 N°159" />
+            <input v-model="societe.adresse" type="text" class="input" placeholder="Adresse de votre société" />
           </div>
 
           <div>
@@ -194,12 +196,12 @@
 
           <div>
             <label class="label">Email professionnel</label>
-            <input v-model="societe.email" type="email" class="input" placeholder="contact@xelltekk.com" />
+            <input v-model="societe.email" type="email" class="input" placeholder="contact@votre-societe.com" />
           </div>
 
           <div>
             <label class="label">Site web</label>
-            <input v-model="societe.site_web" type="text" class="input" placeholder="www.xelltekk.com" />
+            <input v-model="societe.site_web" type="text" class="input" placeholder="www.votre-societe.com" />
           </div>
 
           <div class="md:col-span-2">
@@ -227,7 +229,7 @@
 
           <div>
             <label class="label">Nom du propriétaire du compte</label>
-            <input v-model="societe.titulaire_compte" type="text" class="input" placeholder="Ex: XELLTEKK SARL" />
+            <input v-model="societe.titulaire_compte" type="text" class="input" placeholder="Ex. : Votre société SARL" />
           </div>
 
           <div class="md:col-span-2">
@@ -545,10 +547,10 @@ async function enregistrer() {
     notifierIdentiteSociete()
     toast.success('Paramètres enregistrés avec succès')
   } catch (e) {
-    const msg = e.response.data.message || 'Erreur lors de l\'enregistrement'
+    const msg = e.response?.data.message || 'Erreur lors de l\'enregistrement'
     toast.error(msg)
-    if (e.response.data.errors) {
-      console.error('Erreurs de validation :', e.response.data.errors)
+    if (e.response?.data.errors) {
+      console.error('Erreurs de validation :', e.response?.data.errors)
     }
   } finally {
     saving.value = false
@@ -572,11 +574,11 @@ async function onFileSelected(event) {
     const { data } = await api.post('/parametres/societe/logo', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
-    Object.assign(societe, data.societe)
+    societe.logo = data.societe.logo
     notifierIdentiteSociete()
     toast.success('Logo téléversé')
   } catch (e) {
-    const msg = e.response.data.message || 'Erreur lors du téléversement'
+    const msg = e.response?.data.message || 'Erreur lors du téléversement'
     toast.error(msg)
   } finally {
     uploadingLogo.value = false
@@ -589,7 +591,7 @@ async function supprimerLogo() {
   uploadingLogo.value = true
   try {
     const { data } = await api.delete('/parametres/societe/logo')
-    Object.assign(societe, data.societe)
+    societe.logo = data.societe.logo
     notifierIdentiteSociete()
     toast.success('Logo supprimé')
   } catch (e) {
@@ -605,19 +607,12 @@ async function recharger() {
   }
 }
 
-async function ouvrirApercu() {
-  // Cherche la première facture pour faire l'aperçu PDF
+async function ouvrirApercu(type = 'facture') {
   try {
-    const { data } = await api.get('/factures', { params: { per_page: 1 } })
-    if (data.data && data.data.length > 0) {
-      const facture = data.data[0]
-      const { ouvrirPDF } = await import('@/services/pdf')
-      await ouvrirPDF(`/factures/${facture.id}/pdf`)
-    } else {
-      toast.info('Créez d\'abord une facture pour voir l\'aperçu PDF.')
-    }
+    const { ouvrirPDF } = await import('@/services/pdf')
+    await ouvrirPDF(`/parametres/societe/apercu?type=${type}`)
   } catch (e) {
-    toast.error('Impossible d\'ouvrir l\'aperçu')
+    toast.error('Impossible d’ouvrir l’aperçu')
   }
 }
 

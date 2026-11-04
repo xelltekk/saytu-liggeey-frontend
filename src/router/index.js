@@ -581,7 +581,7 @@ const routeRoles = {
   '/activites': ['admin', 'gerant'],
   '/notifications': ['admin', 'gerant', 'commercial', 'magasinier', 'comptable', 'caissier'],
   '/rh': ['admin', 'gerant', 'commercial', 'magasinier', 'comptable'],
-  '/parametres': ['admin'],
+  '/parametres': ['admin', 'gerant'],
   '/demarrage': ['admin'],
   '/importation': ['admin'],
 }
@@ -645,7 +645,7 @@ function hasPermission(user, permission) {
 }
 
 function licenceAllowsRoute(user, permission) {
-  if (!permission || ['licence.view', 'xelltekk_admin.view'].includes(permission)) return true
+  if (!permission || ['licence.view', 'xelltekk_admin.view', 'parametres.view'].includes(permission)) return true
   if (isXelltekkAdmin(user) || user?.licence?.licence_bypass) return true
 
   const licence = user?.licence

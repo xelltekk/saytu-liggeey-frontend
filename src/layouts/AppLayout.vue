@@ -678,10 +678,10 @@ const tousLesMenus = [
 
   {
     to: '/parametres',
-    label: 'Paramètres',
+    label: 'Ma société',
     icon: Settings,
     permission: 'parametres.view',
-    roles: ['admin']
+    roles: ['admin', 'gerant']
   },
 
   {
@@ -728,7 +728,7 @@ function roleForAccess(user) {
 }
 
 function licenceAllowsMenuItem(item) {
-  if (item.to === '/licence') return true
+  if (['/licence', '/parametres'].includes(item.to)) return true
   if (item.xelltekkOnly) return true
   if (isXelltekkAdmin() || auth.user?.licence?.licence_bypass) return true
 
