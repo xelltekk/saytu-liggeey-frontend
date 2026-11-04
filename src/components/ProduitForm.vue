@@ -1,6 +1,6 @@
 <template>
-  <form @submit.prevent="handleSubmit" class="space-y-4">
-    <FormErrorSummary :errors="errors" :labels="errorLabels" />
+  <form ref="formElement" novalidate @input="clearEditedError" @change="clearEditedError" @submit.prevent="handleSubmit" class="space-y-4">
+    <FormErrorSummary :errors="errors" :messages="errorMessages" :labels="errorLabels" :title="Object.keys(errors).length ? 'Champs à corriger' : 'Enregistrement non confirmé'" :subtitle="Object.keys(errors).length ? 'Corrigez les champs indiqués. Vos saisies sont conservées.' : 'Vos saisies sont conservées dans ce formulaire.'" />
 
     <!-- Identification -->
     <fieldset class="border border-gray-200 rounded-lg p-4">
@@ -12,65 +12,74 @@
             Référence
             <span class="text-xs text-gray-400 font-normal">(auto si vide : PR2605-00001)</span>
           </label>
-          <input v-model="form.reference" type="text" class="input" placeholder="Auto-générée" />
+          <input :data-validation-field="'reference'" :aria-invalid="Boolean(errors['reference'])" v-model="form.reference" type="text" class="input" placeholder="Auto-générée" />
+              <FieldError :messages="errors['reference']" />
         </div>
 
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Code-barres</label>
-          <input v-model="form.code_barre" type="text" class="input" placeholder="EAN13..." />
+          <input :data-validation-field="'code_barre'" :aria-invalid="Boolean(errors['code_barre'])" v-model="form.code_barre" type="text" class="input" placeholder="EAN13..." />
+              <FieldError :messages="errors['code_barre']" />
         </div>
 
         <div class="md:col-span-2">
           <label class="block text-sm font-medium text-gray-700 mb-1">
             Libellé <span class="text-red-500">*</span>
           </label>
-          <input v-model="form.libelle" type="text" class="input" required placeholder="Ex: PC Portable HP ProBook 450 G9" />
+          <input :data-validation-field="'libelle'" :aria-invalid="Boolean(errors['libelle'])" v-model="form.libelle" type="text" class="input" required placeholder="Ex: PC Portable HP ProBook 450 G9" />
+              <FieldError :messages="errors['libelle']" />
         </div>
 
         <div class="md:col-span-2">
           <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
-          <textarea v-model="form.description" rows="2" class="input"></textarea>
+          <textarea :data-validation-field="'description'" :aria-invalid="Boolean(errors['description'])" v-model="form.description" rows="2" class="input"></textarea>
+              <FieldError :messages="errors['description']" />
         </div>
 
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
-          <select v-model="form.categorie_id" class="input">
+          <select :data-validation-field="'categorie_id'" :aria-invalid="Boolean(errors['categorie_id'])" v-model="form.categorie_id" class="input">
             <option :value="null">— Aucune —</option>
             <option v-for="cat in categories" :key="cat.id" :value="cat.id">
               {{ cat.libelle }}
             </option>
           </select>
+              <FieldError :messages="errors['categorie_id']" />
         </div>
 
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">
             Type <span class="text-red-500">*</span>
           </label>
-          <select v-model="form.type" class="input" required>
+          <select :data-validation-field="'type'" :aria-invalid="Boolean(errors['type'])" v-model="form.type" class="input" required>
             <option value="produit">Produit</option>
             <option value="service">Service</option>
             <option value="pack">Pack de vente</option>
           </select>
+              <FieldError :messages="errors['type']" />
         </div>
 
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Nature</label>
-          <select v-model="form.nature" class="input">
+          <select :data-validation-field="'nature'" :aria-invalid="Boolean(errors['nature'])" v-model="form.nature" class="input">
             <option value="neuf">Neuf</option>
             <option value="occasion">Occasion</option>
             <option value="reconditionne">Reconditionné</option>
             <option value="virtuel">Virtuel</option>
           </select>
+              <FieldError :messages="errors['nature']" />
         </div>
 
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Marque</label>
-          <input v-model="form.marque" type="text" class="input" />
+          <input :data-validation-field="'marque'" :aria-invalid="Boolean(errors['marque'])" v-model="form.marque" type="text" class="input" />
+              <FieldError :messages="errors['marque']" />
         </div>
 
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Modèle</label>
-          <input v-model="form.modele" type="text" class="input" />
+          <input :data-validation-field="'modele'" :aria-invalid="Boolean(errors['modele'])" v-model="form.modele" type="text" class="input" />
+              <FieldError :messages="errors['modele']" />
         </div>
       </div>
     </fieldset>
@@ -107,19 +116,22 @@
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Prix d'achat HT</label>
-          <input v-model.number="form.prix_achat_ht" type="number" class="input" step="0.01" min="0" />
+          <input :data-validation-field="'prix_achat_ht'" :aria-invalid="Boolean(errors['prix_achat_ht'])" v-model.number="form.prix_achat_ht" type="number" class="input" step="0.01" min="0" />
+              <FieldError :messages="errors['prix_achat_ht']" />
         </div>
 
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">
             Prix de vente HT <span class="text-red-500">*</span>
           </label>
-          <input v-model.number="form.prix_vente_ht" type="number" class="input" step="0.01" min="0" required />
+          <input :data-validation-field="'prix_vente_ht'" :aria-invalid="Boolean(errors['prix_vente_ht'])" v-model.number="form.prix_vente_ht" type="number" class="input" step="0.01" min="0" required />
+              <FieldError :messages="errors['prix_vente_ht']" />
         </div>
 
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">TVA (%)</label>
-          <TaxRateSelect v-model="form.taux_tva" class="input text-sm text-right" />
+          <TaxRateSelect :data-validation-field="'taux_tva'" :aria-invalid="Boolean(errors['taux_tva'])" v-model="form.taux_tva" class="input text-sm text-right" />
+              <FieldError :messages="errors['taux_tva']" />
         </div>
       </div>
 
@@ -148,17 +160,20 @@
 
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Unité</label>
-          <input v-model="form.unite" type="text" class="input" placeholder="pièce" />
+          <input :data-validation-field="'unite'" :aria-invalid="Boolean(errors['unite'])" v-model="form.unite" type="text" class="input" placeholder="pièce" />
+              <FieldError :messages="errors['unite']" />
         </div>
 
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Stock d'alerte</label>
-          <input v-model.number="form.stock_alerte" type="number" class="input" min="0" />
+          <input :data-validation-field="'stock_alerte'" :aria-invalid="Boolean(errors['stock_alerte'])" v-model.number="form.stock_alerte" type="number" class="input" min="0" />
+              <FieldError :messages="errors['stock_alerte']" />
         </div>
 
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Stock de sécurité</label>
-          <input v-model.number="form.stock_securite" type="number" class="input" min="0" />
+          <input :data-validation-field="'stock_securite'" :aria-invalid="Boolean(errors['stock_securite'])" v-model.number="form.stock_securite" type="number" class="input" min="0" />
+              <FieldError :messages="errors['stock_securite']" />
           <p class="mt-1 text-xs text-gray-500">Réserve minimale à conserver.</p>
         </div>
       </div>
@@ -192,19 +207,21 @@
             <label class="block text-sm font-medium text-gray-700 mb-1">
               Quantité initiale <span class="text-red-500">*</span>
             </label>
-            <input v-model.number="stockInitial.quantite" type="number" class="input" step="0.001" min="0.001" required />
+            <input :data-validation-field="'stock_initial.quantite'" :aria-invalid="Boolean(errors['stock_initial.quantite'])" v-model.number="stockInitial.quantite" type="number" class="input" step="0.001" min="0.001" required />
+              <FieldError :messages="errors['stock_initial.quantite']" />
           </div>
 
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">
               Entrepôt <span class="text-red-500">*</span>
             </label>
-            <select v-model.number="stockInitial.entrepot_id" class="input" required>
+            <select :data-validation-field="'stock_initial.entrepot_id'" :aria-invalid="Boolean(errors['stock_initial.entrepot_id'])" v-model.number="stockInitial.entrepot_id" class="input" required>
               <option :value="null">— Sélectionnez —</option>
               <option v-for="entrepot in entrepots" :key="entrepot.id" :value="entrepot.id">
                 {{ entrepot.libelle }}
               </option>
             </select>
+              <FieldError :messages="errors['stock_initial.entrepot_id']" />
             <p v-if="!entrepots.length" class="mt-1 text-xs text-orange-700">
               Aucun entrepôt actif disponible. Créez d’abord un entrepôt.
             </p>
@@ -212,7 +229,7 @@
 
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Emplacement</label>
-            <select
+            <select :data-validation-field="'stock_initial.emplacement_id'" :aria-invalid="Boolean(errors['stock_initial.emplacement_id'])"
               v-model.number="stockInitial.emplacement_id"
               class="input"
               :required="hasStockInitialEmplacements"
@@ -225,6 +242,7 @@
                 {{ emplacementLabel(emplacement) }}
               </option>
             </select>
+              <FieldError :messages="errors['stock_initial.emplacement_id']" />
             <p class="mt-1 text-xs" :class="hasStockInitialEmplacements ? 'text-blue-700' : 'text-gray-500'">
               {{ hasStockInitialEmplacements ? 'Obligatoire pour cet entrepôt.' : 'Facultatif si aucun rayon n’est configuré.' }}
             </p>
@@ -232,12 +250,14 @@
 
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Prix unitaire d’entrée</label>
-            <input v-model.number="stockInitial.prix_unitaire" type="number" class="input" step="0.01" min="0" placeholder="Prix achat si vide" />
+            <input :data-validation-field="'stock_initial.prix_unitaire'" :aria-invalid="Boolean(errors['stock_initial.prix_unitaire'])" v-model.number="stockInitial.prix_unitaire" type="number" class="input" step="0.01" min="0" placeholder="Prix achat si vide" />
+              <FieldError :messages="errors['stock_initial.prix_unitaire']" />
           </div>
 
           <div class="md:col-span-2">
             <label class="block text-sm font-medium text-gray-700 mb-1">Motif</label>
-            <input v-model="stockInitial.motif" type="text" class="input" placeholder="Stock initial" />
+            <input :data-validation-field="'stock_initial.motif'" :aria-invalid="Boolean(errors['stock_initial.motif'])" v-model="stockInitial.motif" type="text" class="input" placeholder="Stock initial" />
+              <FieldError :messages="errors['stock_initial.motif']" />
           </div>
         </div>
       </div>
@@ -250,7 +270,8 @@
 
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Garantie (mois)</label>
-          <input v-model.number="form.garantie_mois" type="number" class="input" min="0" placeholder="12" />
+          <input :data-validation-field="'garantie_mois'" :aria-invalid="Boolean(errors['garantie_mois'])" v-model.number="form.garantie_mois" type="number" class="input" min="0" placeholder="12" />
+              <FieldError :messages="errors['garantie_mois']" />
         </div>
       </div>
     </fieldset>
@@ -273,12 +294,13 @@
             <label class="block text-sm font-medium text-gray-700 mb-1">
               Composant {{ index + 1 }} <span class="text-red-500">*</span>
             </label>
-            <select v-model.number="item.composant_id" class="input" required>
+            <select :data-validation-field="`pack_items.${index}.composant_id`" :aria-invalid="Boolean(errors[`pack_items.${index}.composant_id`])" v-model.number="item.composant_id" class="input" required>
               <option :value="null">— Choisir un produit en stock —</option>
               <option v-for="component in componentOptions(item)" :key="component.id" :value="component.id">
                 {{ component.reference }} — {{ component.libelle }}
               </option>
             </select>
+              <FieldError :messages="errors[`pack_items.${index}.composant_id`]" />
             <p v-if="selectedComponent(item)" class="mt-1 text-xs text-slate-500">
               {{ selectedComponent(item).unite || 'pièce' }} · Prix achat {{ formatPrice(selectedComponent(item).prix_achat_ht || 0) }} · Vente {{ formatPrice(selectedComponent(item).prix_vente_ht || 0) }}
             </p>
@@ -288,7 +310,8 @@
             <label class="block text-sm font-medium text-gray-700 mb-1">
               Qté par pack <span class="text-red-500">*</span>
             </label>
-            <input v-model.number="item.quantite" type="number" class="input text-right" step="0.001" min="0.001" required />
+            <input :data-validation-field="`pack_items.${index}.quantite`" :aria-invalid="Boolean(errors[`pack_items.${index}.quantite`])" v-model.number="item.quantite" type="number" class="input text-right" step="0.001" min="0.001" required />
+              <FieldError :messages="errors[`pack_items.${index}.quantite`]" />
           </div>
 
           <div class="flex items-end justify-end">
@@ -343,8 +366,10 @@
 </template>
 
 <script setup>
+import FieldError from './FieldError.vue'
+import { validateCommercialDocument, validateCommercialProduct, focusInvalidField } from '@/utils/commercialValidation.mjs'
 import TaxRateSelect from './TaxRateSelect.vue'
-import { reactive, ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
+import { reactive, ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import api from '@/services/api'
 import { useToast } from '@/composables/useToast'
 import FormErrorSummary from '@/components/FormErrorSummary.vue'
@@ -393,7 +418,9 @@ const defaultStockInitial = () => ({
 const form = reactive(defaultForm())
 const stockInitial = reactive(defaultStockInitial())
 const saving = ref(false)
+const formElement = ref(null)
 const errors = ref({})
+const errorMessages = ref([])
 const imageInput = ref(null)
 const selectedImage = ref(null)
 const selectedImagePreview = ref('')
@@ -492,6 +519,7 @@ watch(() => props.produit, (val) => {
   }
   resetImageSelection()
   errors.value = {}
+  errorMessages.value = []
 }, { immediate: true })
 
 watch(() => form.type, (type) => {
@@ -739,10 +767,30 @@ function emplacementLabel(emp) {
   return details ? `${zone} - ${details} - ${emp.code}` : `${zone} - ${emp.code}`
 }
 
-async function handleSubmit() {
-  saving.value = true
-  errors.value = {}
+function clearEditedError(event) {
+  const field = event.target.closest('[data-validation-field]')?.dataset.validationField
+  if (field && errors.value[field]) delete errors.value[field]
+}
 
+async function finishProductImage(id, product) {
+  try {
+    return await syncImage(id, product)
+  } catch (error) {
+    toast.error('Le produit a été enregistré, mais sa photo n’a pas pu être mise à jour. Ouvrez sa fiche pour réessayer la photo ; ne recréez pas le produit.')
+    return product
+  }
+}
+
+async function handleSubmit() {
+  if (saving.value) return
+  errors.value = validateCommercialProduct(form, !props.produit?.id ? stockInitial : null, hasStockInitialEmplacements.value)
+  errorMessages.value = []
+  if (Object.keys(errors.value).length) {
+    await nextTick()
+    focusInvalidField(formElement.value, errors.value)
+    return
+  }
+  saving.value = true
   try {
     const payload = { ...form }
     payload.pack_items = form.type === 'pack'
@@ -773,21 +821,21 @@ async function handleSubmit() {
     let produitEnregistre
     if (props.produit?.id) {
       response = await api.put(`/produits/${props.produit.id}`, payload)
-      produitEnregistre = await syncImage(props.produit.id, response.data)
+      produitEnregistre = await finishProductImage(props.produit.id, response.data)
       toast.success(`Produit "${produitEnregistre.libelle}" mis à jour`)
     } else {
       response = await api.post('/produits', payload)
-      produitEnregistre = await syncImage(response.data.id, response.data)
+      produitEnregistre = await finishProductImage(response.data.id, response.data)
       toast.success(`Produit "${produitEnregistre.libelle}" créé (${produitEnregistre.reference})`)
     }
     emit('saved', produitEnregistre)
   } catch (err) {
-    if (err.response?.status === 422) {
-      errors.value = validationErrors(err)
-      toast.error(errorMessagesFromResponse(err, errorLabels))
-    } else {
-      toast.error(err.response?.data?.message || 'Erreur lors de l\'enregistrement')
-    }
+    errors.value = validationErrors(err)
+    const messages = errorMessagesFromResponse(err, errorLabels)
+    if (!Object.keys(errors.value).length) errorMessages.value = messages
+    toast.error(messages)
+    await nextTick()
+    focusInvalidField(formElement.value, errors.value)
   } finally {
     saving.value = false
   }

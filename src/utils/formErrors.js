@@ -40,11 +40,11 @@ const defaultLabels = {
 }
 
 export function validationErrors(error) {
-  return error.response.data.errors || {}
+  return error?.response?.data?.errors || {}
 }
 
 export function hasValidationErrors(error) {
-  return error.response.status === 422 && Object.keys(validationErrors(error)).length > 0
+  return error?.response?.status === 422 && Object.keys(validationErrors(error)).length > 0
 }
 
 export function fieldLabel(field, labels = {}) {
@@ -78,7 +78,11 @@ export function errorMessagesFromResponse(error, labels = {}, fallback = "Erreur
       .map((item) => `${item.label} : ${item.message}`)
   }
 
-  return [error.response.data.message || fallback]
+  if (!error?.response) return ['Connexion interrompue : impossible de confirmer l’enregistrement. Vos saisies sont conservées. Vérifiez la liste avant de réessayer pour éviter un doublon.']
+  const message = error.response?.data?.message
+  if (typeof message === 'string' && message.trim() && !['Server Error', 'Internal Server Error'].includes(message.trim())) return [message]
+  if (error.response.status >= 500) return ['Le serveur n’a pas pu confirmer l’opération. Vos saisies sont conservées. Vérifiez la liste avant de réessayer pour éviter un doublon.']
+  return [fallback]
 }
 
 function humanize(value) {

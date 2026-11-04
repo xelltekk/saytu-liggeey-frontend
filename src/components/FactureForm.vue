@@ -1,6 +1,6 @@
 <template>
-  <form @submit.prevent="handleSubmit" class="space-y-4">
-    <FormErrorSummary :errors="errors" :messages="errorMessages" :labels="errorLabels" />
+  <form ref="formElement" novalidate @input="clearEditedError" @change="clearEditedError" @submit.prevent="handleSubmit" class="space-y-4">
+    <FormErrorSummary :errors="errors" :messages="errorMessages" :labels="errorLabels" :title="Object.keys(errors).length ? 'Champs à corriger' : 'Enregistrement non confirmé'" :subtitle="Object.keys(errors).length ? 'Corrigez les champs indiqués. Vos saisies sont conservées.' : 'Vos saisies sont conservées dans ce formulaire.'" />
 
     <!-- En-tête -->
     <fieldset class="border border-gray-200 rounded-lg p-4">
@@ -11,56 +11,64 @@
           <label class="block text-sm font-medium text-gray-700 mb-1">
             Client <span class="text-red-500">*</span>
           </label>
-          <ClientSearchSelect v-model="form.client_id" :clients="clients" required placeholder="Rechercher par nom, code, telephone..." />
+          <ClientSearchSelect :data-validation-field="'client_id'" :aria-invalid="Boolean(errors['client_id'])" v-model="form.client_id" :clients="clients" required placeholder="Rechercher par nom, code, telephone..." />
+              <FieldError :messages="errors['client_id']" />
         </div>
 
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Type</label>
-          <select v-model="form.type" class="input">
+          <select :data-validation-field="'type'" :aria-invalid="Boolean(errors['type'])" v-model="form.type" class="input">
             <option value="standard">Facture standard</option>
             <option value="avoir">Avoir</option>
             <option value="acompte">Acompte</option>
             <option value="proforma">Proforma</option>
           </select>
+              <FieldError :messages="errors['type']" />
         </div>
 
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Statut</label>
-          <select v-model="form.statut" class="input">
+          <select :data-validation-field="'statut'" :aria-invalid="Boolean(errors['statut'])" v-model="form.statut" class="input">
             <option value="brouillon">Brouillon</option>
             <option value="validee">Validée</option>
             <option value="envoyee">Envoyée</option>
             <option value="annulee">Annulée</option>
           </select>
+              <FieldError :messages="errors['statut']" />
         </div>
 
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Délai paiement (jours)</label>
-          <input v-model.number="form.delai_paiement_jours" type="number" class="input" min="0" @change="updateEcheance" />
+          <input :data-validation-field="'delai_paiement_jours'" :aria-invalid="Boolean(errors['delai_paiement_jours'])" v-model.number="form.delai_paiement_jours" type="number" class="input" min="0" @change="updateEcheance" />
+              <FieldError :messages="errors['delai_paiement_jours']" />
         </div>
 
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">
             Date facture <span class="text-red-500">*</span>
           </label>
-          <input v-model="form.date_facture" type="date" class="input" required @change="updateEcheance" />
+          <input :data-validation-field="'date_facture'" :aria-invalid="Boolean(errors['date_facture'])" v-model="form.date_facture" type="date" class="input" required @change="updateEcheance" />
+              <FieldError :messages="errors['date_facture']" />
         </div>
 
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">
             Date d'échéance <span class="text-red-500">*</span>
           </label>
-          <input v-model="form.date_echeance" type="date" class="input" required />
+          <input :data-validation-field="'date_echeance'" :aria-invalid="Boolean(errors['date_echeance'])" v-model="form.date_echeance" type="date" class="input" required />
+              <FieldError :messages="errors['date_echeance']" />
         </div>
 
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Référence client</label>
-          <input v-model="form.reference_client" type="text" class="input" placeholder="N° commande, BC..." />
+          <input :data-validation-field="'reference_client'" :aria-invalid="Boolean(errors['reference_client'])" v-model="form.reference_client" type="text" class="input" placeholder="N° commande, BC..." />
+              <FieldError :messages="errors['reference_client']" />
         </div>
 
         <div class="md:col-span-2">
           <label class="block text-sm font-medium text-gray-700 mb-1">Objet</label>
-          <input v-model="form.objet" type="text" class="input" />
+          <input :data-validation-field="'objet'" :aria-invalid="Boolean(errors['objet'])" v-model="form.objet" type="text" class="input" />
+              <FieldError :messages="errors['objet']" />
         </div>
       </div>
     </fieldset>
@@ -95,7 +103,7 @@
           <div class="grid grid-cols-1 gap-2 lg:grid-cols-[minmax(260px,1fr)_88px_120px_88px_88px_120px]">
             <div class="block">
               <span class="document-line-label">Désignation</span>
-              <RichDesignationEditor
+              <RichDesignationEditor :data-validation-field="`lignes.${index}.designation`" :aria-invalid="Boolean(errors[`lignes.${index}.designation`])"
                 v-model="ligne.designation"
                 v-model:html="ligne.designation_html"
                 :products="produits"
@@ -103,22 +111,27 @@
                 required
                 @select="(produit) => appliquerProduit(index, produit)"
               />
+              <FieldError :messages="errors[`lignes.${index}.designation`]" />
             </div>
             <label class="block">
               <span class="document-line-label">Quantité</span>
-              <input v-model.number="ligne.quantite" type="number" step="0.001" min="0.001" class="input text-sm text-right" placeholder="Qté" required />
+              <input :data-validation-field="`lignes.${index}.quantite`" :aria-invalid="Boolean(errors[`lignes.${index}.quantite`])" v-model.number="ligne.quantite" type="number" step="0.001" min="0.001" class="input text-sm text-right" placeholder="Qté" required />
+              <FieldError :messages="errors[`lignes.${index}.quantite`]" />
             </label>
             <label class="block">
               <span class="document-line-label">Prix unitaire HT</span>
-              <input v-model.number="ligne.prix_unitaire_ht" type="number" step="0.01" min="0" class="input text-sm text-right" placeholder="P.U." required />
+              <input :data-validation-field="`lignes.${index}.prix_unitaire_ht`" :aria-invalid="Boolean(errors[`lignes.${index}.prix_unitaire_ht`])" v-model.number="ligne.prix_unitaire_ht" type="number" step="0.01" min="0" class="input text-sm text-right" placeholder="P.U." required />
+              <FieldError :messages="errors[`lignes.${index}.prix_unitaire_ht`]" />
             </label>
             <label class="block">
               <span class="document-line-label">Remise %</span>
-              <input v-model.number="ligne.remise_pourcent" type="number" step="0.01" min="0" max="100" class="input text-sm text-right" placeholder="Rem.%" />
+              <input :data-validation-field="`lignes.${index}.remise_pourcent`" :aria-invalid="Boolean(errors[`lignes.${index}.remise_pourcent`])" v-model.number="ligne.remise_pourcent" type="number" step="0.01" min="0" max="100" class="input text-sm text-right" placeholder="Rem.%" />
+              <FieldError :messages="errors[`lignes.${index}.remise_pourcent`]" />
             </label>
             <label class="block">
               <span class="document-line-label">TVA %</span>
-              <TaxRateSelect v-model="ligne.taux_tva" class="input text-sm text-right" />
+              <TaxRateSelect :data-validation-field="`lignes.${index}.taux_tva`" :aria-invalid="Boolean(errors[`lignes.${index}.taux_tva`])" v-model="ligne.taux_tva" class="input text-sm text-right" />
+              <FieldError :messages="errors[`lignes.${index}.taux_tva`]" />
             </label>
             <div>
               <span class="document-line-label">Total HT</span>
@@ -128,7 +141,8 @@
 
           <label v-if="ligne._descriptionOpen" class="document-line-description block">
             <span class="document-line-label">Description complémentaire</span>
-            <textarea v-model="ligne.description" class="input document-line-description-input text-xs" rows="1" placeholder="Optionnel"></textarea>
+            <textarea :data-validation-field="`lignes.${index}.description`" :aria-invalid="Boolean(errors[`lignes.${index}.description`])" v-model="ligne.description" class="input document-line-description-input text-xs" rows="1" placeholder="Optionnel"></textarea>
+              <FieldError :messages="errors[`lignes.${index}.description`]" />
           </label>
         </div>
 
@@ -160,8 +174,10 @@
     <!-- Notes -->
     <fieldset class="border border-gray-200 rounded-lg p-4">
       <legend class="px-2 text-sm font-semibold text-gray-700">Notes</legend>
-      <textarea v-model="form.notes_publiques" rows="2" class="input mb-2" placeholder="Notes publiques (apparaissent sur le PDF)"></textarea>
-      <textarea v-model="form.notes_privees" rows="2" class="input" placeholder="Notes privées (internes)"></textarea>
+      <textarea :data-validation-field="'notes_publiques'" :aria-invalid="Boolean(errors['notes_publiques'])" v-model="form.notes_publiques" rows="2" class="input mb-2" placeholder="Notes publiques (apparaissent sur le PDF)"></textarea>
+              <FieldError :messages="errors['notes_publiques']" />
+      <textarea :data-validation-field="'notes_privees'" :aria-invalid="Boolean(errors['notes_privees'])" v-model="form.notes_privees" rows="2" class="input" placeholder="Notes privées (internes)"></textarea>
+              <FieldError :messages="errors['notes_privees']" />
     </fieldset>
 
     <div class="flex justify-end gap-2 pt-2 border-t border-gray-200">
@@ -175,6 +191,8 @@
 </template>
 
 <script setup>
+import FieldError from './FieldError.vue'
+import { validateCommercialDocument, validateCommercialProduct, focusInvalidField } from '@/utils/commercialValidation.mjs'
 import TaxRateSelect from './TaxRateSelect.vue'
 import { reactive, ref, computed, watch, onMounted, nextTick } from 'vue'
 import api from '@/services/api'
@@ -208,6 +226,7 @@ const defaultForm = () => ({
 
 const form = reactive(defaultForm())
 const saving = ref(false)
+const formElement = ref(null)
 const errors = ref({})
 const errorMessages = ref([])
 const initialSnapshot = ref('')
@@ -360,11 +379,21 @@ onMounted(async () => {
   }
 })
 
+function clearEditedError(event) {
+  const field = event.target.closest('[data-validation-field]')?.dataset.validationField
+  if (field && errors.value[field]) delete errors.value[field]
+}
+
 async function handleSubmit() {
-  if (form.lignes.length === 0) { toast.error('Ajoutez au moins une ligne'); return }
-  saving.value = true
-  errors.value = {}
+  if (saving.value) return
+  errors.value = validateCommercialDocument(form, 'facture')
   errorMessages.value = []
+  if (Object.keys(errors.value).length) {
+    await nextTick()
+    focusInvalidField(formElement.value, errors.value)
+    return
+  }
+  saving.value = true
   try {
     const payload = {
       ...form,
@@ -382,17 +411,12 @@ async function handleSubmit() {
     markClean()
     emit('saved', response.data)
   } catch (err) {
-    if (err.response.status === 422) {
-      errors.value = validationErrors(err)
-      const messages = errorMessagesFromResponse(err, errorLabels)
-      if (!Object.keys(errors.value).length) {
-        errorMessages.value = messages
-      }
-      toast.error(messages)
-    } else {
-      errorMessages.value = errorMessagesFromResponse(err, errorLabels, 'Erreur lors de l\'enregistrement')
-      toast.error(errorMessages.value)
-    }
+    errors.value = validationErrors(err)
+    const messages = errorMessagesFromResponse(err, errorLabels)
+    if (!Object.keys(errors.value).length) errorMessages.value = messages
+    toast.error(messages)
+    await nextTick()
+    focusInvalidField(formElement.value, errors.value)
   } finally {
     saving.value = false
   }
