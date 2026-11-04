@@ -127,7 +127,7 @@ const offers = [
     key: 'starter',
     name: 'Starter',
     audience: 'Petite équipe',
-    price: '15 000 FCFA / mois',
+    price: '10 000 FCFA / mois',
     note: 'démarrage léger',
     summary: 'Pour gérer les clients, devis, factures et encaissements simples sans complexité.',
     items: [
@@ -141,7 +141,7 @@ const offers = [
     key: 'pro',
     name: 'Pro',
     audience: 'PME active',
-    price: '35 000 FCFA / mois',
+    price: '25 000 FCFA / mois',
     note: 'meilleur équilibre',
     summary: 'Pour une entreprise qui vend, suit son stock, relance ses clients et contrôle ses opérations.',
     items: [
@@ -156,7 +156,7 @@ const offers = [
     key: 'business',
     name: 'Business',
     audience: 'Pilotage complet',
-    price: '60 000 FCFA / mois',
+    price: '35 000 FCFA / mois',
     note: 'modules avancés',
     summary: 'Pour centraliser les ventes, la caisse, la trésorerie, les accès et les contrôles avancés.',
     items: [

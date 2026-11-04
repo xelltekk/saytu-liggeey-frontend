@@ -1297,9 +1297,9 @@ const DEFAULT_STATUTS = {
 }
 
 const DEFAULT_TARIFS = {
-  starter: 15000,
-  pro: 35000,
-  business: 60000,
+  starter: 10000,
+  pro: 25000,
+  business: 35000,
 }
 
 const DEFAULT_PLAN_LIMITS = {
