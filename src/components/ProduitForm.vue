@@ -119,7 +119,7 @@
 
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">TVA (%)</label>
-          <input v-model.number="form.taux_tva" type="number" class="input" step="0.01" min="0" max="100" />
+          <TaxRateSelect v-model="form.taux_tva" class="input text-sm text-right" />
         </div>
       </div>
 
@@ -343,6 +343,7 @@
 </template>
 
 <script setup>
+import TaxRateSelect from './TaxRateSelect.vue'
 import { reactive, ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import api from '@/services/api'
 import { useToast } from '@/composables/useToast'

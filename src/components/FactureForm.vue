@@ -118,7 +118,7 @@
             </label>
             <label class="block">
               <span class="document-line-label">TVA %</span>
-              <input v-model.number="ligne.taux_tva" type="number" step="0.01" min="0" max="100" class="input text-sm text-right" placeholder="TVA%" />
+              <TaxRateSelect v-model="ligne.taux_tva" class="input text-sm text-right" />
             </label>
             <div>
               <span class="document-line-label">Total HT</span>
@@ -175,6 +175,7 @@
 </template>
 
 <script setup>
+import TaxRateSelect from './TaxRateSelect.vue'
 import { reactive, ref, computed, watch, onMounted, nextTick } from 'vue'
 import api from '@/services/api'
 import { useToast } from '@/composables/useToast'
@@ -285,7 +286,7 @@ function appliquerProduit(index, produit) {
   ligne.description = produit.description || ''
   ligne._descriptionOpen = Boolean(String(ligne.description || '').trim())
   ligne.prix_unitaire_ht = parseFloat(produit.prix_vente_ht || 0)
-  ligne.taux_tva = parseFloat(produit.taux_tva || 0)
+  ligne.taux_tva = parseFloat(produit.taux_tva === '' || produit.taux_tva == null ? 18 : produit.taux_tva)
   ligne.unite = produit.unite || 'pièce'
   ligne.type_ligne = produit.type === 'service' ? 'service' : 'produit'
 }
