@@ -1085,6 +1085,12 @@
             <h2 class="font-black text-[color:var(--saytu-shell-text,#0f172a)]">Portefeuille licences</h2>
             <p class="text-xs text-[color:var(--saytu-muted,#64748b)]">
               {{ filteredLicences.length }} licence(s) affichée(s).
+              <label class="mt-2 block">Afficher
+                <select v-model="licenceListMode" class="input mt-1" aria-label="Liste des licences">
+                  <option value="current">Licences courantes</option>
+                  <option value="archived">Licences archivées ({{ archivedLicences.length }})</option>
+                </select>
+              </label>
             </p>
           </div>
           <div class="relative w-full max-w-xs">
@@ -1151,13 +1157,18 @@
               </p>
             </div>
 
-            <div class="xell-licence-actions">
+            <div v-if="licence.archived_at" class="xell-licence-actions">
+              <span class="text-sm font-semibold">Archivée le {{ formatDate(licence.archived_at.slice(0, 10)) }} · accès suspendu</span>
+              <button type="button" class="btn-secondary" :disabled="archiveBusyId !== null" @click="archiveLicence(licence, true)">Restaurer</button>
+            </div>
+            <div v-else class="xell-licence-actions">
               <div class="xell-licence-action-group">
                 <span class="xell-licence-action-title">Licence</span>
                 <div class="xell-licence-action-buttons">
                   <button type="button" class="btn-secondary px-3 py-2 text-xs" @click="editLicence(licence)">
                     Modifier
                   </button>
+                  <button type="button" class="btn-secondary px-3 py-2 text-xs" :disabled="archiveBusyId !== null" @click="archiveLicence(licence)">Archiver</button>
                   <button
                     type="button"
                     class="btn-secondary px-3 py-2 text-xs"
@@ -1423,6 +1434,9 @@ const reference = reactive({
   contract_defaults: cloneContractDefaults(),
 })
 const licences = ref([])
+const archivedLicences = ref([])
+const licenceListMode = ref('current')
+const archiveBusyId = ref(null)
 const upcomingRenewals = ref([])
 const renewalWindow = ref(30)
 const visibleRenewals = computed(() => upcomingRenewals.value.filter(row => row.renewal.days_remaining <= renewalWindow.value))
@@ -1621,9 +1635,10 @@ const groupedModules = computed(() => {
 
 const filteredLicences = computed(() => {
   const needle = search.value.trim().toLowerCase()
-  if (!needle) return licences.value
+  const rows = licenceListMode.value === 'archived' ? archivedLicences.value : licences.value
+  if (!needle) return rows
 
-  return licences.value.filter((licence) => {
+  return rows.filter((licence) => {
     return [
       licence.client_nom,
       licence.client_email,
@@ -1791,6 +1806,7 @@ function hydrate(data) {
   reference.payment_methods = nonEmptyObject(incomingReference.payment_methods) ? incomingReference.payment_methods : DEFAULT_PAYMENT_METHODS
   reference.contract_defaults = normalizeContractDefaults(incomingReference.contract_defaults)
   licences.value = Array.isArray(data.licences) ? data.licences : []
+  archivedLicences.value = Array.isArray(data.archived_licences) ? data.archived_licences : []
   upcomingRenewals.value = Array.isArray(data.upcoming_renewals) ? data.upcoming_renewals : []
   clients.value = Array.isArray(data.clients) ? data.clients : []
   hydrateSaasHealth(data.saas_health)
@@ -1889,6 +1905,30 @@ async function renewLicence(licence) {
     toast.success(data.message || 'Licence renouvelée.')
   } catch (error) {
     toast.error(error.response?.data?.message || 'Impossible de renouveler la licence.')
+  }
+}
+
+async function archiveLicence(licence, restore = false) {
+  if (archiveBusyId.value !== null) return
+  const ok = await askConfirm({
+    title: restore ? 'Restaurer la licence' : 'Archiver la licence',
+    message: restore
+      ? `Remettre la licence de ${licence.client_nom || 'ce client'} dans la liste ? Elle restera suspendue jusqu’à votre réactivation.`
+      : `Archiver la licence de ${licence.client_nom || 'ce client'} ? Son accès sera suspendu et elle quittera la liste principale. Ses documents et ses données seront conservés.`,
+    confirmLabel: restore ? 'Restaurer' : 'Archiver',
+    tone: restore ? 'primary' : 'danger',
+  })
+  if (!ok || archiveBusyId.value !== null) return
+  archiveBusyId.value = licence.id
+  try {
+    const { data } = await api.post(`/admin/xelltekk/licences/${licence.id}/${restore ? 'restaurer' : 'archiver'}`)
+    hydrate(data)
+    if (editingId.value === licence.id) resetForm()
+    toast.success(data.message || (restore ? 'Licence restaurée.' : 'Licence archivée.'))
+  } catch (error) {
+    toast.error(apiErrorMessage(error, 'Impossible de modifier l’archivage de cette licence.'))
+  } finally {
+    archiveBusyId.value = null
   }
 }
 
