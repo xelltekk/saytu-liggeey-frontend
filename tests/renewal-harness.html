@@ -1,0 +1,14 @@
+<!doctype html><html lang="fr" data-theme="login-aqua"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><div id="app"></div><script type="module">
+import {createApp,h} from 'vue'
+import {createPinia} from 'pinia'
+import {useAuthStore} from '/src/stores/auth.js'
+import LicenceView from '/src/views/LicenceView.vue'
+import AdminView from '/src/views/XelltekkAdminView.vue'
+import ConfirmDialogHost from '/src/components/ConfirmDialogHost.vue'
+import '/src/style.css'
+const admin=new URLSearchParams(location.search).has('admin'), pinia=createPinia()
+const app=createApp({render:()=>h('main',{class:'app-surface p-4'},[h(admin?AdminView:LicenceView),h(ConfirmDialogHost)])})
+app.use(pinia)
+useAuthStore().user={id:1,role:'admin',email:admin?'test@xelltekk.com':'test@example.test',name:'Client exemple',is_xelltekk_admin:admin}
+app.mount('#app')
+</script></html>

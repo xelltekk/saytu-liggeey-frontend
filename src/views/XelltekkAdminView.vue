@@ -533,6 +533,35 @@
       </div>
     </section>
 
+    <section id="echeances-abonnements" class="xell-panel overflow-hidden" aria-labelledby="renewals-title">
+      <div class="xell-panel-header flex flex-wrap gap-3">
+        <div>
+          <h2 id="renewals-title" class="font-black">Abonnements à renouveler sous 30 jours</h2>
+          <p class="text-xs text-slate-500">Échéances classées de la plus proche à la plus lointaine. Tarifs propres à chaque client.</p>
+        </div>
+        <label class="text-sm">Échéance
+          <select v-model="renewalWindow" class="input ml-2">
+            <option :value="30">Sous 30 jours</option><option :value="7">Sous 7 jours</option><option :value="3">Sous 3 jours</option><option :value="1">Sous 1 jour</option>
+          </select>
+        </label>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm">
+          <thead class="bg-slate-50"><tr><th class="p-3">Client / formule</th><th class="p-3">Échéance</th><th class="p-3">Délai</th><th class="p-3">Renouvellement</th><th class="p-3">Action</th></tr></thead>
+          <tbody>
+            <tr v-for="licence in visibleRenewals" :key="licence.id" class="border-t border-slate-100">
+              <td class="p-3"><strong>{{ licence.client_nom }}</strong><span class="block text-xs">{{ licence.plan_label }}</span></td>
+              <td class="p-3 whitespace-nowrap">{{ formatDate(licence.renewal.due_date) }}</td>
+              <td class="p-3 whitespace-nowrap" :class="licence.renewal.days_remaining <= 3 ? 'font-bold text-red-700' : ''">{{ licence.renewal.days_remaining === 0 ? 'Aujourd’hui' : `J−${licence.renewal.days_remaining}` }}</td>
+              <td class="p-3 whitespace-nowrap">{{ money(licence.renewal.amount) }} {{ licence.renewal.currency }}<span class="block text-xs">pour {{ licence.renewal.months }} mois</span></td>
+              <td class="p-3"><button type="button" class="btn-secondary" @click="editLicence(licence)">Voir le contrat</button></td>
+            </tr>
+            <tr v-if="!visibleRenewals.length"><td colspan="5" class="p-5 text-center text-slate-500">Aucun abonnement à renouveler sur cette période.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
     <section id="centre-actions" class="xell-panel xell-section-anchor overflow-hidden">
       <div class="xell-panel-header">
         <div class="xell-panel-title">
@@ -1394,6 +1423,9 @@ const reference = reactive({
   contract_defaults: cloneContractDefaults(),
 })
 const licences = ref([])
+const upcomingRenewals = ref([])
+const renewalWindow = ref(30)
+const visibleRenewals = computed(() => upcomingRenewals.value.filter(row => row.renewal.days_remaining <= renewalWindow.value))
 const clients = ref([])
 const form = reactive(emptyForm())
 const emailSettings = reactive(emptyEmailSettings())
@@ -1759,6 +1791,7 @@ function hydrate(data) {
   reference.payment_methods = nonEmptyObject(incomingReference.payment_methods) ? incomingReference.payment_methods : DEFAULT_PAYMENT_METHODS
   reference.contract_defaults = normalizeContractDefaults(incomingReference.contract_defaults)
   licences.value = Array.isArray(data.licences) ? data.licences : []
+  upcomingRenewals.value = Array.isArray(data.upcoming_renewals) ? data.upcoming_renewals : []
   clients.value = Array.isArray(data.clients) ? data.clients : []
   hydrateSaasHealth(data.saas_health)
   hydrateSaasCommerce(data.saas_commerce)

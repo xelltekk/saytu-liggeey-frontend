@@ -46,11 +46,11 @@
           v-if="showRenewalRequestButton"
           type="button"
           class="btn-primary shrink-0 px-3 py-2 text-xs"
-          :disabled="renewalRequestSaving"
+          :disabled="renewalRequestSaving || pendingRenewal"
           @click="requestLicenceRenewal"
         >
           <LifeBuoy class="h-4 w-4" />
-          {{ renewalRequestSaving ? 'Demande...' : 'Demander renouvellement' }}
+          {{ pendingRenewal ? 'Demande en cours' : renewalRequestSaving ? 'Demande...' : 'Renouveler mon abonnement' }}
         </button>
       </div>
     </section>
@@ -60,6 +60,21 @@
     </section>
 
     <template v-else-if="form">
+      <section v-if="!canManageLicence && renewal" id="licence-renouvellement" class="licence-panel p-4" aria-labelledby="renewal-title">
+        <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 id="renewal-title" class="font-black">Renouvellement de mon abonnement</h2>
+            <p v-if="renewal.message" role="status" class="mt-2 font-bold text-amber-700">{{ renewal.message }}</p>
+            <p class="mt-2 text-sm">Échéance : {{ renewal.due_date ? formatDate(renewal.due_date) : 'Non définie' }}</p>
+            <p class="mt-1 text-xl font-black">{{ money(renewal.amount) }} {{ renewal.currency }} <span class="text-sm font-semibold">pour {{ renewal.months }} mois</span></p>
+            <p class="text-xs text-slate-500">Votre tarif : {{ money(renewal.monthly_amount) }} {{ renewal.currency }}/mois. Hors factures déjà émises.</p>
+            <p v-if="pendingRenewal" class="mt-2 text-sm font-semibold">Votre demande de renouvellement est en cours de traitement.</p>
+          </div>
+          <button type="button" class="btn-primary shrink-0" :disabled="renewalRequestSaving || pendingRenewal" @click="requestLicenceRenewal">
+            {{ pendingRenewal ? 'Demande en cours' : renewalRequestSaving ? 'Envoi…' : 'Renouveler mon abonnement' }}
+          </button>
+        </div>
+      </section>
       <section class="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         <article v-for="card in cards" :key="card.label" class="licence-card">
           <div>
@@ -841,6 +856,8 @@ const licenceIsSensitive = computed(() => ['expiree', 'essai_expire', 'suspendue
   || form.value?.depasse_limite_stockage
   || form.value?.depasse_limite_documents)
 const canManageLicence = computed(() => isXelltekkAdmin(auth.user))
+const renewal = computed(() => portal.subscription?.renewal || null)
+const pendingRenewal = computed(() => supportTickets.value.some(ticket => ticket.categorie === 'renouvellement' && ['ouvert', 'en_cours'].includes(ticket.statut)))
 const portalReady = computed(() => Boolean(portal.workspace?.tenant_id || portal.workspace?.client_id || portal.subscription?.invoices?.length))
 const showRenewalRequestButton = computed(() => {
   if (canManageLicence.value || !form.value?.configured) return false
@@ -1272,11 +1289,11 @@ function requestBackupRestore() {
 }
 
 async function requestLicenceRenewal() {
-  if (!form.value || renewalRequestSaving.value) return
+  if (!form.value || renewalRequestSaving.value || pendingRenewal.value) return
 
   const ok = await askConfirm({
     title: 'Demander le renouvellement',
-    message: 'Créer un ticket de renouvellement auprès de XELLTEKK ?',
+    message: renewal.value ? `Demander le renouvellement pour ${renewal.value.months} mois au montant de ${money(renewal.value.amount)} ${renewal.value.currency} ? XELLTEKK vérifiera votre demande avant activation.` : 'Créer un ticket de renouvellement auprès de XELLTEKK ?',
     confirmLabel: 'Créer la demande',
   })
   if (!ok) return
@@ -1309,6 +1326,10 @@ function renewalRequestDescription() {
     `Statut : ${form.value?.etat_label || form.value?.statut || '-'}`,
     `Date de fin : ${form.value?.date_fin ? formatDate(form.value.date_fin) : 'Non renseignée'}`,
   ]
+
+  if (renewal.value) {
+    lines.push(`Durée demandée : ${renewal.value.months} mois`, `Montant du renouvellement : ${money(renewal.value.amount)} ${renewal.value.currency}`)
+  }
 
   if (form.value?.is_grace_period && form.value?.grace_until) {
     lines.push(`Grâce active jusqu’au : ${formatDate(form.value.grace_until)}`)
