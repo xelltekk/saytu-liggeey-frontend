@@ -274,7 +274,7 @@
         >
           <router-view v-slot="{ Component, route: viewRoute }">
             <KeepAlive :max="18">
-              <component :is="Component" :key="viewRoute.name || viewRoute.path" />
+              <CachedRoutePage :component="Component" :route="viewRoute" :key="viewRoute.path" />
             </KeepAlive>
           </router-view>
         </div>
@@ -353,6 +353,7 @@ import { isXelltekkAdmin as userIsXelltekkAdmin } from '@/utils/platformAccess'
 import { activeBusinessModules, businessPermission, businessSections } from '@/utils/businessModules'
 import { canUseSubscriberPortal, subscriberSections } from '@/utils/subscriberPortal'
 
+import CachedRoutePage from '@/components/CachedRoutePage.vue'
 import ToastContainer from '@/components/ToastContainer.vue'
 import NotificationsBell from '@/components/NotificationsBell.vue'
 import CommandPalette from '@/components/CommandPalette.vue'

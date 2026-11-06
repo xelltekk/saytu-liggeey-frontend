@@ -1,0 +1,19 @@
+<!doctype html><html lang="fr"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><div id="app"></div><script type="module">
+import {createApp,h} from 'vue'
+import {createPinia} from 'pinia'
+import {RouterView} from 'vue-router'
+import router from '/src/router/index.js'
+import {useAuthStore} from '/src/stores/auth.js'
+import {useTheme} from '/src/composables/useTheme.js'
+import ConfirmDialogHost from '/src/components/ConfirmDialogHost.vue'
+import '/src/style.css'
+const app=createApp({render:()=>h('div',[h(RouterView),h(ConfirmDialogHost)])}),pinia=createPinia()
+app.use(pinia)
+useAuthStore().user={id:1,name:'Admin test',role:'admin',email:'demo@example.test',licence:{configured:false},tenant:{is_platform:false}}
+useAuthStore().sessionChecked=true
+useTheme().applyTheme()
+app.use(router)
+window.testNavigate=path=>router.push(path)
+window.navigationLog=[];router.afterEach(to=>window.navigationLog.push(to.fullPath))
+await router.replace('/pilotage');await router.isReady();app.mount('#app')
+</script></html>

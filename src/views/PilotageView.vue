@@ -109,6 +109,7 @@ function tabBadge(tab) {
 watch(
   () => route.query.tab,
   () => {
+    if (route.name !== 'pilotage') return
     const requested = String(route.query.tab || 'aujourdhui')
     if (!availableTabs.value.some((tab) => tab.key === requested)) {
       selectTab(activeTab.value)
