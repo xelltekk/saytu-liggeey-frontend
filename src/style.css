@@ -37,23 +37,23 @@
 
   html,
   html[data-theme='login-aqua'] {
-    --saytu-shell-bg: #14384a;
-    --saytu-shell-text: #e0f2fe;
+    --saytu-shell-bg: #f1f5f9;
+    --saytu-shell-text: #0f172a;
     --saytu-surface: #ffffff;
     --saytu-topbar: rgb(255 255 255 / 0.9);
-    --saytu-border: #bae6fd;
-    --saytu-topbar-title: #082f49;
-    --saytu-topbar-subtitle: #0f6f8f;
+    --saytu-border: #dce3ed;
+    --saytu-topbar-title: #0f172a;
+    --saytu-topbar-subtitle: #475569;
     --saytu-sidebar-from: #12344a;
     --saytu-sidebar-via: #0f4c81;
     --saytu-sidebar-to: #0e7490;
     --saytu-brand-from: #0ea5e9;
     --saytu-brand-to: #22d3ee;
-    --saytu-primary: #0ea5e9;
-    --saytu-primary-hover: #0284c7;
-    --saytu-focus: #22d3ee;
-    --saytu-shell-glow-a: rgb(34 211 238 / 0.28);
-    --saytu-shell-glow-b: rgb(14 165 233 / 0.22);
+    --saytu-primary: #2563eb;
+    --saytu-primary-hover: #1d4ed8;
+    --saytu-focus: #2563eb;
+    --saytu-shell-glow-a: transparent;
+    --saytu-shell-glow-b: transparent;
   }
 }
 
@@ -372,12 +372,9 @@
     color: #0f172a;
   }
   html[data-theme] .btn-primary {
-    background-color: var(--saytu-primary, #2563eb) !important;
-    background-image: linear-gradient(
-      to right,
-      var(--saytu-brand-from, #3b82f6),
-      var(--saytu-brand-to, #22d3ee)
-    ) !important;
+    background: #2563eb !important;
+    border-color: #2563eb !important;
+    color: #fff !important;
   }
   html[data-theme] .btn-primary:hover {
     background-color: var(--saytu-primary-hover, #1d4ed8) !important;
@@ -407,30 +404,25 @@
     outline: none;
   }
   html[data-theme] .btn-secondary {
-    background-color: color-mix(in srgb, var(--saytu-surface, #ffffff) 88%, var(--saytu-primary, #2563eb) 12%) !important;
-    border-color: color-mix(in srgb, var(--saytu-border, #e2e8f0) 72%, var(--saytu-primary, #2563eb) 28%) !important;
-    color: color-mix(in srgb, var(--saytu-primary, #2563eb) 58%, var(--saytu-shell-text, #334155)) !important;
+    background: #fff !important;
+    border-color: #cbd5e1 !important;
+    color: #334155 !important;
   }
-  html[data-theme] .btn-secondary:hover {
-    background-color: color-mix(in srgb, var(--saytu-surface, #ffffff) 78%, var(--saytu-primary, #2563eb) 22%) !important;
-    border-color: color-mix(in srgb, var(--saytu-primary, #2563eb) 48%, var(--saytu-border, #e2e8f0)) !important;
-  }
-  html[data-theme] .input {
-    background-color: color-mix(in srgb, var(--saytu-surface, #ffffff) 92%, var(--saytu-primary, #2563eb) 8%) !important;
-    border-color: color-mix(in srgb, var(--saytu-border, #e2e8f0) 78%, var(--saytu-primary, #2563eb) 22%) !important;
-    color: var(--saytu-topbar-title, #0f172a) !important;
-  }
-  html[data-theme] .input::placeholder {
-    color: color-mix(in srgb, var(--saytu-topbar-subtitle, #64748b) 82%, var(--saytu-primary, #2563eb)) !important;
-  }
-  html[data-theme] .input:hover {
-    border-color: color-mix(in srgb, var(--saytu-primary, #2563eb) 42%, var(--saytu-border, #e2e8f0)) !important;
-  }
-  html[data-theme] select.input,
+  html[data-theme] .btn-secondary:hover { background: #f1f5f9 !important; border-color: #94a3b8 !important; }
+  html[data-theme] .btn-danger { background: #b91c1c; color: #fff; }
+  html[data-theme] .btn-danger:hover { background: #991b1b; }
+  html[data-theme] .input,
   html[data-theme] select.input option {
-    background-color: color-mix(in srgb, var(--saytu-surface, #ffffff) 92%, var(--saytu-primary, #2563eb) 8%) !important;
-    color: var(--saytu-topbar-title, #0f172a) !important;
+    background: #fff !important;
+    border-color: #94a3b8;
+    color: #0f172a !important;
+    font-size: 0.875rem;
+    line-height: 1.5;
   }
+  html[data-theme] .input::placeholder { color: #64748b !important; }
+  html[data-theme] .input:hover { border-color: #64748b; }
+  html[data-theme] .input:focus { border-color: #2563eb; }
+  html[data-theme] .input:disabled { background: #f1f5f9 !important; }
   .document-line-card {
     border: 1px solid color-mix(in srgb, var(--saytu-primary, #2563eb) 16%, var(--saytu-border, #e2e8f0));
     background: color-mix(in srgb, var(--saytu-surface, #ffffff) 94%, var(--saytu-primary, #2563eb) 6%);
@@ -594,559 +586,38 @@
     transition: background-color 160ms ease;
   }
 
-  html[data-theme] .app-surface {
-    --saytu-surface-tinted: color-mix(in srgb, var(--saytu-surface, #ffffff) 92%, var(--saytu-primary, #2563eb) 8%);
-    --saytu-surface-soft: color-mix(in srgb, var(--saytu-surface, #ffffff) 84%, var(--saytu-primary, #2563eb) 16%);
-    --saytu-surface-muted: color-mix(in srgb, var(--saytu-surface, #ffffff) 74%, var(--saytu-primary, #2563eb) 26%);
-    --saytu-border-themed: color-mix(in srgb, var(--saytu-border, #e2e8f0) 72%, var(--saytu-primary, #2563eb) 28%);
-    --saytu-text-themed: var(--saytu-topbar-title, #0f172a);
-    --saytu-muted-themed: color-mix(in srgb, var(--saytu-topbar-subtitle, #64748b) 84%, var(--saytu-primary, #2563eb));
-    --saytu-shell-bg: color-mix(in srgb, var(--saytu-surface, #ffffff) 84%, var(--saytu-focus, #22d3ee) 16%);
-    --saytu-shell-text: var(--saytu-topbar-title, #082f49);
-    --saytu-muted: var(--saytu-topbar-subtitle, #0f6f8f);
-    --saytu-primary-soft: color-mix(in srgb, var(--saytu-surface, #ffffff) 72%, var(--saytu-focus, #22d3ee) 28%);
-  }
-
-  html[data-theme] .auth-card {
-    --saytu-surface-tinted: color-mix(in srgb, var(--saytu-surface, #ffffff) 92%, var(--saytu-primary, #2563eb) 8%);
-    --saytu-surface-soft: color-mix(in srgb, var(--saytu-surface, #ffffff) 84%, var(--saytu-primary, #2563eb) 16%);
-    --saytu-surface-muted: color-mix(in srgb, var(--saytu-surface, #ffffff) 74%, var(--saytu-primary, #2563eb) 26%);
-    --saytu-border-themed: color-mix(in srgb, var(--saytu-border, #e2e8f0) 72%, var(--saytu-primary, #2563eb) 28%);
-    --saytu-text-themed: var(--saytu-topbar-title, #0f172a);
-    --saytu-muted-themed: color-mix(in srgb, var(--saytu-topbar-subtitle, #64748b) 84%, var(--saytu-primary, #2563eb));
-    --saytu-shell-bg: color-mix(in srgb, var(--saytu-surface, #ffffff) 84%, var(--saytu-focus, #22d3ee) 16%);
-    --saytu-shell-text: var(--saytu-topbar-title, #082f49);
-    --saytu-muted: var(--saytu-topbar-subtitle, #0f6f8f);
-    --saytu-primary-soft: color-mix(in srgb, var(--saytu-surface, #ffffff) 72%, var(--saytu-focus, #22d3ee) 28%);
-    background:
-      radial-gradient(circle at top right, color-mix(in srgb, var(--saytu-brand-to, #22d3ee) 10%, transparent), transparent 30%),
-      var(--saytu-surface-tinted) !important;
-    border-color: var(--saytu-border-themed) !important;
-    color: var(--saytu-text-themed) !important;
-  }
-
-  html[data-theme] .app-surface :where(.bg-white, .bg-white\/80, .bg-white\/90, .bg-white\/95) {
-    background-color: var(--saytu-surface-tinted) !important;
-  }
-
-  html[data-theme] .auth-card :where(.bg-white, .bg-white\/80, .bg-white\/90, .bg-white\/95) {
-    background-color: var(--saytu-surface-tinted) !important;
-  }
-
-  html[data-theme] .app-surface :where(.bg-gray-50, .bg-slate-50, .bg-gray-100, .bg-slate-100) {
-    background-color: var(--saytu-surface-soft) !important;
-  }
-
-  html[data-theme] .auth-card :where(.bg-gray-50, .bg-slate-50, .bg-gray-100, .bg-slate-100) {
-    background-color: var(--saytu-surface-soft) !important;
-  }
-
-  html[data-theme] .app-surface :where(.border-gray-100, .border-gray-200, .border-gray-300, .border-slate-100, .border-slate-200, .border-slate-300, .border-xelltekk-100) {
-    border-color: var(--saytu-border-themed) !important;
-  }
-
-  html[data-theme] .auth-card :where(.border-gray-100, .border-gray-200, .border-gray-300, .border-slate-100, .border-slate-200, .border-slate-300, .border-xelltekk-100) {
-    border-color: var(--saytu-border-themed) !important;
-  }
-
-  html[data-theme] .app-surface :where(.divide-gray-100, .divide-slate-100) > :not([hidden]) ~ :not([hidden]) {
-    border-color: var(--saytu-border-themed) !important;
-  }
-
-  html[data-theme] .auth-card :where(.divide-gray-100, .divide-slate-100) > :not([hidden]) ~ :not([hidden]) {
-    border-color: var(--saytu-border-themed) !important;
-  }
-
-  html[data-theme] .app-surface thead {
-    background-color: var(--saytu-surface-muted) !important;
-  }
-
-  html[data-theme] .app-surface tbody tr:hover {
-    background-color: color-mix(in srgb, var(--saytu-surface, #ffffff) 72%, var(--saytu-primary, #2563eb) 28%) !important;
-  }
-
-  html[data-theme] .app-surface :where(.text-gray-400, .text-gray-500, .text-gray-600, .text-slate-400, .text-slate-500, .text-slate-600) {
-    color: var(--saytu-muted-themed) !important;
-  }
-
-  html[data-theme] .auth-card :where(.text-gray-400, .text-gray-500, .text-gray-600, .text-slate-400, .text-slate-500, .text-slate-600) {
-    color: var(--saytu-muted-themed) !important;
-  }
-
-  html[data-theme] .app-surface :where(.text-gray-700, .text-gray-800, .text-gray-900, .text-gray-950, .text-slate-700, .text-slate-800, .text-slate-900, .text-slate-950) {
-    color: var(--saytu-text-themed) !important;
-  }
-
-  html[data-theme] .auth-card :where(.text-gray-700, .text-gray-800, .text-gray-900, .text-gray-950, .text-slate-700, .text-slate-800, .text-slate-900, .text-slate-950) {
-    color: var(--saytu-text-themed) !important;
-  }
-
-  html[data-theme] .app-surface :where(.text-xelltekk-600, .text-xelltekk-700, .text-xelltekk-800) {
-    color: var(--saytu-primary) !important;
-  }
-
-  html[data-theme] .auth-card :where(.text-xelltekk-600, .text-xelltekk-700, .text-xelltekk-800) {
-    color: var(--saytu-primary) !important;
-  }
-
-  html[data-theme] .app-surface :where(.border-xelltekk-200, .border-xelltekk-300, .border-xelltekk-500, .hover\:border-xelltekk-300:hover) {
-    border-color: color-mix(in srgb, var(--saytu-primary, #2563eb) 48%, var(--saytu-border, #e2e8f0)) !important;
-  }
-
-  html[data-theme] .app-surface :where(.ring-xelltekk-100) {
-    --tw-ring-color: color-mix(in srgb, var(--saytu-primary, #2563eb) 22%, transparent) !important;
-  }
-
-  html[data-theme] .app-surface :where(.bg-xelltekk-50, .bg-blue-50, .bg-cyan-50) {
-    background-color: color-mix(in srgb, var(--saytu-surface, #ffffff) 82%, var(--saytu-primary, #2563eb) 18%) !important;
-  }
-
-  html[data-theme] .app-surface :where(.bg-xelltekk-100, .bg-blue-100, .bg-cyan-100) {
-    background-color: color-mix(in srgb, var(--saytu-surface, #ffffff) 68%, var(--saytu-primary, #2563eb) 32%) !important;
-  }
-
+  /* Neutral surfaces preserve the semantic Tailwind colours (errors, warnings,
+     successes). Do not remap every bg/text colour to the brand colour. */
   html[data-theme] :where(.app-surface, .auth-card) {
-    --saytu-aqua-panel: linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--saytu-focus, #22d3ee) 12%, #ffffff),
-      color-mix(in srgb, var(--saytu-primary, #0ea5e9) 6%, #ffffff)
-    );
-    --saytu-aqua-panel-soft: color-mix(in srgb, #ffffff 84%, var(--saytu-focus, #22d3ee) 16%);
-    --saytu-aqua-chip: color-mix(in srgb, #ffffff 70%, var(--saytu-focus, #22d3ee) 30%);
-    --saytu-aqua-border: color-mix(in srgb, var(--saytu-primary, #0ea5e9) 34%, var(--saytu-border, #bae6fd));
-    --saytu-aqua-text: var(--saytu-topbar-title, #082f49);
-    --saytu-aqua-muted: var(--saytu-topbar-subtitle, #0f6f8f);
-    --saytu-aqua-accent: var(--saytu-primary-hover, #0284c7);
+    --saytu-surface-tinted: #ffffff;
+    --saytu-surface-soft: #f8fafc;
+    --saytu-surface-muted: #e2e8f0;
+    --saytu-border-themed: #dce3ed;
+    --saytu-text-themed: #0f172a;
+    --saytu-muted-themed: #475569;
+    --saytu-shell-text: #0f172a;
+    --saytu-muted: #475569;
+    --saytu-primary-soft: #eff6ff;
+    color: #0f172a;
   }
 
-  html[data-theme] :where(.app-surface, .auth-card) :where(
-    [class^="bg-xelltekk-"],
-    [class*=" bg-xelltekk-"],
-    [class^="bg-gray-"],
-    [class*=" bg-gray-"],
-    [class^="bg-slate-"],
-    [class*=" bg-slate-"],
-    [class^="bg-blue-"],
-    [class*=" bg-blue-"],
-    [class^="bg-sky-"],
-    [class*=" bg-sky-"],
-    [class^="bg-cyan-"],
-    [class*=" bg-cyan-"],
-    [class^="bg-teal-"],
-    [class*=" bg-teal-"],
-    [class^="bg-emerald-"],
-    [class*=" bg-emerald-"],
-    [class^="bg-green-"],
-    [class*=" bg-green-"],
-    [class^="bg-indigo-"],
-    [class*=" bg-indigo-"],
-    [class^="bg-violet-"],
-    [class*=" bg-violet-"],
-    [class^="bg-purple-"],
-    [class*=" bg-purple-"],
-    [class^="bg-amber-"],
-    [class*=" bg-amber-"],
-    [class^="bg-yellow-"],
-    [class*=" bg-yellow-"],
-    [class^="bg-orange-"],
-    [class*=" bg-orange-"],
-    [class^="bg-red-"],
-    [class*=" bg-red-"],
-    [class^="bg-rose-"],
-    [class*=" bg-rose-"]
-  ) {
-    background-color: var(--saytu-aqua-panel-soft) !important;
-    color: var(--saytu-aqua-accent) !important;
+  html[data-theme] .app-surface { background: #f1f5f9 !important; border-color: #e2e8f0 !important; }
+  html[data-theme] .auth-card { background: #fff !important; border-color: #dce3ed !important; }
+  html[data-theme] :where(.app-surface, .auth-card) :where(.bg-white, .bg-white\/80, .bg-white\/90, .bg-white\/95) {
+    background-color: #fff;
   }
-
-  html[data-theme] :where(.app-surface, .auth-card) :where(
-    .bg-xelltekk-400,
-    .bg-xelltekk-500,
-    .bg-xelltekk-600,
-    .bg-xelltekk-700,
-    .bg-xelltekk-800,
-    .bg-xelltekk-900,
-    .bg-gray-400,
-    .bg-gray-500,
-    .bg-gray-600,
-    .bg-gray-700,
-    .bg-gray-800,
-    .bg-gray-900,
-    .bg-slate-400,
-    .bg-slate-500,
-    .bg-slate-600,
-    .bg-slate-700,
-    .bg-slate-800,
-    .bg-slate-900,
-    .bg-blue-400,
-    .bg-blue-500,
-    .bg-blue-600,
-    .bg-blue-700,
-    .bg-blue-800,
-    .bg-sky-400,
-    .bg-sky-500,
-    .bg-sky-600,
-    .bg-sky-700,
-    .bg-cyan-400,
-    .bg-cyan-500,
-    .bg-cyan-600,
-    .bg-cyan-700,
-    .bg-teal-400,
-    .bg-teal-500,
-    .bg-teal-600,
-    .bg-teal-700,
-    .bg-emerald-400,
-    .bg-emerald-500,
-    .bg-emerald-600,
-    .bg-emerald-700,
-    .bg-green-400,
-    .bg-green-500,
-    .bg-green-600,
-    .bg-green-700,
-    .bg-indigo-400,
-    .bg-indigo-500,
-    .bg-indigo-600,
-    .bg-indigo-700,
-    .bg-violet-400,
-    .bg-violet-500,
-    .bg-violet-600,
-    .bg-violet-700,
-    .bg-purple-400,
-    .bg-purple-500,
-    .bg-purple-600,
-    .bg-purple-700,
-    .bg-amber-400,
-    .bg-amber-500,
-    .bg-amber-600,
-    .bg-amber-700,
-    .bg-yellow-400,
-    .bg-yellow-500,
-    .bg-yellow-600,
-    .bg-yellow-700,
-    .bg-orange-400,
-    .bg-orange-500,
-    .bg-orange-600,
-    .bg-orange-700,
-    .bg-red-400,
-    .bg-red-500,
-    .bg-red-600,
-    .bg-red-700,
-    .bg-rose-400,
-    .bg-rose-500,
-    .bg-rose-600,
-    .bg-rose-700
-  ) {
-    background-color: var(--saytu-primary, #0ea5e9) !important;
-    color: #ffffff !important;
+  html[data-theme] :where(.app-surface, .auth-card) :where(.text-gray-400, .text-gray-500, .text-gray-600, .text-slate-400, .text-slate-500, .text-slate-600) {
+    color: #475569;
   }
-
-  html[data-theme] :where(.app-surface, .auth-card) :where(
-    .bg-white,
-    .bg-white\/80,
-    .bg-white\/90,
-    .bg-white\/95,
-    .bg-gray-50,
-    .bg-slate-50,
-    .bg-gray-100,
-    .bg-slate-100,
-    .bg-gray-200,
-    .bg-slate-200,
-    .bg-xelltekk-50,
-    .bg-xelltekk-100,
-    .bg-xelltekk-200,
-    .bg-blue-50,
-    .bg-sky-50,
-    .bg-cyan-50,
-    .bg-teal-50,
-    .bg-emerald-50,
-    .bg-green-50,
-    .bg-indigo-50,
-    .bg-violet-50,
-    .bg-purple-50,
-    .bg-amber-50,
-    .bg-yellow-50,
-    .bg-orange-50,
-    .bg-red-50,
-    .bg-rose-50,
-    .bg-blue-100,
-    .bg-sky-100,
-    .bg-cyan-100,
-    .bg-teal-100,
-    .bg-emerald-100,
-    .bg-green-100,
-    .bg-indigo-100,
-    .bg-violet-100,
-    .bg-purple-100,
-    .bg-amber-100,
-    .bg-yellow-100,
-    .bg-orange-100,
-    .bg-red-100,
-    .bg-rose-100,
-    [class~="bg-white/80"],
-    [class~="bg-white/90"],
-    [class~="bg-white/95"],
-    [class~="bg-slate-50/50"],
-    [class~="bg-blue-500/10"],
-    [class~="bg-blue-500/15"],
-    [class~="bg-emerald-500/10"],
-    [class~="bg-emerald-500/15"],
-    [class~="bg-red-500/10"],
-    [class~="bg-red-500/15"],
-    [class~="bg-amber-500/10"],
-    [class~="bg-amber-500/15"],
-    [class~="bg-indigo-500/10"],
-    [class~="bg-indigo-500/15"],
-    [class~="bg-violet-500/10"],
-    [class~="bg-violet-500/15"]
-  ) {
-    background: var(--saytu-aqua-panel) !important;
-    color: var(--saytu-aqua-text) !important;
+  html[data-theme] :where(.app-surface, .auth-card) :where(.text-xelltekk-500, .text-xelltekk-600, .text-xelltekk-700, .text-xelltekk-800) {
+    color: #1d4ed8;
   }
-
-  html[data-theme] :where(.app-surface, .auth-card) :where(
-    [class^="text-blue-"],
-    [class*=" text-blue-"],
-    [class^="text-sky-"],
-    [class*=" text-sky-"],
-    [class^="text-cyan-"],
-    [class*=" text-cyan-"],
-    [class^="text-teal-"],
-    [class*=" text-teal-"],
-    [class^="text-emerald-"],
-    [class*=" text-emerald-"],
-    [class^="text-green-"],
-    [class*=" text-green-"],
-    [class^="text-indigo-"],
-    [class*=" text-indigo-"],
-    [class^="text-violet-"],
-    [class*=" text-violet-"],
-    [class^="text-purple-"],
-    [class*=" text-purple-"],
-    [class^="text-amber-"],
-    [class*=" text-amber-"],
-    [class^="text-yellow-"],
-    [class*=" text-yellow-"],
-    [class^="text-orange-"],
-    [class*=" text-orange-"],
-    [class^="text-red-"],
-    [class*=" text-red-"],
-    [class^="text-rose-"],
-    [class*=" text-rose-"],
-    [class^="text-xelltekk-"],
-    [class*=" text-xelltekk-"],
-    .text-black
-  ) {
-    color: var(--saytu-aqua-accent) !important;
-  }
-
-  html[data-theme] :where(.app-surface, .auth-card) :where(
-    [class^="border-xelltekk-"],
-    [class*=" border-xelltekk-"],
-    [class^="border-gray-"],
-    [class*=" border-gray-"],
-    [class^="border-slate-"],
-    [class*=" border-slate-"],
-    [class^="border-blue-"],
-    [class*=" border-blue-"],
-    [class^="border-sky-"],
-    [class*=" border-sky-"],
-    [class^="border-cyan-"],
-    [class*=" border-cyan-"],
-    [class^="border-teal-"],
-    [class*=" border-teal-"],
-    [class^="border-emerald-"],
-    [class*=" border-emerald-"],
-    [class^="border-green-"],
-    [class*=" border-green-"],
-    [class^="border-indigo-"],
-    [class*=" border-indigo-"],
-    [class^="border-violet-"],
-    [class*=" border-violet-"],
-    [class^="border-purple-"],
-    [class*=" border-purple-"],
-    [class^="border-amber-"],
-    [class*=" border-amber-"],
-    [class^="border-yellow-"],
-    [class*=" border-yellow-"],
-    [class^="border-orange-"],
-    [class*=" border-orange-"],
-    [class^="border-red-"],
-    [class*=" border-red-"],
-    [class^="border-rose-"],
-    [class*=" border-rose-"]
-  ) {
-    border-color: var(--saytu-aqua-border) !important;
-  }
-
-  html[data-theme] :where(.app-surface, .auth-card) :where(
-    [class^="ring-xelltekk-"],
-    [class*=" ring-xelltekk-"],
-    [class^="ring-blue-"],
-    [class*=" ring-blue-"],
-    [class^="ring-cyan-"],
-    [class*=" ring-cyan-"],
-    [class^="ring-emerald-"],
-    [class*=" ring-emerald-"],
-    [class^="ring-green-"],
-    [class*=" ring-green-"],
-    [class^="ring-amber-"],
-    [class*=" ring-amber-"],
-    [class^="ring-orange-"],
-    [class*=" ring-orange-"],
-    [class^="ring-red-"],
-    [class*=" ring-red-"],
-    [class^="ring-violet-"],
-    [class*=" ring-violet-"],
-    [class^="ring-purple-"],
-    [class*=" ring-purple-"]
-  ) {
-    --tw-ring-color: color-mix(in srgb, var(--saytu-focus, #22d3ee) 60%, transparent) !important;
-  }
-
-  html[data-theme] :where(.app-surface, .auth-card) :where(
-    [class^="from-xelltekk-"],
-    [class*=" from-xelltekk-"],
-    [class^="from-gray-"],
-    [class*=" from-gray-"],
-    [class^="from-slate-"],
-    [class*=" from-slate-"],
-    [class^="from-blue-"],
-    [class*=" from-blue-"],
-    [class^="from-sky-"],
-    [class*=" from-sky-"],
-    [class^="from-cyan-"],
-    [class*=" from-cyan-"],
-    [class^="from-teal-"],
-    [class*=" from-teal-"],
-    [class^="from-emerald-"],
-    [class*=" from-emerald-"],
-    [class^="from-green-"],
-    [class*=" from-green-"],
-    [class^="from-indigo-"],
-    [class*=" from-indigo-"],
-    [class^="from-violet-"],
-    [class*=" from-violet-"],
-    [class^="from-purple-"],
-    [class*=" from-purple-"],
-    [class^="from-amber-"],
-    [class*=" from-amber-"],
-    [class^="from-yellow-"],
-    [class*=" from-yellow-"],
-    [class^="from-orange-"],
-    [class*=" from-orange-"],
-    [class^="from-red-"],
-    [class*=" from-red-"],
-    [class^="from-rose-"],
-    [class*=" from-rose-"]
-  ) {
-    --tw-gradient-from: var(--saytu-brand-from, #0ea5e9) var(--tw-gradient-from-position) !important;
-    --tw-gradient-to: rgb(14 165 233 / 0) var(--tw-gradient-to-position) !important;
-    --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
-  }
-
-  html[data-theme] :where(.app-surface, .auth-card) :where(
-    [class^="via-xelltekk-"],
-    [class*=" via-xelltekk-"],
-    [class^="via-gray-"],
-    [class*=" via-gray-"],
-    [class^="via-slate-"],
-    [class*=" via-slate-"],
-    [class^="via-blue-"],
-    [class*=" via-blue-"],
-    [class^="via-sky-"],
-    [class*=" via-sky-"],
-    [class^="via-cyan-"],
-    [class*=" via-cyan-"],
-    [class^="via-teal-"],
-    [class*=" via-teal-"],
-    [class^="via-emerald-"],
-    [class*=" via-emerald-"],
-    [class^="via-green-"],
-    [class*=" via-green-"],
-    [class^="via-indigo-"],
-    [class*=" via-indigo-"],
-    [class^="via-violet-"],
-    [class*=" via-violet-"],
-    [class^="via-purple-"],
-    [class*=" via-purple-"],
-    [class^="via-amber-"],
-    [class*=" via-amber-"],
-    [class^="via-yellow-"],
-    [class*=" via-yellow-"],
-    [class^="via-orange-"],
-    [class*=" via-orange-"],
-    [class^="via-red-"],
-    [class*=" via-red-"],
-    [class^="via-rose-"],
-    [class*=" via-rose-"]
-  ) {
-    --tw-gradient-stops: var(--tw-gradient-from), var(--saytu-focus, #22d3ee) var(--tw-gradient-via-position), var(--tw-gradient-to) !important;
-  }
-
-  html[data-theme] :where(.app-surface, .auth-card) :where(
-    [class^="to-xelltekk-"],
-    [class*=" to-xelltekk-"],
-    [class^="to-gray-"],
-    [class*=" to-gray-"],
-    [class^="to-slate-"],
-    [class*=" to-slate-"],
-    [class^="to-blue-"],
-    [class*=" to-blue-"],
-    [class^="to-sky-"],
-    [class*=" to-sky-"],
-    [class^="to-cyan-"],
-    [class*=" to-cyan-"],
-    [class^="to-teal-"],
-    [class*=" to-teal-"],
-    [class^="to-emerald-"],
-    [class*=" to-emerald-"],
-    [class^="to-green-"],
-    [class*=" to-green-"],
-    [class^="to-indigo-"],
-    [class*=" to-indigo-"],
-    [class^="to-violet-"],
-    [class*=" to-violet-"],
-    [class^="to-purple-"],
-    [class*=" to-purple-"],
-    [class^="to-amber-"],
-    [class*=" to-amber-"],
-    [class^="to-yellow-"],
-    [class*=" to-yellow-"],
-    [class^="to-orange-"],
-    [class*=" to-orange-"],
-    [class^="to-red-"],
-    [class*=" to-red-"],
-    [class^="to-rose-"],
-    [class*=" to-rose-"]
-  ) {
-    --tw-gradient-to: var(--saytu-brand-to, #22d3ee) var(--tw-gradient-to-position) !important;
-  }
-
-  html[data-theme] :where(.app-surface, .auth-card) :where(.badge, .xell-mini-chip) {
-    background: var(--saytu-aqua-chip) !important;
-    border-color: var(--saytu-aqua-border) !important;
-    color: var(--saytu-aqua-accent) !important;
-  }
-
-  html[data-theme] :where(.app-surface, .auth-card) :where([class*="hover:bg-"]):hover {
-    background: color-mix(in srgb, #ffffff 72%, var(--saytu-focus, #22d3ee) 28%) !important;
-  }
-
-  html[data-theme] :where(.app-surface, .auth-card) :where([class*="hover:text-"]):hover {
-    color: var(--saytu-primary-hover, #0284c7) !important;
-  }
-
-  html[data-theme] :where(.app-surface, .auth-card) :where([class*="hover:border-"]):hover {
-    border-color: color-mix(in srgb, var(--saytu-primary, #0ea5e9) 52%, var(--saytu-border, #bae6fd)) !important;
-  }
-
-  html[data-theme] .btn-danger,
-  html[data-theme] :where(.app-surface, .auth-card) .btn-danger {
-    background-color: var(--saytu-primary, #0ea5e9) !important;
-    background-image: linear-gradient(to right, var(--saytu-brand-from, #0ea5e9), var(--saytu-brand-to, #22d3ee)) !important;
-    border-color: color-mix(in srgb, var(--saytu-primary, #0ea5e9) 52%, var(--saytu-border, #bae6fd)) !important;
-    color: #ffffff !important;
-  }
+  html[data-theme] :where(.app-surface, .auth-card) :where(.text-xs) { font-size: 0.8125rem; line-height: 1.5; }
+  html[data-theme] :where(.app-surface, .auth-card) :where(table) { font-size: 0.875rem; }
+  html[data-theme] :where(.app-surface, .auth-card) thead { background: #f1f5f9; color: #334155; }
+  html[data-theme] :where(.app-surface, .auth-card) tbody { background: #fff; }
+  html[data-theme] :where(.app-surface, .auth-card) tbody tr:hover { background-color: #eff6ff; }
+  html[data-theme] :where(.app-surface, .auth-card) :where(.font-mono, input[type='number']) { font-variant-numeric: tabular-nums; }
 
   .overflow-x-auto {
     -webkit-overflow-scrolling: touch;
@@ -1158,14 +629,14 @@
   }
 
   .app-surface .overflow-x-auto > table th {
-    padding-top: 0.5rem !important;
-    padding-bottom: 0.5rem !important;
+    padding-top: 0.75rem !important;
+    padding-bottom: 0.75rem !important;
     white-space: nowrap;
   }
 
   .app-surface .overflow-x-auto > table td {
-    padding-top: 0.42rem !important;
-    padding-bottom: 0.42rem !important;
+    padding-top: 0.65rem !important;
+    padding-bottom: 0.65rem !important;
     vertical-align: middle;
     line-height: 1.2;
   }
@@ -1182,7 +653,7 @@
 
   .app-surface .overflow-x-auto > table td .badge {
     padding: 0.08rem 0.45rem;
-    font-size: 0.68rem;
+    font-size: 0.75rem;
     line-height: 0.95rem;
   }
 
@@ -1390,4 +861,28 @@
       transition-duration: 0.01ms !important;
     }
   }
+}
+
+/* Bespoke module panels use the same surfaces as the dashboard. */
+html[data-theme] .app-surface :is(
+  .client-theme-panel, .client-theme-kpi, .client360-card, .client360-mini-stat,
+  .produits-toolbar, .produits-stat-pill-idle, .produits-mini-signal,
+  .categories-toolbar, .category-kpi, .entrepots-toolbar, .entrepots-stat-pill,
+  .achat-toolbar, .achat-stat-pill-idle, .achat-dashboard-panel, .achat-dashboard-card,
+  .achat-mini-panel, .treasury-kpi, .access-kpi
+) { background: #fff; border-color: #dce3ed; box-shadow: 0 1px 3px rgb(15 23 42 / 0.06); }
+html[data-theme] .app-surface :is(.client-theme-kpi, .category-kpi, .treasury-kpi, .access-kpi) {
+  border-top: 3px solid #2563eb;
+}
+html[data-theme] .app-surface .client-theme-kpi-value { color: #0f172a; font-size: 1.75rem; }
+html[data-theme] .app-surface :is(.client-theme-kpi-label, .client-theme-kpi-help, .client360-label, .client360-help) { color: #475569; }
+html[data-theme] .app-surface .stat-grid:not(.dashboard-block) :is(.text-xl, .text-2xl) { font-size: 1.5rem; line-height: 1.3; font-variant-numeric: tabular-nums; }
+html[data-theme] :is(.app-surface, .auth-card) .document-line-card { background: #fff; border-color: #cbd5e1; color: #0f172a; }
+html[data-theme] :is(.app-surface, .auth-card) .document-line-label { color: #475569; font-size: 0.75rem; line-height: 1.3; }
+html[data-theme] :is(.app-surface, .auth-card) .document-line-total { background: #f1f5f9; border-color: #cbd5e1; color: #0f172a; }
+
+html[data-theme] .input[aria-invalid='true'],
+html[data-theme] [data-validation-field][aria-invalid='true'] {
+  border-color: #b91c1c;
+  outline-color: #b91c1c;
 }

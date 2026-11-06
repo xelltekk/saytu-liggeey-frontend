@@ -1,0 +1,30 @@
+<!doctype html><html lang="fr"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><div id="app"></div><script type="module">
+import {createApp,h,ref} from 'vue'
+import {createPinia} from 'pinia'
+import {createRouter,createMemoryHistory} from 'vue-router'
+import {useAuthStore} from '/src/stores/auth.js'
+import {useTheme} from '/src/composables/useTheme.js'
+import AppModal from '/src/components/AppModal.vue'
+import ConfirmDialogHost from '/src/components/ConfirmDialogHost.vue'
+import Clients from '/src/views/ClientsView.vue'
+import Produits from '/src/views/ProduitsView.vue'
+import Factures from '/src/views/FacturesView.vue'
+import Devis from '/src/views/DevisView.vue'
+import Stock from '/src/views/StockView.vue'
+import Tresorerie from '/src/views/TresorerieComptesView.vue'
+import TaxForm from '/tests/TaxSelectHarness.vue'
+import '/src/style.css'
+const kind=new URLSearchParams(location.search).get('page')||'clients'
+const pages={clients:Clients,produits:Produits,factures:Factures,devis:Devis,stock:Stock,tresorerie:Tresorerie,form:TaxForm}
+const pinia=createPinia(), router=createRouter({history:createMemoryHistory(),routes:[{path:'/:pathMatch(.*)*',component:{render:()=>null}}]})
+useTheme().applyTheme()
+const open=ref(true)
+const app=createApp({render:()=>h('div',{class:'app-shell min-h-screen p-3'},[
+ h('header',{class:'app-topbar p-4 mb-4 rounded-xl'},'Saytu Liggéey · Société de démonstration'),
+ h('main',{class:'app-surface p-4 rounded-xl'},[kind==='form'?h(AppModal,{modelValue:open.value,'onUpdate:modelValue':v=>open.value=v,title:'Saisie du document',size:'xl'},()=>h(TaxForm)):h(pages[kind])]),
+ h(ConfirmDialogHost)
+])})
+app.use(pinia).use(router)
+useAuthStore().user={id:1,name:'Admin',role:'admin',is_xelltekk_admin:true,permissions:['*']}
+await router.push('/');await router.isReady();app.mount('#app')
+</script></html>

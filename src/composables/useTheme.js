@@ -6,10 +6,10 @@ const FIXED_THEME_ID = 'login-aqua'
 export const themes = [
   {
     id: 'login-aqua',
-    name: 'Connexion Aqua',
-    description: 'Bleu et cyan inspires du login',
+    name: 'Saytu Clair',
+    description: 'Surfaces claires, textes contrastés et actions bleues',
     mode: 'light',
-    swatches: ['#14384a', '#0ea5e9', '#22d3ee'],
+    swatches: ['#163c58', '#2563eb', '#f1f5f9'],
   },
 ]
 
