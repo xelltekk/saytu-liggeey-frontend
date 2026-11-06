@@ -94,7 +94,7 @@ onMounted(load)
 <template>
   <main class="import-page space-y-5">
     <header class="rounded-2xl border border-cyan-200 bg-cyan-50 p-5">
-      <button v-if="creating || report" type="button" class="mb-4 font-semibold text-cyan-800" :disabled="busy || childBusy" @click="back">← Retour liste</button>
+      <button v-if="creating || report" type="button" class="app-back-button mb-4 font-semibold text-cyan-800" :disabled="busy || childBusy" @click="back"><span class="app-back-button__arrow" aria-hidden="true">←</span><span>Retour à la liste</span></button>
       <p class="text-xs font-bold uppercase tracking-widest text-cyan-800">Administration · Migration Dolibarr</p>
       <h1 class="mt-2 text-2xl font-bold text-slate-900">{{ report ? 'Résultat de l’analyse' : creating ? 'Analyser une sauvegarde' : 'Importation des données' }}</h1>
       <p class="mt-2 text-sm text-slate-700">Préparez la reprise de vos clients, produits, stocks et documents commerciaux dans Saytu.</p>

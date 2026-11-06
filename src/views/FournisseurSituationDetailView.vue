@@ -1,9 +1,7 @@
 <template>
   <div class="space-y-5">
     <div class="rounded-3xl border border-cyan-200 bg-cyan-50/70 p-6 shadow-sm">
-      <button class="mb-6 text-sm font-bold text-cyan-700 hover:text-cyan-900" type="button" @click="goBack">
-        ← Retour liste
-      </button>
+      <button class="app-back-button mb-6 text-sm font-bold text-cyan-700 hover:text-cyan-900" type="button" @click="goBack"><span class="app-back-button__arrow" aria-hidden="true">←</span><span>Retour à la liste</span></button>
       <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p class="text-xs font-black uppercase tracking-[0.22em] text-cyan-700">Situation fournisseur</p>

@@ -5,11 +5,9 @@
         <div>
           <button
             type="button"
-            class="mb-4 text-sm font-black text-cyan-700 hover:text-cyan-900"
+            class="app-back-button mb-4 text-sm font-black text-cyan-700 hover:text-cyan-900"
             @click="goBack"
-          >
-            ← Retour liste
-          </button>
+          ><span class="app-back-button__arrow" aria-hidden="true">←</span><span>Retour à la liste</span></button>
 
           <p class="text-xs font-black uppercase tracking-[0.22em] text-cyan-700">Dossier recouvrement</p>
           <h1 class="mt-2 text-2xl font-black text-slate-950">

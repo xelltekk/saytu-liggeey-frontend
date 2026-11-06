@@ -1,7 +1,7 @@
 <template>
   <div class="comparison space-y-5">
     <header v-if="!embedded" class="rounded-3xl border border-cyan-200 bg-cyan-50 p-6">
-      <RouterLink :to="{ name: 'leasing', query: { tab: 'releves' } }" class="font-bold text-cyan-800">← Retour liste</RouterLink>
+      <RouterLink :to="{ name: 'leasing', query: { tab: 'releves' } }" class="app-back-button font-bold text-cyan-800"><span class="app-back-button__arrow" aria-hidden="true">←</span><span>Retour à la liste</span></RouterLink>
       <p class="mt-5 text-xs font-bold uppercase tracking-widest text-cyan-800">Leasing imprimantes · Compteurs Canon</p>
       <h1 class="mt-2 text-3xl font-bold text-slate-900">Comparer deux relevés</h1>
       <p class="mt-2 text-slate-700">Importez les PDF, vérifiez les valeurs reconnues et calculez la consommation A4 de la période.</p>

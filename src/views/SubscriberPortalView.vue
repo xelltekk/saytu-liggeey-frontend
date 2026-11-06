@@ -10,7 +10,7 @@
     <p v-if="loading" aria-live="polite">Chargement…</p>
     <template v-else-if="section === 'tickets'">
       <section v-if="creating">
-        <button class="secondary" @click="creating = false">← Retour liste</button>
+        <button class="app-back-button secondary" @click="creating = false"><span class="app-back-button__arrow" aria-hidden="true">←</span><span>Retour à la liste</span></button>
         <h2>Nouveau ticket</h2>
         <form @submit.prevent="createTicket">
           <label>Sujet <input v-model.trim="form.sujet" required maxlength="191" /></label>
@@ -22,7 +22,7 @@
         </form>
       </section>
       <section v-else-if="selected">
-        <button class="secondary" @click="selected = null">← Retour liste</button>
+        <button class="app-back-button secondary" @click="selected = null"><span class="app-back-button__arrow" aria-hidden="true">←</span><span>Retour à la liste</span></button>
         <h2>{{ selected.numero }} — {{ selected.sujet }}</h2>
         <p>{{ selected.statut_label }} · Priorité {{ selected.priorite_label }}</p>
         <p v-if="selected.notification_pending" class="notice">Ticket enregistré ; notification email en attente d’envoi.</p>

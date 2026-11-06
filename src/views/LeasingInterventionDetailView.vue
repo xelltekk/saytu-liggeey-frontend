@@ -1,7 +1,7 @@
 <template>
   <div class="space-y-5">
     <div class="rounded-3xl border border-cyan-200 bg-cyan-50/70 p-6 shadow-sm">
-      <button class="mb-6 text-sm font-bold text-cyan-700 hover:text-cyan-900" type="button" @click="goBack">← Retour liste</button>
+      <button class="app-back-button mb-6 text-sm font-bold text-cyan-700 hover:text-cyan-900" type="button" @click="goBack"><span class="app-back-button__arrow" aria-hidden="true">←</span><span>Retour à la liste</span></button>
       <p class="text-xs font-black uppercase tracking-[0.22em] text-cyan-700">Intervention leasing</p>
       <h1 class="mt-2 text-3xl font-black text-slate-900">{{ isEdit ? `Modifier ${intervention?.reference || ''}` : 'Nouvelle intervention' }}</h1>
       <p class="mt-1 text-sm text-slate-600">Planification et suivi intervention en page complète.</p>

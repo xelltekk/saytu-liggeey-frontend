@@ -3,9 +3,7 @@
     <section class="inline-panel-modal" :class="panelSizeClass">
       <header class="inline-panel-modal__header">
         <div>
-          <button type="button" class="inline-panel-modal__back" @click="close">
-            ← Retour liste
-          </button>
+          <button type="button" class="app-back-button inline-panel-modal__back" @click="close"><span class="app-back-button__arrow" aria-hidden="true">←</span><span>Retour à la liste</span></button>
           <h3 class="inline-panel-modal__title">{{ title }}</h3>
           <p class="inline-panel-modal__subtitle">{{ subtitle }}</p>
         </div>
@@ -22,9 +20,7 @@
   <section v-else-if="modelValue" class="inline-panel-modal" :class="panelSizeClass">
     <header class="inline-panel-modal__header">
       <div>
-        <button type="button" class="inline-panel-modal__back" @click="close">
-          ← Retour liste
-        </button>
+        <button type="button" class="app-back-button inline-panel-modal__back" @click="close"><span class="app-back-button__arrow" aria-hidden="true">←</span><span>Retour à la liste</span></button>
         <h3 class="inline-panel-modal__title">{{ title }}</h3>
         <p class="inline-panel-modal__subtitle">{{ subtitle }}</p>
       </div>

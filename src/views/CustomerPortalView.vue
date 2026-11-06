@@ -20,7 +20,7 @@
       <nav aria-label="Rubriques du portail"><button v-for="[key, label] in sections" :key="key" class="secondary" :aria-pressed="kind === key" :disabled="busy" @click="changeSection(key)">{{ label }}</button><button class="secondary" :disabled="busy" @click="logout">Déconnexion</button></nav>
       <div class="section-heading"><div><p class="eyebrow">{{ account.client }}</p><h2>{{ sectionTitle }}</h2><p>{{ sectionDescription }}</p></div><span class="privacy-badge">Espace réservé à votre entreprise</span></div>
       <section v-if="creating && !loading">
-        <button class="secondary" :disabled="busy" @click="cancelCreation">← Retour liste</button>
+        <button class="app-back-button secondary" :disabled="busy" @click="cancelCreation"><span class="app-back-button__arrow" aria-hidden="true">←</span><span>Retour à la liste</span></button>
         <h2>{{ kind === 'tickets' ? 'Créer un ticket' : kind === 'prix' ? 'Demander un prix / devis' : 'Soumettre un bon de commande' }}</h2>
         <p v-if="kind === 'prix'">Décrivez les articles souhaités. Votre fournisseur préparera un devis : aucun achat n’est engagé par cette demande.</p>
         <p v-if="kind === 'commandes'">Indiquez les articles et quantités souhaités. Votre fournisseur préparera un devis à vous soumettre. Cette demande ne vaut pas confirmation d’achat.</p>
@@ -33,7 +33,7 @@
         </form>
       </section>
       <section v-else-if="selected && !loading">
-        <button class="secondary" :disabled="busy" @click="back">← Retour liste</button><div class="detail-heading"><div><p class="eyebrow">{{ selected.reference }}</p><h2>{{ selected.titre }}</h2></div><span class="status-badge" :data-status="selected.statut">{{ status(selected.statut) }}</span></div>
+        <button class="app-back-button secondary" :disabled="busy" @click="back"><span class="app-back-button__arrow" aria-hidden="true">←</span><span>Retour à la liste</span></button><div class="detail-heading"><div><p class="eyebrow">{{ selected.reference }}</p><h2>{{ selected.titre }}</h2></div><span class="status-badge" :data-status="selected.statut">{{ status(selected.statut) }}</span></div>
         <template v-if="kind === 'tickets'">
           <div class="ticket-meta"><span>Priorité : {{ selected.priorite }}</span><span>Créé le {{ date(selected.created_at) }}</span></div>
           <article class="original-request"><h3>Votre demande initiale</h3><p class="text">{{ selected.description }}</p></article>

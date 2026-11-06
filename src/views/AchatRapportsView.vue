@@ -1,9 +1,7 @@
 <template>
   <div class="app-surface space-y-4">
     <div class="rounded-2xl border border-cyan-200 bg-white p-4 shadow-sm">
-      <button type="button" class="mb-3 text-sm font-bold text-cyan-700 hover:text-cyan-900" @click="goBack">
-        ← Retour liste
-      </button>
+      <button type="button" class="app-back-button mb-3 text-sm font-bold text-cyan-700 hover:text-cyan-900" @click="goBack"><span class="app-back-button__arrow" aria-hidden="true">←</span><span>Retour à la liste</span></button>
       <p class="text-xs font-black uppercase tracking-[0.2em] text-cyan-700">Rapports achats fournisseurs</p>
       <h1 class="mt-2 text-2xl font-black text-slate-950">États de contrôle achats</h1>
       <p class="mt-1 text-sm text-slate-600">

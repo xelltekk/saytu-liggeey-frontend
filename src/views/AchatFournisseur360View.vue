@@ -1,9 +1,7 @@
 <template>
   <div class="app-surface space-y-4">
     <div class="rounded-2xl border border-cyan-200 bg-white p-4 shadow-sm">
-      <button type="button" class="mb-3 text-sm font-bold text-cyan-700 hover:text-cyan-900" @click="goBack">
-        ← Retour liste
-      </button>
+      <button type="button" class="app-back-button mb-3 text-sm font-bold text-cyan-700 hover:text-cyan-900" @click="goBack"><span class="app-back-button__arrow" aria-hidden="true">←</span><span>Retour à la liste</span></button>
 
       <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>

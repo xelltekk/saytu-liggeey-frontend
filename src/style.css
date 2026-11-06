@@ -886,3 +886,35 @@ html[data-theme] [data-validation-field][aria-invalid='true'] {
   border-color: #b91c1c;
   outline-color: #b91c1c;
 }
+
+/* Shared navigation affordance across detail pages and inline panels. */
+html .app-back-button {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 44px;
+  max-width: 100%;
+  padding: 0.625rem 1rem !important;
+  border: 1px solid #93c5fd !important;
+  border-radius: 0.75rem;
+  background: #eff6ff !important;
+  color: #1e40af !important;
+  font-size: 0.875rem !important;
+  font-weight: 700 !important;
+  line-height: 1.4;
+  text-align: left;
+  text-decoration: none !important;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.08);
+  transition: background-color 150ms ease, border-color 150ms ease;
+}
+html .app-back-button:hover:not(:disabled) {
+  background: #dbeafe !important;
+  border-color: #2563eb !important;
+  color: #1e3a8a !important;
+}
+html .app-back-button:focus-visible { outline: 3px solid #2563eb; outline-offset: 3px; }
+html .app-back-button:active:not(:disabled) { background: #bfdbfe !important; }
+html .app-back-button:disabled { cursor: not-allowed; opacity: 0.55; }
+html .app-back-button__arrow { flex-shrink: 0; font-size: 1.375rem; line-height: 1; }
+html .inline-panel-modal__back.app-back-button { margin-bottom: 1rem; }

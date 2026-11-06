@@ -3,9 +3,7 @@
     <div class="rounded-2xl border border-sky-200 bg-white p-4 shadow-sm">
       <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <button type="button" class="mb-3 text-sm font-bold text-sky-700 hover:text-sky-900" @click="goBack">
-            ← Retour liste
-          </button>
+          <button type="button" class="app-back-button mb-3 text-sm font-bold text-sky-700 hover:text-sky-900" @click="goBack"><span class="app-back-button__arrow" aria-hidden="true">←</span><span>Retour à la liste</span></button>
           <div class="flex flex-wrap items-center gap-2">
             <h1 class="text-2xl font-black text-slate-950">
               {{ isCreate ? 'Nouvelle facture' : facture?.numero || 'Facture' }}

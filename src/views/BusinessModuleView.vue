@@ -222,8 +222,8 @@ watch(() => route.fullPath, load, { immediate: true })
 <template>
   <main class="business space-y-5">
     <header class="rounded-2xl border border-cyan-200 bg-cyan-50 p-5">
-      <RouterLink v-if="detail" :to="listTarget()" class="font-semibold text-cyan-800">← Retour liste</RouterLink>
-      <RouterLink v-else-if="key" to="/metier" class="font-semibold text-cyan-800">← Toutes les rubriques</RouterLink>
+      <RouterLink v-if="detail" :to="listTarget()" class="app-back-button font-semibold text-cyan-800"><span class="app-back-button__arrow" aria-hidden="true">←</span><span>Retour à la liste</span></RouterLink>
+      <RouterLink v-else-if="key" to="/metier" class="app-back-button font-semibold text-cyan-800"><span class="app-back-button__arrow" aria-hidden="true">←</span><span>Toutes les rubriques</span></RouterLink>
       <h1 class="mt-3 text-2xl font-bold">{{ definition?.label || 'Relation client et services' }}</h1>
       <p v-if="definition?.notice" class="mt-2 text-sm">{{ definition.notice }}</p>
     </header>

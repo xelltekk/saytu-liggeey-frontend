@@ -2,9 +2,7 @@
   <div class="app-surface space-y-4">
     <div class="rounded-xl border border-xelltekk-100 bg-white shadow-sm">
       <div class="border-b border-xelltekk-100 px-4 py-4">
-        <button type="button" class="mb-2 text-sm font-semibold text-xelltekk-700 hover:underline" @click="goBack">
-          ← Retour prospection
-        </button>
+        <button type="button" class="app-back-button mb-2 text-sm font-semibold text-xelltekk-700 hover:underline" @click="goBack"><span class="app-back-button__arrow" aria-hidden="true">←</span><span>Retour à la prospection</span></button>
         <p class="text-xs font-bold uppercase tracking-[0.35em] text-xelltekk-600">Objectif commercial</p>
         <h2 class="mt-1 text-2xl font-black text-slate-900">
           {{ isCreate ? 'Nouvel objectif' : objectif?.commercial?.name || 'Modifier objectif' }}

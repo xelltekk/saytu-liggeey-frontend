@@ -1,9 +1,7 @@
 <template>
   <div class="app-surface space-y-4">
     <section class="rounded-3xl border border-cyan-200 bg-cyan-50/80 p-5 shadow-sm">
-      <button type="button" class="mb-4 text-sm font-black text-cyan-700 hover:text-cyan-900" @click="goBack">
-        ← Retour agenda
-      </button>
+      <button type="button" class="app-back-button mb-4 text-sm font-black text-cyan-700 hover:text-cyan-900" @click="goBack"><span class="app-back-button__arrow" aria-hidden="true">←</span><span>Retour à l’agenda</span></button>
       <p class="text-xs font-black uppercase tracking-[0.22em] text-cyan-700">{{ eventTypeLabel(event) }}</p>
       <h1 class="mt-2 text-2xl font-black text-slate-950">{{ event?.title || 'Événement' }}</h1>
       <p class="mt-1 text-sm text-cyan-800">{{ event?.subtitle || 'Détail en page complète.' }}</p>
