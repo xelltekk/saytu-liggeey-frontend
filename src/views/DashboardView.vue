@@ -4,7 +4,7 @@
       Chargement du tableau de bord...
     </div>
 
-    <div v-else class="dashboard-page dashboard-sortable-root space-y-4">
+    <div v-else class="dashboard-page dashboard-readable dashboard-sortable-root space-y-4">
       <div class="dashboard-hero rounded-lg px-4 py-3 text-white shadow-sm sm:px-5">
         <div class="flex flex-wrap items-center justify-between gap-2">
           <div>
@@ -64,10 +64,10 @@
           :can-down="canMoveDashboardBlock('kpis', 'down')"
           @move="moveDashboardBlock"
         />
-        <KpiCard v-if="isBusinessDashboard" :to="{ path: '/caisse', query: { tab: 'factures-comptoir' } }" label="CA boutique" :value="formatPrice(kpi.ca_boutique_mois ?? 0)" icon="CB" :icon-component="Wallet" color="green" :sub="`Année : ${formatPrice(kpi.ca_boutique_annee ?? 0)}`" />
-        <KpiCard v-if="isBusinessDashboard" :to="{ path: '/factures', query: { quick: 'ca_mois', source: 'facturation' } }" label="CA facturation" :value="formatPrice(kpi.ca_facturation_mois ?? kpi.ca_mois)" icon="CF" :icon-component="TrendingUp" color="blue" :sub="`Année : ${formatPrice(kpi.ca_facturation_annee ?? kpi.ca_annee)}`" />
-        <KpiCard v-if="isBusinessDashboard" :to="{ path: '/factures', query: { quick: 'encours' } }" label="Encours total" :value="formatPrice(kpi.encours_total)" icon="EC" icon-image="/images/dashboard/encours.png" :icon-component="FileClock" color="orange" />
-        <KpiCard v-if="isBusinessDashboard" :to="{ path: '/factures', query: { quick: 'impayees' } }" label="Factures impayees" :value="kpi.factures_impayees || 0" icon="FI" icon-image="/images/dashboard/factures-impayees.png" :icon-component="FileWarning" color="purple" :sub="`dont ${kpi.factures_en_retard || 0} en retard`" />
+        <KpiCard v-if="isBusinessDashboard" label="Chiffre d’affaires" :value="formatPrice(kpi.ca_mois)" suffix="FCFA" :icon-component="TrendingUp" color="blue" :sub="`Ce mois · Année : ${formatPrice(kpi.ca_annee)} FCFA`" />
+        <KpiCard v-if="isBusinessDashboard" to="/paiements" label="Encaissements" :value="formatPrice(kpi.paiements_mois)" suffix="FCFA" :icon-component="Wallet" color="green" sub="Paiements enregistrés ce mois" />
+        <KpiCard v-if="isBusinessDashboard" :to="{ path: '/factures', query: { quick: 'encours' } }" label="Reste à encaisser" :value="formatPrice(kpi.encours_total)" suffix="FCFA" :icon-component="FileClock" color="orange" sub="Facturation · Toutes périodes" />
+        <KpiCard v-if="isBusinessDashboard" :to="{ path: '/factures', query: { quick: 'impayees' } }" label="Factures impayées" :value="kpi.factures_impayees || 0" :icon-component="FileWarning" :color="kpi.factures_en_retard ? 'red' : 'blue'" :sub="`dont ${kpi.factures_en_retard || 0} en retard · Toutes périodes`" />
 
         <KpiCard v-if="isCommercial" to="/clients" label="Mes clients actifs" :value="kpi.clients_actifs || 0" icon="CL" :icon-component="UsersRound" color="green" />
         <KpiCard v-if="isCommercial" to="/devis" label="Mes devis en cours" :value="kpi.devis_en_cours || 0" icon="DV" :icon-component="FileText" color="blue" />
@@ -177,29 +177,20 @@
           <h3 class="font-semibold text-gray-900">Soldes de trésorerie</h3>
           <span class="text-xs text-gray-500">Temps réel</span>
         </div>
-        <div v-if="soldesTresorerieComptes.length" class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          <KpiCard
-            label="Solde total disponible"
-            :value="formatPrice(soldesTresorerieTotal)"
-            icon="TR"
-            icon-image="/images/dashboard/solde-total.png"
-            :icon-component="Wallet"
-            color="blue"
-            :sub="`${soldesTresorerieComptes.length} compte(s) actif(s)`"
-            to="/tresorerie-comptes"
-          />
-          <KpiCard
-            v-for="compte in soldesTresorerieComptes"
-            :key="compte.id || compte.code"
-            :label="compte.label"
-            :value="formatPrice(compte.solde_actuel)"
-            :icon="compte.icon"
-            :icon-image="compte.iconImage"
-            :icon-component="compte.iconComponent"
-            :color="compte.color"
-            :sub="compte.sub"
-            to="/tresorerie-comptes"
-          />
+        <div v-if="soldesTresorerieComptes.length" class="dashboard-treasury">
+          <router-link to="/tresorerie-comptes" class="dashboard-treasury-total">
+            <Wallet :size="26" aria-hidden="true" />
+            <span>Solde total disponible</span>
+            <strong>{{ formatPrice(soldesTresorerieTotal) }} <small>FCFA</small></strong>
+            <span>{{ soldesTresorerieComptes.length }} comptes actifs · Voir les comptes →</span>
+          </router-link>
+          <div class="dashboard-account-list">
+            <router-link v-for="compte in soldesTresorerieComptes" :key="compte.id || compte.code" to="/tresorerie-comptes" class="dashboard-account-row">
+              <component :is="compte.iconComponent" :size="20" aria-hidden="true" />
+              <div class="dashboard-account-name"><strong>{{ compte.label }}</strong><span>{{ compte.sub }}</span></div>
+              <strong class="dashboard-account-balance" :class="{ 'is-negative': compte.solde_actuel < 0 }">{{ formatPrice(compte.solde_actuel) }} <small>FCFA</small></strong>
+            </router-link>
+          </div>
         </div>
         <div v-else class="flex min-h-52 items-center justify-center text-sm text-gray-400">
           Aucun compte de trésorerie actif
@@ -218,7 +209,7 @@
         <section class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
           <div class="mb-4 flex items-center justify-between">
             <h3 class="font-semibold text-gray-900">Chiffre d'affaires mensuel</h3>
-            <span class="text-xs text-gray-500">12 derniers mois</span>
+            <span class="text-xs text-gray-500">12 derniers mois · FCFA</span>
           </div>
           <div class="h-64">
             <Line v-if="caChartData" :data="caChartData" :options="caChartOptions" />
@@ -491,14 +482,12 @@ import api from '@/services/api'
 import { ouvrirPDF } from '@/services/pdf'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
-import { useTheme } from '@/composables/useTheme'
 import { effectiveRole, hasAnyRole } from '@/utils/access'
 
 ChartJS.register(Title, Tooltip, Legend, CategoryScale, LinearScale, PointElement, LineElement, Filler)
 
 const auth = useAuthStore()
 const toast = useToast()
-const { themeId } = useTheme()
 
 const loading = ref(true)
 const dashboardScope = ref('business')
@@ -643,7 +632,7 @@ const KpiCard = {
           h('span', { class: 'dashboard-kpi-label text-xs font-semibold uppercase' }, props.label),
           iconNode(),
         ]),
-        h('div', { class: 'flex items-baseline gap-1' }, [
+        h('div', { class: 'flex flex-wrap items-baseline gap-1' }, [
           h('span', { class: 'dashboard-kpi-value text-xl font-bold' }, props.value),
           props.suffix ? h('span', { class: 'dashboard-kpi-suffix text-xs' }, props.suffix) : null,
         ]),
@@ -654,7 +643,7 @@ const KpiCard = {
       props.to ? RouterLink : 'div',
       {
         ...(props.to ? { to: props.to } : {}),
-        class: `dashboard-kpi-card ${toneClass} block rounded-lg border p-3 transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-cyan-300`,
+        class: `dashboard-kpi-card ${toneClass} dashboard-accent-${props.color || 'blue'} block rounded-lg border p-3 transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-cyan-300`,
       },
       props.to ? { default: children } : children()
     )
@@ -819,17 +808,20 @@ const caChartOptions = {
   responsive: true,
   maintainAspectRatio: false,
   plugins: {
-    legend: { display: true, labels: { usePointStyle: true, boxWidth: 8 } },
+    legend: { display: true, labels: { color: '#334155', font: { size: 13 }, padding: 18, usePointStyle: true, boxWidth: 8 } },
     tooltip: {
       callbacks: {
-        label: (ctx) => `${ctx.dataset.label || 'CA'} : ${new Intl.NumberFormat('fr-FR').format(ctx.parsed.y)}` ,
+        label: (ctx) => `${ctx.dataset.label || 'CA'} : ${new Intl.NumberFormat('fr-FR').format(ctx.parsed.y)} FCFA` ,
       },
     },
   },
   scales: {
+    x: { ticks: { color: '#475569', font: { size: 12 } }, grid: { display: false } },
     y: {
       beginAtZero: true,
+      grid: { color: '#e2e8f0' },
       ticks: {
+        color: '#475569',
         callback: (value) => new Intl.NumberFormat('fr-FR', { notation: 'compact', maximumFractionDigits: 1 }).format(value),
       },
     },
@@ -853,11 +845,11 @@ async function loadDashboard() {
       const datasets = [{
         label: 'CA total',
         data: data.ca_mensuel.data,
-        borderColor: dashboardThemeColor('--saytu-brand-from', '#2563eb'),
-        backgroundColor: dashboardThemeAlpha('--saytu-brand-from', 0.12, '#2563eb'),
+        borderColor: '#2563eb',
+        backgroundColor: 'rgba(37, 99, 235, 0.06)',
         fill: true,
         tension: 0.3,
-        pointBackgroundColor: dashboardThemeColor('--saytu-brand-to', '#22d3ee'),
+        pointBackgroundColor: '#2563eb',
         pointRadius: 4,
         pointHoverRadius: 6,
       }]
@@ -866,7 +858,7 @@ async function loadDashboard() {
         datasets.push({
           label: 'CA boutique',
           data: data.ca_mensuel.boutique,
-          borderColor: dashboardThemeColor('--saytu-brand-to', '#06b6d4'),
+          borderColor: '#047857',
           backgroundColor: 'transparent',
           fill: false,
           tension: 0.3,
@@ -879,7 +871,7 @@ async function loadDashboard() {
         datasets.push({
           label: 'CA facturation',
           data: data.ca_mensuel.facturation,
-          borderColor: dashboardThemeColor('--saytu-primary', '#2563eb'),
+          borderColor: '#7c3aed',
           backgroundColor: 'transparent',
           fill: false,
           tension: 0.3,
@@ -1056,30 +1048,6 @@ function dashboardToneClass(color) {
   }[color] || 'dashboard-tone-1'
 }
 
-function dashboardThemeColor(variable, fallback) {
-  if (typeof window === 'undefined') return fallback
-  return getComputedStyle(document.documentElement).getPropertyValue(variable).trim() || fallback
-}
-
-function dashboardThemeAlpha(variable, alpha = 0.12, fallback = '#2563eb') {
-  const color = dashboardThemeColor(variable, fallback)
-  const hex = color.replace('#', '').trim()
-  if (!/^[0-9a-f]{6}$/i.test(hex)) return color
-  const r = parseInt(hex.slice(0, 2), 16)
-  const g = parseInt(hex.slice(2, 4), 16)
-  const b = parseInt(hex.slice(4, 6), 16)
-  return 'rgba(' + r + ', ' + g + ', ' + b + ', ' + alpha + ')'
-}
-
-function refreshChartTheme() {
-  const dataset = caChartData.value?.datasets?.[0]
-  if (!dataset) return
-  dataset.borderColor = dashboardThemeColor('--saytu-brand-from', '#2563eb')
-  dataset.backgroundColor = dashboardThemeAlpha('--saytu-brand-from', 0.12, '#2563eb')
-  dataset.pointBackgroundColor = dashboardThemeColor('--saytu-brand-to', '#22d3ee')
-  caChartData.value = { ...caChartData.value, datasets: [{ ...dataset }] }
-}
-
 function formatPrice(value) {
   return new Intl.NumberFormat('fr-FR').format(Math.round(value || 0))
 }
@@ -1121,7 +1089,6 @@ function progressColor(percent) {
 }
 
 watch(dashboardLayoutStorageKey, () => loadDashboardLayout(), { immediate: true })
-watch(themeId, () => refreshChartTheme())
 
 onMounted(() => loadDashboard())
 </script>
@@ -1286,4 +1253,74 @@ onMounted(() => loadDashboard())
     text-align: center;
   }
 }
+
+/* Dashboard-only contrast: do not inherit the decorative cyan theme for data. */
+.dashboard-page.dashboard-readable {
+  --dashboard-text-main: #0f172a;
+  --dashboard-text-muted: #475569;
+  --dashboard-tone-1: #047857;
+  --dashboard-tone-2: #1d4ed8;
+  --dashboard-tone-3: #b45309;
+  background: #f1f5f9;
+  padding: 16px;
+  border-radius: 16px;
+  color: #0f172a;
+}
+.dashboard-page.dashboard-readable .bg-white { background: #fff !important; border-color: #dce3ed !important; }
+.dashboard-page.dashboard-readable .dashboard-hero { background: #163c58 !important; padding: 20px 24px; }
+.dashboard-page.dashboard-readable .dashboard-hero * { color: #fff !important; }
+.dashboard-page.dashboard-readable .dashboard-hero h2 { font-size: 22px; }
+.dashboard-page.dashboard-readable .dashboard-hero p { font-size: 14px; }
+.dashboard-page.dashboard-readable h3 { font-size: 17px; color: #0f172a !important; }
+.dashboard-page.dashboard-readable .text-xs { font-size: 13px; line-height: 1.5; }
+.dashboard-page.dashboard-readable .text-gray-400,
+.dashboard-page.dashboard-readable .text-gray-500,
+.dashboard-page.dashboard-readable .text-gray-600 { color: #475569 !important; }
+.dashboard-page.dashboard-readable .text-xelltekk-600 { color: #1d4ed8 !important; }
+.dashboard-page.dashboard-readable .dashboard-kpi-card {
+  --readable-accent: #1d4ed8;
+  background: #fff !important;
+  border: 1px solid #dce3ed !important;
+  border-top: 4px solid var(--readable-accent) !important;
+  padding: 18px;
+  min-width: 0;
+  border-radius: 12px;
+}
+.dashboard-page.dashboard-readable .dashboard-accent-green { --readable-accent: #047857; }
+.dashboard-page.dashboard-readable .dashboard-accent-orange { --readable-accent: #b45309; }
+.dashboard-page.dashboard-readable .dashboard-accent-red { --readable-accent: #b91c1c; }
+.dashboard-page.dashboard-readable .dashboard-kpi-label { color: #334155 !important; font-size: 13px; text-transform: none; }
+.dashboard-page.dashboard-readable .dashboard-kpi-value { color: #0f172a !important; font-size: clamp(24px, 2vw, 32px); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.dashboard-page.dashboard-readable .dashboard-kpi-sub,
+.dashboard-page.dashboard-readable .dashboard-kpi-suffix { color: #475569 !important; font-size: 13px; }
+.dashboard-page.dashboard-readable .dashboard-accent-red .dashboard-kpi-sub { color: #b91c1c !important; font-weight: 600; }
+.dashboard-page.dashboard-readable .dashboard-kpi-icon { color: var(--readable-accent) !important; background: #f1f5f9 !important; border: 0; box-shadow: none; width: 36px; height: 36px; }
+.dashboard-page.dashboard-readable .bg-orange-50 { background: #fff7ed !important; }
+.dashboard-page.dashboard-readable .bg-red-50 { background: #fef2f2 !important; }
+.dashboard-page.dashboard-readable .text-orange-700 { color: #9a3412 !important; }
+.dashboard-page.dashboard-readable .text-red-700,
+.dashboard-page.dashboard-readable .text-red-800 { color: #b91c1c !important; }
+.dashboard-page.dashboard-readable .text-green-600,
+.dashboard-page.dashboard-readable .text-green-700 { color: #047857 !important; }
+.dashboard-page.dashboard-readable .dashboard-treasury { display: grid; grid-template-columns: minmax(240px, 1fr) minmax(0, 2fr); gap: 24px; }
+.dashboard-page.dashboard-readable .dashboard-treasury-total { display: flex; flex-direction: column; justify-content: center; gap: 10px; padding: 24px; background: #eff6ff !important; border-radius: 12px; color: #1e3a8a !important; }
+.dashboard-page.dashboard-readable .dashboard-treasury-total strong { font-size: 30px; line-height: 1.3; overflow-wrap: anywhere; }
+.dashboard-page.dashboard-readable .dashboard-treasury-total span { font-size: 14px; }
+.dashboard-page.dashboard-readable small { font-size: 12px; font-weight: 500; }
+.dashboard-page.dashboard-readable .dashboard-account-row { display: flex; align-items: center; gap: 12px; padding: 13px 0; border-bottom: 1px solid #e2e8f0; color: #0f172a !important; }
+.dashboard-page.dashboard-readable .dashboard-account-row:last-child { border-bottom: 0; }
+.dashboard-page.dashboard-readable .dashboard-account-row > svg { flex-shrink: 0; color: #475569; }
+.dashboard-page.dashboard-readable .dashboard-account-name { flex: 1; min-width: 0; }
+.dashboard-page.dashboard-readable .dashboard-account-name strong { display: block; font-size: 14px; overflow-wrap: anywhere; }
+.dashboard-page.dashboard-readable .dashboard-account-name span { display: block; font-size: 12px; color: #475569; overflow-wrap: anywhere; }
+.dashboard-page.dashboard-readable .dashboard-account-balance { font-size: 17px; font-variant-numeric: tabular-nums; text-align: right; }
+.dashboard-page.dashboard-readable .is-negative { color: #b91c1c !important; }
+.dashboard-page.dashboard-readable a:focus-visible { outline: 3px solid #2563eb; outline-offset: 3px; }
+@media (max-width: 767px) {
+  .dashboard-page.dashboard-readable { padding: 8px; }
+  .dashboard-page.dashboard-readable .dashboard-treasury { grid-template-columns: 1fr; gap: 12px; }
+  .dashboard-page.dashboard-readable .dashboard-account-row { flex-wrap: wrap; }
+  .dashboard-page.dashboard-readable .dashboard-account-balance { margin-left: auto; max-width: 100%; overflow-wrap: anywhere; }
+}
+
 </style>
