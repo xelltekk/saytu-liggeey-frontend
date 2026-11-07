@@ -146,6 +146,7 @@
 </template>
 
 <script setup>
+import { usePageReactivation } from '@/composables/usePageReactivation'
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '@/services/api'
@@ -361,4 +362,6 @@ onMounted(() => {
   filters.statut = allowedStatuses.includes(route.query.statut) ? route.query.statut : 'non_lues'
   load()
 })
+
+usePageReactivation(load)
 </script>

@@ -185,6 +185,7 @@
 </template>
 
 <script setup>
+import { usePageReactivation } from '@/composables/usePageReactivation'
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/services/api'
@@ -381,6 +382,8 @@ onMounted(() => {
   loadStats()
   loadRapprochements()
 })
+
+usePageReactivation(() => Promise.all([loadComptes(), loadStats(), loadTypes(), loadRapprochements()]))
 </script>
 
 <style scoped>

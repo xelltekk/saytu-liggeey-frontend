@@ -106,6 +106,7 @@
 </template>
 
 <script setup>
+import { usePageReactivation } from '@/composables/usePageReactivation'
 import { computed, reactive, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/services/api'
@@ -218,6 +219,8 @@ async function handleDelete() {
 }
 
 onMounted(loadEntrepots)
+
+usePageReactivation(loadEntrepots)
 </script>
 
 <style scoped>

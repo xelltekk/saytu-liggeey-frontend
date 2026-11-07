@@ -1234,6 +1234,7 @@
 </template>
 
 <script setup>
+import { usePageReactivation } from '@/composables/usePageReactivation'
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import AppModal from '@/components/AppModal.vue'
 import ClientSearchSelect from '@/components/ClientSearchSelect.vue'
@@ -2780,6 +2781,8 @@ onBeforeUnmount(() => {
   window.removeEventListener('keydown', handleGlobalScannerKeydown)
   clearTimeout(scannerResetTimer)
 })
+
+usePageReactivation(() => Promise.all([loadProduits(), ...(showFacturesComptoirPanel.value ? [loadFacturesComptoir()] : []), ...(session.value ? [loadMouvements()] : [])]))
 </script>
 
 <style scoped>

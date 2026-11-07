@@ -122,6 +122,7 @@
 </template>
 
 <script setup>
+import { usePageReactivation } from '@/composables/usePageReactivation'
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import api from '@/services/api'
@@ -212,4 +213,6 @@ onMounted(async () => {
 watch(() => route.query.compte_id, (v) => {
   if (v) { filters.compte_id = parseInt(v); charger() }
 })
+
+usePageReactivation(async () => { await loadComptes(); if (filters.compte_id) await charger() })
 </script>

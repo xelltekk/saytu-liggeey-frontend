@@ -1295,6 +1295,7 @@
 </template>
 
 <script setup>
+import { usePageReactivation } from '@/composables/usePageReactivation'
 import { requestConfirmation as appConfirm, requestPrompt as appPrompt } from '@/composables/useConfirm'
 import { ref, reactive, onMounted, onUnmounted, computed, h, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -2759,4 +2760,6 @@ onMounted(async () => {
   await loadEntrepots()
   reload()
 })
+
+usePageReactivation(async () => { await loadEntrepots(); await reload() })
 </script>

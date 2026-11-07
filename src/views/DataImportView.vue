@@ -1,4 +1,5 @@
 <script setup>
+import { usePageReactivation } from '@/composables/usePageReactivation'
 import { onMounted, ref } from 'vue'
 import api from '@/services/api'
 import DolibarrThirdPartyPreview from '@/components/DolibarrThirdPartyPreview.vue'
@@ -89,6 +90,8 @@ function download() {
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 onMounted(load)
+
+usePageReactivation(() => { if (!creating.value && !report.value) return load() })
 </script>
 
 <template>

@@ -174,6 +174,7 @@
 </template>
 
 <script setup>
+import { usePageReactivation } from '@/composables/usePageReactivation'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { FileDown, Plus, Trash2 } from 'lucide-vue-next'
@@ -462,6 +463,8 @@ onMounted(async () => {
   }
   await openFromRoute(route.query.open)
 })
+
+usePageReactivation(() => Promise.all([loadReferentiels(), loadStats(), loadDashboard(), loadCommandes(), loadDemandStats(), ...(showRequests.value ? [loadDemands()] : [])]))
 </script>
 
 <style scoped>

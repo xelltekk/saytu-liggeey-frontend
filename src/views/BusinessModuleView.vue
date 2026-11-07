@@ -1,4 +1,5 @@
 <script setup>
+import { usePageReactivation } from '@/composables/usePageReactivation'
 import { requestConfirmation as appConfirm } from '@/composables/useConfirm'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router'
@@ -217,6 +218,8 @@ function eventDetails(event) {
   try { const d = JSON.parse(event.details || '{}'); return d.ancienne_fin ? `Fin : ${d.ancienne_fin} → ${d.nouvelle_fin}` : [d.livraison_id ? `Livraison #${d.livraison_id}` : '', d.facture_id ? `Facture #${d.facture_id}` : ''].filter(Boolean).join(' · ') } catch { return '' }
 }
 watch(() => route.fullPath, load, { immediate: true })
+
+usePageReactivation(() => { if (!detail.value) return load() })
 </script>
 
 <template>

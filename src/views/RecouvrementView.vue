@@ -205,6 +205,7 @@
 </template>
 
 <script setup>
+import { usePageReactivation } from '@/composables/usePageReactivation'
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { AlertTriangle, CalendarClock, CreditCard, FileWarning } from 'lucide-vue-next'
@@ -517,4 +518,6 @@ function openHistory(facture) {
 }
 
 onMounted(reloadAll)
+
+usePageReactivation(reloadAll)
 </script>

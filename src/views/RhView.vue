@@ -289,6 +289,7 @@
 </template>
 
 <script setup>
+import { usePageReactivation } from '@/composables/usePageReactivation'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '@/services/api'
@@ -603,4 +604,6 @@ onMounted(async () => {
     loading.value = false
   }
 })
+
+usePageReactivation(() => Promise.all([loadDashboard(), loadReferentiels(), ...(canManage.value ? [loadEmployes()] : []), ...(activeTab.value === "conges" ? [loadConges()] : [])]))
 </script>

@@ -146,6 +146,7 @@
 </template>
 
 <script setup>
+import { usePageReactivation } from '@/composables/usePageReactivation'
 import { computed, h, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import {
@@ -307,6 +308,8 @@ const SummaryCard = {
 }
 
 onMounted(loadPilotage)
+
+usePageReactivation(loadPilotage)
 </script>
 
 <style scoped>

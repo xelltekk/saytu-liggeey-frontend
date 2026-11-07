@@ -73,6 +73,7 @@
 </template>
 
 <script setup>
+import { usePageReactivation } from '@/composables/usePageReactivation'
 import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import api from '@/services/api'
@@ -133,6 +134,8 @@ async function downloadContract(contract) {
   finally { busy.value = false }
 }
 watch(section, () => { creating.value = false; selected.value = null; query.value = ''; notice.value = ''; records.value = []; tickets.value = []; load() }, { immediate: true })
+
+usePageReactivation(() => { if (!creating.value && !selected.value) return load() })
 </script>
 
 <style scoped>

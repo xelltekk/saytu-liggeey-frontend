@@ -82,6 +82,7 @@
 </template>
 
 <script setup>
+import { usePageReactivation } from '@/composables/usePageReactivation'
 import { computed, ref, reactive, onMounted } from 'vue'
 import api from '@/services/api'
 import AppPagination from '@/components/AppPagination.vue'
@@ -159,4 +160,6 @@ function classeColor(c) {
 }
 
 onMounted(() => loadComptes())
+
+usePageReactivation(loadComptes)
 </script>

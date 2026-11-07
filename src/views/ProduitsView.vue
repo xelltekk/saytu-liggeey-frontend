@@ -210,6 +210,7 @@
 </template>
 
 <script setup>
+import { usePageReactivation } from '@/composables/usePageReactivation'
 import { computed, ref, reactive, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '@/services/api'
@@ -433,6 +434,8 @@ onMounted(() => {
 watch(() => route.query.open, (id) => {
   openFromRoute(id)
 })
+
+usePageReactivation(() => Promise.all([loadProduits(), loadStats(), loadCategories()]))
 </script>
 
 <style scoped>

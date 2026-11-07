@@ -1248,6 +1248,7 @@
 </template>
 
 <script setup>
+import { usePageReactivation } from '@/composables/usePageReactivation'
 import { computed, onMounted, reactive, ref } from 'vue'
 import {
   AlertTriangle,
@@ -3192,6 +3193,8 @@ function sortByUrgency(a, b) {
   const second = daysUntil(b?.date_fin)
   return (first ?? 99999) - (second ?? 99999)
 }
+
+usePageReactivation(loadDashboard)
 </script>
 
 <style scoped>

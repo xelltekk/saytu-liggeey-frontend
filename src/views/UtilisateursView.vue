@@ -354,6 +354,7 @@
 </template>
 
 <script setup>
+import { usePageReactivation } from '@/composables/usePageReactivation'
 import { computed, ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/services/api'
@@ -956,6 +957,8 @@ function activityDetails(activity) {
 }
 
 onMounted(() => { loadRoleOptions(); loadUsers(); loadStats(); loadUserActivities() })
+
+usePageReactivation(() => Promise.all([loadRoleOptions(), loadUsers(), loadStats(), loadUserActivities()]))
 </script>
 
 <style scoped>

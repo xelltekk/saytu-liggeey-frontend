@@ -457,6 +457,7 @@
 </template>
 
 <script setup>
+import { usePageReactivation } from '@/composables/usePageReactivation'
 import { ref, computed, onMounted, h, resolveComponent, watch } from 'vue'
 import { Line } from 'vue-chartjs'
 import {
@@ -1091,6 +1092,8 @@ function progressColor(percent) {
 watch(dashboardLayoutStorageKey, () => loadDashboardLayout(), { immediate: true })
 
 onMounted(() => loadDashboard())
+
+usePageReactivation(loadDashboard)
 </script>
 
 <style>

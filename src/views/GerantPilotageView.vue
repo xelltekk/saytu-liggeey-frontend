@@ -306,6 +306,7 @@
 </template>
 
 <script setup>
+import { usePageReactivation } from '@/composables/usePageReactivation'
 import { computed, defineComponent, h, onMounted, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import { RefreshCw, Sparkles } from 'lucide-vue-next'
@@ -477,6 +478,8 @@ const SimpleTable = defineComponent({
 watch(period, loadPilotage)
 
 onMounted(loadPilotage)
+
+usePageReactivation(loadPilotage)
 </script>
 
 <style scoped>

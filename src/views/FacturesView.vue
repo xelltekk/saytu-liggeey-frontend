@@ -237,6 +237,7 @@
 </template>
 
 <script setup>
+import { usePageReactivation } from '@/composables/usePageReactivation'
 import { useRoute, useRouter } from 'vue-router'
 import { ref, reactive, onMounted, computed, watch } from 'vue'
 import api from '@/services/api'
@@ -654,4 +655,6 @@ watch(
     await loadFactures(1)
   }
 )
+
+usePageReactivation(() => Promise.all([loadFactures(), loadStats()]))
 </script>

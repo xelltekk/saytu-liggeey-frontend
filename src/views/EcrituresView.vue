@@ -104,6 +104,7 @@
 </template>
 
 <script setup>
+import { usePageReactivation } from '@/composables/usePageReactivation'
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/services/api'
@@ -253,4 +254,6 @@ function statutBadge(s) {
 }
 
 onMounted(() => { loadEcritures(); loadStats(); loadJournaux() })
+
+usePageReactivation(() => Promise.all([loadEcritures(), loadStats(), loadJournaux()]))
 </script>

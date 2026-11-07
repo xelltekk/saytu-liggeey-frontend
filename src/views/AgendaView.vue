@@ -103,6 +103,7 @@
 </template>
 
 <script setup>
+import { usePageReactivation } from '@/composables/usePageReactivation'
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { CalendarDays, ChevronLeft, ChevronRight, Plus } from 'lucide-vue-next'
@@ -256,6 +257,8 @@ function agendaTypeStyle(type) {
 }
 
 onMounted(loadAgenda)
+
+usePageReactivation(loadAgenda)
 </script>
 
 <style scoped>

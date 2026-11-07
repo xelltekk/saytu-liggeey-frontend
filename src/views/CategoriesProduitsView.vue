@@ -152,6 +152,7 @@
 </template>
 
 <script setup>
+import { usePageReactivation } from '@/composables/usePageReactivation'
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { CheckCircle, Folder, FolderTree, Pencil, Trash2, XCircle } from 'lucide-vue-next'
@@ -255,6 +256,8 @@ function parentLabel(category) {
 }
 
 onMounted(loadCategories)
+
+usePageReactivation(loadCategories)
 </script>
 
 <style scoped>

@@ -468,6 +468,7 @@
 </template>
 
 <script setup>
+import { usePageReactivation } from '@/composables/usePageReactivation'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import api from '@/services/api'
 import AppPagination from '@/components/AppPagination.vue'
@@ -1145,4 +1146,6 @@ watch(filters, () => {
 watch(trashFilters, () => {
   loadCorbeille()
 })
+
+usePageReactivation(() => Promise.all([loadActivites(), loadCorbeille()]))
 </script>

@@ -534,6 +534,7 @@
 </template>
 
 <script setup>
+import { usePageReactivation } from '@/composables/usePageReactivation'
 import FormattedDesignation from "@/components/FormattedDesignation.vue"
 import { requestConfirmation as appConfirm } from '@/composables/useConfirm'
 import { computed, ref, reactive, onMounted, watch } from 'vue'
@@ -1183,4 +1184,6 @@ onBeforeRouteLeave((to) => {
   if (!saisieModalMinimized.value) formDirty.value = false
   return true
 })
+
+usePageReactivation(() => Promise.all([loadDevis(), loadStats()]))
 </script>

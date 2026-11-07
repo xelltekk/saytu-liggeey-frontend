@@ -341,6 +341,7 @@
 </template>
 
 <script setup>
+import { usePageReactivation } from '@/composables/usePageReactivation'
 import { computed, defineComponent, h, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '@/services/api'
@@ -1032,6 +1033,8 @@ onMounted(() => {
   applyRouteQuery()
   loadInitialData()
 })
+
+usePageReactivation(loadInitialData)
 </script>
 
 <style scoped>

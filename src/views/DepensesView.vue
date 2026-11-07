@@ -119,6 +119,7 @@
 </template>
 
 <script setup>
+import { usePageReactivation } from '@/composables/usePageReactivation'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '@/services/api'
@@ -345,4 +346,6 @@ watch(
     }
   }
 )
+
+usePageReactivation(() => Promise.all([loadDepenses(), loadStats(), loadCategories()]))
 </script>

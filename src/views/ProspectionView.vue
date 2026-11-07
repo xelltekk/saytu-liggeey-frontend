@@ -426,6 +426,7 @@
 </template>
 
 <script setup>
+import { usePageReactivation } from '@/composables/usePageReactivation'
 import { computed, defineComponent, h, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '@/services/api'
@@ -1209,4 +1210,6 @@ onUnmounted(() => {
     window.clearInterval(activityInterval)
   }
 })
+
+usePageReactivation(() => Promise.all([loadCommerciaux(), reload()]))
 </script>

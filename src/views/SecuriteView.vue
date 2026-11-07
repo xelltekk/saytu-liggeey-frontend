@@ -301,6 +301,7 @@
 </template>
 
 <script setup>
+import { usePageReactivation } from '@/composables/usePageReactivation'
 import { computed, onMounted, ref } from 'vue'
 import {
   AlertTriangle,
@@ -656,4 +657,6 @@ function sessionStatusText(row) {
 }
 
 onMounted(loadOverview)
+
+usePageReactivation(loadOverview)
 </script>
