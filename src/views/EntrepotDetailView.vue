@@ -72,6 +72,8 @@
 </template>
 
 <script setup>
+import { useCreationReturn } from '@/composables/useCreationReturn'
+const returnAfterCreation = useCreationReturn()
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '@/services/api'
@@ -139,7 +141,7 @@ function goBack() {
 
 async function onSaved(saved) {
   if (isCreate.value && saved?.id) {
-    await router.replace({ name: 'entrepot-detail', params: { id: saved.id }, query: { tab: 'fiche' } })
+    await returnAfterCreation({ name: 'entrepots' })
   } else {
     activeTab.value = 'fiche'
     await router.replace({ query: { ...route.query, tab: 'fiche' } })

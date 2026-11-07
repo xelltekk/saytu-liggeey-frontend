@@ -254,6 +254,8 @@
 </template>
 
 <script setup>
+import { useCreationReturn } from '@/composables/useCreationReturn'
+const returnAfterCreation = useCreationReturn()
 import { computed, defineComponent, h, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '@/services/api'
@@ -435,7 +437,7 @@ function onProspectSaved(saved) {
   const id = saved.id || prospect.value?.id
   toast.success(isCreate.value ? 'Prospect créé.' : 'Prospect mis à jour.')
   if (isCreate.value && id) {
-    router.push({ name: 'prospect-detail', params: { id }, query: { tab: 'fiche' } })
+    returnAfterCreation({ name: 'prospection' })
     return
   }
   loadProspect()

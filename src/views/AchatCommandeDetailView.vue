@@ -328,6 +328,8 @@
 </template>
 
 <script setup>
+import { useCreationReturn } from '@/composables/useCreationReturn'
+const returnAfterCreation = useCreationReturn()
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '@/services/api'
@@ -586,13 +588,8 @@ async function saveCommande() {
 
     if (isCreate.value) {
       const { data } = await api.post('/achats/commandes', payload)
-      const createdId = data?.id || data?.commande?.id
       toast.success('Bon de commande enregistré.')
-      if (createdId) {
-        await router.replace({ name: 'achat-commande-detail', params: { id: createdId }, query: { tab: 'fiche' } })
-      } else {
-        await router.replace({ name: 'achats' })
-      }
+      await returnAfterCreation({ name: 'achats' })
     } else {
       await api.put(`/achats/commandes/${route.params.id}`, payload)
       toast.success('Bon de commande mis à jour.')

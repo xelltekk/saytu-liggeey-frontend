@@ -165,6 +165,8 @@
 </template>
 
 <script setup>
+import { useCreationReturn } from '@/composables/useCreationReturn'
+const returnAfterCreation = useCreationReturn()
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '@/services/api'
@@ -233,7 +235,7 @@ function goStock() {
 async function onSaved(saved) {
   produit.value = saved
   if (isCreate.value && saved?.id) {
-    await router.replace({ name: 'produit-detail', params: { id: saved.id }, query: { tab: 'fiche' } })
+    await returnAfterCreation({ name: 'produits' })
   } else {
     activeTab.value = 'fiche'
     await router.replace({ query: { ...route.query, tab: 'fiche' } })

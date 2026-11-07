@@ -259,6 +259,8 @@
 </template>
 
 <script setup>
+import { useCreationReturn } from '@/composables/useCreationReturn'
+const returnAfterCreation = useCreationReturn()
 import FormattedDesignation from "@/components/FormattedDesignation.vue"
 import { requestConfirmation as appConfirm } from '@/composables/useConfirm'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
@@ -368,7 +370,7 @@ async function loadCreatingClient() {
 async function onSaved(saved) {
   formDirty.value = false
   if (isCreate.value && saved?.id) {
-    await router.replace({ name: 'devis-detail', params: { id: saved.id }, query: { tab: 'saisie' } })
+    await returnAfterCreation({ name: 'devis' })
     return
   }
   await loadAll()

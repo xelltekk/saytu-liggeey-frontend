@@ -94,6 +94,8 @@
 </template>
 
 <script setup>
+import { useCreationReturn } from '@/composables/useCreationReturn'
+const returnAfterCreation = useCreationReturn()
 import { computed, defineComponent, h, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '@/services/api'
@@ -204,7 +206,7 @@ async function saveObjectif() {
     if (isCreate.value) {
       const { data } = await api.post('/prospection/objectifs', form)
       toast.success('Objectif enregistré')
-      router.push({ name: 'prospection-objectif-detail', params: { id: data.id } })
+      await returnAfterCreation({ name: 'prospection', query: { tab: 'objectifs' } })
     } else {
       const { data } = await api.put(`/prospection/objectifs/${route.params.id}`, form)
       objectif.value = data

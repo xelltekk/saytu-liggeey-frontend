@@ -141,6 +141,8 @@
 </template>
 
 <script setup>
+import { useCreationReturn } from '@/composables/useCreationReturn'
+const returnAfterCreation = useCreationReturn()
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '@/services/api'
@@ -244,7 +246,7 @@ async function saveAction() {
     if (isCreate.value) {
       const { data } = await api.post('/prospection/actions', payload)
       toast.success('Action enregistrée')
-      router.push({ name: 'prospection-action-detail', params: { id: data.id } })
+      await returnAfterCreation({ name: 'prospection', query: { tab: 'actions' } })
     } else {
       await api.put(`/prospection/actions/${route.params.id}`, payload)
       toast.success('Action mise à jour')

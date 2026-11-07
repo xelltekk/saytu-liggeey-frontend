@@ -1,4 +1,6 @@
 <script setup>
+import { useCreationReturn } from '@/composables/useCreationReturn'
+const returnAfterCreation = useCreationReturn()
 import { usePageReactivation } from '@/composables/usePageReactivation'
 import { requestConfirmation as appConfirm } from '@/composables/useConfirm'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
@@ -143,7 +145,7 @@ async function save() {
     const response = record.value ? await api.put(`${url}/${record.value.id}`, payload) : await api.post(url, payload)
     clean.value = JSON.stringify(form.value)
     saving.value = false
-    if (!record.value) await router.replace({ name: 'business-detail', params: { module: key.value, id: response.data.id }, query: route.query })
+    if (!record.value) await returnAfterCreation(listTarget())
     else await load()
     success.value = 'Fiche enregistrée.'
   } catch (e) { error.value = explain(e) }

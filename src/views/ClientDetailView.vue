@@ -235,6 +235,8 @@
 </template>
 
 <script setup>
+import { useCreationReturn } from '@/composables/useCreationReturn'
+const returnAfterCreation = useCreationReturn()
 import { computed, defineComponent, h, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '@/services/api'
@@ -328,7 +330,7 @@ async function loadAll() {
 
 async function onSaved(saved) {
   if (isCreate.value && saved?.id) {
-    await router.replace({ name: 'client-detail', params: { id: saved.id }, query: { tab: 'saisie' } })
+    await returnAfterCreation({ name: 'clients' })
     return
   }
   await loadAll()

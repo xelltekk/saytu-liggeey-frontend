@@ -247,6 +247,8 @@
 </template>
 
 <script setup>
+import { useCreationReturn } from '@/composables/useCreationReturn'
+const returnAfterCreation = useCreationReturn()
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '@/services/api'
@@ -465,7 +467,7 @@ async function saveDemand() {
     if (isCreate.value) {
       const { data } = await api.post('/achats/demandes', payload)
       toast.success('Demande d’achat enregistrée.')
-      await router.replace({ name: 'achat-demande-detail', params: { id: data.id }, query: { tab: 'fiche' } })
+      await returnAfterCreation({ name: 'achats', query: { demandes: 1 } })
     } else {
       await api.put(`/achats/demandes/${route.params.id}`, payload)
       toast.success('Demande d’achat mise à jour.')

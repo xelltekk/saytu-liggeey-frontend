@@ -503,6 +503,8 @@
 </template>
 
 <script setup>
+import { useCreationReturn } from '@/composables/useCreationReturn'
+const returnAfterCreation = useCreationReturn()
 import FormattedDesignation from "@/components/FormattedDesignation.vue"
 import { requestConfirmation as appConfirm } from '@/composables/useConfirm'
 import InvoiceDeliveriesPanel from '@/components/InvoiceDeliveriesPanel.vue'
@@ -679,7 +681,7 @@ function resetAnnulationForm() {
 async function onSaved(saved) {
   formDirty.value = false
   if (isCreate.value && saved?.id) {
-    await router.replace({ name: 'facture-detail', params: { id: saved.id }, query: { tab: 'saisie' } })
+    await returnAfterCreation({ name: 'factures' })
     return
   }
   await loadAll()
