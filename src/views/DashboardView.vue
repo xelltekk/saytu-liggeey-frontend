@@ -64,10 +64,10 @@
           :can-down="canMoveDashboardBlock('kpis', 'down')"
           @move="moveDashboardBlock"
         />
-        <KpiCard v-if="isBusinessDashboard" label="Chiffre d’affaires" :value="formatPrice(kpi.ca_mois)" suffix="FCFA" :icon-component="TrendingUp" color="blue" :sub="`Ce mois · Année : ${formatPrice(kpi.ca_annee)} FCFA`" />
-        <KpiCard v-if="isBusinessDashboard" to="/paiements" label="Encaissements" :value="formatPrice(kpi.paiements_mois)" suffix="FCFA" :icon-component="Wallet" color="green" sub="Paiements enregistrés ce mois" />
-        <KpiCard v-if="isBusinessDashboard" :to="{ path: '/factures', query: { quick: 'encours' } }" label="Reste à encaisser" :value="formatPrice(kpi.encours_total)" suffix="FCFA" :icon-component="FileClock" color="orange" sub="Facturation · Toutes périodes" />
-        <KpiCard v-if="isBusinessDashboard" :to="{ path: '/factures', query: { quick: 'impayees' } }" label="Factures impayées" :value="kpi.factures_impayees || 0" :icon-component="FileWarning" :color="kpi.factures_en_retard ? 'red' : 'blue'" :sub="`dont ${kpi.factures_en_retard || 0} en retard · Toutes périodes`" />
+        <KpiCard v-if="isBusinessDashboard" label="Chiffre d’affaires" :value="formatPrice(kpi.ca_mois)" suffix="FCFA" metric-icon="revenue" color="blue" :sub="`Ce mois · Année : ${formatPrice(kpi.ca_annee)} FCFA`" />
+        <KpiCard v-if="isBusinessDashboard" to="/paiements" label="Encaissements" :value="formatPrice(kpi.paiements_mois)" suffix="FCFA" metric-icon="receipts" color="green" sub="Paiements enregistrés ce mois" />
+        <KpiCard v-if="isBusinessDashboard" :to="{ path: '/factures', query: { quick: 'encours' } }" label="Reste à encaisser" :value="formatPrice(kpi.encours_total)" suffix="FCFA" metric-icon="outstanding" color="orange" sub="Facturation · Toutes périodes" />
+        <KpiCard v-if="isBusinessDashboard" :to="{ path: '/factures', query: { quick: 'impayees' } }" label="Factures impayées" :value="kpi.factures_impayees || 0" metric-icon="unpaid" :color="kpi.factures_en_retard ? 'red' : 'blue'" :sub="`dont ${kpi.factures_en_retard || 0} en retard · Toutes périodes`" />
 
         <KpiCard v-if="isCommercial" to="/clients" label="Mes clients actifs" :value="kpi.clients_actifs || 0" icon="CL" :icon-component="UsersRound" color="green" />
         <KpiCard v-if="isCommercial" to="/devis" label="Mes devis en cours" :value="kpi.devis_en_cours || 0" icon="DV" :icon-component="FileText" color="blue" />
@@ -457,6 +457,7 @@
 </template>
 
 <script setup>
+import DashboardMetricIcon from '@/components/DashboardMetricIcon.vue'
 import { usePageReactivation } from '@/composables/usePageReactivation'
 import { ref, computed, onMounted, h, resolveComponent, watch } from 'vue'
 import { Line } from 'vue-chartjs'
@@ -617,13 +618,15 @@ const DashboardBlockControls = {
 }
 
 const KpiCard = {
-  props: ['label', 'value', 'suffix', 'icon', 'iconImage', 'iconComponent', 'color', 'sub', 'to'],
+  props: ['label', 'value', 'suffix', 'icon', 'iconImage', 'iconComponent', 'metricIcon', 'color', 'sub', 'to'],
   setup(props) {
     const RouterLink = resolveComponent('RouterLink')
     const toneClass = dashboardToneClass(props.color)
 
-    const iconNode = () => h('span', { class: 'dashboard-kpi-icon' }, [
-      props.iconComponent
+    const iconNode = () => h('span', { class: ['dashboard-kpi-icon', props.metricIcon && 'dashboard-metric-icon'] }, [
+      props.metricIcon
+        ? h(DashboardMetricIcon, { kind: props.metricIcon })
+        : props.iconComponent
         ? h(props.iconComponent, { class: 'h-6 w-6', strokeWidth: 2.3, 'aria-hidden': 'true' })
         : h('span', { class: 'dashboard-kpi-icon-text' }, props.icon || 'SL'),
     ])
@@ -1310,6 +1313,12 @@ usePageReactivation(loadDashboard)
 .dashboard-page.dashboard-readable .dashboard-treasury-total strong { font-size: 30px; line-height: 1.3; overflow-wrap: anywhere; }
 .dashboard-page.dashboard-readable .dashboard-treasury-total span { font-size: 14px; }
 .dashboard-page.dashboard-readable small { font-size: 12px; font-weight: 500; }
+.dashboard-page.dashboard-readable .dashboard-metric-icon {
+  --metric-fill: color-mix(in srgb, var(--readable-accent) 12%, white);
+  width: 54px; height: 54px; flex: 0 0 54px;
+  background: transparent !important; border-radius: 0;
+}
+.dashboard-metric-icon svg { width: 100%; height: 100%; }
 .dashboard-page.dashboard-readable .dashboard-account-row { display: flex; align-items: center; gap: 12px; padding: 13px 0; border-bottom: 1px solid #e2e8f0; color: #0f172a !important; }
 .dashboard-page.dashboard-readable .dashboard-account-row:last-child { border-bottom: 0; }
 .dashboard-page.dashboard-readable .dashboard-account-row > svg { flex-shrink: 0; color: #475569; }
