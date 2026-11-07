@@ -323,6 +323,25 @@
         </div>
       </div>
 
+      <section class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm" aria-labelledby="pdf-theme-heading">
+        <h3 id="pdf-theme-heading" class="font-semibold text-gray-900">Présentation des documents PDF</h3>
+        <p class="mt-1 text-sm text-gray-600">Choisissez le modèle de vos factures, devis, bons de commande et bons de livraison.</p>
+        <div class="mt-4 grid gap-4 md:grid-cols-3">
+          <label v-for="theme in pdfThemes" :key="theme.id" class="cursor-pointer rounded-xl border-2 p-4 transition focus-within:ring-2 focus-within:ring-blue-500" :class="societe.theme_pdf === theme.id ? 'border-blue-600 bg-blue-50' : 'border-gray-200 bg-white'">
+            <div aria-hidden="true" class="pdf-theme-mini" :class="'pdf-theme-mini--' + theme.id" :style="{ '--pdf-accent': /^#[0-9a-f]{6}$/i.test(societe.couleur_principale) ? societe.couleur_principale : '#1e40af' }">
+              <div class="pdf-mini-heading"><span>LOGO</span><strong>FACTURE</strong></div>
+              <div class="pdf-mini-parties"><span>Votre société</span><span>Votre client</span></div>
+              <div class="pdf-mini-table"><div>Désignation <span>Total</span></div><p></p><p></p><p></p></div>
+              <div class="pdf-mini-total">Total TTC</div>
+            </div>
+            <div class="mt-3 flex items-center gap-2"><input v-model="societe.theme_pdf" type="radio" name="theme_pdf" :value="theme.id" /><span class="font-semibold text-gray-900">{{ theme.label }}</span></div>
+            <p class="mt-1 text-sm text-gray-600">{{ theme.description }}</p>
+          </label>
+        </div>
+        <div class="mt-4 flex flex-wrap gap-2"><button type="button" class="btn-secondary" @click="ouvrirApercu('facture')">Voir la facture PDF</button><button type="button" class="btn-secondary" @click="ouvrirApercu('devis')">Voir le devis PDF</button></div>
+        <p class="mt-2 text-xs text-gray-500">L’aperçu utilise le modèle sélectionné et votre identité enregistrée. Enregistrez les paramètres pour appliquer ce choix à votre société. Les PDF déjà téléchargés restent inchangés.</p>
+      </section>
+
       <!-- ===== SECTION 5 : MENTIONS PERSONNALISÉES ===== -->
       <div id="param-mentions" class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden scroll-mt-6">
         <div class="px-5 py-3 bg-gray-50 border-b border-gray-200">
@@ -362,6 +381,11 @@ import api from '@/services/api'
 import { useToast } from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
 
+const pdfThemes = [
+  { id: 'classique', label: 'Classique', description: 'La présentation actuelle, sobre et traditionnelle.' },
+  { id: 'moderne', label: 'Moderne', description: 'Bandeau coloré, blocs structurés et tableau contrasté.' },
+  { id: 'compact', label: 'Compact', description: 'Des espaces réduits pour les documents avec beaucoup de lignes.' },
+]
 const toast = useToast()
 const { confirm: askConfirm } = useConfirm()
 
@@ -378,7 +402,7 @@ const societe = reactive({
   telephone: '', mobile: '', fax: '', email: '', site_web: '', slogan: '',
   banque: '', rib: '', titulaire_compte: '', iban: '', swift: '',
   wave_business: '', orange_money_business: '', free_money_business: '',
-  logo: '', couleur_principale: '#1e40af',
+  logo: '', couleur_principale: '#1e40af', theme_pdf: 'classique',
   devise_defaut: 'XOF', tva_defaut: 18, afficher_tva_facture: false,
   pied_de_facture: '',
 })
@@ -522,7 +546,7 @@ async function charger() {
   loading.value = true
   try {
     const { data } = await api.get('/parametres/societe')
-    Object.assign(societe, data)
+    Object.assign(societe, data, { theme_pdf: data.theme_pdf || 'classique' })
     lastSaved.value = data.updated_at
   } catch (e) {
     toast.error('Erreur de chargement des paramètres')
@@ -610,7 +634,7 @@ async function recharger() {
 async function ouvrirApercu(type = 'facture') {
   try {
     const { ouvrirPDF } = await import('@/services/pdf')
-    await ouvrirPDF(`/parametres/societe/apercu?type=${type}`)
+    await ouvrirPDF(`/parametres/societe/apercu?type=${type}&theme_pdf=${encodeURIComponent(societe.theme_pdf)}`)
   } catch (e) {
     toast.error('Impossible d’ouvrir l’aperçu')
   }
@@ -628,4 +652,20 @@ onMounted(() => charger())
 .label {
   @apply block text-sm font-medium text-gray-700 mb-1;
 }
+</style>
+
+<style scoped>
+.pdf-theme-mini { background: white; border: 1px solid #cbd5e1; padding: 14px; height: 170px; font-size: 9px; color: #334155; }
+.pdf-mini-heading, .pdf-mini-parties { display: flex; justify-content: space-between; }
+.pdf-mini-heading { color: var(--pdf-accent); font-size: 11px; }
+.pdf-mini-parties { margin: 18px 0; border-bottom: 1px solid #cbd5e1; padding-bottom: 8px; }
+.pdf-mini-table > div { border-block: 1px solid #64748b; padding: 3px; }
+.pdf-mini-table span { float: right; }
+.pdf-mini-table p { margin: 0; height: 8px; border-bottom: 1px solid #e2e8f0; }
+.pdf-mini-total { text-align: right; font-weight: bold; margin-top: 6px; }
+.pdf-theme-mini--moderne { border-top: 5px solid var(--pdf-accent); }
+.pdf-theme-mini--moderne .pdf-mini-table > div { background: #1e293b; color: white; }
+.pdf-theme-mini--moderne .pdf-mini-parties { background: #f1f5f9; padding: 6px; margin: 12px 0; }
+.pdf-theme-mini--compact .pdf-mini-parties { margin: 8px 0; padding-bottom: 4px; }
+.pdf-theme-mini--compact .pdf-mini-table p { height: 6px; }
 </style>
