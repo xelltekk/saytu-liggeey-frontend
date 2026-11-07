@@ -12,16 +12,17 @@
 
       <div class="relative px-7 pb-10 pt-9 sm:px-9">
         <div class="mb-7 flex flex-col items-center text-center">
-          <div class="login-logo-frame mb-4 flex h-20 w-20 items-center justify-center rounded-full border-4">
+          <div class="login-logo-frame mb-4 flex h-24 w-40 items-center justify-center rounded-2xl border-2 p-2">
             <img
-              v-if="logoUrl"
+              v-if="logoUrl && !logoFailed"
               :src="logoUrl"
               :alt="identity.nom || 'Saytu Ligg&eacute;ey 2.0'"
-              class="login-logo-image max-h-14 max-w-16 object-contain"
+              class="login-logo-image max-h-full max-w-full object-contain"
+              @error="logoFailed = true"
             />
-            <UserCircle v-else class="login-logo-fallback h-12 w-12" />
+            <span v-else class="login-logo-fallback text-3xl font-black" aria-hidden="true">{{ companyInitials }}</span>
           </div>
-          <p class="text-sm font-bold uppercase tracking-[0.22em] text-cyan-600">Xelltekk ERP</p>
+          <p class="text-sm font-bold uppercase tracking-[0.22em] text-cyan-600 break-words max-w-full">{{ identity.nom || 'Saytu Liggéey 2.0' }}</p>
           <h1 class="mt-2 text-2xl font-black text-slate-900">Connexion</h1>
           <p class="mt-1 text-sm text-slate-500">Acc&eacute;dez &agrave; votre espace Saytu Ligg&eacute;ey 2.0</p>
         </div>
@@ -165,7 +166,7 @@
 <script setup>
 import { computed, onMounted, ref, reactive } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { AlertTriangle, Eye, EyeOff, Globe2, LockKeyhole, Mail, MessageCircle, Phone, UserCircle } from 'lucide-vue-next'
+import { AlertTriangle, Eye, EyeOff, Globe2, LockKeyhole, Mail, MessageCircle, Phone } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
 import api from '@/services/api'
 import { hasAnyRole } from '@/utils/access'
@@ -191,6 +192,12 @@ const identity = reactive({
   logo: '',
 })
 
+const logoFailed = ref(false)
+const companyInitials = computed(() => {
+  const words = (identity.nom || 'Saytu Liggéey').trim().split(/\s+/)
+  return words.slice(0, 2).map(word => Array.from(word)[0]).join('').toLocaleUpperCase('fr-FR')
+})
+
 const logoUrl = computed(() => {
   if (!identity.logo) return ''
   if (identity.logo.startsWith('http')) return identity.logo
@@ -202,6 +209,7 @@ async function loadIdentity() {
   try {
     const { data } = await api.get('/societe/identite')
     Object.assign(identity, data)
+    logoFailed.value = false
   } catch (err) {
     identity.logo = ''
   }
@@ -335,7 +343,7 @@ onMounted(() => {
 }
 
 .login-logo-image {
-  border-radius: 9999px;
+  border-radius: 0;
 }
 
 .login-logo-fallback {
