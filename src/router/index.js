@@ -77,6 +77,11 @@ const routes = [
         component: () => import('@/views/AgendaView.vue'),
       },
       {
+        path: 'agenda/depenses',
+        name: 'agenda-depenses',
+        component: () => import('@/views/RecurringExpensesView.vue'),
+      },
+      {
         path: 'agenda/nouveau',
         name: 'agenda-rdv-create',
         component: () => import('@/views/AgendaRdvDetailView.vue'),

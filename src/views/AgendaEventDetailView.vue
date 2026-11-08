@@ -137,6 +137,7 @@ function formatEventDate(value) {
 function eventTypeLabel(item) {
   return {
     rendez_vous: 'Rendez-vous',
+    depense_recurrente: 'Dépense récurrente',
     facture: 'Facture',
     devis: 'Devis',
     achat: item?.source === 'achat_demande' ? 'Demande d’achat' : 'Achat fournisseur',

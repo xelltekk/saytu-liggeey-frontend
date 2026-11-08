@@ -18,12 +18,13 @@
               </span>
             </div>
             <p class="pilotage-muted mt-1 text-sm">
-              Devis, factures, achats, leasing et interventions en cours sur le mois.
+              Rendez-vous, documents et dépenses récurrentes à suivre sur le mois.
             </p>
           </div>
         </div>
 
         <div class="flex flex-wrap items-center gap-2">
+          <button v-if="canManageExpenses" type="button" class="agenda-primary-button" @click="router.push('/agenda/depenses')">Dépenses récurrentes</button>
           <button type="button" class="agenda-primary-button" :disabled="loading" @click="openRdvPage()">
             <Plus class="h-4 w-4" />
             Rendez-vous
@@ -103,6 +104,7 @@
 </template>
 
 <script setup>
+import { useAuthStore } from '@/stores/auth'
 import { usePageReactivation } from '@/composables/usePageReactivation'
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
@@ -110,6 +112,8 @@ import { CalendarDays, ChevronLeft, ChevronRight, Plus } from 'lucide-vue-next'
 import api from '@/services/api'
 import { formatMoney } from '@/composables/useCurrency'
 
+const auth = useAuthStore()
+const canManageExpenses = computed(() => ['admin','gerant','comptable'].includes(auth.user?.role))
 const router = useRouter()
 const data = ref(null)
 const loading = ref(false)
@@ -120,6 +124,7 @@ const weekDays = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', '
 const agendaTypes = [
   { key: 'rendez_vous', label: 'Rendez-vous' },
   { key: 'facture', label: 'Factures' },
+  { key: 'depense_recurrente', label: 'Dépenses récurrentes' },
   { key: 'devis', label: 'Devis' },
   { key: 'achat', label: 'Achats' },
   { key: 'fournisseur', label: 'Fournisseurs' },
@@ -226,6 +231,7 @@ function agendaAccent(type, priority = 'info') {
   if (priority === 'critical') return 'var(--saytu-primary-hover)'
   return {
     rendez_vous: 'var(--saytu-primary)',
+    depense_recurrente: '#b45309',
     facture: 'var(--saytu-primary)',
     devis: 'var(--saytu-brand-to)',
     achat: 'var(--saytu-focus)',
