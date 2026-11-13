@@ -66,7 +66,7 @@
         <label class="block">
           <span class="mb-1 block text-sm font-bold text-slate-700">Statut</span>
           <select v-model="form.statut" class="input">
-            <option value="planifiee">Planifiée</option>
+            <option value="planifiee">À faire</option><option value="en_cours">En cours</option><option value="bloquee">Bloquée</option>
             <option value="effectuee">Effectuée</option>
             <option value="annulee">Annulée</option>
           </select>
@@ -109,6 +109,19 @@
           <input v-model="form.prochaine_etape" class="input" placeholder="Ex. Envoyer une offre, rappeler mardi..." />
         </label>
 
+        <label class="block">
+          <span class="mb-1 block text-sm font-bold text-slate-700">Priorité</span>
+          <select v-model="form.priorite" class="input"><option value="basse">Basse</option><option value="normale">Normale</option><option value="haute">Haute</option><option value="urgente">Urgente</option></select>
+        </label>
+        <label v-if="form.statut === 'bloquee'" class="block md:col-span-2">
+          <span class="mb-1 block text-sm font-bold text-amber-900">Motif du blocage *</span>
+          <textarea v-model="form.blocage" required maxlength="4000" rows="3" class="input" placeholder="Ce qui vous empêche d’avancer et l’aide attendue du gérant"></textarea>
+        </label>
+        <label v-if="isAdmin" class="block md:col-span-2">
+          <span class="mb-1 block text-sm font-bold text-slate-700">Réponse / consigne du gérant</span>
+          <textarea v-model="form.note_gerant" maxlength="4000" rows="3" class="input" placeholder="Réponse au blocage ou consigne pour le commercial"></textarea>
+        </label>
+        <div v-else-if="form.note_gerant" class="whitespace-pre-wrap rounded-lg bg-blue-50 p-4 text-blue-900 md:col-span-2"><strong>Réponse / consigne du gérant</strong><p>{{ form.note_gerant }}</p></div>
         <label class="block md:col-span-2">
           <span class="mb-1 block text-sm font-bold text-slate-700">Compte rendu</span>
           <textarea v-model="form.compte_rendu" rows="4" class="input" placeholder="Compte rendu de l’échange..."></textarea>
@@ -175,6 +188,7 @@ onMounted(async () => {
   if (isCreate.value) {
     Object.assign(form, defaultForm(), {
       client_id: route.query.client_id ? Number(route.query.client_id) : null,
+      commercial_id: Number(route.query.commercial_id) || null,
     })
     return
   }
@@ -195,6 +209,9 @@ function defaultForm() {
     resultat: 'aucun',
     montant_potentiel: 0,
     prochaine_etape: '',
+    priorite: 'normale',
+    blocage: '',
+    note_gerant: '',
   }
 }
 
@@ -223,6 +240,9 @@ async function loadAction() {
       resultat: data.resultat || 'aucun',
       montant_potentiel: Number(data.montant_potentiel || 0),
       prochaine_etape: data.prochaine_etape || '',
+      priorite: data.priorite || 'normale',
+      blocage: data.blocage || '',
+      note_gerant: data.note_gerant || '',
     })
   } catch (e) {
     toast.error(e.response?.data?.message || 'Impossible de charger l’action')
@@ -246,7 +266,7 @@ async function saveAction() {
     if (isCreate.value) {
       const { data } = await api.post('/prospection/actions', payload)
       toast.success('Action enregistrée')
-      await returnAfterCreation({ name: 'prospection', query: { tab: 'actions' } })
+      await returnAfterCreation(route.query.from === 'suivi' ? {name:'commercial-followup'} : { name: 'prospection', query: { tab: 'actions' } })
     } else {
       await api.put(`/prospection/actions/${route.params.id}`, payload)
       toast.success('Action mise à jour')
@@ -265,7 +285,7 @@ function openProspect() {
 }
 
 function goBack() {
-  router.push({ name: 'prospection', query: { tab: 'actions' } })
+  router.push(route.query.from === 'suivi' ? {name:'commercial-followup'} : { name: 'prospection', query: { tab: 'actions' } })
 }
 
 function inputDateTime(value) {
@@ -277,5 +297,5 @@ function inputDateTime(value) {
 }
 function formatPrice(n) { return new Intl.NumberFormat('fr-FR').format(Math.round(n || 0)) }
 function formatDateTime(d) { return d ? new Date(d).toLocaleString('fr-FR') : '-' }
-function statutActionLabel(s) { return { planifiee: 'Planifiée', effectuee: 'Effectuée', annulee: 'Annulée' }[s] || s }
+function statutActionLabel(s) { return { planifiee: 'À faire', en_cours: 'En cours', bloquee: 'Bloquée', effectuee: 'Effectuée', annulee: 'Annulée' }[s] || s }
 </script>

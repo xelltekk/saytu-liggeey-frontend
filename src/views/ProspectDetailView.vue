@@ -131,10 +131,12 @@
                 <option value="autre">Autre</option>
               </select>
             </label>
+            <label class="block"><span class="mb-1 block text-sm font-bold text-slate-700">Priorité</span><select v-model="actionForm.priorite" class="input"><option value="basse">Basse</option><option value="normale">Normale</option><option value="haute">Haute</option><option value="urgente">Urgente</option></select></label>
+            <label v-if="actionForm.statut === 'bloquee'" class="block md:col-span-2"><span class="mb-1 block text-sm font-bold text-amber-900">Motif du blocage *</span><textarea v-model="actionForm.blocage" required maxlength="4000" rows="3" class="input"></textarea></label>
             <label class="block">
               <span class="mb-1 block text-sm font-bold text-slate-700">Statut</span>
               <select v-model="actionForm.statut" class="input">
-                <option value="planifiee">Planifiée</option>
+                <option value="planifiee">À faire</option><option value="en_cours">En cours</option><option value="bloquee">Bloquée</option>
                 <option value="effectuee">Effectuée</option>
                 <option value="annulee">Annulée</option>
               </select>
@@ -458,6 +460,8 @@ function openActionForm(action = null) {
     resultat: action?.resultat || 'aucun',
     montant_potentiel: Number(action?.montant_potentiel || 0),
     prochaine_etape: action?.prochaine_etape || '',
+    priorite: action?.priorite || 'normale',
+    blocage: action?.blocage || '',
   })
   actionFormOpen.value = true
   activeTab.value = 'actions'
@@ -635,10 +639,10 @@ function typeActionLabel(t) {
   return { appel: 'Appel', email: 'Email', visite: 'Visite', whatsapp: 'WhatsApp', relance: 'Relance', devis: 'Devis', autre: 'Autre' }[t] || t
 }
 function statutActionLabel(s) {
-  return { planifiee: 'Planifiée', effectuee: 'Effectuée', annulee: 'Annulée' }[s] || s
+  return { planifiee: 'À faire', en_cours: 'En cours', bloquee: 'Bloquée', effectuee: 'Effectuée', annulee: 'Annulée' }[s] || s
 }
 function statutActionClass(s) {
-  return { planifiee: 'bg-yellow-100 text-yellow-800', effectuee: 'bg-green-100 text-green-800', annulee: 'bg-gray-200 text-gray-700' }[s] || 'bg-gray-100'
+  return { planifiee: 'bg-yellow-100 text-yellow-800', en_cours: 'bg-blue-100 text-blue-800', bloquee: 'bg-red-100 text-red-800', effectuee: 'bg-green-100 text-green-800', annulee: 'bg-gray-200 text-gray-700' }[s] || 'bg-gray-100'
 }
 function inputDateTime(value) {
   if (!value) return ''

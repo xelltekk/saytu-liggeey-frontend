@@ -112,6 +112,11 @@ const routes = [
         component: () => import('@/views/ProspectionView.vue'),
       },
       {
+        path: 'prospection/suivi',
+        name: 'commercial-followup',
+        component: () => import('@/views/CommercialFollowupView.vue'),
+      },
+      {
         path: 'prospection/actions/nouveau',
         name: 'prospection-action-create',
         component: () => import('@/views/ProspectionActionDetailView.vue'),

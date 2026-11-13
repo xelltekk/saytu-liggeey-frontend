@@ -6,6 +6,7 @@
           <h3 class="text-lg font-bold text-gray-900">Prospection commerciale</h3>
           <p class="text-sm text-gray-500">Suivi des prospects, relances, actions commerciales et objectifs.</p>
         </div>
+        <RouterLink to="/prospection/suivi" class="btn-primary">{{ isAdmin ? 'Suivi des commerciaux' : 'Mon activité' }}</RouterLink>
         <select v-if="isAdmin" v-model="filters.commercial_id" @change="reload" class="input lg:w-56">
           <option value="">Tous commerciaux</option>
           <option v-for="c in commerciaux" :key="c.id" :value="c.id">{{ c.name }}</option>
@@ -267,7 +268,7 @@
           <input v-model="actionFilters.search" @input="onActionSearch" type="search" class="input flex-1" placeholder="Rechercher action, prospect..." />
           <select v-model="actionFilters.statut" @change="loadActions(1)" class="input md:w-44">
             <option value="">Tous statuts</option>
-            <option value="planifiee">Planifiées</option>
+            <option value="planifiee">À faire</option><option value="en_cours">En cours</option><option value="bloquee">Bloquées</option>
             <option value="effectuee">Effectuées</option>
             <option value="annulee">Annulées</option>
           </select>
@@ -1179,9 +1180,9 @@ function formatDate(d) { return d ? new Date(d).toLocaleDateString('fr-FR') : '-
 function formatDateTime(d) { return d ? new Date(d).toLocaleString('fr-FR') : '-' }
 function isLate(date, statut) { return date && statut !== 'effectuee' && new Date(date) < new Date() }
 function typeActionLabel(t) { return { appel: 'Appel', email: 'Email', visite: 'Visite', whatsapp: 'WhatsApp', relance: 'Relance', devis: 'Devis', autre: 'Autre' }[t] || t }
-function statutActionLabel(s) { return { planifiee: 'Planifiée', effectuee: 'Effectuée', annulee: 'Annulée' }[s] || s }
+function statutActionLabel(s) { return { planifiee: 'À faire', en_cours: 'En cours', bloquee: 'Bloquée', effectuee: 'Effectuée', annulee: 'Annulée' }[s] || s }
 function statutActionClass(s) {
-  return { planifiee: 'bg-yellow-100 text-yellow-800', effectuee: 'bg-green-100 text-green-800', annulee: 'bg-gray-200 text-gray-700' }[s] || 'bg-gray-100'
+  return { planifiee: 'bg-yellow-100 text-yellow-800', en_cours: 'bg-blue-100 text-blue-800', bloquee: 'bg-red-100 text-red-800', effectuee: 'bg-green-100 text-green-800', annulee: 'bg-gray-200 text-gray-700' }[s] || 'bg-gray-100'
 }
 function activityCategoryLabel(category) {
   return { client: 'Client', prospection: 'Prospection', devis: 'Devis', facture: 'Facture' }[category] || 'Activité'
