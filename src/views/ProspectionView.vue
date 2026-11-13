@@ -52,121 +52,45 @@
       </button>
     </div>
 
-    <div class="rounded-lg border border-xelltekk-100 bg-white shadow-sm">
-      <div class="flex flex-col gap-2 border-b border-xelltekk-100 px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <h4 class="font-semibold text-gray-900">Pipeline commercial</h4>
-          <p class="text-xs text-gray-500">Vue rapide des prospects par étape, avec relance, devis et conversion.</p>
+    <div v-if="relancesPrioritaires.length || prospectsChauds.length" class="grid gap-3 rounded-lg border border-xelltekk-100 bg-white p-3 shadow-sm lg:grid-cols-2">
+      <div class="rounded-xl border border-red-100 bg-red-50/60 p-3">
+        <div class="mb-2 flex items-center justify-between">
+          <h5 class="font-semibold text-red-800">Relances prioritaires</h5>
+          <button type="button" class="text-xs font-semibold text-red-700 hover:underline" @click="applyKpiFilter('relances')">Voir toutes</button>
         </div>
-        <div class="flex flex-wrap gap-2 text-xs text-gray-500">
-          <span class="rounded-full bg-xelltekk-50 px-3 py-1 text-xelltekk-700">{{ pipelineTotalCount }} prospect(s)</span>
-          <span class="rounded-full bg-cyan-50 px-3 py-1 text-cyan-700">{{ formatPrice(pipelineTotalPotential) }} XOF potentiel</span>
-        </div>
-      </div>
-      <div class="grid gap-3 p-3 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-7">
-        <div
-          v-for="stage in pipelineStages"
-          :key="stage.key"
-          class="flex min-h-52 flex-col rounded-xl border bg-gradient-to-br p-3 shadow-sm"
-          :class="pipelineCardClass(stage)"
-        >
-          <button type="button" class="text-left" @click="applyPipelineStage(stage)">
+        <div class="space-y-2">
+          <div v-for="action in relancesPrioritaires" :key="`relance-${action.id}`" class="rounded-lg bg-white p-2 shadow-sm">
             <div class="flex items-start justify-between gap-2">
               <div class="min-w-0">
-                <div class="text-xs font-bold uppercase tracking-wide text-gray-700">{{ stage.label }}</div>
-                <div class="mt-1 text-[11px] leading-snug text-gray-500">{{ stage.description }}</div>
+                <div class="truncate text-sm font-semibold text-gray-900">{{ action.client?.nom || 'Prospect' }}</div>
+                <div class="text-xs text-red-700">{{ formatDateTime(action.date_relance) }} · {{ action.objet }}</div>
               </div>
-              <span class="rounded-full px-2.5 py-1 text-xs font-bold" :class="pipelineBadgeClass(stage.key)">
-                {{ stage.count || 0 }}
-              </span>
-            </div>
-            <div class="mt-2 text-sm font-semibold text-xelltekk-700">{{ formatPrice(stage.potentiel) }} XOF</div>
-          </button>
-
-          <div class="mt-3 flex-1 space-y-2">
-            <div v-for="item in stage.items" :key="`${stage.key}-${item.id}`" class="rounded-lg border border-white/80 bg-white/85 p-2 shadow-sm">
-              <div class="flex items-start justify-between gap-2">
-                <div class="min-w-0">
-                  <button type="button" class="truncate text-left text-sm font-semibold text-gray-900 hover:text-xelltekk-700 hover:underline" @click="openProspectDetail(item)">
-                    {{ item.nom }}
-                  </button>
-                  <div class="truncate text-[11px] text-gray-500">{{ item.email || item.telephone || item.mobile || 'Contact non renseigné' }}</div>
-                </div>
-                <span class="rounded-full px-2 py-0.5 text-[10px] font-bold" :class="priorityClass(item.priorite || pipelinePriority(stage.key))">
-                  {{ priorityLabel(item.priorite || pipelinePriority(stage.key)) }}
-                </span>
-              </div>
-              <div class="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-gray-500">
-                <span>{{ item.commercial?.name || 'Non affecté' }}</span>
-                <span v-if="item.prochaine_relance">Relance : {{ formatDateTime(item.prochaine_relance) }}</span>
-              </div>
-              <div class="mt-2 flex flex-wrap items-center gap-1.5">
-                <EmailActionButtons
-                  v-if="item.email"
-                  :draft="relanceEmailDraft(item)"
-                  :filename="`relance-prospect-${item.code || item.id}`"
-                  dialog
-                  compact
-                />
-                <button type="button" class="rounded-full bg-xelltekk-50 px-2 py-1 text-[11px] font-semibold text-xelltekk-700 hover:bg-xelltekk-100" @click="openProspectAction(item)">+ Action</button>
-                <button type="button" class="rounded-full bg-cyan-50 px-2 py-1 text-[11px] font-semibold text-cyan-700 hover:bg-cyan-100" @click="creerDevis(item)">+ Devis</button>
-                <button
-                  v-if="stage.key !== 'converti'"
-                  type="button"
-                  class="rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-100"
-                  @click="convertirProspect(item)"
-                >
-                  Convertir
-                </button>
-              </div>
-            </div>
-            <div v-if="!stage.items?.length" class="rounded-lg border border-dashed border-gray-200 bg-white/60 p-3 text-center text-xs text-gray-400">
-              Aucun prospect
+              <button type="button" class="text-xs font-semibold text-xelltekk-700 hover:underline" @click="openActionDetail(action)">Traiter</button>
             </div>
           </div>
+          <div v-if="!relancesPrioritaires.length" class="py-3 text-center text-xs text-gray-400">Aucune relance prioritaire.</div>
         </div>
       </div>
 
-      <div v-if="relancesPrioritaires.length || prospectsChauds.length" class="grid gap-3 border-t border-xelltekk-100 p-3 lg:grid-cols-2">
-        <div class="rounded-xl border border-red-100 bg-red-50/60 p-3">
-          <div class="mb-2 flex items-center justify-between">
-            <h5 class="font-semibold text-red-800">Relances prioritaires</h5>
-            <button type="button" class="text-xs font-semibold text-red-700 hover:underline" @click="applyKpiFilter('relances')">Voir toutes</button>
-          </div>
-          <div class="space-y-2">
-            <div v-for="action in relancesPrioritaires" :key="`relance-${action.id}`" class="rounded-lg bg-white p-2 shadow-sm">
-              <div class="flex items-start justify-between gap-2">
-                <div class="min-w-0">
-                  <div class="truncate text-sm font-semibold text-gray-900">{{ action.client?.nom || 'Prospect' }}</div>
-                  <div class="text-xs text-red-700">{{ formatDateTime(action.date_relance) }} · {{ action.objet }}</div>
-                </div>
-                <button type="button" class="text-xs font-semibold text-xelltekk-700 hover:underline" @click="openActionDetail(action)">Traiter</button>
-              </div>
-            </div>
-            <div v-if="!relancesPrioritaires.length" class="py-3 text-center text-xs text-gray-400">Aucune relance prioritaire.</div>
-          </div>
+      <div class="rounded-xl border border-amber-100 bg-amber-50/60 p-3">
+        <div class="mb-2 flex items-center justify-between">
+          <h5 class="font-semibold text-amber-800">Prospects chauds</h5>
+          <button type="button" class="text-xs font-semibold text-amber-700 hover:underline" @click="showHotProspects">Voir la liste</button>
         </div>
-
-        <div class="rounded-xl border border-amber-100 bg-amber-50/60 p-3">
-          <div class="mb-2 flex items-center justify-between">
-            <h5 class="font-semibold text-amber-800">Prospects chauds</h5>
-            <button type="button" class="text-xs font-semibold text-amber-700 hover:underline" @click="applyPipelineStage({ key: 'chaud' })">Voir pipeline</button>
-          </div>
-          <div class="space-y-2">
-            <div v-for="action in prospectsChauds" :key="`chaud-${action.id}`" class="rounded-lg bg-white p-2 shadow-sm">
-              <div class="flex items-start justify-between gap-2">
-                <div class="min-w-0">
-                  <div class="truncate text-sm font-semibold text-gray-900">{{ action.client?.nom || 'Prospect' }}</div>
-                  <div class="text-xs text-gray-500">{{ action.objet }} · {{ formatPrice(action.montant_potentiel) }} XOF</div>
-                </div>
-                <div class="flex shrink-0 gap-2">
-                  <button type="button" class="text-xs font-semibold text-cyan-700 hover:underline" @click="creerDevis(action.client || action)">Devis</button>
-                  <button type="button" class="text-xs font-semibold text-emerald-700 hover:underline" @click="convertirProspect(action.client || action)">Convertir</button>
-                </div>
+        <div class="space-y-2">
+          <div v-for="action in prospectsChauds" :key="`chaud-${action.id}`" class="rounded-lg bg-white p-2 shadow-sm">
+            <div class="flex items-start justify-between gap-2">
+              <div class="min-w-0">
+                <div class="truncate text-sm font-semibold text-gray-900">{{ action.client?.nom || 'Prospect' }}</div>
+                <div class="text-xs text-gray-500">{{ action.objet }} · {{ formatPrice(action.montant_potentiel) }} XOF</div>
+              </div>
+              <div class="flex shrink-0 gap-2">
+                <button type="button" class="text-xs font-semibold text-cyan-700 hover:underline" @click="creerDevis(action.client || action)">Devis</button>
+                <button type="button" class="text-xs font-semibold text-emerald-700 hover:underline" @click="convertirProspect(action.client || action)">Convertir</button>
               </div>
             </div>
-            <div v-if="!prospectsChauds.length" class="py-3 text-center text-xs text-gray-400">Aucun prospect chaud.</div>
           </div>
+          <div v-if="!prospectsChauds.length" class="py-3 text-center text-xs text-gray-400">Aucun prospect chaud.</div>
         </div>
       </div>
     </div>
@@ -463,7 +387,7 @@ const exportLoading = ref(false)
 const pdfLoading = ref(false)
 const activeTab = ref(['prospects', 'actions', 'objectifs', 'activites'].includes(String(route.query.tab || '')) ? String(route.query.tab) : 'prospects')
 const stats = ref({})
-const dashboard = ref({ pipeline: [], relances_prioritaires: [], prospects_chauds: [] })
+const dashboard = ref({ relances_prioritaires: [], prospects_chauds: [] })
 const prospects = ref([])
 const actions = ref([])
 const objectifs = ref([])
@@ -608,35 +532,14 @@ const sortedActions = computed(() => sortedActionRows(actions.value, {
   statut: 'statut',
 }))
 
-const pipelineStages = computed(() => (dashboard.value.pipeline || []).map((stage) => ({
-  ...stage,
-  count: Number(stage.count || 0),
-  potentiel: Number(stage.potentiel || 0),
-  items: Array.isArray(stage.items) ? stage.items : [],
-})))
-
-const pipelineTotalCount = computed(() => pipelineStages.value.reduce((sum, stage) => sum + Number(stage.count || 0), 0))
-const pipelineTotalPotential = computed(() => pipelineStages.value.reduce((sum, stage) => sum + Number(stage.potentiel || 0), 0))
 const relancesPrioritaires = computed(() => dashboard.value.relances_prioritaires || [])
 const prospectsChauds = computed(() => dashboard.value.prospects_chauds || [])
 
 const visibleProspects = computed(() => {
-  const stageFilters = {
-    stage_nouveau: 'nouveau',
-    stage_a_relancer: 'retard',
-    stage_chaud: 'chaud',
-    stage_devis: 'devis',
-    stage_converti: 'gagne',
-    stage_perdu: 'perdu',
-    stage_suivi: 'suivi',
+  if (activeKpi.value === 'prospects_chauds') {
+    return sortedProspects.value.filter((prospect) => prospectPriority(prospect) === 'chaud')
   }
-  const expectedPriority = stageFilters[activeKpi.value]
-
-  if (!expectedPriority) {
-    return sortedProspects.value
-  }
-
-  return sortedProspects.value.filter((prospect) => prospectPriority(prospect) === expectedPriority)
+  return sortedProspects.value
 })
 
 const visibleActions = computed(() => {
@@ -687,13 +590,7 @@ const activeKpiLabel = computed(() => {
     relances: 'Relances en retard',
     devis: 'Actions liées aux devis',
     potentiel: 'Actions avec potentiel commercial',
-    stage_nouveau: 'Prospects nouveaux',
-    stage_a_relancer: 'Prospects à relancer',
-    stage_chaud: 'Prospects chauds',
-    stage_devis: 'Prospects avec devis à préparer',
-    stage_converti: 'Prospects convertis',
-    stage_perdu: 'Prospects perdus',
-    stage_suivi: 'Prospects en suivi',
+    prospects_chauds: 'Prospects chauds',
   }
   return labels[activeKpi.value] || ''
 })
@@ -728,7 +625,7 @@ async function reload() {
 
 async function loadDashboard() {
   const { data } = await api.get('/prospection/dashboard', { params: filters })
-  dashboard.value = data || { pipeline: [], relances_prioritaires: [], prospects_chauds: [] }
+  dashboard.value = data || { relances_prioritaires: [], prospects_chauds: [] }
   stats.value = data.stats || {}
 }
 
@@ -834,8 +731,8 @@ async function applyKpiFilter(kpi) {
   }
 }
 
-async function applyPipelineStage(stage) {
-  activeKpi.value = `stage_${stage.key}`
+async function showHotProspects() {
+  activeKpi.value = 'prospects_chauds'
   activeTab.value = 'prospects'
   prospectFilters.search = ''
   prospectFilters.statut = ''
@@ -1043,45 +940,6 @@ function normalizeProspect(prospect) {
     commercial: source.commercial || prospect?.commercial || null,
     commercial_id: source.commercial_id || prospect?.commercial_id || prospect?.commercial?.id || null,
   }
-}
-
-function pipelinePriority(stageKey) {
-  return {
-    nouveau: 'nouveau',
-    a_relancer: 'retard',
-    chaud: 'chaud',
-    devis: 'devis',
-    converti: 'gagne',
-    perdu: 'perdu',
-    suivi: 'suivi',
-  }[stageKey] || 'suivi'
-}
-
-function pipelineCardClass(stage) {
-  const active = activeKpi.value === `stage_${stage.key}`
-  const base = {
-    nouveau: 'from-slate-50 to-white border-slate-200',
-    a_relancer: 'from-red-50 to-white border-red-200',
-    chaud: 'from-amber-50 to-white border-amber-200',
-    devis: 'from-purple-50 to-white border-purple-200',
-    converti: 'from-emerald-50 to-white border-emerald-200',
-    perdu: 'from-gray-50 to-white border-gray-200',
-    suivi: 'from-blue-50 to-white border-blue-200',
-  }[stage.key] || 'from-white to-white border-gray-200'
-
-  return active ? `${base} ring-2 ring-xelltekk-200` : base
-}
-
-function pipelineBadgeClass(stageKey) {
-  return {
-    nouveau: 'bg-slate-100 text-slate-700',
-    a_relancer: 'bg-red-100 text-red-700',
-    chaud: 'bg-amber-100 text-amber-700',
-    devis: 'bg-purple-100 text-purple-700',
-    converti: 'bg-emerald-100 text-emerald-700',
-    perdu: 'bg-gray-200 text-gray-700',
-    suivi: 'bg-blue-100 text-blue-700',
-  }[stageKey] || 'bg-gray-100 text-gray-700'
 }
 
 function prospectPriority(prospect) {
