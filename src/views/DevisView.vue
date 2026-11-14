@@ -39,6 +39,16 @@
       </div>
     </div>
 
+    <div v-if="hasCommercialScope" class="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-blue-50 px-4 py-3 text-sm text-blue-900">
+      <span>
+        Devis filtrés depuis Prospection
+        <template v-if="commercialScope.date_from"> · Du {{ formatDate(commercialScope.date_from) }}</template>
+        <template v-if="commercialScope.date_to"> au {{ formatDate(commercialScope.date_to) }}</template>
+        <template v-if="commercialScope.commercial_id"> · Commercial sélectionné</template>
+      </span>
+      <button type="button" class="font-semibold underline" @click="clearCommercialScope">Tous les devis</button>
+    </div>
+
     <!-- Stats -->
     <div class="stat-grid grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6">
       <button type="button" @click="applyStatutFilter('')" class="text-left bg-white rounded-lg border p-3 transition hover:-translate-y-0.5 hover:border-xelltekk-300 hover:shadow-sm" :class="statCardClass('')">
@@ -593,6 +603,18 @@ const stats = reactive({
 })
 const meta = reactive({ current_page: 1, last_page: 1, total: 0, from: 0, to: 0 })
 const filters = reactive({ search: '', statut: '', suivi: '' })
+const scopeKeys = ['date_from', 'date_to', 'commercial_id']
+const commercialScope = computed(() => Object.fromEntries(
+  scopeKeys.filter(key => typeof route.query[key] === 'string' && route.query[key])
+    .map(key => [key, route.query[key]])
+))
+const hasCommercialScope = computed(() => Object.keys(commercialScope.value).length > 0)
+
+function clearCommercialScope() {
+  const query = { ...route.query }
+  for (const key of scopeKeys) delete query[key]
+  router.replace({ name: 'devis', query })
+}
 
 const showModal = ref(false)
 const editingDevis = ref(null)
@@ -757,6 +779,7 @@ async function loadDevis(page = 1) {
       params: {
         page,
         per_page: 20,
+        ...commercialScope.value,
         search: filters.search || undefined,
         statut: filters.statut || undefined,
         suivi: filters.suivi || undefined,
@@ -779,7 +802,7 @@ async function loadDevis(page = 1) {
 
 async function loadStats() {
   try {
-    const { data } = await api.get('/devis/stats')
+    const { data } = await api.get('/devis/stats', { params: commercialScope.value })
     Object.assign(stats, data)
   } catch (e) {}
 }
@@ -788,6 +811,7 @@ async function exporterCSV() {
   exportLoading.value = true
   try {
     await telechargerCSV('/exports/devis', {
+      ...commercialScope.value,
       search: filters.search || undefined,
       statut: filters.statut || undefined,
       suivi: filters.suivi || undefined,
@@ -1168,10 +1192,10 @@ watch(() => route.query.create_client, (id) => {
 })
 
 watch(
-  () => [route.query.statut, route.query.search, route.query.suivi],
+  () => [route.query.statut, route.query.search, route.query.suivi, ...scopeKeys.map(key => route.query[key])],
   async () => {
     syncFiltersFromRoute()
-    await loadDevis(1)
+    await Promise.all([loadDevis(1), loadStats()])
   }
 )
 

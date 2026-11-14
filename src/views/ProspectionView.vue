@@ -42,7 +42,7 @@
         <div class="text-xs uppercase text-gray-500">Relances en retard</div>
         <div class="text-2xl font-bold text-red-700">{{ stats.relances_en_retard || 0 }}</div>
       </button>
-      <button type="button" @click="applyKpiFilter('devis')" class="bg-white rounded-lg border p-3 text-left transition hover:-translate-y-0.5 hover:border-xelltekk-300 hover:shadow-sm" :class="kpiCardClass('devis')">
+      <button type="button" @click="openCreatedQuotes" class="bg-white rounded-lg border p-3 text-left transition hover:-translate-y-0.5 hover:border-xelltekk-300 hover:shadow-sm" :class="kpiCardClass('devis')">
         <div class="text-xs uppercase text-gray-500">Devis créés</div>
         <div class="text-2xl font-bold text-purple-700">{{ stats.devis_crees || 0 }}</div>
       </button>
@@ -150,7 +150,7 @@
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-100">
-            <tr v-for="p in visibleProspects" :key="p.id" class="hover:bg-gray-50">
+            <tr v-for="p in sortedProspects" :key="p.id" class="hover:bg-gray-50">
               <td class="px-4 py-3 font-mono text-sm text-gray-600">{{ p.code }}</td>
               <td class="px-4 py-3">
                 <button type="button" class="font-medium text-gray-900 hover:text-xelltekk-700 hover:underline" @click="openProspectDetail(p)">
@@ -188,7 +188,7 @@
                 </div>
               </td>
             </tr>
-            <tr v-if="visibleProspects.length === 0">
+            <tr v-if="sortedProspects.length === 0">
               <td colspan="8" class="px-4 py-12 text-center text-sm text-gray-400">Aucun prospect</td>
             </tr>
           </tbody>
@@ -256,7 +256,7 @@
             </tr>
           </tbody>
         </table>
-        <AppPagination v-if="actionMeta.total > 0" :meta="actionMeta" label="actions" @page="loadActionPage" />
+        <AppPagination v-if="actionMeta.total > 0" :meta="actionMeta" label="actions" @page="loadActions" />
       </div>
 
       <div v-else-if="activeTab === 'objectifs'" class="overflow-x-auto">
@@ -571,17 +571,7 @@ async function loadDailyActions() {
 }
 const prospectsChauds = computed(() => dashboard.value.prospects_chauds || [])
 
-const visibleProspects = computed(() => {
-  if (activeKpi.value === 'prospects_chauds') {
-    return sortedProspects.value.filter((prospect) => prospectPriority(prospect) === 'chaud')
-  }
-  return sortedProspects.value
-})
-
 const visibleActions = computed(() => {
-  if (activeKpi.value === 'relances') {
-    return sortedActions.value.filter((action) => isLate(action.date_relance, action.statut))
-  }
   if (activeKpi.value === 'potentiel') {
     return sortedActions.value.filter((action) => parseFloat(action.montant_potentiel || 0) > 0)
   }
@@ -624,7 +614,6 @@ const activeKpiLabel = computed(() => {
     actions: 'Toutes les actions de prospection',
     effectuees: 'Actions effectuées',
     relances: 'Relances en retard',
-    devis: 'Actions liées aux devis',
     potentiel: 'Actions avec potentiel commercial',
     prospects_chauds: 'Prospects chauds',
   }
@@ -673,6 +662,7 @@ async function loadProspects(page = 1) {
       commercial_id: filters.commercial_id || undefined,
       search: prospectFilters.search || undefined,
       statut: prospectFilters.statut || undefined,
+      chauds: activeKpi.value === 'prospects_chauds' ? 1 : undefined,
       per_page: 25,
     },
   })
@@ -693,6 +683,7 @@ async function loadActions(page = 1) {
       commercial_id: filters.commercial_id || undefined,
       search: actionFilters.search || undefined,
       statut: actionFilters.statut || undefined,
+      late_followups: activeKpi.value === 'relances' ? 1 : undefined,
       per_page: 25,
     },
   })
@@ -754,6 +745,7 @@ async function applyKpiFilter(kpi) {
 
   if (kpi === 'prospects') {
     activeTab.value = 'prospects'
+    await loadProspects(1)
     return
   }
 
@@ -761,11 +753,7 @@ async function applyKpiFilter(kpi) {
   actionFilters.search = ''
   actionFilters.statut = kpi === 'effectuees' ? 'effectuee' : ''
 
-  if (kpi === 'devis') {
-    await loadActionsByType('devis')
-  } else {
-    await loadActions(1)
-  }
+  await loadActions(1)
 }
 
 async function showHotProspects() {
@@ -782,6 +770,8 @@ function clearKpiFilter() {
   actionFilters.search = ''
   if (activeTab.value === 'actions') {
     loadActions(1)
+  } else if (activeTab.value === 'prospects') {
+    loadProspects(1)
   }
 }
 
@@ -791,31 +781,15 @@ function kpiCardClass(kpi) {
     : 'border-gray-200 bg-white'
 }
 
-async function loadActionsByType(typeAction, page = 1) {
-  const { data } = await api.get('/prospection/actions', {
-    params: {
-      page,
+function openCreatedQuotes() {
+  router.push({
+    name: 'devis',
+    query: {
+      date_from: dashboard.value.periode?.from || filters.date_from || undefined,
+      date_to: dashboard.value.periode?.to || filters.date_to || undefined,
       commercial_id: filters.commercial_id || undefined,
-      type_action: typeAction,
-      per_page: 25,
     },
   })
-  actions.value = data.data || []
-  Object.assign(actionMeta, {
-    current_page: data.current_page,
-    last_page: data.last_page,
-    total: data.total,
-    from: data.from || 0,
-    to: data.to || 0,
-  })
-}
-
-function loadActionPage(page = 1) {
-  if (activeKpi.value === 'devis') {
-    return loadActionsByType('devis', page)
-  }
-
-  return loadActions(page)
 }
 
 function openProspectCreate() {
@@ -1073,7 +1047,7 @@ function formatNumber(n) { return new Intl.NumberFormat('fr-FR').format(Math.rou
 function formatPrice(n) { return new Intl.NumberFormat('fr-FR').format(Math.round(n || 0))  }
 function formatDate(d) { return d ? new Date(d).toLocaleDateString('fr-FR') : '-' }
 function formatDateTime(d) { return d ? new Date(d).toLocaleString('fr-FR') : '-' }
-function isLate(date, statut) { return date && statut !== 'effectuee' && new Date(date) < new Date() }
+function isLate(date, statut) { return date && !['effectuee', 'annulee'].includes(statut) && new Date(date) < new Date() }
 function typeActionLabel(t) { return { appel: 'Appel', email: 'Email', visite: 'Visite', whatsapp: 'WhatsApp', relance: 'Relance', devis: 'Devis', autre: 'Autre' }[t] || t }
 function statutActionLabel(s) { return { planifiee: 'À faire', en_cours: 'En cours', bloquee: 'Bloquée', effectuee: 'Effectuée', annulee: 'Annulée' }[s] || s }
 function statutActionClass(s) {

@@ -31,12 +31,12 @@
         <label class="text-sm">Priorité<select v-model="priority" class="input mt-1" @change="loadTasks(1)"><option value="">Toutes les priorités</option><option v-for="(label,key) in priorities" :key="key" :value="key">{{ label }}</option></select></label>
         <form @submit.prevent="loadTasks(1)"><label class="text-sm">Rechercher<input v-model="search" class="input mt-1" placeholder="Client ou action, puis Entrée" /></label></form>
       </div>
-      <p class="mt-3 text-xs text-slate-500">Tri par date prévue, des plus anciennes aux plus récentes. Une tâche terminée ou annulée n’est plus comptée en retard.</p>
+      <p class="mt-3 text-xs text-slate-500">Tri par échéance, des plus anciennes aux plus récentes. Une tâche terminée ou annulée n’est plus comptée en retard.</p>
       <p v-if="taskLoading" role="status" class="mt-4">Chargement des tâches...</p>
       <div v-else class="mt-4 space-y-3">
         <article v-for="task in tasks.data" :key="task.id" class="rounded-lg border p-4">
           <div class="flex flex-wrap justify-between gap-3"><div class="min-w-0"><h3 class="break-words font-bold">{{ task.objet }}</h3><p class="mt-1 text-sm text-slate-600">{{ task.client?.nom }} · {{ task.commercial?.name || 'Sans commercial' }}</p></div><RouterLink :to="{name:'prospection-action-detail',params:{id:task.id},query:{from:'suivi'}}" class="btn-secondary">Ouvrir / traiter</RouterLink></div>
-          <div class="mt-3 flex flex-wrap gap-3 text-sm"><span class="font-semibold">{{ statuses[task.statut] || task.statut }}</span><span :class="['haute','urgente'].includes(task.priorite)?'font-semibold text-amber-800':''">Priorité {{ priorities[task.priorite] || 'Normale' }}</span><span :class="late(task)?'font-semibold text-red-700':''">Prévue le {{ date(task.date_action) }}{{ late(task)?' · En retard':'' }}</span></div>
+          <div class="mt-3 flex flex-wrap gap-3 text-sm"><span class="font-semibold">{{ statuses[task.statut] || task.statut }}</span><span :class="['haute','urgente'].includes(task.priorite)?'font-semibold text-amber-800':''">Priorité {{ priorities[task.priorite] || 'Normale' }}</span><span :class="late(task)?'font-semibold text-red-700':''">Échéance {{ date(task.date_relance || task.date_action) }}{{ late(task)?' · En retard':'' }}</span></div>
           <p v-if="task.statut==='bloquee' && task.blocage" class="mt-3 whitespace-pre-wrap rounded bg-amber-50 p-3 text-sm text-amber-900">Blocage : {{ task.blocage }}</p>
           <p v-if="task.compte_rendu" class="mt-3 whitespace-pre-wrap break-words text-sm"><strong>Compte rendu :</strong> {{ task.compte_rendu }}</p>
           <p v-if="task.note_gerant" class="mt-3 whitespace-pre-wrap break-words text-sm text-blue-900"><strong>Réponse du gérant :</strong> {{ task.note_gerant }}</p>
@@ -65,7 +65,7 @@ async function loadSummary(){const token=++summaryRequest;if(!from.value||!to.va
 async function loadTasks(page=1){const token=++taskRequest;taskLoading.value=true;try{const {data}=await api.get('/prospection/actions',{params:{page,per_page:15,worklist:1,commercial_id:commercial.value && commercial.value!=='unassigned'?commercial.value:undefined,unassigned:commercial.value==='unassigned'?1:undefined,pending:status.value==='pending'?1:undefined,overdue:status.value==='overdue'?1:undefined,statut:['pending','overdue'].includes(status.value)?undefined:status.value||undefined,priorite:priority.value||undefined,search:search.value||undefined}});if(token===taskRequest)tasks.value=data}catch(e){error.value=e.response?.data?.message||'Impossible de charger les tâches.'}finally{if(token===taskRequest)taskLoading.value=false}}
 function selectCommercial(id){commercial.value=String(id);status.value='pending';loadTasks(1);document.getElementById('tasks-heading')?.scrollIntoView({behavior:'smooth'})}
 function selectUnassigned(){commercial.value='unassigned';status.value='pending';loadTasks(1)}
-function late(t){return !['effectuee','annulee'].includes(t.statut)&&new Date(t.date_action)<new Date()}
+function late(t){return !['effectuee','annulee'].includes(t.statut)&&new Date(t.date_relance || t.date_action)<new Date()}
 const date=d=>d?new Date(d).toLocaleString('fr-FR'):'-',money=n=>new Intl.NumberFormat('fr-FR',{maximumFractionDigits:0}).format(n)
 async function reload(){error.value='';await Promise.all([loadSummary(),loadTasks()])}
 onMounted(reload);usePageReactivation(reload)
