@@ -44,7 +44,7 @@
 
         <label v-if="isAdmin" class="block">
           <span class="mb-1 block text-sm font-bold text-slate-700">Commercial</span>
-          <select v-model.number="form.commercial_id" :required="isUnplannedFollowup" class="input">
+          <select v-model.number="form.commercial_id" :required="isUnplannedFollowup || isQuoteFollowup" class="input">
             <option :value="null">Commercial...</option>
             <option v-for="c in commerciaux" :key="c.id" :value="c.id">{{ c.name }}</option>
           </select>
@@ -171,6 +171,7 @@ const auth = useAuthStore()
 
 const isCreate = computed(() => route.name === 'prospection-action-create')
 const isAdmin = computed(() => hasAnyRole(auth.user, ['admin', 'gerant']))
+const isQuoteFollowup = computed(() => isCreate.value && isAdmin.value && route.query.from === 'devis-sans-reponse')
 const isUnplannedFollowup = computed(() => isCreate.value && isAdmin.value && route.query.from === 'sans-prochaine-action')
 const tabs = [
   { id: 'saisie', label: 'Saisie action' },
@@ -192,6 +193,10 @@ onMounted(async () => {
       commercial_id: commerciaux.value.some(user => user.id === Number(route.query.commercial_id))
         ? Number(route.query.commercial_id)
         : null,
+      ...(isQuoteFollowup.value ? {
+        type_action: 'relance',
+        objet: ('Relancer le devis ' + (typeof route.query.devis === 'string' ? route.query.devis : '')).trim().slice(0, 191),
+      } : {}),
       ...(isUnplannedFollowup.value ? { type_action: 'relance', objet: 'Relancer le prospect' } : {}),
     })
     return
@@ -289,6 +294,9 @@ function openProspect() {
 }
 
 function returnLocation() {
+  if (isQuoteFollowup.value) {
+    return { name: 'commercial-followup', query: { vue: 'devis-sans-reponse' } }
+  }
   if (isUnplannedFollowup.value) {
     return { name: 'commercial-followup', query: { vue: 'sans-prochaine-action' } }
   }
