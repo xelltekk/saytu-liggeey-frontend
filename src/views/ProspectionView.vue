@@ -52,27 +52,40 @@
       </button>
     </div>
 
-    <div v-if="relancesPrioritaires.length || prospectsChauds.length" class="grid gap-3 rounded-lg border border-xelltekk-100 bg-white p-3 shadow-sm lg:grid-cols-2">
-      <div class="rounded-xl border border-red-100 bg-red-50/60 p-3">
-        <div class="mb-2 flex items-center justify-between">
-          <h5 class="font-semibold text-red-800">Relances prioritaires</h5>
-          <button type="button" class="text-xs font-semibold text-red-700 hover:underline" @click="applyKpiFilter('relances')">Voir toutes</button>
+    <div class="grid gap-3 rounded-lg border border-xelltekk-100 bg-white p-3 shadow-sm" :class="{ 'lg:grid-cols-2': prospectsChauds.length }">
+      <section class="min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-3" aria-labelledby="daily-actions-heading">
+        <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h4 id="daily-actions-heading" class="font-semibold text-slate-900">À traiter aujourd’hui</h4>
+          <RouterLink :to="{ name: 'commercial-followup', hash: '#tasks-heading' }" class="text-sm font-semibold text-blue-700 hover:underline">
+            {{ isAdmin ? 'Voir les actions de l’équipe' : 'Voir toutes mes actions' }}
+          </RouterLink>
         </div>
-        <div class="space-y-2">
-          <div v-for="action in relancesPrioritaires" :key="`relance-${action.id}`" class="rounded-lg bg-white p-2 shadow-sm">
-            <div class="flex items-start justify-between gap-2">
+        <p v-if="dailyLoading" role="status" class="text-sm text-slate-600">Chargement des actions…</p>
+        <p v-else-if="dailyError" role="alert" class="text-sm text-red-700">
+          Impossible de charger les actions.
+          <button type="button" class="font-semibold underline" @click="loadDailyActions">Réessayer</button>
+        </p>
+        <ul v-else-if="dailyActions.length" class="space-y-2">
+          <li v-for="action in dailyActions" :key="action.id">
+            <RouterLink
+              :to="{ name: 'prospection-action-detail', params: { id: action.id } }"
+              class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white p-3 hover:border-blue-400"
+            >
               <div class="min-w-0">
-                <div class="truncate text-sm font-semibold text-gray-900">{{ action.client?.nom || 'Prospect' }}</div>
-                <div class="text-xs text-red-700">{{ formatDateTime(action.date_relance) }} · {{ action.objet }}</div>
+                <p class="break-words text-sm font-semibold text-slate-900">{{ action.client?.nom || 'Prospect' }}</p>
+                <p class="break-words text-sm text-slate-600">{{ action.objet }}</p>
+                <p v-if="isAdmin" class="text-xs text-slate-500">{{ action.commercial?.name || 'Sans commercial' }}</p>
               </div>
-              <button type="button" class="text-xs font-semibold text-xelltekk-700 hover:underline" @click="openActionDetail(action)">Traiter</button>
-            </div>
-          </div>
-          <div v-if="!relancesPrioritaires.length" class="py-3 text-center text-xs text-gray-400">Aucune relance prioritaire.</div>
-        </div>
-      </div>
+              <span class="text-sm font-semibold" :class="dailyOverdue(action) ? 'text-red-700' : 'text-blue-700'">
+                {{ dailyOverdue(action) ? 'En retard · ' : '' }}{{ formatDateTime(action.date_relance || action.date_action) }}
+              </span>
+            </RouterLink>
+          </li>
+        </ul>
+        <p v-else class="text-sm text-slate-600">Aucune action prévue aujourd’hui ou en retard.</p>
+      </section>
 
-      <div class="rounded-xl border border-amber-100 bg-amber-50/60 p-3">
+      <div v-if="prospectsChauds.length" class="rounded-xl border border-amber-100 bg-amber-50/60 p-3">
         <div class="mb-2 flex items-center justify-between">
           <h5 class="font-semibold text-amber-800">Prospects chauds</h5>
           <button type="button" class="text-xs font-semibold text-amber-700 hover:underline" @click="showHotProspects">Voir la liste</button>
@@ -387,7 +400,7 @@ const exportLoading = ref(false)
 const pdfLoading = ref(false)
 const activeTab = ref(['prospects', 'actions', 'objectifs', 'activites'].includes(String(route.query.tab || '')) ? String(route.query.tab) : 'prospects')
 const stats = ref({})
-const dashboard = ref({ relances_prioritaires: [], prospects_chauds: [] })
+const dashboard = ref({ prospects_chauds: [] })
 const prospects = ref([])
 const actions = ref([])
 const objectifs = ref([])
@@ -532,7 +545,30 @@ const sortedActions = computed(() => sortedActionRows(actions.value, {
   statut: 'statut',
 }))
 
-const relancesPrioritaires = computed(() => dashboard.value.relances_prioritaires || [])
+const dailyActions = ref([])
+const dailyLoading = ref(false)
+const dailyError = ref(false)
+let dailyRequest = 0
+
+function dailyOverdue(action) {
+  return new Date(action.date_relance || action.date_action).getTime() < Date.now()
+}
+
+async function loadDailyActions() {
+  const request = ++dailyRequest
+  dailyLoading.value = true
+  dailyError.value = false
+  try {
+    const { data } = await api.get('/prospection/actions', {
+      params: { due_today: 1, per_page: 5, commercial_id: filters.commercial_id || undefined },
+    })
+    if (request === dailyRequest) dailyActions.value = data.data || []
+  } catch {
+    if (request === dailyRequest) dailyError.value = true
+  } finally {
+    if (request === dailyRequest) dailyLoading.value = false
+  }
+}
 const prospectsChauds = computed(() => dashboard.value.prospects_chauds || [])
 
 const visibleProspects = computed(() => {
@@ -612,6 +648,7 @@ async function reload() {
 
   const loaders = [
     loadDashboard(),
+    loadDailyActions(),
     loadActions(),
     loadObjectifs(),
     isAdmin.value ? loadActivites() : Promise.resolve(),
@@ -625,7 +662,7 @@ async function reload() {
 
 async function loadDashboard() {
   const { data } = await api.get('/prospection/dashboard', { params: filters })
-  dashboard.value = data || { relances_prioritaires: [], prospects_chauds: [] }
+  dashboard.value = data || { prospects_chauds: [] }
   stats.value = data.stats || {}
 }
 
