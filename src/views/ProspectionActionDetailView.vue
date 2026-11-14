@@ -44,7 +44,7 @@
 
         <label v-if="isAdmin" class="block">
           <span class="mb-1 block text-sm font-bold text-slate-700">Commercial</span>
-          <select v-model.number="form.commercial_id" class="input">
+          <select v-model.number="form.commercial_id" :required="isUnplannedFollowup" class="input">
             <option :value="null">Commercial...</option>
             <option v-for="c in commerciaux" :key="c.id" :value="c.id">{{ c.name }}</option>
           </select>
@@ -171,6 +171,7 @@ const auth = useAuthStore()
 
 const isCreate = computed(() => route.name === 'prospection-action-create')
 const isAdmin = computed(() => hasAnyRole(auth.user, ['admin', 'gerant']))
+const isUnplannedFollowup = computed(() => isCreate.value && isAdmin.value && route.query.from === 'sans-prochaine-action')
 const tabs = [
   { id: 'saisie', label: 'Saisie action' },
   { id: 'contexte', label: 'Contexte' },
@@ -188,7 +189,10 @@ onMounted(async () => {
   if (isCreate.value) {
     Object.assign(form, defaultForm(), {
       client_id: route.query.client_id ? Number(route.query.client_id) : null,
-      commercial_id: Number(route.query.commercial_id) || null,
+      commercial_id: commerciaux.value.some(user => user.id === Number(route.query.commercial_id))
+        ? Number(route.query.commercial_id)
+        : null,
+      ...(isUnplannedFollowup.value ? { type_action: 'relance', objet: 'Relancer le prospect' } : {}),
     })
     return
   }
@@ -266,7 +270,7 @@ async function saveAction() {
     if (isCreate.value) {
       const { data } = await api.post('/prospection/actions', payload)
       toast.success('Action enregistrée')
-      await returnAfterCreation(route.query.from === 'suivi' ? {name:'commercial-followup'} : { name: 'prospection', query: { tab: 'actions' } })
+      await returnAfterCreation(returnLocation())
     } else {
       await api.put(`/prospection/actions/${route.params.id}`, payload)
       toast.success('Action mise à jour')
@@ -284,8 +288,16 @@ function openProspect() {
   router.push({ name: 'prospect-detail', params: { id: form.client_id }, query: { tab: 'actions' } })
 }
 
+function returnLocation() {
+  if (isUnplannedFollowup.value) {
+    return { name: 'commercial-followup', query: { vue: 'sans-prochaine-action' } }
+  }
+  if (route.query.from === 'suivi') return { name: 'commercial-followup' }
+  return { name: 'prospection', query: { tab: 'actions' } }
+}
+
 function goBack() {
-  router.push(route.query.from === 'suivi' ? {name:'commercial-followup'} : { name: 'prospection', query: { tab: 'actions' } })
+  router.push(returnLocation())
 }
 
 function inputDateTime(value) {

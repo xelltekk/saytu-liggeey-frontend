@@ -8,7 +8,12 @@
       </div>
     </header>
     <p v-if="error" role="alert" class="rounded-lg border border-red-200 bg-red-50 p-4 text-red-800">{{ error }} <button class="underline" @click="reload">Réessayer</button></p>
-    <section class="rounded-xl border bg-white p-5" aria-labelledby="team-heading">
+    <nav v-if="manager" class="flex flex-wrap gap-2" aria-label="Vues du suivi commercial">
+      <RouterLink :to="{ name: 'commercial-followup' }" :class="showUnplanned ? 'btn-secondary' : 'btn-primary'" :aria-current="showUnplanned ? undefined : 'page'">Vue d’ensemble</RouterLink>
+      <RouterLink :to="{ name: 'commercial-followup', query: { vue: 'sans-prochaine-action' } }" :class="showUnplanned ? 'btn-primary' : 'btn-secondary'" :aria-current="showUnplanned ? 'page' : undefined">Sans prochaine action</RouterLink>
+    </nav>
+    <ProspectsWithoutNextAction v-if="showUnplanned" ref="unplannedProspects" :commercials="summary.items" />
+    <section v-show="!showUnplanned" class="rounded-xl border bg-white p-5" aria-labelledby="team-heading">
       <div class="flex flex-wrap items-end justify-between gap-3"><h2 id="team-heading" class="text-lg font-bold">{{ manager ? 'Vue de l’équipe' : 'Mes résultats' }}</h2><div class="flex flex-wrap gap-3"><label class="text-sm">Du<input v-model="from" type="date" class="input mt-1" @change="loadSummary" /></label><label class="text-sm">Au<input v-model="to" type="date" class="input mt-1" @change="loadSummary" /></label></div></div>
       <p class="mt-3 text-sm text-slate-600">La période concerne le CA facturé TTC et les actions terminées selon leur date prévue. Les tâches ouvertes, prospects et devis en attente couvrent toutes les périodes.</p>
       <p v-if="loading" class="mt-4" role="status">Chargement...</p>
@@ -23,7 +28,7 @@
       <p v-if="!loading && !summary.items.length" class="mt-4 text-slate-500">Aucun commercial à afficher.</p>
       <button v-if="manager && summary.non_affectees" class="mt-4 rounded-lg bg-amber-50 p-3 text-amber-900 underline" @click="selectUnassigned">{{ summary.non_affectees }} tâche(s) ouverte(s) sans commercial : les affecter</button>
     </section>
-    <section class="rounded-xl border bg-white p-5" aria-labelledby="tasks-heading">
+    <section v-show="!showUnplanned" class="rounded-xl border bg-white p-5" aria-labelledby="tasks-heading">
       <h2 id="tasks-heading" class="text-lg font-bold">{{ manager ? 'Tâches de l’équipe' : 'Mes tâches' }}</h2>
       <div class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <label v-if="manager" class="text-sm">Commercial<select v-model="commercial" class="input mt-1" @change="loadTasks(1)"><option value="">Tous les commerciaux</option><option value="unassigned">Sans commercial</option><option v-for="u in summary.items" :key="u.id" :value="String(u.id)">{{ u.name }}</option></select></label>
@@ -49,11 +54,16 @@
 </template>
 <script setup>
 import {computed,onMounted,ref} from 'vue'
+import { useRoute } from 'vue-router'
+import ProspectsWithoutNextAction from '@/components/ProspectsWithoutNextAction.vue'
 import {useAuthStore} from '@/stores/auth'
 import {hasAnyRole} from '@/utils/access'
 import {usePageReactivation} from '@/composables/usePageReactivation'
 import api from '@/services/api'
 const auth=useAuthStore(),manager=computed(()=>hasAnyRole(auth.user,['admin','gerant']))
+const route = useRoute()
+const unplannedProspects = ref(null)
+const showUnplanned = computed(() => manager.value && route.query.vue === 'sans-prochaine-action')
 const today=new Date(), localDate=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
 const from=ref(localDate(new Date(today.getFullYear(),today.getMonth(),1))),to=ref(localDate(today))
 const summary=ref({items:[],non_affectees:0}),tasks=ref({data:[],current_page:1,last_page:1,total:0})
@@ -68,5 +78,6 @@ function selectUnassigned(){commercial.value='unassigned';status.value='pending'
 function late(t){return !['effectuee','annulee'].includes(t.statut)&&new Date(t.date_relance || t.date_action)<new Date()}
 const date=d=>d?new Date(d).toLocaleString('fr-FR'):'-',money=n=>new Intl.NumberFormat('fr-FR',{maximumFractionDigits:0}).format(n)
 async function reload(){error.value='';await Promise.all([loadSummary(),loadTasks()])}
-onMounted(reload);usePageReactivation(reload)
+onMounted(reload)
+usePageReactivation(() => Promise.all([reload(), unplannedProspects.value?.refresh()]))
 </script>
