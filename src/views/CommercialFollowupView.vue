@@ -19,7 +19,22 @@
       <p v-if="loading" class="mt-4" role="status">Chargement...</p>
       <div class="mt-4 grid gap-4 xl:grid-cols-2">
         <article v-for="row in summary.items" :key="row.id" class="rounded-xl border border-slate-200 p-4">
-          <div class="flex flex-wrap justify-between gap-2"><h3 class="font-bold">{{ row.name }} <span v-if="!row.active" class="text-sm text-slate-500">(inactif)</span></h3><button class="text-sm font-semibold text-blue-700 underline" @click="selectCommercial(row.id)">Voir les tâches</button></div>
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div class="flex min-w-0 items-center gap-3">
+              <span aria-hidden="true" class="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-blue-100 text-sm font-bold text-blue-800">
+                <img
+                  v-if="row.photo && failedPhotos[row.id] !== row.photo"
+                  :src="row.photo"
+                  alt=""
+                  class="h-full w-full object-cover"
+                  @error="failedPhotos[row.id] = row.photo"
+                />
+                <span v-else>{{ initials(row.name) }}</span>
+              </span>
+              <h3 class="min-w-0 break-words font-bold">{{ row.name }} <span v-if="!row.active" class="text-sm text-slate-500">(inactif)</span></h3>
+            </div>
+            <button class="text-sm font-semibold text-blue-700 underline" @click="selectCommercial(row.id)">Voir les tâches</button>
+          </div>
           <dl class="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
             <div v-for="metric in metrics" :key="metric.key" class="rounded-lg bg-slate-50 p-3"><dt class="text-xs text-slate-600">{{ metric.label }}</dt><dd class="mt-1 text-xl font-bold" :class="row[metric.key] && ['retard','bloquees'].includes(metric.key) ? 'text-red-700' : 'text-slate-900'">{{ metric.key === 'ca' ? money(row.ca) : row[metric.key] }}</dd></div>
           </dl>
@@ -63,6 +78,12 @@ import api from '@/services/api'
 const auth=useAuthStore(),manager=computed(()=>hasAnyRole(auth.user,['admin','gerant']))
 const route = useRoute()
 const unplannedProspects = ref(null)
+const failedPhotos = ref({})
+
+function initials(name) {
+  return (name || '').trim().split(/\s+/u).slice(0, 2)
+    .map(part => Array.from(part)[0] || '').join('').toLocaleUpperCase('fr') || '?'
+}
 const showUnplanned = computed(() => manager.value && route.query.vue === 'sans-prochaine-action')
 const today=new Date(), localDate=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
 const from=ref(localDate(new Date(today.getFullYear(),today.getMonth(),1))),to=ref(localDate(today))
