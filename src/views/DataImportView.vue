@@ -19,7 +19,7 @@ const error = ref('')
 const database = ref(null)
 const documents = ref(null)
 const uploadPercent = ref(0)
-const limits = ref({ database: 20 * 1024 * 1024, documents: 100 * 1024 * 1024, total: 120 * 1024 * 1024 })
+const limits = ref({ database: 100 * 1024 * 1024, documents: 100 * 1024 * 1024, total: 1100 * 1024 * 1024 })
 const megabytes = value => Math.floor(value / (1024 * 1024))
 const formatDate = value => value ? new Date(value).toLocaleDateString('fr-FR') : 'Non disponible'
 const count = value => Number(value || 0).toLocaleString('fr-FR')
@@ -134,7 +134,7 @@ usePageReactivation(() => { if (!creating.value && !report.value) return load() 
     <form v-else-if="creating" class="space-y-5 rounded-2xl border border-cyan-200 bg-white p-5" @submit.prevent="analyze">
       <fieldset :disabled="busy" class="grid gap-5 md:grid-cols-2">
         <div><label for="import-database" class="block font-bold text-slate-900">Base Dolibarr *</label>
-          <p id="database-help" class="my-2 text-sm text-slate-700">Fichier .sql.gz ou .sql · {{ megabytes(limits.database) }} Mo maximum, 32 Mo décompressés.</p>
+          <p id="database-help" class="my-2 text-sm text-slate-700">Fichier .sql.gz ou .sql · {{ megabytes(limits.database) }} Mo maximum, 100 Mo décompressés.</p>
           <input id="import-database" type="file" accept=".sql,.gz" required aria-describedby="database-help" class="w-full rounded-xl border border-cyan-200 p-3" @change="database = $event.target.files[0] || null">
         </div>
         <div><label for="import-documents" class="block font-bold text-slate-900">Documents Dolibarr (facultatif)</label>
