@@ -1,11 +1,11 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import api from '@/services/api'
-const props = defineProps({ report: { type: Object, required: true }, limits: { type: Object, required: true } })
+const props = defineProps({ report: { type: Object, required: true }, limits: { type: Object, required: true }, sqlFile: { type: Object, default: null }, sourceSettings: { type: Object, default: null } })
 const emit = defineEmits(['busy'])
-const file = ref(null)
-const sourceKey = ref('dolibarr-principal')
-const currency = ref('')
+const file = ref(props.sqlFile)
+const sourceKey = ref(props.sourceSettings?.sourceKey || 'dolibarr-principal')
+const currency = ref(props.sourceSettings?.currency || '')
 const result = ref(null)
 const busy = ref(false)
 const error = ref('')
@@ -75,8 +75,8 @@ onMounted(loadRuns)
     <h2 class="text-lg font-bold">Devis — Contrôle avant transfert</h2>
     <p class="rounded-xl bg-cyan-50 p-4 text-sm">L’aperçu ne modifie rien. L’enregistrement exige votre sélection et une confirmation séparée. Aucun stock réservé, facture créée ou email envoyé, même pour un devis accepté.</p>
     <form @submit.prevent="preview"><fieldset :disabled="busy" class="space-y-3">
-      <label class="block text-sm font-semibold">Base SQL déjà analysée<input type="file" accept=".sql,.gz" required class="mt-1 w-full rounded-xl border border-cyan-200 p-3" @change="file = $event.target.files[0] || null"></label>
-      <div class="grid gap-3 sm:grid-cols-2"><label class="block text-sm font-semibold">Même nom de source que pour les tiers et produits<input v-model="sourceKey" required pattern="[a-z0-9][a-z0-9_-]{2,63}" maxlength="64" class="mt-1 w-full rounded-xl border border-cyan-200 p-3"></label><label class="block text-sm font-semibold">Devise principale de Dolibarr (ex. XOF)<input v-model="currency" required pattern="[A-Z]{3}" maxlength="3" placeholder="À confirmer" class="mt-1 w-full rounded-xl border border-cyan-200 p-3"></label></div>
+      <label v-if="!sqlFile" class="block text-sm font-semibold">Base SQL déjà analysée<input type="file" accept=".sql,.gz" required class="mt-1 w-full rounded-xl border border-cyan-200 p-3" @change="file = $event.target.files[0] || null"></label>
+      <div class="grid gap-3 sm:grid-cols-2"><label v-if="!sourceSettings" class="block text-sm font-semibold">Même nom de source que pour les tiers et produits<input v-model="sourceKey" required pattern="[a-z0-9][a-z0-9_-]{2,63}" maxlength="64" class="mt-1 w-full rounded-xl border border-cyan-200 p-3"></label><label v-if="!sourceSettings" class="block text-sm font-semibold">Devise principale de Dolibarr (ex. XOF)<input v-model="currency" required pattern="[A-Z]{3}" maxlength="3" placeholder="À confirmer" class="mt-1 w-full rounded-xl border border-cyan-200 p-3"></label></div>
       <p class="text-sm">Vérifiez la devise dans Dolibarr. Les montants ne seront pas convertis. Les lignes libres sont distinguées des produits du catalogue.</p>
       <button type="submit" class="rounded-xl bg-cyan-700 px-5 py-3 font-semibold text-white">Contrôler les devis</button>
     </fieldset></form>

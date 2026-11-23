@@ -1,10 +1,10 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import api from '@/services/api'
-const props = defineProps({ report: { type: Object, required: true }, limits: { type: Object, required: true } })
+const props = defineProps({ report: { type: Object, required: true }, limits: { type: Object, required: true }, sqlFile: { type: Object, default: null }, sourceSettings: { type: Object, default: null } })
 const emit = defineEmits(['busy'])
-const file = ref(null)
-const sourceKey = ref('dolibarr-principal')
+const file = ref(props.sqlFile)
+const sourceKey = ref(props.sourceSettings?.sourceKey || 'dolibarr-principal')
 const mapping = ref({})
 const result = ref(null)
 const busy = ref(false)
@@ -81,8 +81,8 @@ onMounted(loadRuns)
     <h2 class="text-lg font-bold">Entrepôts et stocks — Préparation de la reprise</h2>
     <p class="rounded-xl bg-cyan-50 p-4 text-sm">L’aperçu ne modifie rien. Après contrôle, vous pouvez importer les soldes sélectionnés dans des positions encore absentes de Saytu. Importez d’abord le catalogue. Aucun entrepôt n’est créé automatiquement.</p>
     <form @submit.prevent="preview"><fieldset :disabled="busy" class="space-y-3">
-      <label class="block text-sm font-semibold">Base SQL déjà analysée<input type="file" accept=".sql,.gz" required class="mt-1 w-full rounded-xl border border-cyan-200 p-3" @change="file = $event.target.files[0] || null; result = null; mapping = {}"></label>
-      <label class="block text-sm font-semibold">Même nom de source que pour le catalogue<input v-model="sourceKey" required pattern="[a-z0-9][a-z0-9_-]{2,63}" maxlength="64" class="mt-1 w-full rounded-xl border border-cyan-200 p-3"></label>
+      <label v-if="!sqlFile" class="block text-sm font-semibold">Base SQL déjà analysée<input type="file" accept=".sql,.gz" required class="mt-1 w-full rounded-xl border border-cyan-200 p-3" @change="file = $event.target.files[0] || null; result = null; mapping = {}"></label>
+      <label v-if="!sourceSettings" class="block text-sm font-semibold">Même nom de source que pour le catalogue<input v-model="sourceKey" required pattern="[a-z0-9][a-z0-9_-]{2,63}" maxlength="64" class="mt-1 w-full rounded-xl border border-cyan-200 p-3"></label>
       <button type="submit" class="rounded-xl bg-cyan-700 px-5 py-3 font-semibold text-white">{{ result ? 'Actualiser les contrôles' : 'Analyser les stocks' }}</button>
     </fieldset></form>
     <p v-if="busy" role="status">Analyse en cours…</p>

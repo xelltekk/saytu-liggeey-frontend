@@ -2,9 +2,9 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import api from '@/services/api'
 
-const props = defineProps({ report: { type: Object, required: true }, limits: { type: Object, required: true } })
+const props = defineProps({ report: { type: Object, required: true }, limits: { type: Object, required: true }, sqlFile: { type: Object, default: null }, sourceSettings: { type: Object, default: null } })
 const emit = defineEmits(['busy'])
-const file = ref(null)
+const file = ref(props.sqlFile)
 const busy = ref(false)
 watch(busy, value => emit('busy', value))
 const error = ref('')
@@ -19,8 +19,8 @@ const query = ref('')
 const page = ref(1)
 const choices = ref({})
 const acknowledgements = ref({})
-const sourceKey = ref('dolibarr-principal')
-const country = ref('')
+const sourceKey = ref(props.sourceSettings?.sourceKey || 'dolibarr-principal')
+const country = ref(props.sourceSettings?.country || '')
 const confirmed = ref(false)
 const requestId = ref(null)
 const outcome = ref(null)
@@ -103,10 +103,10 @@ async function check() {
     <p v-if="!report.database_sha256" class="mt-4 rounded-xl bg-cyan-50 p-4 text-slate-800">Cette ancienne analyse ne permet pas de vérifier le fichier. Retournez à la liste et lancez une nouvelle analyse.</p>
     <form v-else class="mt-4 space-y-4" @submit.prevent="check">
       <fieldset :disabled="busy" class="space-y-4">
-        <label class="block text-sm font-semibold text-slate-900">Sauvegarde SQL déjà analysée
+        <label v-if="!sqlFile" class="block text-sm font-semibold text-slate-900">Sauvegarde SQL déjà analysée
           <input type="file" accept=".sql,.gz" required class="mt-2 block w-full rounded-xl border border-cyan-200 p-3" @change="file = $event.target.files[0] || null; result = null">
         </label>
-        <p class="text-sm text-slate-600">Le contenu doit correspondre exactement à l’analyse. Les archives précédentes n’ont pas été conservées.</p>
+        <p class="text-sm text-slate-600">Le contenu doit correspondre exactement à la sauvegarde analysée.</p>
         <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <label v-for="(label, key) in labels" :key="key" class="text-sm font-semibold text-slate-800">{{ label }} dans Saytu
             <select v-model="mapping[key]" class="mt-1 w-full rounded-xl border border-cyan-200 bg-cyan-50 p-2">
@@ -160,9 +160,9 @@ async function check() {
         <p v-if="!result.execution_available" class="text-red-800">Le suivi des imports attend la mise à jour du serveur.</p>
         <fieldset :disabled="busy" class="space-y-3">
           <div class="flex flex-wrap gap-3"><button type="button" class="rounded-lg border border-cyan-300 bg-white p-2 text-sm" @click="selectNew">Sélectionner les nouvelles fiches (200 max.)</button><button type="button" class="rounded-lg border border-cyan-300 bg-white p-2 text-sm" @click="choices = {}">Tout ignorer</button></div>
-          <label class="block text-sm font-semibold">Nom stable de la source Dolibarr<input v-model="sourceKey" maxlength="64" class="mt-1 block w-full rounded-lg border border-cyan-200 p-2"></label>
+          <label v-if="!sourceSettings" class="block text-sm font-semibold">Nom stable de la source Dolibarr<input v-model="sourceKey" maxlength="64" class="mt-1 block w-full rounded-lg border border-cyan-200 p-2"></label>
           <p class="text-xs text-slate-700">Gardez ce même nom pour les sauvegardes suivantes de la même installation Dolibarr. Utilisez un autre nom seulement pour une autre installation.</p>
-          <label class="block text-sm font-semibold">Pays des nouvelles fiches<input v-model="country" maxlength="80" placeholder="À renseigner, par exemple Sénégal" class="mt-1 block w-full rounded-lg border border-cyan-200 p-2"></label>
+          <label v-if="!sourceSettings" class="block text-sm font-semibold">Pays des nouvelles fiches<input v-model="country" maxlength="80" placeholder="À renseigner, par exemple Sénégal" class="mt-1 block w-full rounded-lg border border-cyan-200 p-2"></label>
           <p class="text-xs text-slate-700">Ce pays s’applique à toutes les créations du lot. Pour plusieurs pays, faites des lots séparés. Les autres paramètres commerciaux prennent les valeurs par défaut de Saytu.</p>
           <label class="flex items-start gap-2 text-sm"><input v-model="confirmed" type="checkbox" class="mt-1">Je confirme les {{ decisions.length }} créations ou rattachements sélectionnés dans cette société.</label>
           <button type="button" :disabled="busy || !confirmed || !country.trim() || !decisions.length || decisions.length > 200 || !result.execution_available || result.blockers.length > 0" class="rounded-xl bg-cyan-700 px-5 py-3 font-semibold text-white disabled:opacity-40" @click="execute">{{ busy ? 'Enregistrement…' : 'Importer la sélection' }}</button>

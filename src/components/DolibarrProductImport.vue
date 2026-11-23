@@ -1,19 +1,19 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import api from '@/services/api'
-const props = defineProps({ report: { type: Object, required: true }, limits: { type: Object, required: true } })
+const props = defineProps({ report: { type: Object, required: true }, limits: { type: Object, required: true }, sqlFile: { type: Object, default: null }, sourceSettings: { type: Object, default: null } })
 const emit = defineEmits(['busy'])
-const file = ref(null)
+const file = ref(props.sqlFile)
 const busy = ref(false)
 const result = ref(null)
 const outcome = ref(null)
 const error = ref('')
 const runs = ref([])
 const historyError = ref('')
-const mapping = ref({ reference: 'ref', libelle: 'label', description: 'description', code_barre: 'barcode', product_unit: 'pièce', service_unit: 'service' })
+const mapping = ref({ reference: 'ref', libelle: 'label', description: 'description', code_barre: 'barcode', product_unit: props.sourceSettings?.productUnit || 'pièce', service_unit: props.sourceSettings?.serviceUnit || 'service' })
 const choices = ref({})
 const acknowledgements = ref({})
-const sourceKey = ref('dolibarr-principal')
+const sourceKey = ref(props.sourceSettings?.sourceKey || 'dolibarr-principal')
 const confirmed = ref(false)
 const requestId = ref(null)
 const search = ref('')
@@ -77,7 +77,7 @@ onMounted(loadRuns)
     <p class="text-sm text-slate-700">Importez les fiches et leurs prix. Les services restent sans stock. Aucun stock initial, mouvement, paiement ou document de vente n’est créé.</p>
     <p v-if="!report.database_sha256" class="rounded-xl bg-cyan-50 p-4">Relancez l’analyse pour vérifier l’empreinte de cette sauvegarde.</p>
     <form v-else @submit.prevent="preview"><fieldset :disabled="busy" class="space-y-4">
-      <label class="block text-sm font-semibold">Base SQL déjà analysée<input type="file" accept=".sql,.gz" required class="mt-2 w-full rounded-xl border border-cyan-200 p-3" @change="file = $event.target.files[0] || null; reset()"></label>
+      <label v-if="!sqlFile" class="block text-sm font-semibold">Base SQL déjà analysée<input type="file" accept=".sql,.gz" required class="mt-2 w-full rounded-xl border border-cyan-200 p-3" @change="file = $event.target.files[0] || null; reset()"></label>
       <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><label v-for="(label, key) in fieldLabels" :key="key" class="text-sm font-semibold">{{ label }} dans Saytu<select v-model="mapping[key]" class="mt-1 w-full rounded-lg border border-cyan-200 p-2"><option v-if="['description', 'code_barre'].includes(key)" value="">Ne pas reprendre</option><option v-for="field in ['ref', 'label', 'barcode', 'description']" :key="field" :value="field">{{ field }} (Dolibarr)</option></select></label></div>
       <div class="grid gap-3 sm:grid-cols-2"><label class="text-sm font-semibold">Unité des produits du lot<input v-model="mapping.product_unit" maxlength="20" required class="mt-1 w-full rounded-lg border border-cyan-200 p-2"></label><label class="text-sm font-semibold">Unité des services du lot<input v-model="mapping.service_unit" maxlength="20" required class="mt-1 w-full rounded-lg border border-cyan-200 p-2"></label></div>
       <p class="text-xs text-slate-700">Vérifiez les unités proposées. Faites des lots séparés si les articles utilisent des unités différentes. Prix HT → price ; achat HT → cost_price ; TVA → tva_tx.</p>
@@ -98,7 +98,7 @@ onMounted(loadRuns)
         </tr><tr v-if="!visible.length"><td colspan="4" class="p-4 text-center">Aucun article pour ce filtre.</td></tr>
       </tbody></table></div>
       <nav aria-label="Pages de l’aperçu catalogue" class="flex flex-wrap items-center justify-between gap-3 text-sm"><span>{{ filtered.length }} fiche(s) · Page {{ page }} / {{ pages }}</span><div class="flex gap-3"><button type="button" :disabled="page <= 1" class="rounded-lg border p-2 disabled:opacity-40" @click="page--">Précédent</button><button type="button" :disabled="page >= pages" class="rounded-lg border p-2 disabled:opacity-40" @click="page++">Suivant</button></div></nav>
-      <section v-if="!outcome" class="space-y-3 rounded-xl border border-cyan-200 bg-cyan-50 p-4"><h3 class="font-bold">Confirmer le lot catalogue</h3><p class="text-sm">{{ decisions.length }} fiche(s) sélectionnée(s), toutes pages confondues. Un rattachement conserve les prix et les informations Saytu existants.</p><p v-if="!result.execution_available" class="text-red-800">Mise à jour du serveur nécessaire avant l’import.</p><fieldset :disabled="busy" class="space-y-3"><div class="flex flex-wrap gap-3"><button type="button" class="rounded-lg border bg-white p-2 text-sm" @click="selectNew">Sélectionner les nouvelles fiches (200 max.)</button><button type="button" class="rounded-lg border bg-white p-2 text-sm" @click="choices = {}">Tout ignorer</button></div><label class="block text-sm font-semibold">Même nom de source que pour vos clients<input v-model="sourceKey" maxlength="64" class="mt-1 w-full rounded-lg border border-cyan-200 p-2"></label><label class="flex items-start gap-2 text-sm"><input v-model="confirmed" type="checkbox" class="mt-1">Je confirme les prix, unités et fiches sélectionnés. Les quantités de stock ne seront pas importées.</label><button type="button" :disabled="busy || !confirmed || !decisions.length || decisions.length > 200 || !result.execution_available || !!result.blockers.length" class="rounded-xl bg-cyan-700 px-5 py-3 font-semibold text-white disabled:opacity-40" @click="execute">Importer la sélection</button></fieldset></section>
+      <section v-if="!outcome" class="space-y-3 rounded-xl border border-cyan-200 bg-cyan-50 p-4"><h3 class="font-bold">Confirmer le lot catalogue</h3><p class="text-sm">{{ decisions.length }} fiche(s) sélectionnée(s), toutes pages confondues. Un rattachement conserve les prix et les informations Saytu existants.</p><p v-if="!result.execution_available" class="text-red-800">Mise à jour du serveur nécessaire avant l’import.</p><fieldset :disabled="busy" class="space-y-3"><div class="flex flex-wrap gap-3"><button type="button" class="rounded-lg border bg-white p-2 text-sm" @click="selectNew">Sélectionner les nouvelles fiches (200 max.)</button><button type="button" class="rounded-lg border bg-white p-2 text-sm" @click="choices = {}">Tout ignorer</button></div><label v-if="!sourceSettings" class="block text-sm font-semibold">Même nom de source que pour vos clients<input v-model="sourceKey" maxlength="64" class="mt-1 w-full rounded-lg border border-cyan-200 p-2"></label><label class="flex items-start gap-2 text-sm"><input v-model="confirmed" type="checkbox" class="mt-1">Je confirme les prix, unités et fiches sélectionnés. Les quantités de stock ne seront pas importées.</label><button type="button" :disabled="busy || !confirmed || !decisions.length || decisions.length > 200 || !result.execution_available || !!result.blockers.length" class="rounded-xl bg-cyan-700 px-5 py-3 font-semibold text-white disabled:opacity-40" @click="execute">Importer la sélection</button></fieldset></section>
       <div v-else role="status" class="rounded-xl border border-cyan-300 bg-cyan-50 p-4"><strong>Lot n° {{ outcome.run_id }} enregistré</strong><p>{{ outcome.created }} créée(s) · {{ outcome.linked }} rattachée(s) · {{ outcome.already_processed }} déjà traitée(s) · {{ outcome.ignored }} ignorée(s).</p><p class="mt-2 text-sm">Aucun stock modifié. Relancez l’aperçu pour le lot suivant.</p></div>
     </template>
     <section class="border-t border-cyan-200 pt-4"><div class="flex flex-wrap justify-between gap-3"><h3 class="font-bold">Historique des lots catalogue</h3><button type="button" class="text-cyan-800 underline" @click="loadRuns">Actualiser</button></div><p v-if="historyError" class="text-red-800">{{ historyError }}</p><p v-else-if="!runs.length" class="mt-2 text-sm">Aucun lot catalogue enregistré.</p><div class="max-h-64 overflow-auto"><p v-for="run in runs" :key="run.id" class="mt-2 rounded-lg bg-cyan-50 p-3 text-sm">Lot {{ run.id }} · {{ run.created_at }} · {{ run.source_key }} — {{ run.result.created }} créée(s), {{ run.result.linked }} rattachée(s), {{ run.result.already_processed }} déjà traitée(s).</p></div></section>

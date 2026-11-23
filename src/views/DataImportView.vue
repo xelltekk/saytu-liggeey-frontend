@@ -1,12 +1,21 @@
 <script setup>
 import { usePageReactivation } from '@/composables/usePageReactivation'
 import { onMounted, ref } from 'vue'
+import { onBeforeRouteLeave } from 'vue-router'
+import { useConfirm } from '@/composables/useConfirm'
 import api from '@/services/api'
-import DolibarrThirdPartyPreview from '@/components/DolibarrThirdPartyPreview.vue'
-import DolibarrProductImport from '@/components/DolibarrProductImport.vue'
-import DolibarrStockPreview from '@/components/DolibarrStockPreview.vue'
-import DolibarrQuotePreview from '@/components/DolibarrQuotePreview.vue'
-import DolibarrInvoicePreview from '@/components/DolibarrInvoicePreview.vue'
+import DolibarrMigrationAssistant from '@/components/DolibarrMigrationAssistant.vue'
+
+const { confirm } = useConfirm()
+onBeforeRouteLeave(async () => {
+  if (!busy.value && !childBusy.value) return true
+  return await confirm({
+    title: 'Transfert en cours',
+    message: 'Quitter interrompra les prochains lots. Les lots déjà enregistrés seront conservés.',
+    confirmLabel: 'Quitter',
+    cancelLabel: 'Continuer le transfert',
+  })
+})
 
 const reports = ref([])
 const report = ref(null)
@@ -14,12 +23,11 @@ const creating = ref(false)
 const loading = ref(true)
 const busy = ref(false)
 const childBusy = ref(false)
-const importModule = ref('tiers')
 const error = ref('')
 const database = ref(null)
 const documents = ref(null)
 const uploadPercent = ref(0)
-const limits = ref({ database: 100 * 1024 * 1024, documents: 100 * 1024 * 1024, total: 1100 * 1024 * 1024 })
+const limits = ref({ database: 100 * 1024 * 1024, documents: 100 * 1024 * 1024, total: 200 * 1024 * 1024 })
 const megabytes = value => Math.floor(value / (1024 * 1024))
 const formatDate = value => value ? new Date(value).toLocaleDateString('fr-FR') : 'Non disponible'
 const count = value => Number(value || 0).toLocaleString('fr-FR')
@@ -75,7 +83,6 @@ async function analyze() {
     report.value = data
     reports.value = [data, ...reports.value].slice(0, 50)
     creating.value = false
-    database.value = null
     documents.value = null
   } catch (e) { error.value = message(e) }
   finally { busy.value = false }
@@ -99,7 +106,7 @@ usePageReactivation(() => { if (!creating.value && !report.value) return load() 
     <header class="rounded-2xl border border-cyan-200 bg-cyan-50 p-5">
       <button v-if="creating || report" type="button" class="app-back-button mb-4 font-semibold text-cyan-800" :disabled="busy || childBusy" @click="back"><span class="app-back-button__arrow" aria-hidden="true">←</span><span>Retour à la liste</span></button>
       <p class="text-xs font-bold uppercase tracking-widest text-cyan-800">Administration · Migration Dolibarr</p>
-      <h1 class="mt-2 text-2xl font-bold text-slate-900">{{ report ? 'Résultat de l’analyse' : creating ? 'Analyser une sauvegarde' : 'Importation des données' }}</h1>
+      <h1 class="mt-2 text-2xl font-bold text-slate-900">{{ report ? 'Assistant de migration' : creating ? 'Analyser une sauvegarde' : 'Importation des données' }}</h1>
       <p class="mt-2 text-sm text-slate-700">Préparez la reprise de vos clients, produits, stocks et documents commerciaux dans Saytu.</p>
     </header>
 
@@ -107,9 +114,9 @@ usePageReactivation(() => { if (!creating.value && !report.value) return load() 
 
     <template v-if="!creating && !report">
       <section class="rounded-2xl border border-cyan-200 bg-white p-5">
-        <h2 class="text-lg font-bold text-slate-900">1. Vérifier les sauvegardes</h2>
-        <p class="my-3 text-sm text-slate-700">Analysez les fichiers, reprenez les tiers et le catalogue, puis préparez les soldes de stock dans leur bloc dédié. Chaque import exige votre confirmation. Les paiements ne sont pas encore transférés.</p>
-        <button type="button" class="rounded-xl bg-cyan-700 px-5 py-3 font-semibold text-white" @click="start">Nouvelle analyse Dolibarr</button>
+        <h2 class="text-lg font-bold text-slate-900">Commencer votre migration depuis Dolibarr</h2>
+        <p class="my-3 text-sm text-slate-700">Déposez votre sauvegarde. Un assistant vous guidera pour vérifier les données, les transférer et suivre ce qui reste à reprendre.</p>
+        <button type="button" class="rounded-xl bg-cyan-700 px-5 py-3 font-semibold text-white" @click="start">Migrer depuis Dolibarr</button>
       </section>
       <section class="rounded-2xl border border-cyan-200 bg-white p-5">
         <h2 class="mb-4 text-lg font-bold text-slate-900">Historique des analyses</h2>
@@ -123,7 +130,7 @@ usePageReactivation(() => { if (!creating.value && !report.value) return load() 
               <td class="max-w-xs break-words p-3">{{ item.database_name }}</td>
               <td class="whitespace-nowrap p-3">{{ formatDate(item.created_at) }}</td>
               <td class="p-3">{{ item.blockers.length ? 'Anomalie à résoudre' : 'Inventaire disponible' }}</td>
-              <td class="p-3"><button type="button" class="font-semibold text-cyan-800 underline" @click="report = item">Consulter</button></td>
+              <td class="p-3"><button type="button" class="font-semibold text-cyan-800 underline" @click="database = null; report = item">Consulter</button></td>
             </tr></tbody>
           </table>
         </div>
@@ -142,16 +149,15 @@ usePageReactivation(() => { if (!creating.value && !report.value) return load() 
           <input id="import-documents" type="file" accept=".zip" aria-describedby="documents-help" class="w-full rounded-xl border border-cyan-200 p-3" @change="documents = $event.target.files[0] || null">
         </div>
       </fieldset>
-      <p class="rounded-xl bg-cyan-50 p-4 text-sm text-slate-800">Utilisez une base et des documents sauvegardés au même moment. Seul le rapport d’inventaire est conservé ; les archives devront être fournies à nouveau pour le transfert.</p>
+      <p class="rounded-xl bg-cyan-50 p-4 text-sm text-slate-800">Utilisez une base et des documents sauvegardés au même moment. Le fichier SQL reste sélectionné pendant cette session. Si vous quittez la page, vous pourrez rouvrir l’analyse et sélectionner ce même fichier pour continuer.</p>
       <p v-if="busy" role="status" class="text-cyan-900">{{ uploadPercent < 100 ? `Dépôt des fichiers : ${uploadPercent} %` : 'Analyse en cours…' }}</p>
       <button type="submit" :disabled="busy" class="rounded-xl bg-cyan-700 px-5 py-3 font-semibold text-white disabled:opacity-60">{{ busy ? 'Veuillez patienter…' : 'Analyser les fichiers' }}</button>
     </form>
 
     <template v-else-if="report">
-      <label class="block rounded-xl border border-cyan-200 bg-white p-4 font-semibold">Données à reprendre
-        <select v-model="importModule" :disabled="childBusy" class="ml-3 max-w-full rounded-lg border border-cyan-200 p-2"><option value="tiers">Clients / Fournisseurs</option><option value="products">Produits / Services</option><option value="stock">Entrepôts / Stocks</option><option value="quotes">Devis</option><option value="invoices">Factures (aperçu)</option></select>
-      </label>
-      <component :is="importModule === 'invoices' ? DolibarrInvoicePreview : importModule === 'quotes' ? DolibarrQuotePreview : importModule === 'stock' ? DolibarrStockPreview : importModule === 'products' ? DolibarrProductImport : DolibarrThirdPartyPreview" :key="`${report.id}-${importModule}`" :report="report" :limits="limits" @busy="childBusy = $event" />
+      <DolibarrMigrationAssistant :key="report.id" :report="report" :limits="limits" :sql-file="database" @busy="childBusy = $event" />
+      <details class="rounded-xl border border-cyan-200 bg-white p-4">
+        <summary class="cursor-pointer font-semibold text-cyan-900">Rapport détaillé de la sauvegarde</summary>
       <section class="rounded-2xl border border-cyan-200 bg-white p-5">
         <div class="flex flex-wrap items-center justify-between gap-3"><h2 class="break-all font-bold text-slate-900">{{ report.database_name }}</h2><button type="button" class="font-semibold text-cyan-800 underline" @click="download">Télécharger le rapport</button></div>
         <div class="mt-4 grid gap-3 sm:grid-cols-3">
@@ -185,8 +191,9 @@ usePageReactivation(() => { if (!creating.value && !report.value) return load() 
           <tbody><tr v-for="module in report.modules" :key="module.key" class="border-t border-cyan-100"><td class="p-3">{{ module.label }}</td><td class="p-3 text-right font-bold">{{ count(module.rows) }}</td><td class="p-3">{{ module.present ? 'Présente' : 'Absente de l’export' }}</td></tr></tbody>
         </table></div>
         <p class="mt-4 text-sm text-slate-700">{{ count(report.unmapped_table_count) }} autres tables techniques ou complémentaires restent à examiner. Les fichiers PDF ne correspondent pas nécessairement à des documents uniques.</p>
-        <p class="mt-3 font-semibold text-cyan-900">Analyse uniquement : aucune donnée métier importée.</p>
+        <p class="mt-3 text-sm text-slate-700">Ce rapport décrit la sauvegarde source. Consultez le bilan de reprise pour les transferts effectués.</p>
       </section>
+      </details>
     </template>
   </main>
 </template>
