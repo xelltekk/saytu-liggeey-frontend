@@ -1,19 +1,20 @@
 <template>
   <section class="space-y-4 rounded-xl border bg-white p-5">
-    <div><h3 class="text-lg font-bold">Factures, avoirs et règlements clients</h3><p class="mt-1 text-sm text-slate-600">Retrouvez les documents historiques dans Factures et Paiements, avec leur reste dû. Les références et les dates d’origine sont conservées.</p></div>
+    <div><h3 class="text-lg font-bold">{{ supplier ? 'Factures et règlements fournisseurs' : 'Factures, avoirs et règlements clients' }}</h3><p class="mt-1 text-sm text-slate-600">{{ supplier ? 'Retrouvez les documents historiques dans le suivi fournisseurs, avec leur reste à payer.' : 'Retrouvez les documents historiques dans Factures et Paiements, avec leur reste dû.' }} Les références et les dates d’origine sont conservées.</p></div>
     <p v-if="error" role="alert" class="rounded-lg bg-red-50 p-3 text-red-800">{{ error }}</p>
     <p v-if="busy" role="status" class="rounded-lg bg-blue-50 p-3">{{ progress }}</p>
-    <button v-if="!plan" type="button" class="btn-primary" :disabled="busy" @click="check">Contrôler les factures et règlements</button>
+    <button v-if="!plan" type="button" class="btn-primary" :disabled="busy" @click="check">{{ supplier ? 'Contrôler les factures fournisseurs' : 'Contrôler les factures et règlements' }}</button>
     <template v-else>
       <dl class="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <div v-for="item in counters" :key="item.label" class="rounded-lg bg-slate-50 p-3"><dt class="text-sm text-slate-600">{{ item.label }}</dt><dd class="text-2xl font-bold">{{ item.value }}</dd></div>
       </dl>
       <p class="text-sm text-slate-600">{{ plan.notice }}</p>
+      <p v-if="supplier" class="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">Les factures standards et de remplacement peuvent être reprises. Les avoirs, acomptes et crédits fournisseurs nécessitant un rapprochement restent à résoudre. Le contrôle « Bon à payer » demeure à vérifier dans Saytu.</p>
       <p class="text-sm text-slate-600">Les montants historiques sont repris tels qu’ils figurent dans la sauvegarde. Les comptes bancaires, écritures comptables et pièces jointes ont leur propre reprise.</p>
       <div v-if="plan.blockers?.length" role="alert" class="rounded-lg bg-red-50 p-3 text-red-800"><strong>Transfert à résoudre</strong><p v-for="issue in plan.blockers.slice(0, 10)" :key="issue">{{ issue }}</p><p v-if="plan.blockers.length > 10">{{ plan.blockers.length }} anomalies au total.</p></div>
       <p v-if="warningCount" class="rounded-lg bg-amber-50 p-3 text-amber-900">{{ warningCount }} facture(s) sans échéance : la date de facture sera utilisée. Le détail est indiqué sur les lignes concernées.</p>
       <template v-if="ready.length && !done">
-        <label class="flex items-start gap-2"><input v-model="confirmed" type="checkbox" class="mt-1" :disabled="busy" /><span>Je confirme le transfert des {{ ready.length }} factures et avoirs prêts, de leurs règlements et crédits, avec les échéances proposées. Les lignes à résoudre restent en attente.</span></label>
+        <label class="flex items-start gap-2"><input v-model="confirmed" type="checkbox" class="mt-1" :disabled="busy" /><span>Je confirme le transfert des {{ ready.length }} {{ supplier ? 'factures fournisseurs prêtes et de leurs règlements' : 'factures et avoirs prêts, de leurs règlements et crédits' }}, avec les échéances proposées. Les lignes à résoudre restent en attente.</span></label>
         <button type="button" class="btn-primary" :disabled="busy || !confirmed || !!plan.blockers?.length" @click="run">{{ pending ? 'Reprendre le transfert' : 'Importer les documents prêts' }}</button>
       </template>
       <p v-if="done" role="status" class="rounded-lg bg-green-50 p-3 text-green-900">Transfert terminé : {{ created }} document(s) créé(s), {{ paymentsCreated }} règlement(s) créé(s), {{ alreadyProcessed }} document(s) déjà traité(s). {{ plan.summary.blocked }} document(s) restent à résoudre.</p>
@@ -21,18 +22,18 @@
         <button type="button" class="btn-secondary" :disabled="busy" @click="check">Actualiser le contrôle</button>
         <button type="button" class="btn-secondary" :disabled="busy" @click="downloadReport">Télécharger le bilan du contrôle</button>
       </div>
-      <div class="grid gap-3 sm:grid-cols-2"><label>Rechercher<input v-model="search" class="input mt-1" placeholder="Référence ou client" /></label><label>Afficher<select aria-label="Filtrer les documents" v-model="filter" class="input mt-1"><option value="">Tous les documents</option><option value="ready">Prêts</option><option value="blocked">À résoudre</option><option value="already_imported">Déjà repris</option></select></label></div>
+      <div class="grid gap-3 sm:grid-cols-2"><label>Rechercher<input v-model="search" class="input mt-1" :placeholder="supplier ? 'Référence ou fournisseur' : 'Référence ou client'" /></label><label>Afficher<select aria-label="Filtrer les documents" v-model="filter" class="input mt-1"><option value="">Tous les documents</option><option value="ready">Prêts</option><option value="blocked">À résoudre</option><option value="already_imported">Déjà repris</option></select></label></div>
       <div class="space-y-3 md:hidden">
         <article v-for="row in visibleRows" :key="row.source_id" class="rounded-xl border p-3">
           <div class="flex flex-wrap justify-between gap-2"><strong>{{ row.reference }}</strong><strong :class="row.status === 'blocked' ? 'text-red-700' : 'text-green-700'">{{ labels[row.status] }}</strong></div>
           <p class="mt-1 text-sm">{{ row.client }}</p><p class="text-xs text-slate-500">{{ row.type }} · {{ row.date }}</p>
-          <dl class="mt-3 grid grid-cols-2 gap-3 text-sm"><div><dt class="text-slate-500">Total TTC</dt><dd>{{ amount(row.total) }}</dd></div><div><dt class="text-slate-500">Encaissé</dt><dd>{{ amount(row.paid) }}</dd></div><div><dt class="text-slate-500">Crédits imputés</dt><dd>{{ amount(row.credits) }}</dd></div><div><dt class="text-slate-500">Reste dû</dt><dd class="font-bold">{{ amount(row.remaining) }}</dd></div></dl>
+          <dl class="mt-3 grid grid-cols-2 gap-3 text-sm"><div><dt class="text-slate-500">Total TTC</dt><dd>{{ amount(row.total) }}</dd></div><div><dt class="text-slate-500">{{ supplier ? 'Réglé' : 'Encaissé' }}</dt><dd>{{ amount(row.paid) }}</dd></div><div><dt class="text-slate-500">Crédits imputés</dt><dd>{{ amount(row.credits) }}</dd></div><div><dt class="text-slate-500">Reste dû</dt><dd class="font-bold">{{ amount(row.remaining) }}</dd></div></dl>
           <p v-for="issue in row.issues" :key="issue" class="mt-2 text-sm text-red-700">{{ issue }}</p><p v-for="warning in row.warnings" :key="warning" class="mt-2 text-sm text-amber-800">{{ warning }}</p>
           <p v-if="row.issues_count > row.issues.length" class="mt-2 text-sm">{{ row.issues_count }} anomalies au total.</p>
         </article>
       </div>
       <div class="hidden overflow-x-auto rounded-lg border md:block">
-        <table class="w-full text-left text-sm"><thead class="bg-slate-50"><tr><th class="p-3">Document</th><th class="p-3">TTC</th><th class="p-3">Encaissé</th><th class="p-3">Crédits imputés</th><th class="p-3">Reste dû</th><th class="p-3">Contrôle</th></tr></thead>
+        <table class="w-full text-left text-sm"><thead class="bg-slate-50"><tr><th class="p-3">Document</th><th class="p-3">TTC</th><th class="p-3">{{ supplier ? 'Réglé' : 'Encaissé' }}</th><th class="p-3">Crédits imputés</th><th class="p-3">Reste dû</th><th class="p-3">Contrôle</th></tr></thead>
           <tbody><tr v-for="row in visibleRows" :key="row.source_id" class="border-t align-top"><td class="p-3"><strong>{{ row.reference }}</strong><p>{{ row.client }}</p><p class="text-xs text-slate-500">{{ row.type }} · {{ row.date }}</p></td><td class="whitespace-nowrap p-3">{{ amount(row.total) }}</td><td class="whitespace-nowrap p-3">{{ amount(row.paid) }}</td><td class="whitespace-nowrap p-3">{{ amount(row.credits) }}</td><td class="whitespace-nowrap p-3 font-bold">{{ amount(row.remaining) }}</td><td class="min-w-52 p-3"><strong :class="row.status === 'blocked' ? 'text-red-700' : 'text-green-700'">{{ labels[row.status] }}</strong><p v-for="issue in row.issues" :key="issue" class="mt-1 text-red-700">{{ issue }}</p><p v-for="warning in row.warnings" :key="warning" class="mt-1 text-amber-800">{{ warning }}</p><p v-if="row.issues_count > row.issues.length">{{ row.issues_count }} anomalies au total.</p></td></tr></tbody>
         </table>
       </div>
@@ -44,7 +45,7 @@
 <script setup>
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import api from '@/services/api'
-const props = defineProps({ report: { type: Object, required: true }, sqlFile: { type: Object, required: true }, sourceSettings: { type: Object, required: true } })
+const props = defineProps({ report: { type: Object, required: true }, sqlFile: { type: Object, required: true }, sourceSettings: { type: Object, required: true }, supplier: { type: Boolean, default: false } })
 const emit = defineEmits(['busy', 'imported'])
 const plan = ref(null), busy = ref(false), confirmed = ref(false), done = ref(false), error = ref(''), progress = ref('')
 const created = ref(0), paymentsCreated = ref(0), alreadyProcessed = ref(0), search = ref(''), filter = ref(''), page = ref(1)
@@ -64,7 +65,7 @@ watch([search, filter, plan], () => { page.value = 1 })
 onBeforeUnmount(() => { cancelled = true })
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms))
 const amount = value => value == null ? '—' : `${Number(value).toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${props.sourceSettings.currency}`
-const endpoint = action => `/data-imports/${props.report.id}/invoices/${action}`
+const endpoint = action => `/data-imports/${props.report.id}/${props.supplier ? 'supplier-invoices' : 'invoices'}/${action}`
 const explain = exception => Object.values(exception.response?.data?.errors || {}).flat().join(' ') || exception.response?.data?.message || 'Transfert interrompu. Cliquez sur Reprendre le transfert pour continuer sans doublon.'
 function setBusy(value) { busy.value = value; emit('busy', value) }
 async function check() {
@@ -121,7 +122,7 @@ async function run() {
 }
 function downloadReport() {
   const { session_token, ...publicReport } = plan.value
-  const url = URL.createObjectURL(new Blob([JSON.stringify({ report_id: props.report.id, generated_at: new Date().toISOString(), ...publicReport }, null, 2)], { type: 'application/json' }))
-  const link = document.createElement('a'); link.href = url; link.download = `controle-factures-${props.report.id}.json`; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000)
+  const url = URL.createObjectURL(new Blob([JSON.stringify({ report_id: props.report.id, module: props.supplier ? 'supplier-invoices' : 'invoices', generated_at: new Date().toISOString(), ...publicReport }, null, 2)], { type: 'application/json' }))
+  const link = document.createElement('a'); link.href = url; link.download = `controle-factures-${props.supplier ? 'fournisseurs-' : ''}${props.report.id}.json`; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 </script>

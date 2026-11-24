@@ -3,11 +3,21 @@
     <div class="rounded-3xl border border-cyan-200 bg-cyan-50/70 p-6 shadow-sm">
       <button class="app-back-button mb-6 text-sm font-bold text-cyan-700 hover:text-cyan-900" type="button" @click="goBack"><span class="app-back-button__arrow" aria-hidden="true">←</span><span>Retour à la liste</span></button>
       <p class="text-xs font-black uppercase tracking-[0.22em] text-cyan-700">Facture fournisseur</p>
-      <h1 class="mt-2 text-3xl font-black text-slate-900">{{ isEdit ? `Modifier ${facture?.numero || ''}` : 'Nouvelle facture fournisseur' }}</h1>
-      <p class="mt-1 text-sm text-slate-600">Saisie complète en page dédiée, sans fenêtre flottante.</p>
+      <h1 class="mt-2 text-3xl font-black text-slate-900">{{ facture?.import_dolibarr ? facture.numero : isEdit ? `Modifier ${facture?.numero || ''}` : 'Nouvelle facture fournisseur' }}</h1>
+      <p class="mt-1 text-sm text-slate-600">{{ facture?.import_dolibarr ? 'Consultation de la facture historique et de ses lignes d’origine.' : 'Saisie complète en page dédiée, sans fenêtre flottante.' }}</p>
     </div>
 
-    <form class="rounded-3xl border border-cyan-200 bg-white p-5 shadow-sm" @submit.prevent="saveFacture">
+    <section v-if="facture?.import_dolibarr" class="space-y-4 rounded-3xl border bg-white p-5 shadow-sm">
+      <div class="rounded-xl bg-sky-50 p-4 text-sm"><strong>Historique Dolibarr</strong><p>Les montants et lignes d’origine sont conservés. Le suivi des échéances, le contrôle paiement et les nouveaux règlements restent disponibles dans le suivi fournisseurs.</p></div>
+      <dl class="grid grid-cols-2 gap-3 md:grid-cols-4"><div><dt>Fournisseur</dt><dd class="font-bold">{{ facture.fournisseur?.nom }}</dd></div><div><dt>Référence fournisseur</dt><dd>{{ facture.reference_fournisseur || '—' }}</dd></div><div><dt>Date facture</dt><dd>{{ normalizeDate(facture.date_facture) }}</dd></div><div><dt>Échéance</dt><dd>{{ normalizeDate(facture.date_echeance) }}</dd></div><div><dt>Total TTC</dt><dd class="font-bold">{{ formatPrice(facture.total_ttc) }}</dd></div><div><dt>Réglé</dt><dd>{{ formatPrice(facture.montant_paye) }}</dd></div><div><dt>Reste à payer</dt><dd class="font-bold">{{ formatPrice(facture.reste_a_payer) }}</dd></div><div><dt>Statut</dt><dd>{{ { brouillon: 'Brouillon', validee: 'À régler', partiellement_payee: 'Partiellement réglée', payee: 'Réglée', annulee: 'Annulée' }[facture.statut] || facture.statut }}</dd></div></dl>
+      <p class="text-sm text-slate-600">Montants en {{ facture.devise || 'XOF' }}</p>
+      <h2 class="text-lg font-bold">Lignes de la facture d’origine</h2>
+      <div class="space-y-3"><article v-for="line in facture.lignes_importees || []" :key="line.id" class="rounded-xl border p-3"><strong>{{ line.designation }}</strong><p v-if="line.description" class="mt-1 whitespace-pre-wrap text-sm text-slate-600">{{ line.description }}</p><dl class="mt-3 grid grid-cols-2 gap-2 text-sm md:grid-cols-4"><div><dt>Quantité</dt><dd>{{ Number(line.quantite).toLocaleString('fr-FR') }} {{ line.unite }}</dd></div><div><dt>Prix HT</dt><dd>{{ formatPrice(line.prix_unitaire_ht) }}</dd></div><div><dt>TVA / Remise</dt><dd>{{ Number(line.taux_tva) }} % / {{ Number(line.remise_pourcent) }} %</dd></div><div><dt>Total TTC</dt><dd class="font-bold">{{ formatPrice(line.total_ttc) }}</dd></div></dl></article></div>
+      <p v-if="facture.notes" class="whitespace-pre-wrap text-sm">{{ facture.notes }}</p>
+      <button type="button" class="btn-secondary" @click="goBack">Retour au suivi fournisseurs</button>
+    </section>
+
+    <form v-else class="rounded-3xl border border-cyan-200 bg-white p-5 shadow-sm" @submit.prevent="saveFacture">
       <div v-if="facture?.commande_achat" class="mb-4 rounded-2xl border border-violet-200 bg-violet-50 p-4 text-sm text-violet-900">
         Facture générée depuis la commande <strong class="font-mono">{{ facture.commande_achat.numero }}</strong>. Le fournisseur et les montants restent synchronisés avec cette commande.
       </div>
@@ -178,7 +188,7 @@ function showApiError(error, fallback = 'Une erreur est survenue.') {
 }
 
 function formatPrice(value) {
-  return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(Number(value || 0))
+  return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 }).format(Number(value || 0))
 }
 
 onMounted(async () => {

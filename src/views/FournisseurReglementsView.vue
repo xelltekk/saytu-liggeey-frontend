@@ -239,7 +239,7 @@
                     <button v-if="Number(facture.reste_a_payer || 0) > 0 && facture.controle_paiement_statut !== 'bloque'" type="button" @click="updateControlePaiement(facture, 'bloque')" class="table-danger">Bloquer</button>
                     <button v-if="canPayFacture(facture)" type="button" @click="openReglementForFacture(facture)" class="table-action">Payer</button>
                     <button type="button" @click="openSupplierSituation(facture.fournisseur_id || facture.fournisseur?.id)" class="table-action">Situation</button>
-                    <button type="button" @click="openFactureEdit(facture)" class="table-action">Modifier</button>
+                    <button type="button" @click="openFactureEdit(facture)" class="table-action">{{ facture.import_dolibarr ? 'Consulter' : 'Modifier' }}</button>
                     <button type="button" @click="deleteFacture(facture)" class="table-danger">Supprimer</button>
                   </div>
                 </td>
