@@ -20,7 +20,7 @@
           </p>
         </div>
 
-        <div v-if="facture" class="flex flex-wrap gap-2">
+    <div v-if="facture" class="flex flex-wrap gap-2">
           <button type="button" class="btn-secondary" @click="ouvrirPdf">PDF</button>
           <button v-if="!facture.livraison_verrouillee && !facture.leasing_comparison_id" type="button" class="btn-secondary" @click="setTab('saisie')">Modifier</button>
           <RouterLink v-if="facture.leasing_comparison_id" class="btn-secondary" :to="{ name: 'leasing', query: { tab: 'releves', suivi: facture.leasing_comparison_id } }">Relevé et corrections</RouterLink>
@@ -119,7 +119,12 @@
         </button>
       </div>
 
-      <div v-if="loading" class="p-10 text-center text-slate-500">Chargement...</div>
+          <div v-if="facture?.import_dolibarr" class="mb-4 rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm text-slate-800">
+      <strong>Historique Dolibarr</strong> · Référence, dates et montants d’origine conservés.
+      <p v-if="Number(facture.montant_credit_impute) > 0" class="mt-1">Crédits historiques imputés : <strong>{{ formatPrice(facture.montant_credit_impute) }}</strong>. Ils sont déduits du reste dû et séparés des encaissements.</p>
+      <p v-if="Number(facture.credit_disponible_import) > 0" class="mt-1">Crédit disponible à la date de la sauvegarde : <strong>{{ formatPrice(facture.credit_disponible_import) }}</strong> (à rapprocher avant utilisation).</p>
+    </div>
+    <div v-if="loading" class="p-10 text-center text-slate-500">Chargement...</div>
 
       <div v-else class="p-4">
         <InvoiceDeliveriesPanel v-if="activeTab === 'livraisons' && facture" :invoice-id="facture.id" @changed="loadAll" />

@@ -38,7 +38,7 @@
         <summary class="cursor-pointer font-semibold">Vérifier les doublons ou ajuster les correspondances</summary>
         <component :is="module === 'tiers' ? DolibarrThirdPartyPreview : DolibarrProductImport" v-if="reviewOpen" :key="module" :report="report" :limits="limits" :sql-file="selectedFile" :source-settings="settings" @busy="setBusy" />
       </details>
-      <component :is="module === 'stock' ? DolibarrStockPreview : module === 'quotes' ? DolibarrQuotePreview : DolibarrInvoicePreview" v-else :key="module" :report="report" :limits="limits" :sql-file="selectedFile" :source-settings="settings" @busy="setBusy" />
+      <component :is="module === 'stock' ? DolibarrStockPreview : module === 'quotes' ? DolibarrQuotePreview : DolibarrFinancialImport" v-else :key="module" :report="report" :limits="limits" :sql-file="selectedFile" :source-settings="settings" @busy="setBusy" />
     </template>
 
     <section v-else-if="step === 'bilan'" class="space-y-4 rounded-2xl border bg-white p-5">
@@ -47,9 +47,9 @@
       <p v-if="historyError" role="alert" class="text-red-700">{{ historyError }}</p>
       <div v-for="item in modules" :key="item.key" class="flex flex-wrap justify-between gap-3 rounded-lg bg-slate-50 p-3">
         <strong>{{ item.label }}</strong>
-        <span>{{ sourceCount(item.source) }} dans la sauvegarde · {{ item.key === 'invoices' ? 'Transfert à développer' : importedCount(item.key) + ' traités dans les lots enregistrés' }}</span>
+        <span>{{ sourceCount(item.source) }} dans la sauvegarde · {{ importedCount(item.key) }} traités dans les lots enregistrés</span>
       </div>
-      <p class="rounded-lg bg-amber-50 p-3 text-amber-900">La reprise complète reste à terminer. Les factures et paiements sont disponibles pour contrôle. Leur transfert, les achats fournisseurs, l’historique des mouvements et les pièces jointes nécessitent encore un outil de reprise.</p>
+      <p class="rounded-lg bg-amber-50 p-3 text-amber-900">La reprise complète reste à terminer. Les factures, avoirs et règlements clients peuvent être transférés après contrôle. Les achats fournisseurs, l’historique des mouvements et les pièces jointes nécessitent encore un outil de reprise.</p>
       <details v-if="remainingGroups.length"><summary class="cursor-pointer font-semibold">Autres données de votre sauvegarde à reprendre</summary><p v-for="group in remainingGroups" :key="group.key" class="mt-2 text-sm">{{ group.label }} · {{ Number(group.rows).toLocaleString('fr-FR') }} lignes source</p></details>
       <p v-if="!report.documents" class="text-sm text-amber-900">Ajoutez aussi le ZIP de documents Dolibarr pour préparer la reprise des PDF et pièces jointes.</p>
       <button type="button" class="btn-secondary" @click="loadRuns">Actualiser les transferts</button>
@@ -65,7 +65,7 @@ import DolibarrThirdPartyPreview from '@/components/DolibarrThirdPartyPreview.vu
 import DolibarrProductImport from '@/components/DolibarrProductImport.vue'
 import DolibarrStockPreview from '@/components/DolibarrStockPreview.vue'
 import DolibarrQuotePreview from '@/components/DolibarrQuotePreview.vue'
-import DolibarrInvoicePreview from '@/components/DolibarrInvoicePreview.vue'
+import DolibarrFinancialImport from '@/components/DolibarrFinancialImport.vue'
 
 const props = defineProps({ report: { type: Object, required: true }, limits: { type: Object, required: true }, sqlFile: { type: Object, default: null } })
 const emit = defineEmits(['busy'])
@@ -85,9 +85,9 @@ const modules = [
   { key: 'products', source: 'product', label: 'Catalogue' },
   { key: 'stock', source: 'product_stock', label: 'Stocks' },
   { key: 'quotes', source: 'propal', label: 'Devis' },
-  { key: 'invoices', source: 'facture', label: 'Factures et paiements · contrôle' },
+  { key: 'invoices', source: 'facture', label: 'Factures et paiements' },
 ]
-const remainingGroups = computed(() => (props.report.coverage?.groups || []).filter(group => Number(group.rows) > 0 && group.adapter !== 'available'))
+const remainingGroups = computed(() => (props.report.coverage?.groups || []).filter(group => Number(group.rows) > 0 && group.adapter !== 'available' && group.key !== 'factures'))
 
 function sourceCount(source) {
   return Number(props.report.modules?.find(item => item.key === source)?.rows || 0)
@@ -123,7 +123,7 @@ function importedCount(key) {
 
 async function loadRuns() {
   historyError.value = ''
-  const results = await Promise.allSettled(['tiers', 'products', 'stock', 'quotes'].map(async key => {
+  const results = await Promise.allSettled(['tiers', 'products', 'stock', 'quotes', 'invoices'].map(async key => {
     const suffix = key === 'tiers' ? '' : '/' + key
     const { data } = await api.get(`/data-imports/${props.report.id}${suffix}/runs`)
     runs.value[key] = data.runs || []
