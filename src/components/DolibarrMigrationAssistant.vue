@@ -33,12 +33,12 @@
         <p class="my-3 text-sm text-slate-600">Commencez par les clients et fournisseurs, puis le catalogue. Les transferts de nouvelles fiches sont découpés automatiquement en lots.</p>
         <div class="flex flex-wrap gap-2"><button v-for="item in modules" :key="item.key" type="button" :disabled="busy" :class="module === item.key ? 'btn-primary' : 'btn-secondary'" @click="module = item.key">{{ item.label }} ({{ sourceCount(item.source) }})</button></div>
       </section>
-      <DolibarrSimpleBatch v-if="module === 'tiers' || module === 'products'" :key="'simple-' + module" :module="module" :title="module === 'tiers' ? 'Clients et fournisseurs' : 'Produits et services'" :sql-file="selectedFile" :report="report" :settings="settings" @busy="setBusy" @imported="loadRuns" />
+      <DolibarrSimpleBatch v-if="['tiers', 'products', 'contacts'].includes(module)" :key="'simple-' + module" :module="module" :title="module === 'tiers' ? 'Clients et fournisseurs' : module === 'contacts' ? 'Contacts' : 'Produits et services'" :sql-file="selectedFile" :report="report" :settings="settings" @busy="setBusy" @imported="loadRuns" />
       <details v-if="module === 'tiers' || module === 'products'" class="rounded-xl border bg-white p-5" :open="reviewOpen" @toggle="reviewOpen = $event.target.open">
         <summary class="cursor-pointer font-semibold">Vérifier les doublons ou ajuster les correspondances</summary>
         <component :is="module === 'tiers' ? DolibarrThirdPartyPreview : DolibarrProductImport" v-if="reviewOpen" :key="module" :report="report" :limits="limits" :sql-file="selectedFile" :source-settings="settings" @busy="setBusy" />
       </details>
-      <component :is="module === 'stock' ? DolibarrStockPreview : module === 'quotes' ? DolibarrQuotePreview : DolibarrFinancialImport" v-else :key="module" :report="report" :limits="limits" :sql-file="selectedFile" :source-settings="settings" :supplier="module === 'supplier-invoices'" @busy="setBusy" />
+      <component :is="module === 'stock' ? DolibarrStockPreview : module === 'quotes' ? DolibarrQuotePreview : DolibarrFinancialImport" v-else-if="!['tiers', 'products', 'contacts'].includes(module)" :key="module" :report="report" :limits="limits" :sql-file="selectedFile" :source-settings="settings" :supplier="module === 'supplier-invoices'" @busy="setBusy" />
     </template>
 
     <section v-else-if="step === 'bilan'" class="space-y-4 rounded-2xl border bg-white p-5">
@@ -83,16 +83,21 @@ const steps = [{ key: 'configuration', label: 'Préparer' }, { key: 'donnees', l
 const modules = [
   { key: 'tiers', source: 'societe', label: 'Clients / Fournisseurs' },
   { key: 'products', source: 'product', label: 'Catalogue' },
+  { key: 'contacts', source: 'socpeople', label: 'Contacts' },
   { key: 'stock', source: 'product_stock', label: 'Stocks' },
   { key: 'quotes', source: 'propal', label: 'Devis' },
   { key: 'invoices', source: 'facture', label: 'Factures et paiements' },
   { key: 'supplier-invoices', source: 'facture_fourn', label: 'Factures fournisseurs' },
 ]
 const remainingGroups = computed(() => (props.report.coverage?.groups || []).map(group => {
+  if (group.key === 'contacts' && group.tables?.some(table => table.key !== 'socpeople')) {
+    const tables = group.tables.filter(table => table.key !== 'socpeople')
+    return { ...group, key: 'liens_contacts', label: 'Liens des contacts avec les documents', adapter: 'to_develop', tables, rows: tables.reduce((sum, table) => sum + Number(table.rows || 0), 0) }
+  }
   if (group.key !== 'achats' || !group.tables) return group
   const tables = group.tables.filter(table => !['facture_fourn', 'facture_fourn_det', 'paiementfourn', 'paiementfourn_facturefourn'].includes(table.key))
   return { ...group, label: 'Commandes fournisseurs', tables, rows: tables.reduce((sum, table) => sum + Number(table.rows || 0), 0) }
-}).filter(group => Number(group.rows) > 0 && group.adapter !== 'available' && group.key !== 'factures'))
+}).filter(group => Number(group.rows) > 0 && group.adapter !== 'available' && group.key !== 'factures' && group.key !== 'contacts'))
 
 function sourceCount(source) {
   return Number(props.report.modules?.find(item => item.key === source)?.rows || 0)
@@ -128,7 +133,7 @@ function importedCount(key) {
 
 async function loadRuns() {
   historyError.value = ''
-  const results = await Promise.allSettled(['tiers', 'products', 'stock', 'quotes', 'invoices', 'supplier-invoices'].map(async key => {
+  const results = await Promise.allSettled(['tiers', 'products', 'contacts', 'stock', 'quotes', 'invoices', 'supplier-invoices'].map(async key => {
     const suffix = key === 'tiers' ? '' : '/' + key
     const { data } = await api.get(`/data-imports/${props.report.id}${suffix}/runs`)
     runs.value[key] = data.runs || []

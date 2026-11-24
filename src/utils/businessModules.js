@@ -16,7 +16,7 @@ export const businessSections = {
 }
 
 export const businessColumns = {
-  contacts: [['client_label', 'Tiers'], ['fonction', 'Fonction'], ['email', 'Email'], ['telephone', 'Téléphone']],
+  contacts: [['client_label', 'Tiers'], ['fonction', 'Fonction'], ['email', 'Email'], ['telephone', 'Téléphone'], ['mobile', 'Mobile']],
   commandes_clients: [['client_label', 'Client'], ['date_debut', 'Date'], ['date_fin', 'Échéance'], ['total_ttc', 'Total TTC'], ['devise', 'Devise']],
   contrats_services: [['client_label', 'Client'], ['date_fin', 'Fin'], ['renouvellement', 'Renouvellement'], ['montant', 'Montant HT / période'], ['periodicite', 'Périodicité']],
   projets: [['client_label', 'Client'], ['owner_label', 'Responsable'], ['date_fin', 'Échéance'], ['progression', 'Tâches terminées / annulées'], ['minutes', 'Temps (min)']],

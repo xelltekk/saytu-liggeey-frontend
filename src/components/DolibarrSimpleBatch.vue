@@ -7,10 +7,21 @@
     <button v-if="!preview" type="button" class="btn-primary mt-4" :disabled="busy" @click="check">Vérifier {{ title.toLocaleLowerCase('fr') }}</button>
     <template v-else>
       <dl class="my-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <div class="rounded-lg bg-blue-50 p-3"><dt class="text-sm">Nouvelles fiches prêtes</dt><dd class="text-xl font-bold">{{ ready.length }}</dd></div>
+        <div class="rounded-lg bg-blue-50 p-3"><dt class="text-sm">Nouvelles fiches prêtes</dt><dd class="text-xl font-bold">{{ Math.max(0, ready.length - cursor) }}</dd></div>
         <div class="rounded-lg bg-amber-50 p-3"><dt class="text-sm">À vérifier</dt><dd class="text-xl font-bold">{{ reviewCount }}</dd></div>
         <div class="rounded-lg bg-green-50 p-3"><dt class="text-sm">Créées dans cette session</dt><dd class="text-xl font-bold">{{ created }}</dd></div>
       </dl>
+      <template v-if="module === 'contacts'">
+        <p class="my-3 text-sm text-slate-600">{{ preview.notice }}</p>
+        <p class="my-2 text-sm">{{ preview.rows.filter(row => row.status === 'already_processed').length }} contact(s) déjà repris.</p>
+        <details class="my-3 rounded-lg border p-3"><summary class="cursor-pointer font-semibold">Vérifier les contacts et leurs rattachements</summary>
+          <article v-for="row in preview.rows.slice((contactPage - 1) * 20, contactPage * 20)" :key="row.line" class="mt-3 border-t pt-3 text-sm">
+            <strong>{{ row.name }}</strong> · {{ row.client }}<p>{{ row.fonction || 'Fonction non renseignée' }}</p><p v-if="row.email">{{ row.email }}</p><p v-if="row.telephone">Téléphone : {{ row.telephone }}</p><p v-if="row.mobile">Mobile : {{ row.mobile }}</p>
+            <p :class="row.status === 'review' ? 'text-red-700' : 'text-green-700'">{{ { new: 'Prêt', review: 'À résoudre', already_processed: 'Déjà repris' }[row.status] }}</p><p v-for="issue in row.issues" :key="issue" class="text-red-700">{{ issue }}</p>
+          </article>
+          <div class="mt-3 flex flex-wrap items-center justify-between gap-2"><button type="button" class="btn-secondary" :disabled="contactPage <= 1" @click="contactPage--">Précédent</button><span>{{ contactPage }} / {{ Math.max(1, Math.ceil(preview.rows.length / 20)) }}</span><button type="button" class="btn-secondary" :disabled="contactPage * 20 >= preview.rows.length" @click="contactPage++">Suivant</button></div>
+        </details>
+      </template>
       <p v-for="blocker in preview.blockers" :key="blocker" class="my-2 text-red-800">{{ blocker }}</p>
       <template v-if="ready.length && !done">
         <label class="my-3 flex items-start gap-2"><input v-model="confirmed" type="checkbox" :disabled="busy" class="mt-1" />Je confirme l’import des {{ ready.length }} nouvelles fiches dans cette société, avec les paramètres choisis.</label>
@@ -42,8 +53,9 @@ const progress = ref('')
 const created = ref(0)
 const alreadyProcessed = ref(0)
 const done = ref(false)
+const contactPage = ref(1)
 const ready = computed(() => (preview.value?.rows || []).filter(row => row.status === 'new' && !row.issues.length))
-const reviewCount = computed(() => (preview.value?.rows || []).length - ready.value.length)
+const reviewCount = computed(() => (preview.value?.rows || []).filter(row => row.status !== 'new' && row.status !== 'already_processed').length)
 let cursor = 0
 let pending = null
 let lastWrite = 0
@@ -51,7 +63,7 @@ let cancelled = false
 onBeforeUnmount(() => { cancelled = true })
 
 function endpoint(action) {
-  const modulePath = props.module === 'tiers' ? '' : '/products'
+  const modulePath = props.module === 'tiers' ? '' : '/' + props.module
   return `/data-imports/${props.report.id}${modulePath}/${action}`
 }
 
@@ -81,8 +93,11 @@ async function check() {
   error.value = ''
   progress.value = 'Vérification des fiches et des doublons…'
   try {
-    const { data } = await api.post(endpoint('preview'), form(), { headers: { 'Content-Type': 'multipart/form-data' } })
+    const body = form()
+    if (props.module === 'contacts') body.append('source_key', props.settings.sourceKey)
+    const { data } = await api.post(endpoint('preview'), body, { headers: { 'Content-Type': 'multipart/form-data' } })
     preview.value = data
+    contactPage.value = 1
     cursor = 0
     pending = null
     confirmed.value = false
@@ -137,7 +152,10 @@ async function run() {
       pending = null
       emit('imported')
     }
-    if (!cancelled) done.value = true
+    if (!cancelled) {
+      done.value = true
+      for (const row of ready.value) row.status = 'already_processed'
+    }
   } catch (exception) {
     error.value = explain(exception) + ' Les lots déjà enregistrés restent visibles dans le bilan.'
   } finally {
