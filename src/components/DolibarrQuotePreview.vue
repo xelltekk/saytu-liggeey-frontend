@@ -25,7 +25,26 @@ const historyError = ref('')
 const statusLabels = { brouillon: 'Brouillon', envoye: 'Envoyé (envoi déjà effectué)', accepte: 'Accepté', refuse: 'Refusé', expire: 'Expiré', facture: 'Facturé / traité (liens à reprendre)' }
 const decisions = computed(() => (result.value?.rows || []).filter(r => selected.value[r.source_id]).map(r => ({ source_id: r.source_id, status: statuses.value[r.source_id] || '', units: Object.fromEntries(r.lines.map(l => [l.source_id, units.value[l.source_id] || ''])) })))
 const lineCount = computed(() => decisions.value.reduce((sum, d) => sum + Object.keys(d.units).length, 0))
-const canExecute = computed(() => !busy.value && !outcome.value && result.value?.execution_available && !result.value?.blockers.length && confirmed.value && limitations.value && /^\d{1,4}$/.test(String(paymentDays.value)) && Number(paymentDays.value) <= 3650 && decisions.value.length > 0 && decisions.value.length <= 50 && lineCount.value <= 1000 && decisions.value.every(d => d.status && Object.values(d.units).every(u => u.trim().length > 0 && u.trim().length <= 20)))
+const requirements = computed(() => {
+  if (!result.value || outcome.value) return []
+  const missing = []
+  if (!result.value.execution_available) missing.push('La mise à jour du serveur est nécessaire avant l’import.')
+  if (result.value.blockers?.length) missing.push('Résolvez les anomalies générales indiquées dans le contrôle.')
+  if (!decisions.value.length) missing.push('Sélectionnez au moins un devis ci-dessus, ou utilisez « Sélectionner cette page ».')
+  if (decisions.value.length > 50) missing.push('Le lot ne doit pas dépasser 50 devis.')
+  if (lineCount.value > 1000) missing.push('Le lot ne doit pas dépasser 1 000 lignes de devis.')
+  if (!/^\d{1,4}$/.test(String(paymentDays.value)) || Number(paymentDays.value) > 3650) missing.push('Renseignez un délai de paiement entre 0 et 3 650 jours.')
+  for (const decision of decisions.value) {
+    const row = result.value.rows.find(row => row.source_id === decision.source_id)
+    if (!decision.status) missing.push(`Choisissez le statut Saytu du devis ${row.reference}.`)
+    if (Object.values(decision.units).some(unit => !unit.trim() || unit.trim().length > 20)) missing.push(`Complétez les unités des lignes du devis ${row.reference}.`)
+  }
+  if (!limitations.value) missing.push('Acceptez les limites de cette reprise historique.')
+  if (!confirmed.value) missing.push('Cochez la confirmation finale des montants, statuts, unités et délai.')
+  return missing
+})
+const canExecute = computed(() => !busy.value && !!result.value && !outcome.value && requirements.value.length === 0)
+
 watch([selected, statuses, units, paymentDays], () => { confirmed.value = false; requestId.value = null }, { deep: true })
 const labels = { ready: 'Sans conflit détecté', review: 'À confirmer', blocked: 'À corriger' }
 watch(busy, value => emit('busy', value))
@@ -46,10 +65,29 @@ async function preview() {
   catch (e) { error.value = Object.values(e.response?.data?.errors || {}).flat().join(' ') || e.response?.data?.message || 'Impossible de charger l’aperçu des devis.' }
   finally { busy.value = false }
 }
-function toggle(row) {
-  selected.value[row.source_id] = !selected.value[row.source_id]
-  if (selected.value[row.source_id]) row.lines.forEach(line => { units.value[line.source_id] ??= line.unit_suggestion || '' })
+function selectRow(row, checked) {
+  if (busy.value || row.status === 'blocked') return false
+  selected.value = { ...selected.value, [row.source_id]: !!checked }
+  error.value = ''
+  if (!checked) return true
+  if (decisions.value.length > 50 || lineCount.value > 1000) {
+    selected.value = { ...selected.value, [row.source_id]: false }
+    error.value = 'Le lot est limité à 50 devis et 1 000 lignes. Importez ce lot avant de sélectionner les suivants.'
+    return false
+  }
+  const options = result.value.status_options?.[row.source_status_code] || []
+  if (!statuses.value[row.source_id] && options.length === 1) statuses.value[row.source_id] = options[0]
+  row.lines.forEach(line => {
+    units.value[line.source_id] ||= line.unit_suggestion || props.sourceSettings?.[line.type === 'service' ? 'serviceUnit' : 'productUnit'] || ''
+  })
+  return true
 }
+function selectPage() {
+  for (const row of visible.value.filter(row => row.status !== 'blocked')) {
+    if (!selectRow(row, true)) break
+  }
+}
+
 async function loadRuns() {
   historyError.value = ''
   try { runs.value = (await api.get(`/data-imports/${props.report.id}/quotes/runs`)).data.runs }
@@ -94,19 +132,21 @@ onMounted(loadRuns)
       <nav aria-label="Pages de l’aperçu devis" class="flex flex-wrap justify-between gap-3 text-sm"><span>{{ filtered.length }} devis · Page {{ page }} / {{ pages }}</span><div class="flex gap-3"><button type="button" :disabled="page <= 1" class="rounded-lg border p-2 disabled:opacity-40" @click="page--">Précédent</button><button type="button" :disabled="page >= pages" class="rounded-lg border p-2 disabled:opacity-40" @click="page++">Suivant</button></div></nav>
       <fieldset v-if="!outcome" :disabled="busy" class="space-y-3 rounded-xl border border-cyan-200 bg-cyan-50 p-4">
         <h3 class="font-bold">Sélection et confirmation — devis de cette page</h3>
+        <div class="flex flex-wrap gap-3"><button type="button" class="btn-secondary" @click="selectPage">Sélectionner cette page</button><button type="button" class="btn-secondary" @click="selected = {}">Tout désélectionner</button></div>
+        <p class="text-sm">Cochez les devis à reprendre. Lorsqu’un seul statut est possible, il est proposé automatiquement. Les unités du catalogue ou des paramètres choisis restent modifiables ci-dessous.</p>
         <div v-for="row in visible.filter(r => r.status !== 'blocked')" :key="row.source_id" class="rounded-xl bg-white p-3">
-          <label class="flex items-start gap-2 font-semibold"><input type="checkbox" :checked="!!selected[row.source_id]" @change="toggle(row)">{{ row.reference }} · {{ row.client }} · {{ row.totals.total_ttc }} {{ row.currency }}</label>
+          <label class="flex cursor-pointer select-none items-start gap-3 font-semibold"><input v-model="selected[row.source_id]" type="checkbox" class="mt-0.5 h-5 w-5 shrink-0 cursor-pointer" @change="selectRow(row, $event.target.checked)">{{ row.reference }} · {{ row.client }} · {{ row.totals.total_ttc }} {{ row.currency }}</label>
           <template v-if="selected[row.source_id]">
-            <label class="mt-3 block text-sm">Statut Saytu (source : {{ row.source_status }})<select v-model="statuses[row.source_id]" class="mt-1 w-full rounded-lg border border-cyan-200 p-2"><option :value="undefined">À confirmer</option><option v-for="status in result.status_options?.[row.source_status_code] || []" :key="status" :value="status">{{ statusLabels[status] }}</option></select></label>
+            <label class="mt-3 block text-sm">Statut Saytu (source : {{ row.source_status }})<select v-model="statuses[row.source_id]" class="mt-1 w-full rounded-lg border border-cyan-200 p-2"><option value="">À confirmer</option><option v-for="status in result.status_options?.[row.source_status_code] || []" :key="status" :value="status">{{ statusLabels[status] }}</option></select></label>
             <div class="mt-3 max-h-64 space-y-2 overflow-auto"><label v-for="line in row.lines" :key="line.source_id" class="flex flex-wrap items-center gap-3 text-sm"><span class="min-w-0 flex-1">{{ line.designation }} · {{ line.quantity }} · unité Dolibarr : {{ !line.source_unit || line.source_unit === '0' ? 'non précisée' : '#' + line.source_unit }}</span><input v-model="units[line.source_id]" :aria-label="`Unité pour la ligne ${line.source_id}`" maxlength="20" placeholder="Unité à confirmer" class="w-40 rounded-lg border border-cyan-200 p-2"></label></div>
           </template>
         </div>
         <p class="text-sm">{{ decisions.length }} devis / 50 maximum · {{ lineCount }} lignes / 1 000 maximum, toutes pages confondues. Rien n’est sélectionné par défaut.</p>
-        <button type="button" class="text-sm underline" @click="selected = {}">Tout désélectionner</button>
         <label class="block text-sm font-semibold">Délai de paiement à appliquer à ce lot (jours)<input v-model="paymentDays" type="number" min="0" max="3650" step="1" placeholder="À confirmer" class="ml-2 w-36 rounded-lg border border-cyan-200 p-2"></label>
         <label class="flex items-start gap-2 text-sm"><input v-model="limitations" type="checkbox" class="mt-1">J’accepte cette reprise partielle : conditions de règlement, notes source, contacts, pièces jointes et liens vers les factures non repris. Aucun commercial n’est affecté. Les dates de décision ne sont pas inventées. Les descriptions sont reprises en texte brut.</label>
         <label class="flex items-start gap-2 text-sm"><input v-model="confirmed" type="checkbox" class="mt-1">Je confirme les montants, la devise, les statuts, les unités et le délai de paiement pour tous les devis sélectionnés.</label>
         <p v-if="!result.execution_available" class="text-sm text-red-800">Mise à jour du serveur nécessaire avant l’enregistrement.</p>
+        <div v-if="requirements.length" role="status" class="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950"><strong>Pour activer l’import :</strong><ul class="mt-2 list-disc space-y-1 pl-5"><li v-for="message in requirements.slice(0, 12)" :key="message">{{ message }}</li></ul><p v-if="requirements.length > 12" class="mt-2">{{ requirements.length - 12 }} autre(s) point(s) à compléter dans la sélection.</p></div>
         <button type="button" :disabled="!canExecute" class="rounded-xl bg-cyan-700 px-5 py-3 font-semibold text-white disabled:opacity-40" @click="execute">Importer les devis sélectionnés</button>
       </fieldset>
       <div v-else role="status" class="rounded-xl bg-cyan-50 p-4"><strong>Lot n° {{ outcome.run_id }} enregistré</strong><p>{{ outcome.created }} devis créé(s), {{ outcome.lines_created }} ligne(s), {{ outcome.already_processed }} déjà traité(s).</p><p class="text-sm">Aucun stock ni facture modifié. Actualisez l’aperçu avant le lot suivant.</p></div>
