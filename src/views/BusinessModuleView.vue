@@ -3,22 +3,39 @@ import { useCreationReturn } from '@/composables/useCreationReturn'
 const returnAfterCreation = useCreationReturn()
 import { usePageReactivation } from '@/composables/usePageReactivation'
 import { requestConfirmation as appConfirm } from '@/composables/useConfirm'
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, onActivated, onDeactivated, onBeforeUnmount, ref, watch } from 'vue'
 import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router'
 import api from '@/services/api'
+import { useModulesStore } from '@/stores/modules'
+import { useAuthStore } from '@/stores/auth'
+import { contactsUi, contactIntegrationFields, contactAwareSnapshot, contactIntegrationLinks } from '@/modules/contacts/ui.js'
+import { moduleAvailabilitySignature } from '@/module-system/modulePolicy.mjs'
+import { connaissancesUi } from '@/modules/connaissances/ui.js'
+const KnowledgeArticleReader = defineAsyncComponent(connaissancesUi.loadReader)
 import PortalTicketConversation from '@/components/PortalTicketConversation.vue'
 import OrderWorkflow from '@/components/OrderWorkflow.vue'
 import { ouvrirPDF } from '@/services/pdf'
-import { businessPayload, businessColumns, applyCatalogProduct } from '@/utils/businessModules'
+import { businessPayload, businessColumns, applyCatalogProduct, businessPermission } from '@/utils/businessModules'
 
 const route = useRoute(), router = useRouter()
+const modules = useModulesStore(), auth = useAuthStore()
+const canReadKnowledge = computed(() => modules.allows('connaissances') && businessPermission(auth.user, 'connaissances'))
+const canCreateKnowledge = computed(() => modules.allows('connaissances') && businessPermission(auth.user, 'connaissances', 'create'))
+const contactsAvailable = computed(() => modules.allows(contactsUi.key) && businessPermission(auth.user, contactsUi.key))
+const activePage = ref(true)
+onActivated(() => { activePage.value = true; if (contactIntegrationRefreshPending && contactsAvailable.value) void refreshContactIntegration() })
+onDeactivated(() => { activePage.value = false })
 const definitions = ref([]), definition = ref(null), records = ref([]), record = ref(null), form = ref({})
+// Les contributions du catalogue disparaissent aussi sur la page transversale déjà ouverte.
+const visibleDefinitions = computed(() => definitions.value.filter(item => modules.allows(item.key)))
+const visibleFields = computed(() => contactIntegrationFields(definition.value?.fields || [], contactsAvailable.value))
+const visibleRelationLinks = computed(() => contactIntegrationLinks(record.value?.relation_links || {}, contactsAvailable.value))
 const loading = ref(false), saving = ref(false), error = ref(''), success = ref(''), tab = ref('fiche')
 const search = ref(''), status = ref(''), archives = ref(false), page = ref(1), lastPage = ref(1), total = ref(0)
 const choices = ref({}), lookupText = ref({}), productText = ref(''), products = ref([])
 const message = ref(''), requestId = ref(crypto.randomUUID()), messageId = ref(crypto.randomUUID())
 const portalDraft = ref('')
-const clean = ref(''), dirty = computed(() => clean.value && JSON.stringify(form.value) !== clean.value)
+const clean = ref(''), dirty = computed(() => clean.value && contactAwareSnapshot(form.value, contactsAvailable.value) !== contactAwareSnapshot(JSON.parse(clean.value), contactsAvailable.value))
 const followup = ref(''), renewalEnd = ref(''), renewalReminder = ref('')
 const renewalDirty = computed(() => !!renewalEnd.value || !!renewalReminder.value)
 const shipment = ref(null), shipmentClean = ref(''), shipmentId = ref(crypto.randomUUID())
@@ -27,6 +44,9 @@ const key = computed(() => route.params.module), detail = computed(() => !!route
 const lockedOrder = computed(() => key.value === 'commandes_clients' && record.value && record.value.statut !== 'brouillon')
 const editable = computed(() => !record.value?.archived_at && !record.value?.converted_to_quote && (record.value ? definition.value?.permissions.update : definition.value?.permissions.create))
 let sequence = 0
+let formScope = ''
+let contactIntegrationVersion = 0
+let contactIntegrationRefreshPending = false
 const lookupSequence = {}
 const statusText = value => ({ actif: 'Actif', inactif: 'Inactif', brouillon: 'Brouillon', confirmee: 'Confirmée', cloturee: 'Clôturée', annulee: 'Annulée', termine: 'Terminé', resilie: 'Résilié', planifie: 'Planifié', en_cours: 'En cours', annule: 'Annulé', ouvert: 'Ouvert', en_attente: 'En attente', resolu: 'Résolu', ferme: 'Fermé', publie: 'Publié', retire: 'Retiré', a_faire: 'À faire', terminee: 'Terminée' }[value] || value)
 const explain = e => Object.values(e.response?.data?.errors || {}).flat().join(' · ') || e.response?.data?.message || 'Chargement impossible. Réessayez.'
@@ -58,9 +78,11 @@ onBeforeRouteLeave(canLeave)
 onBeforeRouteUpdate(canLeave)
 const unload = e => { if (dirty.value || message.value.trim() || portalDraft.value || renewalDirty.value || shipmentDirty.value) { e.preventDefault(); e.returnValue = '' } }
 window.addEventListener('beforeunload', unload)
-onBeforeUnmount(() => { sequence++; window.removeEventListener('beforeunload', unload) })
+onBeforeUnmount(() => { sequence++; contactIntegrationVersion++; window.removeEventListener('beforeunload', unload) })
 
 async function load() {
+  const scope = `${key.value}:${route.params.id || ''}`
+  const dormantContact = !contactsAvailable.value && key.value === 'sav' && formScope === scope && Object.prototype.hasOwnProperty.call(form.value, 'contact_id') ? { value: form.value.contact_id } : null
   const current = ++sequence
   loading.value = true; error.value = ''; success.value = ''; clean.value = ''; message.value = ''; record.value = null; definition.value = null; choices.value = {}; lookupText.value = {}; tab.value = 'fiche'; products.value = []
   renewalEnd.value = ''; renewalReminder.value = ''; portalDraft.value = ''
@@ -104,8 +126,10 @@ async function load() {
         }
       }
       form.value = structuredClone(data)
-      clean.value = JSON.stringify(form.value)
-      for (const [field, , type, source] of definition.value.fields) {
+      clean.value = JSON.stringify(data)
+      formScope = scope
+      if (dormantContact) form.value.contact_id = dormantContact.value
+      for (const [field, , type, source] of visibleFields.value) {
         if (type === 'relation') await lookup(field, source, current)
       }
       if (key.value === 'commandes_clients') await lookupProducts(current)
@@ -114,10 +138,11 @@ async function load() {
   finally { if (current === sequence) loading.value = false }
 }
 async function lookup(field, source, current = sequence) {
+  if (source === contactsUi.key && !contactsAvailable.value) return
   const attempt = lookupSequence[field] = (lookupSequence[field] || 0) + 1
   try {
     const data = (await api.get(`/metier/${key.value}/options/${source}`, { params: { q: lookupText.value[field] || undefined, client_id: form.value.client_id || undefined } })).data.options
-    if (current === sequence && attempt === lookupSequence[field]) choices.value[field] = data
+    if (current === sequence && attempt === lookupSequence[field] && (source !== contactsUi.key || contactsAvailable.value)) choices.value[field] = data
   } catch (e) { if (current === sequence) error.value = explain(e) }
 }
 async function lookupProducts(current = sequence) {
@@ -128,7 +153,7 @@ async function lookupProducts(current = sequence) {
   } catch (e) { if (current === sequence) error.value = explain(e) }
 }
 function clientChanged() {
-  for (const [field, , type, source] of definition.value.fields) if (type === 'relation' && ['devis', 'contacts'].includes(source)) { form.value[field] = null; lookup(field, source) }
+  for (const [field, , type, source] of visibleFields.value) if (type === 'relation' && ['devis', 'contacts'].includes(source)) { form.value[field] = null; lookup(field, source) }
 }
 function filterList(nextPage = 1) {
   router.push({ name: 'business-list', params: { module: key.value }, query: { client_id: route.query.client_id || undefined, suivi: followup.value || undefined, q: search.value || undefined, statut: status.value || undefined, archives: archives.value ? '1' : undefined, page: nextPage > 1 ? nextPage : undefined } })
@@ -140,7 +165,7 @@ async function save() {
   if (shipmentDirty.value && !await appConfirm('Enregistrer la fiche sans appliquer la livraison saisie ?')) return
   saving.value = true; error.value = ''; success.value = ''
   try {
-    const payload = businessPayload(definition.value, form.value, record.value, requestId.value)
+    const payload = businessPayload({ ...definition.value, fields: visibleFields.value }, form.value, record.value, requestId.value)
     const url = `/metier/${key.value}`
     const response = record.value ? await api.put(`${url}/${record.value.id}`, payload) : await api.post(url, payload)
     clean.value = JSON.stringify(form.value)
@@ -202,6 +227,8 @@ async function billOrder() {
   finally { saving.value = false }
 }
 async function createArticle() {
+  // Le bouton peut avoir été affiché avant une désactivation distante : revérifie avant l'appel.
+  if (!canCreateKnowledge.value) return
   if (saving.value || dirty.value || !await appConfirm('Copier uniquement la solution dans une procédure interne en brouillon ? Relisez-la avant publication.')) return
   saving.value = true; error.value = ''
   try {
@@ -221,6 +248,44 @@ function eventDetails(event) {
 }
 watch(() => route.fullPath, load, { immediate: true })
 
+// Recharge uniquement les métadonnées et le rattachement Contact, sans remplacer les autres saisies.
+async function refreshContactIntegration() {
+  const version = ++contactIntegrationVersion, current = sequence
+  if (!contactsAvailable.value) {
+    contactIntegrationRefreshPending = false
+    for (const [field, , type, source] of definition.value?.fields || []) if (type === 'relation' && source === contactsUi.key) { lookupSequence[field] = (lookupSequence[field] || 0) + 1; choices.value[field] = [] }
+    return
+  }
+  contactIntegrationRefreshPending = true
+  if (!activePage.value || loading.value || key.value !== 'sav' || !detail.value) return
+  try {
+    const catalog = (await api.get('/metier')).data.modules
+    const fresh = record.value ? (await api.get(`/metier/sav/${record.value.id}`)).data : null
+    if (version !== contactIntegrationVersion || current !== sequence || !contactsAvailable.value) return
+    definition.value = catalog.find(item => item.key === key.value) || definition.value
+    definitions.value = catalog
+    if (fresh) {
+      const baseline = JSON.parse(clean.value || '{}')
+      if (Object.prototype.hasOwnProperty.call(fresh, 'contact_id')) {
+        if (!Object.prototype.hasOwnProperty.call(form.value, 'contact_id')) form.value.contact_id = fresh.contact_id
+        baseline.contact_id = fresh.contact_id
+        record.value.contact_id = fresh.contact_id
+      }
+      record.value.relation_labels = { ...record.value.relation_labels, contact_id: fresh.relation_labels?.contact_id }
+      const links = { ...record.value.relation_links }
+      delete links.contact_id
+      if (fresh.relation_links?.contact_id) links.contact_id = fresh.relation_links.contact_id
+      record.value.relation_links = links
+      clean.value = JSON.stringify(baseline)
+    }
+    for (const [field, , type, source] of visibleFields.value) if (type === 'relation' && source === contactsUi.key) await lookup(field, source, current)
+    if (version === contactIntegrationVersion && current === sequence) contactIntegrationRefreshPending = false
+  } catch (cause) { if (version === contactIntegrationVersion && current === sequence) error.value = explain(cause) }
+}
+watch(contactsAvailable, () => { void refreshContactIntegration() })
+
+// Recharge seulement le catalogue transversal actif lorsque le pilote réapparaît.
+watch(() => moduleAvailabilitySignature(modules.context), () => { if (activePage.value && !key.value) void load() })
 usePageReactivation(() => { if (!detail.value) return load() })
 </script>
 
@@ -236,8 +301,8 @@ usePageReactivation(() => { if (!detail.value) return load() })
     <p v-if="success" role="status" class="rounded-xl bg-cyan-50 p-4">{{ success }}</p>
     <p v-if="loading" role="status">Chargement…</p>
     <section v-else-if="!key" class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-      <RouterLink v-for="item in definitions" :key="item.key" :to="`/metier/${item.key}`" class="rounded-xl border border-cyan-200 bg-white p-6 font-semibold">{{ item.label }} →</RouterLink>
-      <p v-if="!definitions.length">Aucune rubrique autorisée. Contactez votre administrateur.</p>
+      <RouterLink v-for="item in visibleDefinitions" :key="item.key" :to="`/metier/${item.key}`" class="rounded-xl border border-cyan-200 bg-white p-6 font-semibold">{{ item.label }} →</RouterLink>
+      <p v-if="!visibleDefinitions.length">Aucune rubrique autorisée. Contactez votre administrateur.</p>
     </section>
     <section v-else-if="definition && !detail" class="rounded-2xl border border-cyan-200 bg-white p-5">
       <p v-if="route.query.client_id" class="mb-4 text-sm">Liste limitée au client sélectionné. <RouterLink :to="{ name: 'business-list', params: { module: key } }" class="underline">Afficher tous les clients</RouterLink></p>
@@ -257,15 +322,15 @@ usePageReactivation(() => { if (!detail.value) return load() })
     </section>
     <section v-else-if="definition && detail && (record || route.params.id === 'nouveau')" class="rounded-2xl border border-cyan-200 bg-white p-5">
       <h2 class="text-xl font-bold">{{ record?.reference || 'Nouvelle fiche' }}</h2>
-      <div v-if="record?.relation_links" class="my-3 flex flex-wrap gap-3" aria-label="Fiches liées">
-        <RouterLink v-for="(url, field) in record.relation_links" :key="field" :to="url" class="action">Ouvrir {{ record.relation_labels[field] }} →</RouterLink>
+      <div v-if="Object.keys(visibleRelationLinks).length" class="my-3 flex flex-wrap gap-3" aria-label="Fiches liées">
+        <RouterLink v-for="(url, field) in visibleRelationLinks" :key="field" :to="url" class="action">Ouvrir {{ record.relation_labels[field] }} →</RouterLink>
       </div>
       <p v-if="record?.archived_at" class="my-3 font-semibold">Fiche archivée — lecture seule.</p>
       <p v-if="record?.portal_user_id" class="my-3 rounded-xl bg-amber-50 p-3">Demande reçue du portail clients. <span v-if="key === 'commandes_clients'">Pour une nouvelle demande, préparez directement un devis. Les commandes déjà confirmées conservent leur suivi de livraison.</span><span v-else>Le titre et la description sont visibles par ce client. Utilisez « Échanges internes » pour vos notes confidentielles.</span></p>
       <p v-if="lockedOrder" class="my-3 text-sm">Commande figée : seul le statut peut être modifié. Les lignes et montants restent conservés.</p>
-      <div v-if="key === 'sav' && record" class="my-3 flex flex-wrap gap-2">
-        <RouterLink v-if="record.article_id" :to="`/metier/connaissances/${record.article_id}`" class="action">Voir la procédure issue de ce ticket</RouterLink>
-        <button v-else-if="editable && record.can_create_article && ['resolu', 'ferme'].includes(record.statut)" :disabled="saving || dirty || !!message.trim()" type="button" @click="createArticle">Créer une procédure depuis la solution</button>
+      <div v-if="key === 'sav' && record && (canReadKnowledge || canCreateKnowledge)" class="my-3 flex flex-wrap gap-2">
+        <RouterLink v-if="canReadKnowledge && record.article_id" :to="`/metier/connaissances/${record.article_id}`" class="action">Voir la procédure issue de ce ticket</RouterLink>
+        <button v-else-if="!record.article_id && canCreateKnowledge && editable && record.can_create_article && ['resolu', 'ferme'].includes(record.statut)" :disabled="saving || dirty || !!message.trim()" type="button" @click="createArticle">Créer une procédure depuis la solution</button>
       </div>
       <nav class="my-4 flex flex-wrap gap-2" aria-label="Sections de la fiche">
         <button type="button" :aria-pressed="tab === 'fiche'" @click="tab = 'fiche'">Fiche</button>
@@ -291,7 +356,7 @@ usePageReactivation(() => { if (!detail.value) return load() })
           <div v-show="tab === 'fiche'" class="grid gap-4 md:grid-cols-2">
             <label>Statut<select v-model="form.statut" :disabled="key === 'commandes_clients' && !!record?.portal_user_id && record.statut === 'brouillon'"><option v-for="s in record ? (record.allowed_statuses || [record.statut]) : [definition.statuses[0]]" :key="s" :value="s">{{ statusText(s) }}</option></select></label>
             <label>{{ key === 'contacts' ? 'Nom complet' : 'Titre / objet' }} *<input v-model="form.titre" :disabled="lockedOrder" maxlength="191"></label>
-            <label v-for="[field, label, type, source, required] in definition.fields" :key="field" :class="{ 'md:col-span-2': type === 'textarea' }">
+            <label v-for="[field, label, type, source, required] in visibleFields" :key="field" :class="{ 'md:col-span-2': type === 'textarea' }">
               {{ label }} {{ required ? '*' : '' }}
               <small v-if="key === 'sav' && field === 'resolution' && record?.portal_user_id" class="font-semibold text-sky-800">Visible dans le portail du client dès l’enregistrement. Pour une note confidentielle, utilisez « Échanges internes ».</small>
               <textarea v-if="type === 'textarea'" v-model="form[field]" :disabled="lockedOrder" rows="6" maxlength="20000" />
@@ -363,11 +428,7 @@ usePageReactivation(() => { if (!detail.value) return load() })
         <label>Prochaine échéance de renouvellement<input v-model="renewalReminder" type="date" :disabled="saving || dirty"></label>
         <button type="submit" :disabled="saving || dirty || !renewalEnd">Confirmer le renouvellement</button>
       </form>
-      <article v-if="tab === 'lecture' && record" class="rounded-xl bg-cyan-50 p-5">
-        <p class="text-sm">{{ record.categorie }} · {{ statusText(record.statut) }} · Document interne</p>
-        <h3 class="my-4 text-xl font-bold">{{ record.titre }}</h3>
-        <p class="whitespace-pre-wrap break-words">{{ record.contenu }}</p>
-      </article>
+      <KnowledgeArticleReader v-if="key === connaissancesUi.key && tab === 'lecture' && record && canReadKnowledge" :article="record" :status-label="statusText(record.statut)" />
       <button v-if="record && !record.archived_at && definition.permissions.delete" class="mt-6" :disabled="saving || dirty || renewalDirty || shipmentDirty" @click="archive">Archiver la fiche</button>
     </section>
   </main>

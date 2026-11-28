@@ -1,6 +1,8 @@
 <template>
   <section class="rounded-xl border bg-white p-5">
     <h3 class="text-lg font-bold">{{ title }}</h3>
+    <p v-if="!targetAvailable" role="status" class="my-3 rounded-lg bg-slate-50 p-3 text-slate-700">Le module Contacts est désactivé. Le transfert est indisponible ; les lots déjà enregistrés sont conservés.</p>
+    <template v-else>
     <p class="mt-1 text-sm text-slate-600">Les nouvelles fiches sans anomalie seront créées. Les correspondances existantes et les doublons sont présentés pour vérification.</p>
     <p v-if="error" role="alert" class="my-3 rounded-lg bg-red-50 p-3 text-red-800">{{ error }}</p>
     <p v-if="busy" role="status" class="my-3">{{ progress }}</p>
@@ -30,12 +32,14 @@
       <p v-if="done" class="rounded-lg bg-green-50 p-3 text-green-900" role="status">{{ created }} fiche(s) créée(s), {{ alreadyProcessed }} déjà traitée(s). {{ reviewCount }} fiche(s) restent à vérifier.</p>
       <button v-if="!busy" type="button" class="btn-secondary mt-3" @click="check">Actualiser le contrôle</button>
     </template>
+    </template>
   </section>
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, ref } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import api from '@/services/api'
+import { useModulesStore } from '@/stores/modules'
 
 const props = defineProps({
   report: { type: Object, required: true },
@@ -44,6 +48,8 @@ const props = defineProps({
   module: { type: String, required: true },
   title: { type: String, required: true },
 })
+const registry = useModulesStore()
+const targetAvailable = computed(() => props.module !== 'contacts' || registry.allows('contacts'))
 const emit = defineEmits(['busy', 'imported'])
 const preview = ref(null)
 const busy = ref(false)
@@ -60,7 +66,11 @@ let cursor = 0
 let pending = null
 let lastWrite = 0
 let cancelled = false
-onBeforeUnmount(() => { cancelled = true })
+let unmounted = false
+// Une désactivation interrompt les prochains lots et retire les aperçus déjà chargés.
+watch(targetAvailable, available => { if (!available) { cancelled = true; preview.value = null; confirmed.value = false; pending = null; cursor = 0 } })
+// Libère immédiatement le parent ; une ancienne réponse ne modifiera plus son état occupé.
+onBeforeUnmount(() => { cancelled = true; if (busy.value) emit('busy', false); unmounted = true })
 
 function endpoint(action) {
   const modulePath = props.module === 'tiers' ? '' : '/' + props.module
@@ -88,6 +98,8 @@ function explain(exception) {
 }
 
 async function check() {
+  if (!targetAvailable.value) return
+  cancelled = false
   busy.value = true
   emit('busy', true)
   error.value = ''
@@ -96,6 +108,7 @@ async function check() {
     const body = form()
     if (props.module === 'contacts') body.append('source_key', props.settings.sourceKey)
     const { data } = await api.post(endpoint('preview'), body, { headers: { 'Content-Type': 'multipart/form-data' } })
+    if (!targetAvailable.value || cancelled) return
     preview.value = data
     contactPage.value = 1
     cursor = 0
@@ -106,25 +119,25 @@ async function check() {
     error.value = explain(exception)
   } finally {
     busy.value = false
-    emit('busy', false)
+    if (!unmounted) emit('busy', false)
   }
 }
 
 const pause = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds))
 
 async function run() {
-  if (!confirmed.value || busy.value || !preview.value?.execution_available || preview.value.blockers?.length) return
+  if (!targetAvailable.value || !confirmed.value || busy.value || !preview.value?.execution_available || preview.value.blockers?.length) return
   busy.value = true
   emit('busy', true)
   error.value = ''
   try {
-    while (!cancelled && cursor < ready.value.length) {
+    while (!cancelled && targetAvailable.value && cursor < ready.value.length) {
       const batch = ready.value.slice(cursor, cursor + 200)
       if (!pending) pending = { id: crypto.randomUUID(), batch }
       const wait = Math.max(0, 22000 - (Date.now() - lastWrite))
       progress.value = `Transfert de ${cursor + 1} à ${cursor + pending.batch.length} sur ${ready.value.length}…`
       if (wait) await pause(wait)
-      if (cancelled) return
+      if (cancelled || !targetAvailable.value) return
       const data = form()
       data.append('preview_token', preview.value.preview_token)
       data.append('request_id', pending.id)
@@ -146,6 +159,7 @@ async function run() {
         await pause((Number.isFinite(retry) && retry > 0 ? Math.min(retry, 120) : 60) * 1000)
         continue
       }
+      if (cancelled || !targetAvailable.value) return
       created.value += Number(response.data.created || 0)
       alreadyProcessed.value += Number(response.data.already_processed || 0)
       cursor += pending.batch.length
@@ -160,7 +174,7 @@ async function run() {
     error.value = explain(exception) + ' Les lots déjà enregistrés restent visibles dans le bilan.'
   } finally {
     busy.value = false
-    emit('busy', false)
+    if (!unmounted) emit('busy', false)
   }
 }
 </script>

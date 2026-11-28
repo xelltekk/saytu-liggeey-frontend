@@ -329,8 +329,8 @@ async function loadUser() {
 
 function onSaved(payload) {
   if (payload.user?.id === auth.user?.id) {
-    auth.user = payload.user
-    localStorage.setItem('xelltekk_user', JSON.stringify(payload.user))
+    // Conserve la société de la session lorsque la réponse ne fournit qu'un profil partiel.
+    auth.acceptSessionUser({ ...auth.user, ...payload.user })
   }
 
   if (payload.password_genere) {

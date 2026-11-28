@@ -1,5 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useModulesStore } from '@/stores/modules'
+import { mayManageModules } from '@/module-system/modulePolicy.mjs'
 import { isXelltekkAdmin } from '@/utils/platformAccess'
 import { businessPermission } from '@/utils/businessModules'
 import { leasingComparisonLocation } from '@/services/leasingNavigation.mjs'
@@ -456,6 +458,16 @@ const routes = [
         component: () => import('@/views/BalanceView.vue'),
       },
       {
+        path: 'configuration/modules',
+        name: 'configuration-modules',
+        component: () => import('@/views/configuration/ModulesView.vue'),
+      },
+      {
+        path: 'module-indisponible',
+        name: 'module-unavailable',
+        component: () => import('@/module-system/ModuleUnavailableView.vue'),
+      },
+      {
         path: 'parametres',
         name: 'parametres',
         component: () => import('@/views/ParametresView.vue'),
@@ -562,6 +574,7 @@ const router = createRouter({
 
 // Mapping route → rôles autorisés
 const routeRoles = {
+  '/configuration/modules': ['admin'],
   '/clients': ['admin', 'gerant', 'commercial', 'comptable'],
   '/pilotage': ['admin', 'gerant', 'commercial', 'magasinier', 'comptable', 'caissier'],
   '/aujourdhui': ['admin', 'gerant', 'commercial', 'magasinier', 'comptable', 'caissier'],
@@ -597,6 +610,7 @@ const routeRoles = {
 }
 
 const routePermissions = {
+  '/configuration/modules': 'modules.manage',
   '/clients': 'clients.view',
   '/pilotage': 'pilotage.view',
   '/aujourdhui': 'pilotage.view',
@@ -655,7 +669,7 @@ function hasPermission(user, permission) {
 }
 
 function licenceAllowsRoute(user, permission) {
-  if (!permission || ['licence.view', 'xelltekk_admin.view', 'parametres.view'].includes(permission)) return true
+  if (!permission || ['licence.view', 'xelltekk_admin.view', 'parametres.view', 'modules.manage'].includes(permission)) return true
   if (isXelltekkAdmin(user) || user?.licence?.licence_bypass) return true
 
   const licence = user?.licence
@@ -673,6 +687,8 @@ router.beforeEach(async (to, from, next) => {
 
   // 1) Route invité (login) → toujours libre
   if (to.meta.guest) {
+    // Aucune synchronisation privée ne doit continuer dans un portail ou une page publique.
+    useModulesStore().stopSynchronization()
     // Si déjà connecté, on l'envoie au dashboard
     if (auth.isAuthenticated && to.name === 'login') {
       return next({ name: homeRouteForUser(auth.user) })
@@ -695,6 +711,17 @@ router.beforeEach(async (to, from, next) => {
     } catch (error) {
       return next({ name: 'login' })
     }
+  }
+
+  // Le portail invité sort avant cette étape : aucun contexte privé n'y est chargé.
+  const modules = useModulesStore()
+  if (to.meta.requiresAuth) await modules.fetchContext()
+  if (to.name === 'configuration-modules' && !mayManageModules(auth.user)) {
+    return next({ name: homeRouteForUser(auth.user) })
+  }
+  // Le rôle administrateur ne contourne jamais la désactivation d'un module.
+  if (to.meta.requiresAuth && !modules.allowsPath(to.path)) {
+    return next({ name: 'module-unavailable' })
   }
 
   // 3) Vérification du rôle pour cette route
@@ -721,7 +748,7 @@ router.beforeEach(async (to, from, next) => {
     return next({ name: role === 'caissier' ? 'caisse' : 'dashboard' })
   }
 
-  if (role === 'caissier' && to.path === '/') {
+  if (role === 'caissier' && to.path === '/' && modules.allowsPath('/caisse')) {
     return next({ name: 'caisse' })
   }
   if (role) {
@@ -739,7 +766,7 @@ router.beforeEach(async (to, from, next) => {
         auth.user?.licence?.configured
         && auth.user.licence.is_blocking
         && !isXelltekkAdmin(auth.user)
-        && to.name !== 'licence'
+        && !['licence', 'configuration-modules'].includes(to.name)
       ) {
         return next({ name: role === 'admin' ? 'licence' : 'dashboard' })
       }

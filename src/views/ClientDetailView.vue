@@ -246,6 +246,7 @@ import ClientPortalAccess from '@/components/ClientPortalAccess.vue'
 import EmailActionButtons from '@/components/EmailActionButtons.vue'
 import { useToast } from '@/composables/useToast'
 import { buildEmailDraft } from '@/utils/emailComposer'
+import { useModulesStore } from '@/stores/modules'
 import { useAuthStore } from '@/stores/auth'
 import { businessModules, businessPermission } from '@/utils/businessModules'
 
@@ -270,7 +271,8 @@ const router = useRouter()
 const toast = useToast()
 const auth = useAuthStore()
 const canManagePortal = computed(() => ['admin', 'gerant'].includes(auth.user?.base_role || auth.user?.role) && businessPermission(auth.user, 'clients') && businessPermission(auth.user, 'clients', 'update'))
-const businessLinks = computed(() => businessModules.filter(([key]) => ['contacts', 'contrats_services', 'projets', 'sav'].includes(key) && businessPermission(auth.user, key)))
+const activeModules = useModulesStore()
+const businessLinks = computed(() => businessModules.filter(([key]) => ['contacts', 'contrats_services', 'projets', 'sav'].includes(key) && activeModules.allows(key) && businessPermission(auth.user, key)))
 
 const client = ref(null)
 const loading = ref(false)

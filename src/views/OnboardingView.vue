@@ -482,8 +482,8 @@ async function changePassword() {
   savingPassword.value = true
   try {
     const { data } = await api.put('/auth/password', { ...passwordForm })
-    auth.user = data.user
-    localStorage.setItem('xelltekk_user', JSON.stringify(data.user))
+    // Le profil peut être partiel ; le contexte des modules reste uniquement en mémoire.
+    auth.acceptSessionUser({ ...auth.user, ...data.user })
     passwordForm.current_password = ''
     passwordForm.password = ''
     passwordForm.password_confirmation = ''

@@ -1,27 +1,30 @@
+import { contactsUi } from '../modules/contacts/ui.js'
+import { connaissancesUi } from '../modules/connaissances/ui.js'
+
 export const businessModules = [
-  ['contacts', 'Contacts'],
+  [contactsUi.key, contactsUi.label],
   ['commandes_clients', 'Commandes clients'],
   ['contrats_services', 'Contrats de services'],
   ['projets', 'Projets et tâches'],
   ['sav', 'Tickets clients / SAV'],
-  ['connaissances', 'Base de connaissances'],
+  [connaissancesUi.key, connaissancesUi.label],
 ]
 
 export const activeBusinessModules = businessModules
 
 export const businessSections = {
-  ventes: ['contacts', 'commandes_clients'],
+  ventes: [contactsUi.key, 'commandes_clients'],
   pilotage: ['projets'],
-  services: ['contrats_services', 'sav', 'connaissances'],
+  services: ['contrats_services', 'sav', connaissancesUi.key],
 }
 
 export const businessColumns = {
-  contacts: [['client_label', 'Tiers'], ['fonction', 'Fonction'], ['email', 'Email'], ['telephone', 'Téléphone'], ['mobile', 'Mobile']],
+  [contactsUi.key]: contactsUi.columns,
   commandes_clients: [['client_label', 'Client'], ['date_debut', 'Date'], ['date_fin', 'Échéance'], ['total_ttc', 'Total TTC'], ['devise', 'Devise']],
   contrats_services: [['client_label', 'Client'], ['date_fin', 'Fin'], ['renouvellement', 'Renouvellement'], ['montant', 'Montant HT / période'], ['periodicite', 'Périodicité']],
   projets: [['client_label', 'Client'], ['owner_label', 'Responsable'], ['date_fin', 'Échéance'], ['progression', 'Tâches terminées / annulées'], ['minutes', 'Temps (min)']],
   sav: [['client_label', 'Client'], ['owner_label', 'Responsable'], ['priorite', 'Priorité']],
-  connaissances: [['categorie', 'Catégorie'], ['updated_at', 'Mis à jour']],
+  [connaissancesUi.key]: connaissancesUi.columns,
 }
 
 export function applyCatalogProduct(line, product) {

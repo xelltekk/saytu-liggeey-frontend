@@ -672,11 +672,16 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue'
+import { useModulesStore } from '@/stores/modules'
+import { managedPermissionModuleKeys, moduleAvailabilitySignature } from '@/module-system/modulePolicy.mjs'
 import api from '@/services/api'
 import { useToast } from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
 
+const modules = useModulesStore()
+let accessProjectionVersion = 0
+let projectedModuleAvailability = new Map(managedPermissionModuleKeys(modules.context).map(key => [key, modules.allows(key)]))
 const toast = useToast()
 const { confirm: askConfirm } = useConfirm()
 
@@ -1094,6 +1099,7 @@ const displayedGroupedModules = computed(() => {
 onMounted(loadAll)
 
 async function loadAll() {
+  const version = ++accessProjectionVersion
   loading.value = true
   try {
     const [{ data: defs }, { data: roleList }, { data: audit }, { data: matrix }, { data: usersPage }] = await Promise.all([
@@ -1103,6 +1109,7 @@ async function loadAll() {
       api.get('/access-control/recommended-matrix'),
       api.get('/users', { params: { per_page: 100 } }),
     ])
+    if (version !== accessProjectionVersion) return
     definitions.value = defs
     roles.value = roleList
     accessAudit.value = audit
@@ -1114,11 +1121,65 @@ async function loadAll() {
     }
     await loadAccessActivities(false)
   } catch (e) {
-    toast.error('Chargement des rôles impossible.')
+    if (version === accessProjectionVersion) toast.error('Chargement des rôles impossible.')
   } finally {
-    loading.value = false
+    if (version === accessProjectionVersion) loading.value = false
   }
 }
+
+
+// Retire uniquement les domaines migrés indisponibles ; les autres brouillons restent intacts.
+function hideDormantModulePermissions() {
+  const hidden = managedPermissionModuleKeys(modules.context).filter(key => !modules.allows(key))
+  if (!hidden.length) return
+  const visibleModules = { ...definitions.value.modules }
+  for (const key of hidden) {
+    delete visibleModules[key]
+    if (form.value?.permissions) delete form.value.permissions[key]
+    if (overrideForm.value.module === key) overrideForm.value.module = ''
+  }
+  definitions.value = { ...definitions.value, modules: visibleModules }
+  if (userAccess.value?.overrides) userAccess.value.overrides = userAccess.value.overrides.filter(item => !hidden.includes(item.module))
+}
+
+// Rafraîchit la projection des droits sans remplacer les brouillons de rôle ou d'exception.
+async function refreshModuleAccessProjection() {
+  hideDormantModulePermissions()
+  const managedKeys = managedPermissionModuleKeys(modules.context)
+  const availability = new Map(managedKeys.map(key => [key, modules.allows(key)]))
+  const version = ++accessProjectionVersion
+  const userId = selectedUserId.value
+  try {
+    const [{ data: defs }, { data: roleList }, { data: matrix }, { data: audit }, { data: userPermissions }] = await Promise.all([
+      api.get('/access-control/definitions'), api.get('/access-control/roles'),
+      api.get('/access-control/recommended-matrix'), api.get('/access-control/audit'),
+      userId ? api.get(`/access-control/users/${userId}/permissions`) : Promise.resolve({ data: null }),
+    ])
+    if (version !== accessProjectionVersion) return
+    definitions.value = defs; roles.value = roleList; recommendedMatrix.value = matrix; accessAudit.value = audit
+    if (!form.value && !selectedRole.value && roleList.length) selectRole(roleList[0])
+    const currentRole = roleList.find(role => role.id === form.value?.id)
+    if (form.value?.permissions) {
+      // Restaure uniquement un domaine réapparu, sans écraser les autres bits déjà saisis.
+      for (const key of managedKeys) {
+        if (!availability.get(key) || !defs.modules?.[key]) { delete form.value.permissions[key]; continue }
+        if (projectedModuleAvailability.get(key) !== false && Object.prototype.hasOwnProperty.call(form.value.permissions, key)) continue
+        const restored = {}
+        for (const action of defs.modules[key].actions || []) restored[action] = !!currentRole?.permissions?.[key]?.[action]
+        form.value.permissions[key] = restored
+      }
+    }
+    if (currentRole && selectedRole.value?.id === currentRole.id) selectedRole.value = currentRole
+    if (userPermissions && selectedUserId.value === userId) userAccess.value = userPermissions
+    projectedModuleAvailability = availability
+    hideDormantModulePermissions()
+  } catch {
+    if (version === accessProjectionVersion) toast.error('Actualisation des droits du module impossible. Réessayez.')
+  } finally { if (version === accessProjectionVersion) loading.value = false }
+}
+
+watch(() => [modules.revision, moduleAvailabilitySignature(modules.context)], (current, previous) => { if (modules.initialized && (current[0] !== previous[0] || current[1] !== previous[1])) void refreshModuleAccessProjection() })
+onBeforeUnmount(() => { accessProjectionVersion++ })
 
 async function loadAudit() {
   try {

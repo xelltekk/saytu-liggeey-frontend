@@ -4,6 +4,7 @@ import { onMounted, ref } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 import { useConfirm } from '@/composables/useConfirm'
 import api from '@/services/api'
+import { useModulesStore } from '@/stores/modules'
 import DolibarrMigrationAssistant from '@/components/DolibarrMigrationAssistant.vue'
 
 const { confirm } = useConfirm()
@@ -17,6 +18,7 @@ onBeforeRouteLeave(async () => {
   })
 })
 
+const registry = useModulesStore()
 const reports = ref([])
 const report = ref(null)
 const creating = ref(false)
@@ -176,7 +178,7 @@ usePageReactivation(() => { if (!creating.value && !report.value) return load() 
             <thead class="sticky top-0 bg-cyan-50"><tr><th class="p-3">Rubrique</th><th class="p-3">Lignes source</th><th class="p-3">Dans Saytu</th><th class="p-3">Outil de reprise</th></tr></thead>
             <tbody><tr v-for="group in report.coverage.groups" :key="group.key" class="border-t border-cyan-100 align-top">
               <td class="p-3"><strong>{{ group.label }}</strong><details class="mt-1"><summary class="cursor-pointer text-cyan-900">Tables concernées</summary><p v-for="table in group.tables" :key="table.key" class="break-all">{{ table.key }} : {{ count(table.rows) }}</p></details></td>
-              <td class="p-3">{{ count(group.rows) }}</td><td class="p-3">{{ targetLabel(group.target) }}</td><td class="p-3">{{ adapterLabel(group.adapter) }}</td>
+              <td class="p-3">{{ count(group.rows) }}</td><td class="p-3">{{ targetLabel(group.target) }}</td><td class="p-3">{{ group.key === 'contacts' && !registry.allows('contacts') ? 'Module désactivé — import indisponible' : adapterLabel(group.adapter) }}</td>
             </tr></tbody>
           </table>
         </div>

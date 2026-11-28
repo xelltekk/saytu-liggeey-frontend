@@ -77,7 +77,7 @@
 import { requestConfirmation as appConfirm } from '@/composables/useConfirm'
 import { computed, onBeforeUnmount, ref } from 'vue'
 import axios from 'axios'
-const sections = [['tickets', 'Mes tickets'], ['prix', 'Demandes de prix'], ['commandes', 'Mes commandes'], ['contrats', 'Mes contrats'], ['connaissances', 'Base de connaissances']]
+const allSections = [['tickets', 'Mes tickets'], ['prix', 'Demandes de prix'], ['commandes', 'Mes commandes'], ['contrats', 'Mes contrats'], ['connaissances', 'Base de connaissances']]
 const key = 'saytu_customer_portal_session'
 const api = axios.create({ baseURL: '/api/client-portal', headers: { Accept: 'application/json' } })
 api.interceptors.request.use(c => { const token = sessionStorage.getItem(key); if (token) c.headers.Authorization = `Bearer ${token}`; return c })
@@ -87,29 +87,65 @@ const loading = ref(false), busy = ref(false), error = ref(''), notice = ref('')
 const form = ref({}), lines = ref([]), requestId = ref(''), replyText = ref(''), replyId = ref(crypto.randomUUID())
 const search = ref(''), filterStatus = ref(''), total = ref(0), refreshing = ref(false), lastSync = ref(''), syncError = ref('')
 const notifications = ref({ unread: 0, items: [] }), showNotifications = ref(false), notificationError = ref('')
-const sectionTitle = computed(() => sections.find(([value]) => value === kind.value)?.[1])
+// Le portail utilise uniquement les capacités de son propre compte, jamais le contexte privé ERP.
+const knowledgeAvailable = computed(() => account.value?.capabilities?.connaissances !== false)
+const sections = computed(() => allSections.filter(([section]) => section !== 'connaissances' || knowledgeAvailable.value))
+const sectionTitle = computed(() => sections.value.find(([value]) => value === kind.value)?.[1])
 const sectionDescription = computed(() => ({ prix: 'Décrivez vos besoins et recevez un devis de votre fournisseur.', tickets: 'Décrivez votre besoin et suivez les réponses de notre équipe.', commandes: 'Préparez vos demandes ; votre fournisseur les chiffre avant confirmation.', contrats: 'Retrouvez les contrats partagés avec votre entreprise.', connaissances: 'Consultez les guides et les réponses aux questions fréquentes.' }[kind.value]))
 const statusOptions = computed(() => ({ prix: ['recue', 'en_chiffrage'], tickets: ['ouvert', 'en_cours', 'en_attente', 'resolu', 'ferme'], commandes: ['brouillon', 'confirmee', 'cloturee', 'annulee'], contrats: ['actif', 'termine', 'resilie'] }[kind.value] || []))
 const date = value => { if (!value) return '—'; const d = new Date(String(value).replace(' ', 'T')); return Number.isNaN(d.getTime()) ? value : d.toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' }) }
 let sequence = 0
 const status = s => ({ envoye: 'Envoyé', accepte: 'Accepté', refuse: 'Refusé', facture: 'Facturé', expire: 'Expiré', recue: 'Demande reçue', en_chiffrage: 'Devis en préparation / suivi', brouillon: 'En attente de validation', confirmee: 'Confirmée', cloturee: 'Livrée', annulee: 'Annulée', ouvert: 'Ouvert', en_cours: 'En cours', en_attente: 'En attente', resolu: 'Résolu', ferme: 'Fermé', actif: 'Actif', termine: 'Terminé', resilie: 'Résilié' }[s] || s)
-function failed(e) { error.value = Object.values(e.response?.data?.errors || {}).flat().join(' · ') || e.response?.data?.message || 'Opération impossible. Réessayez.'; if ([401, 402, 403].includes(e.response?.status)) { sequence++; account.value = null; selected.value = null; records.value = []; sessionStorage.removeItem(key) } }
+// Une rubrique désactivée ne déconnecte pas le client de ses tickets et documents.
+function failed(e) {
+  const data = e.response?.data
+  const disabledKnowledge = data?.code === 'MODULE_DISABLED' && data?.module === 'connaissances'
+  if (disabledKnowledge || (kind.value === 'connaissances' && !knowledgeAvailable.value && [403, 404].includes(e.response?.status))) {
+    applyPortalCapabilities({ capabilities: { connaissances: false } })
+    notice.value = 'La base de connaissances est momentanément indisponible.'
+    return
+  }
+  error.value = Object.values(data?.errors || {}).flat().join(' · ') || data?.message || 'Opération impossible. Réessayez.'
+  if (kind.value === 'connaissances' && [403, 404].includes(e.response?.status)) { records.value = []; selected.value = null; void refreshPortalCapabilities() }
+  if ([401, 402, 403].includes(e.response?.status)) { sequence++; account.value = null; selected.value = null; records.value = []; sessionStorage.removeItem(key) }
+}
+// Retire immédiatement la contribution et invalide les réponses encore en vol.
+function applyPortalCapabilities(data, reload = true) {
+  if (!account.value || typeof data.capabilities?.connaissances !== 'boolean') return
+  account.value.capabilities = { ...account.value.capabilities, connaissances: data.capabilities.connaissances }
+  if (!knowledgeAvailable.value && kind.value === 'connaissances') {
+    sequence++; kind.value = 'tickets'; records.value = []; selected.value = null; creating.value = false
+    search.value = ''; filterStatus.value = ''; total.value = 0; page.value = 1; pages.value = 1; loading.value = false
+    notice.value = 'La base de connaissances est momentanément indisponible.'
+    if (reload) void load()
+  }
+}
+let capabilitiesLoading = false
+// Actualise seulement les capacités publiques du compte portail déjà authentifié.
+async function refreshPortalCapabilities() {
+  if (!account.value || capabilitiesLoading || document.hidden || busy.value) return
+  const identity = account.value
+  capabilitiesLoading = true
+  try { const { data } = await api.get('/me'); if (account.value === identity) applyPortalCapabilities(data) }
+  catch (e) { if (account.value === identity && [401, 402, 403].includes(e.response?.status)) failed(e) }
+  finally { capabilitiesLoading = false }
+}
 async function run(fn) { if (busy.value) return; busy.value = true; error.value = ''; try { await fn() } catch (e) { failed(e) } finally { busy.value = false } }
 const activate = () => run(async () => { const { data } = await api.post('/activate', { token: invitation.value, password: password.value, password_confirmation: confirmation.value }); invitation.value = ''; password.value = ''; confirmation.value = ''; notice.value = data.message })
-const login = () => run(async () => { const { data } = await api.post('/login', { email: email.value, password: password.value }); sessionStorage.setItem(key, data.token); password.value = ''; notifications.value = { unread: 0, items: [] }; account.value = (await api.get('/me')).data; notice.value = ''; await load(); await loadNotifications() })
+const login = () => run(async () => { const { data } = await api.post('/login', { email: email.value, password: password.value }); sessionStorage.setItem(key, data.token); password.value = ''; notifications.value = { unread: 0, items: [] }; account.value = (await api.get('/me')).data; applyPortalCapabilities(account.value, false); notice.value = ''; await load(); await loadNotifications() })
 const logout = async () => { if (!await canLeave()) return; return run(async () => { try { await api.post('/logout') } finally { sequence++; account.value = null; selected.value = null; records.value = []; creating.value = false; replyText.value = ''; sessionStorage.removeItem(key) } }) }
-async function load(p = 1) { const version = ++sequence; loading.value = true; error.value = ''; try { const { data } = await api.get(`/${kind.value}`, { params: { page: p, q: search.value || undefined, statut: filterStatus.value || undefined } }); if (version === sequence) { records.value = data.data; page.value = data.current_page; pages.value = data.last_page; total.value = data.total } } catch (e) { if (version === sequence) failed(e) } finally { if (version === sequence) loading.value = false } }
+async function load(p = 1) { if (kind.value === 'connaissances' && !knowledgeAvailable.value) return; const version = ++sequence; loading.value = true; error.value = ''; try { const { data } = await api.get(`/${kind.value}`, { params: { page: p, q: search.value || undefined, statut: filterStatus.value || undefined } }); if (version === sequence) { records.value = data.data; page.value = data.current_page; pages.value = data.last_page; total.value = data.total } } catch (e) { if (version === sequence) failed(e) } finally { if (version === sequence) loading.value = false } }
 const canLeave = async () => !busy.value && (!(creating.value || replyText.value || selected.value?.draftComment || selected.value?.orderDraft) || await appConfirm('Quitter cette saisie sans envoyer ?'))
 async function cancelCreation() { if (await canLeave()) creating.value = false }
 async function back() { if (!await canLeave()) return; sequence++; selected.value = null; replyText.value = ''; load(page.value) }
 function resetFilters() { search.value = ''; filterStatus.value = ''; load() }
-async function changeSection(value) { if (!await canLeave()) return; kind.value = value; creating.value = false; selected.value = null; replyText.value = ''; notice.value = ''; resetFilters() }
+async function changeSection(value) { if (value === 'connaissances' && !knowledgeAvailable.value) return; if (!await canLeave()) return; kind.value = value; creating.value = false; selected.value = null; replyText.value = ''; notice.value = ''; resetFilters() }
 function start() { form.value = { titre: '', description: '', priorite: 'normale' }; lines.value = [{ designation: '', quantite: 1 }]; requestId.value = crypto.randomUUID(); creating.value = true; notice.value = '' }
 const open = r => run(async () => { sequence++; selected.value = (await api.get(`/${kind.value}/${r.id}`)).data; replyText.value = ''; replyId.value = crypto.randomUUID(); lastSync.value = ''; syncError.value = '' })
 const submit = () => run(async () => { const payload = { ...form.value, request_id: requestId.value }; if (['commandes', 'prix'].includes(kind.value)) payload.lines = lines.value; const { data } = await api.post(`/${kind.value}`, payload); notice.value = data.message; creating.value = false; await load(); selected.value = (await api.get(`/${kind.value}/${data.id}`)).data })
 let notificationsLoading = false
 async function loadNotifications() { if (!account.value || notificationsLoading || document.hidden) return; const identity = account.value; notificationsLoading = true; try { const { data } = await api.get('/notifications'); if (account.value === identity) { notifications.value = data; notificationError.value = '' } } catch { if (account.value === identity) notificationError.value = 'Notifications indisponibles. Réessayez.' } finally { notificationsLoading = false } }
-async function openNotification(n) { if (busy.value || !await canLeave()) return; await run(async () => { sequence++; kind.value = n.kind; selected.value = null; creating.value = false; replyText.value = ''; search.value = ''; filterStatus.value = ''; await load(); selected.value = (await api.get(`/${n.kind}/${n.record_id}`)).data; replyId.value = crypto.randomUUID(); await api.post(`/notifications/${n.id}/read`); showNotifications.value = false; await loadNotifications() }) }
+async function openNotification(n) { if (n.kind === 'connaissances' && !knowledgeAvailable.value) return; if (busy.value || !await canLeave()) return; await run(async () => { sequence++; kind.value = n.kind; selected.value = null; creating.value = false; replyText.value = ''; search.value = ''; filterStatus.value = ''; await load(); selected.value = (await api.get(`/${n.kind}/${n.record_id}`)).data; replyId.value = crypto.randomUUID(); await api.post(`/notifications/${n.id}/read`); showNotifications.value = false; await loadNotifications() }) }
 const downloadBL = d => run(async () => { const { data } = await api.get(`/commandes/${selected.value.id}/livraisons/${d.id}/pdf`, { responseType: 'blob' }); const url = URL.createObjectURL(data); const a = document.createElement('a'); a.href = url; a.download = `BL-${d.id}.pdf`; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000) })
 const downloadQuote = () => run(async () => { const { data } = await api.get(`/prix/${selected.value.id}/devis/pdf`, { responseType: 'blob' }); const url = URL.createObjectURL(data); const a = document.createElement('a'); a.href = url; a.download = `devis-${selected.value.id}.pdf`; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000) })
 const decideQuote = async decision => {
@@ -140,12 +176,16 @@ async function refreshTicket() {
 }
 const timer = setInterval(refreshTicket, 15000)
 const notificationTimer = setInterval(loadNotifications, 30000)
+const capabilitiesTimer = setInterval(refreshPortalCapabilities, 60000)
+window.addEventListener('focus', refreshPortalCapabilities)
+document.addEventListener('visibilitychange', refreshPortalCapabilities)
+onBeforeUnmount(() => { clearInterval(capabilitiesTimer); window.removeEventListener('focus', refreshPortalCapabilities); document.removeEventListener('visibilitychange', refreshPortalCapabilities) })
 onBeforeUnmount(() => clearInterval(notificationTimer))
 document.addEventListener('visibilitychange', refreshTicket)
 const beforeUnload = e => { if (replyText.value || creating.value || selected.value?.draftComment || selected.value?.orderDraft) { e.preventDefault(); e.returnValue = '' } }
 window.addEventListener('beforeunload', beforeUnload)
 onBeforeUnmount(() => { sequence++; clearInterval(timer); document.removeEventListener('visibilitychange', refreshTicket); window.removeEventListener('beforeunload', beforeUnload) })
-async function boot() { if (!sessionStorage.getItem(key) || invitation.value) return; loading.value = true; try { account.value = (await api.get('/me')).data; await load(); await loadNotifications() } catch (e) { failed(e) } finally { loading.value = false } }
+async function boot() { if (!sessionStorage.getItem(key) || invitation.value) return; loading.value = true; try { account.value = (await api.get('/me')).data; applyPortalCapabilities(account.value, false); await load(); await loadNotifications() } catch (e) { failed(e) } finally { loading.value = false } }
 boot()
 </script>
 <style scoped>

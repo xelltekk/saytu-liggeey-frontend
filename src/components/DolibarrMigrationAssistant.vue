@@ -31,9 +31,10 @@
       <section class="rounded-2xl border bg-white p-5">
         <h3 class="text-lg font-bold">Reprendre les données</h3>
         <p class="my-3 text-sm text-slate-600">Commencez par les clients et fournisseurs, puis le catalogue. Les transferts de nouvelles fiches sont découpés automatiquement en lots.</p>
-        <div class="flex flex-wrap gap-2"><button v-for="item in modules" :key="item.key" type="button" :disabled="busy" :class="module === item.key ? 'btn-primary' : 'btn-secondary'" @click="module = item.key">{{ item.label }} ({{ sourceCount(item.source) }})</button></div>
+        <div class="flex flex-wrap gap-2"><button v-for="item in availableTargets" :key="item.key" type="button" :disabled="busy" :class="module === item.key ? 'btn-primary' : 'btn-secondary'" @click="module = item.key">{{ item.label }} ({{ sourceCount(item.source) }})</button></div>
       </section>
-      <DolibarrSimpleBatch v-if="['tiers', 'products', 'contacts'].includes(module)" :key="'simple-' + module" :module="module" :title="module === 'tiers' ? 'Clients et fournisseurs' : module === 'contacts' ? 'Contacts' : 'Produits et services'" :sql-file="selectedFile" :report="report" :settings="settings" @busy="setBusy" @imported="loadRuns" />
+      <p v-if="!contactsAvailable" class="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm">Contacts : {{ sourceCount('socpeople') }} fiche(s) détectée(s). Le module Contacts est désactivé ; réactivez-le dans Configuration > Modules pour les importer. L’inventaire SQL reste complet.</p>
+      <DolibarrSimpleBatch v-if="['tiers', 'products', 'contacts'].includes(module) && (module !== 'contacts' || contactsAvailable)" :key="'simple-' + module" :module="module" :title="module === 'tiers' ? 'Clients et fournisseurs' : module === 'contacts' ? 'Contacts' : 'Produits et services'" :sql-file="selectedFile" :report="report" :settings="settings" @busy="setBusy" @imported="loadRuns" />
       <details v-if="module === 'tiers' || module === 'products'" class="rounded-xl border bg-white p-5" :open="reviewOpen" @toggle="reviewOpen = $event.target.open">
         <summary class="cursor-pointer font-semibold">Vérifier les doublons ou ajuster les correspondances</summary>
         <component :is="module === 'tiers' ? DolibarrThirdPartyPreview : DolibarrProductImport" v-if="reviewOpen" :key="module" :report="report" :limits="limits" :sql-file="selectedFile" :source-settings="settings" @busy="setBusy" />
@@ -47,7 +48,7 @@
       <p v-if="historyError" role="alert" class="text-red-700">{{ historyError }}</p>
       <div v-for="item in modules" :key="item.key" class="flex flex-wrap justify-between gap-3 rounded-lg bg-slate-50 p-3">
         <strong>{{ item.label }}</strong>
-        <span>{{ sourceCount(item.source) }} dans la sauvegarde · {{ importedCount(item.key) }} traités dans les lots enregistrés</span>
+        <span v-if="item.key === 'contacts' && !contactsAvailable">{{ sourceCount(item.source) }} dans la sauvegarde · import indisponible : module désactivé</span><span v-else>{{ sourceCount(item.source) }} dans la sauvegarde · {{ importedCount(item.key) }} traités dans les lots enregistrés</span>
       </div>
       <p class="rounded-lg bg-amber-50 p-3 text-amber-900">La reprise complète reste à terminer. Les factures, avoirs et règlements clients peuvent être transférés après contrôle. Les factures et règlements fournisseurs standards disposent aussi d’un transfert. Les commandes fournisseurs, l’historique des mouvements et les pièces jointes nécessitent encore un outil de reprise.</p>
       <details v-if="remainingGroups.length"><summary class="cursor-pointer font-semibold">Autres données de votre sauvegarde à reprendre</summary><p v-for="group in remainingGroups" :key="group.key" class="mt-2 text-sm">{{ group.label }} · {{ Number(group.rows).toLocaleString('fr-FR') }} lignes source</p></details>
@@ -58,8 +59,9 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import api from '@/services/api'
+import { useModulesStore } from '@/stores/modules'
 import DolibarrSimpleBatch from '@/components/DolibarrSimpleBatch.vue'
 import DolibarrThirdPartyPreview from '@/components/DolibarrThirdPartyPreview.vue'
 import DolibarrProductImport from '@/components/DolibarrProductImport.vue'
@@ -67,6 +69,10 @@ import DolibarrStockPreview from '@/components/DolibarrStockPreview.vue'
 import DolibarrQuotePreview from '@/components/DolibarrQuotePreview.vue'
 import DolibarrFinancialImport from '@/components/DolibarrFinancialImport.vue'
 
+let assistantAlive = true
+onBeforeUnmount(() => { assistantAlive = false })
+const registry = useModulesStore()
+const contactsAvailable = computed(() => registry.allows('contacts'))
 const props = defineProps({ report: { type: Object, required: true }, limits: { type: Object, required: true }, sqlFile: { type: Object, default: null } })
 const emit = defineEmits(['busy'])
 const step = ref('configuration')
@@ -89,6 +95,7 @@ const modules = [
   { key: 'invoices', source: 'facture', label: 'Factures et paiements' },
   { key: 'supplier-invoices', source: 'facture_fourn', label: 'Factures fournisseurs' },
 ]
+const availableTargets = computed(() => modules.filter(item => item.key !== 'contacts' || contactsAvailable.value))
 const remainingGroups = computed(() => (props.report.coverage?.groups || []).map(group => {
   if (group.key === 'contacts' && group.tables?.some(table => table.key !== 'socpeople')) {
     const tables = group.tables.filter(table => table.key !== 'socpeople')
@@ -120,7 +127,7 @@ function configure() {
 function setBusy(value) {
   busy.value = value
   emit('busy', value)
-  if (!value) loadRuns()
+  if (!value && assistantAlive) loadRuns()
 }
 
 function importedCount(key) {
@@ -133,13 +140,18 @@ function importedCount(key) {
 
 async function loadRuns() {
   historyError.value = ''
-  const results = await Promise.allSettled(['tiers', 'products', 'contacts', 'stock', 'quotes', 'invoices', 'supplier-invoices'].map(async key => {
+  const results = await Promise.allSettled(modules.filter(item => item.key !== 'contacts' || contactsAvailable.value).map(item => item.key).map(async key => {
     const suffix = key === 'tiers' ? '' : '/' + key
     const { data } = await api.get(`/data-imports/${props.report.id}${suffix}/runs`)
-    runs.value[key] = data.runs || []
+    if (key !== 'contacts' || contactsAvailable.value) runs.value[key] = data.runs || []
   }))
   if (results.some(result => result.status === 'rejected')) historyError.value = 'Certains transferts ne peuvent pas être vérifiés. Actualisez le bilan avant de poursuivre.'
 }
 
+// Un transfert désactivé cesse de contribuer, sans modifier les compteurs de la sauvegarde.
+watch(contactsAvailable, available => {
+  if (!available) { runs.value.contacts = []; if (module.value === 'contacts') module.value = 'tiers' }
+  else void loadRuns()
+})
 onMounted(loadRuns)
 </script>

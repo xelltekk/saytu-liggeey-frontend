@@ -790,6 +790,7 @@ import {
 } from 'lucide-vue-next'
 import api from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
+import { useModulesStore } from '@/stores/modules'
 import { useConfirm } from '@/composables/useConfirm'
 import { useToast } from '@/composables/useToast'
 import { isXelltekkAdmin } from '@/utils/platformAccess'
@@ -1712,10 +1713,14 @@ async function copyText(value, successMessage = 'Copié.') {
   }
 }
 
+// Réévalue les modules uniquement si les droits d'abonnement de la session ont changé.
 function syncAuthLicence(licence) {
   if (!auth.user) return
-  auth.user = { ...auth.user, licence }
-  localStorage.setItem('xelltekk_user', JSON.stringify(auth.user))
+  const previous = auth.user.licence || {}
+  const changed = ['configured', 'is_blocking', 'licence_bypass'].some(key => previous[key] !== licence[key])
+    || JSON.stringify(previous.modules_autorises || []) !== JSON.stringify(licence.modules_autorises || [])
+  auth.acceptSessionUser({ ...auth.user, licence })
+  if (changed) void useModulesStore().fetchContext({ force: true })
 }
 
 function parseNumber(value) {

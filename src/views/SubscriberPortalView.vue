@@ -57,14 +57,15 @@
       </article>
     </section>
     <section v-else-if="section === 'connaissances' && !loading">
-      <form class="search" @submit.prevent="load(1)"><label>Rechercher une procédure <input v-model.trim="query" maxlength="100" placeholder="Ex. créer une facture" /></label><button>Rechercher</button></form>
-      <p v-if="!records.length">Aucune procédure publiée ne correspond à votre recherche.</p>
+      <p v-if="!documentationAvailable" class="notice">La documentation Saytu est momentanément indisponible.</p>
+      <form v-else class="search" @submit.prevent="load(1)"><label>Rechercher une procédure <input v-model.trim="query" maxlength="100" placeholder="Ex. créer une facture" /></label><button>Rechercher</button></form>
+      <p v-if="documentationAvailable && !records.length">Aucune procédure publiée ne correspond à votre recherche.</p>
       <details v-for="article in records" :key="article.id">
         <summary>{{ article.titre }} <small>— {{ article.categorie }}</small></summary>
         <p class="text-content">{{ article.contenu }}</p>
       </details>
     </section>
-    <nav v-if="section !== 'tickets' && pages > 1 && !loading" aria-label="Pagination">
+    <nav v-if="section !== 'tickets' && pages > 1 && !loading && (section !== 'connaissances' || documentationAvailable)" aria-label="Pagination">
       <button :disabled="page <= 1" @click="load(page - 1)">Précédent</button>
       <span>Page {{ page }} / {{ pages }}</span>
       <button :disabled="page >= pages" @click="load(page + 1)">Suivant</button>
@@ -74,7 +75,7 @@
 
 <script setup>
 import { usePageReactivation } from '@/composables/usePageReactivation'
-import { computed, ref, watch } from 'vue'
+import { computed, onActivated, onDeactivated, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import api from '@/services/api'
 import { subscriberSections } from '@/utils/subscriberPortal'
@@ -83,6 +84,9 @@ const route = useRoute()
 const section = computed(() => route.params.section)
 const title = computed(() => subscriberSections.find(([key]) => key === section.value)?.[1])
 const loading = ref(false), busy = ref(false), error = ref(''), notice = ref('')
+const documentationAvailable = ref(true), activePage = ref(true)
+onActivated(() => { activePage.value = true })
+onDeactivated(() => { activePage.value = false })
 const tickets = ref([]), records = ref([]), selected = ref(null), creating = ref(false)
 const page = ref(1), pages = ref(1), query = ref(''), replyText = ref('')
 const form = ref({ sujet: '', description: '', categorie: 'support', priorite: 'normale' })
@@ -96,8 +100,12 @@ async function load(nextPage = 1) {
     const { data } = await api.get(section.value === 'tickets' ? '/support/tickets' : `/espace-client/${section.value}`, { params: { page: nextPage, q: query.value } })
     if (version !== requestVersion) return
     if (section.value === 'tickets') tickets.value = data.tickets
-    else { records.value = data.data; page.value = data.current_page; pages.value = data.last_page }
-  } catch (e) { if (version === requestVersion) error.value = message(e) }
+    else {
+      if (section.value === 'connaissances') documentationAvailable.value = data.available !== false
+      records.value = section.value === 'connaissances' && !documentationAvailable.value ? [] : data.data
+      page.value = data.current_page; pages.value = data.last_page
+    }
+  } catch (e) { if (version === requestVersion) { error.value = message(e); if (section.value === 'connaissances' && [403, 404].includes(e.response?.status)) { records.value = []; documentationAvailable.value = false } } }
   finally { if (version === requestVersion) loading.value = false }
 }
 async function createTicket() {
@@ -135,6 +143,12 @@ async function downloadContract(contract) {
 }
 watch(section, () => { creating.value = false; selected.value = null; query.value = ''; notice.value = ''; records.value = []; tickets.value = []; load() }, { immediate: true })
 
+// L'aide Saytu dépend de sa société éditrice, pas du module de l'entreprise abonnée.
+function refreshDocumentation() { if (activePage.value && section.value === 'connaissances' && !document.hidden && !busy.value && !loading.value) void load(page.value) }
+const documentationTimer = setInterval(refreshDocumentation, 60000)
+window.addEventListener('focus', refreshDocumentation)
+document.addEventListener('visibilitychange', refreshDocumentation)
+onBeforeUnmount(() => { requestVersion++; clearInterval(documentationTimer); window.removeEventListener('focus', refreshDocumentation); document.removeEventListener('visibilitychange', refreshDocumentation) })
 usePageReactivation(() => { if (!creating.value && !selected.value) return load() })
 </script>
 

@@ -10,10 +10,10 @@ function portal() {
   const cleanup = [], intervals = []
   const api = { interceptors: { request: { use() {} } }, get: async () => ({ data: {} }) }
   const context = vm.createContext({ ref, computed, onBeforeUnmount: fn => cleanup.push(fn), axios: { create: () => api },
-    sessionStorage: { getItem: () => null, removeItem() {} }, location: { hash: '' }, URLSearchParams,
+    sessionStorage: { getItem: () => null, setItem() {}, removeItem() {} }, location: { hash: '' }, URLSearchParams,
     crypto: { randomUUID: () => 'test-id' }, document: { hidden: false, addEventListener() {}, removeEventListener() {} },
     window: { addEventListener() {}, removeEventListener() {} }, setInterval: fn => { intervals.push(fn); return 1 }, clearInterval() {}, appConfirm: async () => true })
-  vm.runInContext(script + '\n globalThis.testPortal = { account, kind, selected, replyText, busy, refreshTicket, back, syncError, decideQuote, openQuoteOrder, openOrderQuote };', context)
+  vm.runInContext(script + '\n globalThis.testPortal = { account, kind, selected, replyText, busy, refreshTicket, back, syncError, decideQuote, openQuoteOrder, openOrderQuote, sections, knowledgeAvailable, refreshPortalCapabilities, failed, load, changeSection, records, login };', context)
   return { ...context.testPortal, api, cleanup, intervals, context }
 }
 
@@ -118,4 +118,64 @@ test('source request opens quotation follow-up without a second order agreement'
   const internal = readFileSync(new URL('../src/views/BusinessModuleView.vue', import.meta.url), 'utf8')
   assert.match(internal, /Transformer en devis/)
   assert.match(internal, /history-only/)
+})
+
+
+test('knowledge OFF removes only its portal section without signing the customer out', async () => {
+  const p = portal()
+  p.account.value = { name: 'Client', capabilities: { connaissances: false } }
+  const calls = []; p.api.get = async url => { calls.push(url); return { data: {} } }
+  assert.equal(p.sections.value.some(([key]) => key === 'connaissances'), false)
+  await p.changeSection('connaissances')
+  assert.equal(p.kind.value, 'tickets')
+  assert.deepEqual(calls, [])
+  assert.equal(p.account.value.name, 'Client')
+})
+
+test('remote knowledge OFF invalidates late article data and keeps ticket access', async () => {
+  const p = portal()
+  p.account.value = { name: 'Client', capabilities: { connaissances: true } }
+  p.kind.value = 'connaissances'; p.records.value = [{ id: 101, contenu: 'Ancien texte' }]
+  let release
+  const calls = []
+  p.api.get = url => {
+    calls.push(url)
+    if (url === '/connaissances') return new Promise(resolve => { release = resolve })
+    if (url === '/me') return Promise.resolve({ data: { capabilities: { connaissances: false } } })
+    return Promise.resolve({ data: { data: [{ id: 2, titre: 'Mon ticket' }], current_page: 1, last_page: 1, total: 1 } })
+  }
+  const pending = p.load()
+  await p.refreshPortalCapabilities()
+  release({ data: { data: [{ id: 101, contenu: 'Réponse tardive' }], current_page: 1, last_page: 1, total: 1 } })
+  await pending
+  assert.equal(p.kind.value, 'tickets')
+  assert.equal(p.records.value[0].id, 2)
+  assert.equal(p.account.value.name, 'Client')
+  assert.equal(p.sections.value.some(([key]) => key === 'connaissances'), false)
+  assert.equal(calls.some(url => /modules\/context|auth\/me/.test(url)), false)
+})
+
+test('MODULE_DISABLED keeps the portal session and knowledge can reappear after reactivation', async () => {
+  const p = portal()
+  p.account.value = { name: 'Client', capabilities: { connaissances: true } }; p.kind.value = 'connaissances'
+  p.api.get = async url => ({ data: url === '/me' ? { capabilities: { connaissances: true } } : { data: [], current_page: 1, last_page: 1, total: 0 } })
+  p.failed({ response: { status: 403, data: { code: 'MODULE_DISABLED', module: 'connaissances' } } })
+  assert.equal(p.account.value.name, 'Client')
+  assert.equal(p.knowledgeAvailable.value, false)
+  await p.refreshPortalCapabilities()
+  assert.equal(p.knowledgeAvailable.value, true)
+  assert.equal(p.sections.value.some(([key]) => key === 'connaissances'), true)
+})
+
+
+test('reconnecting from a previous knowledge section selects tickets when knowledge is OFF', async () => {
+  const p = portal(); p.kind.value = 'connaissances'
+  const calls = []
+  p.api.post = async () => ({ data: { token: 'fixture' } })
+  p.api.get = async url => { calls.push(url); return { data: url === '/me' ? { name: 'Client', capabilities: { connaissances: false } } : url === '/notifications' ? { unread: 0, items: [] } : { data: [], current_page: 1, last_page: 1, total: 0 } } }
+  await p.login()
+  assert.equal(p.kind.value, 'tickets')
+  assert.equal(p.knowledgeAvailable.value, false)
+  assert.equal(calls.filter(url => url === '/tickets').length, 1)
+  assert.equal(calls.includes('/connaissances'), false)
 })

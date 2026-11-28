@@ -9,7 +9,7 @@
       class="fixed inset-0 z-30 bg-slate-950/50 backdrop-blur-sm lg:hidden"
       @click="mobileSidebarOpen = false"
     ></div>
-    
+
     <!-- ================= SIDEBAR ================= -->
     <aside
       id="main-sidebar"
@@ -273,9 +273,7 @@
           class="app-surface min-w-0 bg-white rounded-2xl lg:rounded-3xl border border-slate-100 shadow-sm p-3 transition-colors sm:p-4 lg:p-6"
         >
           <router-view v-slot="{ Component, route: viewRoute }">
-            <KeepAlive :max="18">
-              <CachedRoutePage :component="Component" :route="viewRoute" :key="viewRoute.path" />
-            </KeepAlive>
+            <ModuleRouteCache :component="Component" :route="viewRoute" />
           </router-view>
         </div>
       </main>
@@ -353,7 +351,10 @@ import { isXelltekkAdmin as userIsXelltekkAdmin } from '@/utils/platformAccess'
 import { activeBusinessModules, businessPermission, businessSections } from '@/utils/businessModules'
 import { canUseSubscriberPortal, subscriberSections } from '@/utils/subscriberPortal'
 
-import CachedRoutePage from '@/components/CachedRoutePage.vue'
+import ModuleRouteCache from '@/module-system/ModuleRouteCache.vue'
+import { projectDeclaredMenus, manifestManagedModuleKeys } from '@/module-system/menuRegistry.mjs'
+import { useModulesStore } from '@/stores/modules'
+import { mayManageModules, moduleSessionIdentity, moduleAvailabilitySignature } from '@/module-system/modulePolicy.mjs'
 import ToastContainer from '@/components/ToastContainer.vue'
 import NotificationsBell from '@/components/NotificationsBell.vue'
 import CommandPalette from '@/components/CommandPalette.vue'
@@ -399,6 +400,7 @@ const route = useRoute()
 const router = useRouter()
 
 const auth = useAuthStore()
+const modules = useModulesStore()
 const dock = useWindowDock()
 
 const sidebarOpen = ref(true)
@@ -431,6 +433,7 @@ const openMenuGroups = ref({
   comptabilite: false,
   rh: false,
   administration: false,
+  configuration: false,
 })
 
 const isMac = computed(() => {
@@ -441,6 +444,7 @@ const isMac = computed(() => {
 const minimizedWindows = computed(() => dock.windows.value)
 
 const tousLesMenus = [
+  { to: '/configuration/modules', label: 'Modules', icon: Settings, roles: ['admin'], moduleAdministration: true },
   ...activeBusinessModules.map(([key, label]) => ({ to: `/metier/${key}`, label, icon: FileText, roles: [], permission: `${key}.view`, businessKey: key })),
   ...subscriberSections.map(([key, label]) => ({ to: `/espace-client/${key}`, label, icon: BookOpen, roles: ['admin', 'gerant'], subscriberOnly: true })),
   {
@@ -705,13 +709,20 @@ const menuItems = computed(() => {
   const role = roleForAccess(auth.user)
   if (!role) return []
 
-  return tousLesMenus.filter(canAccessMenuItem)
+  // Les manifestes ajoutent seulement des entrées connues ; les parcours historiques restent prioritaires.
+  const managed = new Set(manifestManagedModuleKeys(modules.context))
+  const historical = tousLesMenus.filter(item => !managed.has(item.businessKey))
+  const historicalPaths = new Set(historical.map(item => item.to))
+  const declared = projectDeclaredMenus(modules.context?.declared_menus).filter(item => !historicalPaths.has(item.to))
+  return [...historical, ...declared].filter(canAccessMenuItem)
 })
 
 function canAccessMenuItem(item) {
   const role = roleForAccess(auth.user)
   const directRole = auth.user?.role
   if (!role) return false
+  if (item.moduleAdministration) return mayManageModules(auth.user)
+  if (!modules.allowsPath(item.to)) return false
   if (item.subscriberOnly) return canUseSubscriberPortal(auth.user)
   if (item.xelltekkOnly && !isXelltekkAdmin()) return false
   if (item.tenantOnly && (!auth.user?.tenant || auth.user.tenant.is_platform)) return false
@@ -883,9 +894,12 @@ const menuGroupDefinitions = [
     key: 'administration',
     label: 'Administration',
     icon: Settings,
-    items: ['/leasing', '/utilisateurs', '/roles-permissions', '/licence', '/xelltekk-admin', '/securite', '/parametres', '/demarrage', '/importation']
+    items: ['/leasing', '/utilisateurs', '/roles-permissions', '/licence', '/xelltekk-admin', '/securite', '/demarrage', '/importation']
   },
 ]
+
+// Les réglages du noyau restent accessibles pour réactiver les rubriques métier.
+menuGroupDefinitions.push({ key: 'configuration', label: 'Configuration', icon: Settings, items: ['/parametres', '/configuration/modules'] })
 
 const groupedMenuItems = computed(() => {
   const visibleItems = menuItems.value
@@ -893,7 +907,7 @@ const groupedMenuItems = computed(() => {
   return menuGroupDefinitions
     .map(group => ({
       ...group,
-      items: group.items
+      items: [...new Set([...group.items, ...visibleItems.filter(item => item.moduleMenuGroup === group.key).map(item => item.to)])]
         .map(to => visibleItems.find(item => item.to === to))
         .filter(Boolean)
     }))
@@ -945,7 +959,7 @@ function toggleMenuGroup(key) {
 }
 
 const pageTitle = computed(() => {
-  return menuItems.value.find(item => isActive(item.to)).label || 'Saytu Liggéey'
+  return menuItems.value.find(item => isActive(item.to))?.label || (route.name === 'module-unavailable' ? 'Rubrique indisponible' : 'Saytu Liggéey')
 })
 
 const userInitials = computed(() => {
@@ -1088,7 +1102,14 @@ function handleCurrencyChanged() {
   syncAmountTableNotes(document)
 }
 
+// Ferme les fenêtres d'un module devenu indisponible sans ouvrir une route bloquée.
+function discardUnavailableWindow(windowItem) {
+  window.dispatchEvent(new CustomEvent('app-modal:close', { detail: { id: windowItem.id } }))
+  dock.unregister(windowItem.id)
+}
+
 async function restoreMinimizedWindow(windowItem) {
+  if (windowItem.route && !modules.allowsPath(windowItem.route)) { discardUnavailableWindow(windowItem); return }
   if (windowItem.route && route.fullPath !== windowItem.route) {
     await router.push(windowItem.route)
     await nextTick()
@@ -1125,7 +1146,59 @@ function stopAmountTableObserver() {
   document.removeEventListener('change', handleCurrencyChanged, true)
 }
 
+// Une panne temporaire laisse les droits en attente jusqu'au prochain signal contrôlé.
+let pendingModuleGrantRefresh = false
+let moduleGrantRefreshRunning = false
+let moduleGrantRefreshSequence = 0
+let lastModuleGrantRetryAt = 0
+let moduleGrantRefreshAlive = true
+
+// Réessaie sans requêtes concurrentes et espace les reprises après plusieurs échecs.
+async function refreshModuleGrants(retry = false) {
+  if (!pendingModuleGrantRefresh || moduleGrantRefreshRunning || !moduleGrantRefreshAlive
+    || !auth.isAuthenticated || !route.meta.requiresAuth || route.meta.guest) return
+  if (retry && Date.now() - lastModuleGrantRetryAt < 5000) return
+  if (retry) lastModuleGrantRetryAt = Date.now()
+  const sequence = moduleGrantRefreshSequence
+  moduleGrantRefreshRunning = true
+  try {
+    await auth.fetchMe({ preserveSessionOnTransientError: true })
+    if (moduleGrantRefreshAlive && sequence === moduleGrantRefreshSequence) pendingModuleGrantRefresh = false
+  } catch (error) {
+    // Les 401/403 suivent le traitement de session existant ; seules les pannes temporaires sont reprises.
+    const status = error.response?.status
+    if (status && status !== 429 && status < 500) pendingModuleGrantRefresh = false
+  } finally { moduleGrantRefreshRunning = false }
+}
+
+// Le retour sur la fenêtre est un signal de reprise, jamais une boucle de tentatives immédiates.
+function retryPendingModuleGrants() { if (pendingModuleGrantRefresh) void refreshModuleGrants(true) }
+watch(() => modules.checkedAt, () => { if (!modules.error) retryPendingModuleGrants() })
+
+// Réagit aussi lorsque la désactivation provient d'une autre session administrateur.
+watch(() => [modules.tenantId, modules.revision, moduleAvailabilitySignature(modules.context)], (current, previous) => {
+  for (const item of [...dock.windows.value]) {
+    if (item.route && !modules.allowsPath(item.route)) discardUnavailableWindow(item)
+  }
+  if (!modules.allowsPath(route.path)) void router.replace({ name: 'module-unavailable' })
+  // Le payload peut avoir masqué des droits dormants : recharge-les après une vraie révision.
+  if (previous && String(previous[0]) === String(current[0]) && (previous[1] !== current[1] || previous[2] !== current[2])) {
+    moduleGrantRefreshSequence++
+    pendingModuleGrantRefresh = true
+    lastModuleGrantRetryAt = 0
+    void refreshModuleGrants()
+  }
+}, { flush: 'post' })
+
+// Une nouvelle session utilise son propre contexte, sans conserver les écouteurs précédents.
+watch(() => moduleSessionIdentity(auth.user), identity => {
+  if (identity) { modules.startSynchronization({ isActive: () => auth.isAuthenticated && !!route.meta.requiresAuth && !route.meta.guest }); void modules.fetchContext({ force: true }) }
+  else modules.stopSynchronization()
+})
+
 onMounted(() => {
+  window.addEventListener('focus', retryPendingModuleGrants)
+  modules.startSynchronization({ isActive: () => auth.isAuthenticated && !!route.meta.requiresAuth && !route.meta.guest })
   applyTheme()
   loadCompanyIdentity()
   syncFullscreenState()
@@ -1141,6 +1214,10 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  moduleGrantRefreshAlive = false
+  pendingModuleGrantRefresh = false
+  window.removeEventListener('focus', retryPendingModuleGrants)
+  modules.stopSynchronization()
   window.removeEventListener('resize', handleResize)
   document.removeEventListener('fullscreenchange', syncFullscreenState)
   document.removeEventListener('keydown', handleGlobalKeydown)
